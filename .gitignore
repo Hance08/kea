@@ -1,0 +1,52 @@
+# Binaries for programs and plugins
+/kea
+*.exe
+*.exe~
+*.out
+*.test
+
+# Build directories
+/bin/
+/obj/
+/build/
+
+# Vendor (if you vendor dependencies)
+/vendor/
+
+# OS files
+.DS_Store
+
+# IDE / editor folders
+.vscode/
+.idea/
+*.iml
+
+# Environment variables / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+*-journal
+
+# Logs
+*.log
+logs/
+
+# Test and coverage
+coverage.out
+
+# Go specific
+*.so
+*.dylib
+_output/
+
+# Ignore local config or secrets files (uncomment if present)
+# secrets.json
+# config/local.yml

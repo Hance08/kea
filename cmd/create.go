@@ -232,7 +232,7 @@ command : kea account create -t A -n Bank -b 100000`,
 			return nil
 		}
 
-		newAccount, err := logic.CreateAccount(finalName, finalType, finalCurrency, "", parentID)
+		newAccount, err := logic.CreateAccount(finalName, finalType, finalCurrency, accDesc, parentID)
 		if err != nil {
 			return fmt.Errorf("failed to create account: %w", err)
 		}

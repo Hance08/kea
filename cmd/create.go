@@ -1,6 +1,8 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
+// TODO: upgrade enter parent account using experience
+// TODO: add back to previous step command
 package cmd
 
 import (
@@ -70,16 +72,10 @@ command : kea account create -t A -n Bank -b 100000`,
 
 				finalName = accParent + ":" + accName
 				finalType = parentAccount.Type
-
-				if accCurrency != "" {
-					finalCurrency = accCurrency
-				} else {
-					finalCurrency = parentAccount.Currency
-				}
-
+				finalCurrency = parentAccount.Currency
 				parentID = &parentAccount.ID
+
 			} else {
-				fmt.Printf("converting the type '%s'...\n", accType)
 				rootName, err := logic.GetRootNameByType(accType)
 				if err != nil {
 					return err

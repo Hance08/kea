@@ -177,55 +177,67 @@ command : kea account create -t A -n Bank -b 100000`,
 			}
 
 			// step 3: enter account name
-			fmt.Print("[3/5] Account Name (e.g. 'Bank'): ")
+			fmt.Print("Account Name: ")
 			scanner.Scan()
 			accName = strings.TrimSpace(scanner.Text())
-
-			if accName == "" {
-				return fmt.Errorf("account name can't be empty")
+			if err := checkAccountName(); err != nil {
+				return err
 			}
 
 			finalName = rootName + ":" + accName
 			finalType = accType
-			finalCurrency = defaultCurrency
 		default:
 			return fmt.Errorf("please enter y(yes) or n(no)")
 		}
 
 		// step 4: currency setting
-		fmt.Printf("[4/5] Currency (press Enter for default: %s): ", finalCurrency)
-		scanner.Scan()
-		accCurrency = strings.ToUpper(strings.TrimSpace(scanner.Text()))
-		if accCurrency != "" {
-			finalCurrency = accCurrency
+		if finalCurrency == "" {
+			defaultCurrency := viper.GetString("defaults.currency")
+			fmt.Printf("Currency (press Enter for default: %s): ", defaultCurrency)
+			scanner.Scan()
+			accCurrency = strings.ToUpper(strings.TrimSpace(scanner.Text()))
+			if accCurrency != "" {
+				if err := checkCurrency(); err != nil {
+					return err
+				}
+				finalCurrency = accCurrency
+			} else {
+				finalCurrency = defaultCurrency
+			}
+		} else {
+			fmt.Printf("Currency (inherited from parent: %s, press Enter to keep or type to override): ", finalCurrency)
+			scanner.Scan()
+			accCurrency = strings.ToUpper(strings.TrimSpace(scanner.Text()))
+			if accCurrency != "" {
+				if err := checkCurrency(); err != nil {
+					return err
+				}
+				finalCurrency = accCurrency
+			}
 		}
 
 		// step 5: initial balance setting
-		fmt.Print("[5/5] Initial Balance (press Enter for 0): ")
-		scanner.Scan()
-		balanceInput := strings.TrimSpace(scanner.Text())
+		if finalType == "A" || finalType == "L" {
+			fmt.Print("Initial Balance (press Enter for 0): ")
+			scanner.Scan()
+			balanceInput = strings.TrimSpace(scanner.Text())
 
-		var amountInCents int64 = 0
-		if balanceInput != "" {
-			balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
-			if err != nil {
-				return fmt.Errorf("invalid balance amount: %w", err)
+			if balanceInput != "" {
+				balanceFloat, err := processBalance(balanceInput)
+				if err != nil {
+					return err
+				}
+				amountInCents = int64(balanceFloat * CentsPerUnit)
 			}
-			amountInCents = int64(balanceFloat * 100)
 		}
+
+		fmt.Print("Description (press enter to skip): ")
+		scanner.Scan()
+		accDesc = strings.TrimSpace(scanner.Text())
 
 		// print put full informtaion
-		fmt.Println("\n----------------------------------------")
 		fmt.Println("Confirm the following details:")
-		fmt.Printf("  Full Name : %s\n", finalName)
-		fmt.Printf("  Type      : %s\n", finalType)
-		fmt.Printf("  Currency  : %s\n", finalCurrency)
-		if amountInCents != 0 {
-			fmt.Printf("  Balance   : %.2f\n", float64(amountInCents)/100)
-		} else {
-			fmt.Printf("  Balance   : 0.00\n")
-		}
-		fmt.Println("----------------------------------------")
+		displayAccountSummary(finalName, finalType, finalCurrency, amountInCents, accDesc)
 		fmt.Print("Proceed? (y/n): ")
 		scanner.Scan()
 		confirm := strings.ToLower(strings.TrimSpace(scanner.Text()))

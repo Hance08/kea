@@ -51,6 +51,10 @@ command : kea account create -t A -n Bank -b 100000`,
 
 		// Flag mode
 		if hasFlags {
+			if err := checkAccountName(); err != nil {
+				return err
+			}
+
 			if accParent == "" && accType == "" {
 				return fmt.Errorf("must enter at least one of --type or --parent flag")
 			}
@@ -85,16 +89,15 @@ command : kea account create -t A -n Bank -b 100000`,
 				finalType = accType
 
 				if accCurrency != "" {
+					if err := checkCurrency(); err != nil {
+						return err
+					}
+
 					finalCurrency = accCurrency
 				} else {
 					finalCurrency = viper.GetString("defaults.currency")
 				}
 			}
-
-			fmt.Printf("prepare for creating account in database :\n")
-			fmt.Printf("  Name     : %s\n", finalName)
-			fmt.Printf("  Type     : %s\n", finalType)
-			fmt.Printf("  Currency : %s\n", finalCurrency)
 
 			newAccount, err := logic.CreateAccount(finalName, finalType, finalCurrency, accDesc, parentID)
 			if err != nil {
@@ -102,9 +105,11 @@ command : kea account create -t A -n Bank -b 100000`,
 			}
 
 			if accBalance != 0 {
+				if accBalance < 0 {
+					return fmt.Errorf("initial balance can't be negative")
+				}
 				balanceFloat := float64(accBalance)
-				amountInCents := int64(math.Round(balanceFloat * 100))
-				fmt.Printf("setting balance : %s (%d cents)...\n", finalName, amountInCents)
+				amountInCents = int64(math.Round(balanceFloat * CentsPerUnit))
 
 				err = logic.SetBalance(newAccount, amountInCents)
 				if err != nil {
@@ -112,28 +117,24 @@ command : kea account create -t A -n Bank -b 100000`,
 				}
 			}
 
-			fmt.Println("----------------------------------------")
-			fmt.Println("Account is created successfully !")
+			displayAccountSummary(finalName, finalType, finalCurrency, amountInCents, accDesc)
+			displaySuccessInformation(newAccount.ID, finalName)
 			return nil
 		}
 
 		// Interaaction mode
-
-		fmt.Println("\n Creating a new account")
+		fmt.Println("\nCreating a new account")
 		fmt.Println("----------------------------------------")
 
 		// step 1: check if is subaccount
-		fmt.Print("\n[1/5] Is this a subaccount? (y/n): ")
+		fmt.Print("Is this a subaccount? (y/n): ")
 		scanner.Scan()
 		isSubAccount := strings.ToLower(strings.TrimSpace(scanner.Text()))
-
-		var finalName, finalType, finalCurrency string
-		var parentID *int64
 
 		switch isSubAccount {
 		case "y", "yes":
 			// step 2a: enter parent account name
-			fmt.Print("[2/5] Parent account name (e.g. 'Assets:Bank'): ")
+			fmt.Print("Parent account FULL name: ")
 			scanner.Scan()
 			accParent = strings.TrimSpace(scanner.Text())
 
@@ -147,24 +148,26 @@ command : kea account create -t A -n Bank -b 100000`,
 			}
 
 			// step 3: enter account name
-			fmt.Print("[3/5] Account Name (e.g. 'Savings'): ")
+			fmt.Print("Account Name (e.g. 'Savings'): ")
 			scanner.Scan()
 			accName = strings.TrimSpace(scanner.Text())
-
-			if accName == "" {
-				return fmt.Errorf("account name can't be empty")
+			if err := checkAccountName(); err != nil {
+				return err
 			}
 
 			finalName = accParent + ":" + accName
 			finalType = parentAccount.Type
 			finalCurrency = parentAccount.Currency
 			parentID = &parentAccount.ID
+
 		case "n", "no":
 			// step 2b: enter account type
-			fmt.Print("[2/5] Account type\n")
-			fmt.Print("      A = Assets    L = Liabilities    C = Equity\n")
-			fmt.Print("      R = Revenue   E = Expenses\n")
-			fmt.Print("      Choice: ")
+			fmt.Print("\nAccount type\n")
+			fmt.Println("----------------------------------------")
+			fmt.Print("A = Assets    L = Liabilities    C = Equity\n")
+			fmt.Print("R = Revenue   E = Expenses\n")
+			fmt.Println("----------------------------------------")
+			fmt.Print("Choice: ")
 			scanner.Scan()
 			accType = strings.ToUpper(strings.TrimSpace(scanner.Text()))
 
@@ -244,8 +247,7 @@ command : kea account create -t A -n Bank -b 100000`,
 			}
 		}
 
-		fmt.Println("----------------------------------------")
-		fmt.Println("Account is created successfully !")
+		displaySuccessInformation(newAccount.ID, finalName)
 		return nil
 	},
 }

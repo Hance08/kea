@@ -22,13 +22,12 @@ const (
 )
 
 var (
-	accName      string
-	accParent    string
-	accType      string
-	accBalance   int
-	accDesc      string
-	accCurrency  string
-	balanceInput string
+	accName     string
+	accParent   string
+	accType     string
+	accBalance  int
+	accDesc     string
+	accCurrency string
 )
 
 var createCmd = &cobra.Command{
@@ -216,7 +215,7 @@ command : kea account create -t A -n Bank -b 100000`,
 		if finalType == "A" || finalType == "L" {
 			fmt.Print("Initial Balance (press Enter for 0): ")
 			scanner.Scan()
-			balanceInput = strings.TrimSpace(scanner.Text())
+			balanceInput := strings.TrimSpace(scanner.Text())
 
 			if balanceInput != "" {
 				balanceFloat, err := processBalance(balanceInput)

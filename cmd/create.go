@@ -15,16 +15,20 @@ import (
 	"github.com/spf13/viper"
 )
 
-var (
-	accName     string
-	accParent   string
-	accType     string
-	accBalance  int
-	accDesc     string
-	accCurrency string
+const (
+	CentsPerUnit = 100
 )
 
-// createCmd represents the create command
+var (
+	accName      string
+	accParent    string
+	accType      string
+	accBalance   int
+	accDesc      string
+	accCurrency  string
+	balanceInput string
+)
+
 var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new account.",
@@ -254,4 +258,83 @@ func init() {
 	createCmd.Flags().StringVarP(&accType, "type", "t", "", "Account Type (A,L,C,R,E) (Only use with top level accounts)")
 	createCmd.Flags().IntVarP(&accBalance, "balance", "b", 0, "Setting Balance (e.g. 5000 or 5000.00)")
 	createCmd.Flags().StringVar(&accCurrency, "currency", "", "Currency Code (e.g. TWD, USD, EUR). If not specified, use parent's currency or default from config")
+	createCmd.Flags().StringVarP(&accDesc, "description", "d", "", "Account description")
+}
+
+func checkAccountName() error {
+	if accName == "" {
+		return fmt.Errorf("account name can't be empty")
+	}
+
+	if strings.Contains(accName, ":") {
+		return fmt.Errorf("account name cannot contain ':' character")
+	}
+
+	reservedNames := []string{"Assets", "Liabilities", "Equity", "Revenue", "Expenses"}
+	for _, reserved := range reservedNames {
+		if accName == reserved {
+			return fmt.Errorf("'%s' is a reserved root account name", accName)
+		}
+	}
+
+	if len(accName) > 100 {
+		return fmt.Errorf("account name too long (max 100 characters)")
+	}
+	return nil
+}
+
+func processBalance(balanceInput string) (float64, error) {
+	balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid input of Initial Balance")
+	}
+
+	if balanceFloat < 0 {
+		return 0, fmt.Errorf("initial balance can't be negative")
+	}
+
+	if balanceFloat > 9223372036854775 {
+		return 0, fmt.Errorf("balance amount too large")
+	}
+	return balanceFloat, nil
+}
+
+func checkCurrency() error {
+	if accCurrency != "" {
+		if len(accCurrency) != 3 {
+			return fmt.Errorf("currency code must be 3 characters (e.g. USD)")
+		}
+
+		for _, c := range accCurrency {
+			if c < 'A' || c > 'Z' {
+				return fmt.Errorf("currency code must contain only letters")
+			}
+		}
+	}
+	return nil
+}
+
+func displayAccountSummary(finalName, finalType, finalCurrency string, amountInCents int64, description string) {
+	fmt.Println("----------------------------------------")
+	fmt.Printf("  Full Name   : %s\n", finalName)
+	fmt.Printf("  Type        : %s\n", finalType)
+	fmt.Printf("  Currency    : %s\n", finalCurrency)
+	if amountInCents != 0 {
+		fmt.Printf("  Balance     : %.2f\n", float64(amountInCents)/100)
+	}
+	if description != "" {
+		fmt.Printf("  Description : %s\n", description)
+	}
+	fmt.Println("----------------------------------------")
+}
+
+func displaySuccessInformation(newAccountID int64, finalName string) {
+	fmt.Println("----------------------------------------")
+	fmt.Println("✓ Account created successfully!")
+	fmt.Printf("  Account ID  : %d\n", newAccountID)
+	fmt.Printf("  Full Name   : %s\n", finalName)
+	fmt.Println("\nNext steps:")
+	fmt.Println("  • View all accounts: kea account list")
+	fmt.Println("  • Add a transaction: kea add")
+	fmt.Println("----------------------------------------")
 }

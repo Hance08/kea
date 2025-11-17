@@ -35,6 +35,10 @@ command : kea account create -t A -n Bank -b 100000`,
 	SilenceUsage: true,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var finalName, finalType, finalCurrency string
+		var parentID *int64
+		var amountInCents int64 = 0
+
 		scanner := bufio.NewScanner(os.Stdin)
 
 		hasFlags := cmd.Flags().Changed("name") ||
@@ -50,11 +54,7 @@ command : kea account create -t A -n Bank -b 100000`,
 				return fmt.Errorf("--type and --parent flags can not use as the sametime")
 			}
 
-			var finalName, finalType, finalCurrency string
-			var parentID *int64
-
 			if accParent != "" {
-				fmt.Printf("verifying the parent account '%s'...\n", accParent)
 				parentAccount, err := logic.GetAccountByName(accParent)
 				if err != nil {
 					return err

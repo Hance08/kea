@@ -35,8 +35,11 @@ var createCmd = &cobra.Command{
 	Short: "Create a new account.",
 	Long: `In the beginning of using this tool, you need to create new accounts.
 You must create type A (Asset), L(Liabilities), E(Expenses), R(Revenue)
-four basic accounts, e.g. create an Asset account called Bank,
-command : kea account create -t A -n Bank -b 100000`,
+four basic accounts, e.g. create an Asset account called Bank.
+
+Advanced users can also create Equity (C) accounts.
+
+Example: kea account create -t A -n Bank -b 100000`,
 	SilenceUsage: true,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -159,8 +162,9 @@ command : kea account create -t A -n Bank -b 100000`,
 			// step 2b: enter account type
 			fmt.Print("\nAccount type\n")
 			fmt.Println("----------------------------------------")
-			fmt.Print("A = Assets    L = Liabilities    C = Equity\n")
-			fmt.Print("R = Revenue   E = Expenses\n")
+			fmt.Println("  A = Assets       L = Liabilities")
+			fmt.Println("  R = Revenue      E = Expenses")
+			fmt.Println("  (Advanced: C = Equity)")
 			fmt.Println("----------------------------------------")
 			fmt.Print("Choice: ")
 			scanner.Scan()
@@ -262,11 +266,11 @@ command : kea account create -t A -n Bank -b 100000`,
 func init() {
 	accountCmd.AddCommand(createCmd)
 
-	createCmd.Flags().StringVarP(&accName, "name", "n", "", "Account Name (e.g. 'Wallet' or 'Bank')")
-	createCmd.Flags().StringVarP(&accParent, "parent", "p", "", "Parent Full Name (e.g. 'Assets:Bank')")
-	createCmd.Flags().StringVarP(&accType, "type", "t", "", "Account Type (A,L,C,R,E) (Only use with top level accounts)")
-	createCmd.Flags().IntVarP(&accBalance, "balance", "b", 0, "Setting Balance (e.g. 5000 or 5000.00)")
-	createCmd.Flags().StringVar(&accCurrency, "currency", "", "Currency Code (e.g. TWD, USD, EUR). If not specified, use parent's currency or default from config")
+	createCmd.Flags().StringVarP(&accName, "name", "n", "", "Account Name")
+	createCmd.Flags().StringVarP(&accParent, "parent", "p", "", "Parent FULL NAME)")
+	createCmd.Flags().StringVarP(&accType, "type", "t", "", "Account Type (A,L,R,E) (Only use with top level accounts)")
+	createCmd.Flags().IntVarP(&accBalance, "balance", "b", 0, "Setting Balance (Integer)")
+	createCmd.Flags().StringVar(&accCurrency, "currency", "", "Currency Code (If not specified, it will use parent's currency or default from config)")
 	createCmd.Flags().StringVarP(&accDesc, "description", "d", "", "Account description")
 }
 

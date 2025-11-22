@@ -17,27 +17,6 @@ func NewLogic(s *store.Store) *AccountingLogic {
 	return &AccountingLogic{store: s}
 }
 
-func (al *AccountingLogic) GetRootNameByType(accType string) (string, error) {
-	switch strings.ToUpper(accType) {
-	case "A":
-		return "Assets", nil
-	case "L":
-		return "Liabilities", nil
-	case "E":
-		return "Expenses", nil
-	case "R":
-		return "Revenue", nil
-	case "C":
-		return "Equity", nil
-	default:
-		return "", fmt.Errorf("invalid account type '%s' (must be A, L, C, R, E)", accType)
-	}
-}
-
-func (al *AccountingLogic) GetAccountByName(name string) (*store.Account, error) {
-	return al.store.GetAccountByName(name)
-}
-
 func (al *AccountingLogic) CreateAccount(name, accType, currency, description string, parentID *int64) (*store.Account, error) {
 	newID, err := al.store.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
@@ -53,6 +32,49 @@ func (al *AccountingLogic) CreateAccount(name, accType, currency, description st
 		ParentID:    parentID,
 		IsHidden:    false,
 	}, nil
+}
+
+func (al *AccountingLogic) GetAllAccounts() ([]*store.Account, error) {
+	return al.store.GetAllAccounts()
+}
+
+func (al *AccountingLogic) GetAccountByName(name string) (*store.Account, error) {
+	return al.store.GetAccountByName(name)
+}
+
+func (al *AccountingLogic) CheckAccountExists(name string) (bool, error) {
+	return al.store.AccountExists(name)
+}
+
+func (al *AccountingLogic) GetAccountsByType(accType string) ([]*store.Account, error) {
+	return al.store.GetAccountsByType(accType)
+}
+
+func (al *AccountingLogic) GetAccountBalanceFormatted(accountID int64) (string, error) {
+	balance, err := al.store.GetAccountBalance(accountID)
+	if err != nil {
+		return "", err
+	}
+
+	balanceFloat := float64(balance) / 100
+	return fmt.Sprintf("%.2f", balanceFloat), nil
+}
+
+func (al *AccountingLogic) GetRootNameByType(accType string) (string, error) {
+	switch strings.ToUpper(accType) {
+	case "A":
+		return "Assets", nil
+	case "L":
+		return "Liabilities", nil
+	case "E":
+		return "Expenses", nil
+	case "R":
+		return "Revenue", nil
+	case "C":
+		return "Equity", nil
+	default:
+		return "", fmt.Errorf("invalid account type '%s' (must be A, L, C, R, E)", accType)
+	}
 }
 
 func (al *AccountingLogic) SetBalance(account *store.Account, amountInCents int64) error {
@@ -101,22 +123,4 @@ func (al *AccountingLogic) SetBalance(account *store.Account, amountInCents int6
 	}
 
 	return al.store.CreateTransactionWithSplits(tx, splits)
-}
-
-func (al *AccountingLogic) ListAllAccounts() ([]*store.Account, error) {
-	return al.store.GetAllAccounts()
-}
-
-func (al *AccountingLogic) ListAccountsByType(accType string) ([]*store.Account, error) {
-	return al.store.GetAccountsByType(accType)
-}
-
-func (al *AccountingLogic) GetAccountBalanceFormatted(accountID int64) (string, error) {
-	balance, err := al.store.GetAccountBalance(accountID)
-	if err != nil {
-		return "", err
-	}
-
-	balanceFloat := float64(balance) / 100
-	return fmt.Sprintf("%.2f", balanceFloat), nil
 }

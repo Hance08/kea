@@ -133,7 +133,7 @@ Example: kea account create -t A -n Bank -b 100000`,
 		switch isSubAccount {
 		case "y", "yes":
 			// step 2a: enter parent account name
-			allAccounts, err := logic.ListAllAccounts()
+			allAccounts, err := logic.GetAllAccounts()
 			if err != nil {
 				return fmt.Errorf("failed to retrieve accounts: %w", err)
 			}

@@ -26,9 +26,9 @@ var listCmd = &cobra.Command{
 		var err error
 
 		if listType != "" {
-			accounts, err = logic.ListAccountsByType(listType)
+			accounts, err = logic.GetAccountsByType(listType)
 		} else {
-			accounts, err = logic.ListAllAccounts()
+			accounts, err = logic.GetAllAccounts()
 		}
 
 		if err != nil {

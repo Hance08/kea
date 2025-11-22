@@ -132,52 +132,16 @@ Example: kea account create -t A -n Bank -b 100000`,
 
 		switch isSubAccount {
 		case "y", "yes":
-			// step 2a: enter parent account name
-			allAccounts, err := logic.GetAllAccounts()
+			// step 2a: select parent account
+			parentAccount, err := selectParentAccount()
 			if err != nil {
-				return fmt.Errorf("failed to retrieve accounts: %w", err)
+				return err
 			}
+			accParent = parentAccount.Name
 
-			var accountNames []string
-			for _, acc := range allAccounts {
-				accountNames = append(accountNames, acc.Name)
-			}
-
-			prompt := &survey.Input{
-				Message: "Parent account FULL NAME:",
-				Suggest: func(toComplete string) []string {
-					var filtered []string
-					for _, name := range accountNames {
-						if strings.Contains(strings.ToLower(name), strings.ToLower(toComplete)) {
-							filtered = append(filtered, name)
-						}
-					}
-					return filtered
-				},
-			}
-
-			err = survey.AskOne(prompt, &accParent, survey.WithIcons(func(icons *survey.IconSet) {
-				icons.Question.Text = "-"
-			}))
-			if err != nil {
-				return fmt.Errorf("input cancelled: %w", err)
-			}
-
-			if accParent == "" {
-				return fmt.Errorf("parent account name can't be empty")
-			}
-			// check parent account
-			parentAccount, err := logic.GetAccountByName(accParent)
-			if err != nil {
-				return fmt.Errorf("parent account not found: %w", err)
-			}
 			// step 3: enter account name
-			promptName := &survey.Input{
-				Message: "Account Name:",
-			}
-			err = survey.AskOne(promptName, &accName, survey.WithValidator(validateAccountName))
-			if err != nil {
-				return fmt.Errorf("input cancelled: %w", err)
+			if enterAccountName(accParent); err != nil {
+				return err
 			}
 
 			finalName = accParent + ":" + accName
@@ -186,16 +150,11 @@ Example: kea account create -t A -n Bank -b 100000`,
 			parentID = &parentAccount.ID
 
 		case "n", "no":
-			// step 2b: enter account type
-			fmt.Print("\nAccount type\n")
-			fmt.Println("----------------------------------------")
-			fmt.Println("  A = Assets       L = Liabilities")
-			fmt.Println("  R = Revenue      E = Expenses")
-			fmt.Println("  (Advanced: C = Equity)")
-			fmt.Println("----------------------------------------")
-			fmt.Print("Choice: ")
-			scanner.Scan()
-			accType = strings.ToUpper(strings.TrimSpace(scanner.Text()))
+			// step 2b: select account type
+			accType, err := selectType()
+			if err != nil {
+				return err
+			}
 
 			rootName, err := logic.GetRootNameByType(accType)
 			if err != nil {
@@ -203,12 +162,8 @@ Example: kea account create -t A -n Bank -b 100000`,
 			}
 
 			// step 3: enter account name
-			promptName := &survey.Input{
-				Message: "Account Name:",
-			}
-			err = survey.AskOne(promptName, &accName, survey.WithValidator(validateAccountName))
-			if err != nil {
-				return fmt.Errorf("input cancelled: %w", err)
+			if enterAccountName(rootName); err != nil {
+				return err
 			}
 
 			finalName = rootName + ":" + accName
@@ -220,73 +175,51 @@ Example: kea account create -t A -n Bank -b 100000`,
 		// step 4: currency setting
 		if finalCurrency == "" {
 			defaultCurrency := viper.GetString("defaults.currency")
-			fmt.Printf("Currency (press Enter for default: %s): ", defaultCurrency)
-			scanner.Scan()
-			accCurrency = strings.ToUpper(strings.TrimSpace(scanner.Text()))
-			if accCurrency != "" {
-				if err := checkCurrency(); err != nil {
-					return err
-				}
-				finalCurrency = accCurrency
-			} else {
-				finalCurrency = defaultCurrency
+			selectedCurrency, err := selectCurrency(defaultCurrency, false)
+			if err != nil {
+				return err
 			}
+
+			finalCurrency = selectedCurrency
 		} else {
-			fmt.Printf("Currency (inherited from parent: %s, press Enter to keep or type to override): ", finalCurrency)
-			scanner.Scan()
-			accCurrency = strings.ToUpper(strings.TrimSpace(scanner.Text()))
-			if accCurrency != "" {
-				if err := checkCurrency(); err != nil {
-					return err
-				}
-				finalCurrency = accCurrency
+			selectedCurrency, err := selectCurrency(finalCurrency, true)
+			if err != nil {
+				return err
 			}
+			finalCurrency = selectedCurrency
+
 		}
 
 		// step 5: initial balance setting
 		if finalType == "A" || finalType == "L" {
-			fmt.Print("Initial Balance (press Enter for 0): ")
-			scanner.Scan()
-			balanceInput := strings.TrimSpace(scanner.Text())
-
-			if balanceInput != "" {
-				balanceFloat, err := processBalance(balanceInput)
-				if err != nil {
-					return err
-				}
-				amountInCents = int64(balanceFloat * CentsPerUnit)
+			balance, err := setInitialBalance()
+			if err != nil {
+				return err
 			}
+			amountInCents = balance
 		}
 
-		fmt.Print("Description (press enter to skip): ")
-		scanner.Scan()
-		accDesc = strings.TrimSpace(scanner.Text())
+		// step 6: description setting
+		if err := setDescription(); err != nil {
+			return err
+		}
 
 		// print put full informtaion
 		fmt.Println("Confirm the following details:")
 		displayAccountSummary(finalName, finalType, finalCurrency, amountInCents, accDesc)
-		fmt.Print("Proceed? (y/n): ")
-		scanner.Scan()
-		confirm := strings.ToLower(strings.TrimSpace(scanner.Text()))
 
-		if confirm != "y" && confirm != "yes" {
-			fmt.Println("Account creation cancelled.")
-			return nil
+		// confirm proceed the creation
+		if err := confirmProceed(); err != nil {
+			return err
 		}
 
-		newAccount, err := logic.CreateAccount(finalName, finalType, finalCurrency, accDesc, parentID)
+		// create account
+		newAccount, err := createAccount(finalName, finalType, finalCurrency, accDesc, amountInCents, parentID)
 		if err != nil {
-			return fmt.Errorf("failed to create account: %w", err)
+			return err
 		}
-
-		if amountInCents != 0 {
-			err = logic.SetBalance(newAccount, amountInCents)
-			if err != nil {
-				return fmt.Errorf("failed to set balance: %w", err)
-			}
-		}
-
 		displaySuccessInformation(newAccount.ID, finalName)
+
 		return nil
 	},
 }
@@ -302,7 +235,264 @@ func init() {
 	createCmd.Flags().StringVarP(&accDesc, "description", "d", "", "Account description")
 }
 
-func validateAccountName(val interface{}) error {
+func selectType() (string, error) {
+	var selected string
+	promptSelect := &survey.Select{
+		Message: "Account Types:",
+		Options: []string{
+			"A - Assets",
+			"L - Liabilities",
+			"R - Revenue",
+			"E - Expenses",
+			"C - Equity (Advanced)",
+		},
+		Default: "A - Assets",
+	}
+
+	err := survey.AskOne(promptSelect, &selected, survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}))
+	if err != nil {
+		return "", fmt.Errorf("input cancelled: %w", err)
+	}
+	selectedType := strings.Split(selected, " ")[0]
+
+	return selectedType, nil
+}
+
+func selectParentAccount() (*store.Account, error) {
+	allAccounts, err := logic.GetAllAccounts()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
+	}
+
+	var accountNames []string
+	for _, acc := range allAccounts {
+		accountNames = append(accountNames, acc.Name)
+	}
+
+	prompt := &survey.Input{
+		Message: "Parent account FULL NAME:",
+		Suggest: func(toComplete string) []string {
+			var filtered []string
+			for _, name := range accountNames {
+				if strings.Contains(strings.ToLower(name), strings.ToLower(toComplete)) {
+					filtered = append(filtered, name)
+				}
+			}
+			return filtered
+		},
+	}
+
+	err = survey.AskOne(prompt, &accParent, survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("input cancelled: %w", err)
+	}
+
+	// check parent account
+	parentAccount, err := validateParentAccount(accParent)
+	if err != nil {
+		return nil, err
+	}
+	return parentAccount, nil
+}
+
+func enterAccountName(prefix string) error {
+	promptName := &survey.Input{
+		Message: "Account Name:",
+	}
+	err := survey.AskOne(promptName, &accName, survey.WithValidator(validateAccountNameWithPrefix(prefix)), survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}))
+	if err != nil {
+		return fmt.Errorf("input cancelled: %w", err)
+	}
+
+	return nil
+}
+
+func selectCurrency(defaultCurrency string, isInherited bool) (string, error) {
+	commonCurrencies := []string{
+		"USD - US Dollar",
+		"EUR - Euro",
+		"GBP - British Pound",
+		"JPY - Japanese Yen",
+		"CNY - Chinese Yuan",
+		"TWD - Taiwan Dollar",
+		"HKD - Hong Kong Dollar",
+		"SGD - Singapore Dollar",
+		"Other (Custom)",
+	}
+
+	// Find default option in the list
+	var defaultOption string
+	for _, curr := range commonCurrencies {
+		if strings.HasPrefix(curr, defaultCurrency) {
+			defaultOption = curr
+			break
+		}
+	}
+	// If not found in common currencies, use the first one
+	if defaultOption == "" {
+		defaultOption = commonCurrencies[0]
+	}
+
+	var message string
+	if isInherited {
+		message = fmt.Sprintf("Currency (inherited: %s):", defaultCurrency)
+	} else {
+		message = fmt.Sprintf("Currency (default: %s):", defaultCurrency)
+	}
+
+	var selected string
+	promptSelect := &survey.Select{
+		Message: message,
+		Options: commonCurrencies,
+		Default: defaultOption,
+	}
+
+	err := survey.AskOne(promptSelect, &selected, survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}))
+	if err != nil {
+		return "", fmt.Errorf("input cancelled: %w", err)
+	}
+
+	// If "Other (Custom)" is selected, ask for custom input
+	if selected == "Other (Custom)" {
+		var customCurrency string
+		promptInput := &survey.Input{
+			Message: "Enter currency code:",
+		}
+		err := survey.AskOne(promptInput, &customCurrency, survey.WithValidator(func(val interface{}) error {
+			curr := strings.TrimSpace(strings.ToUpper(val.(string)))
+			if curr == "" {
+				return fmt.Errorf("currency code can't be empty")
+			}
+			if len(curr) != 3 {
+				return fmt.Errorf("currency code must be 3 characters (e.g. USD)")
+			}
+			for _, c := range curr {
+				if c < 'A' || c > 'Z' {
+					return fmt.Errorf("currency code must contain only letters")
+				}
+			}
+			return nil
+		}), survey.WithIcons(func(icons *survey.IconSet) {
+			icons.Question.Text = "-"
+		}))
+		if err != nil {
+			return "", fmt.Errorf("input cancelled: %w", err)
+		}
+		return strings.ToUpper(strings.TrimSpace(customCurrency)), nil
+	}
+
+	// Extract currency code from selection (first 3 characters)
+	currencyCode := strings.Split(selected, " ")[0]
+	return currencyCode, nil
+}
+
+func setInitialBalance() (int64, error) {
+	var balanceInput string
+	promptBalance := &survey.Input{
+		Message: "Initial Balance (press Enter for 0):",
+		Default: "0",
+	}
+
+	err := survey.AskOne(promptBalance, &balanceInput, survey.WithValidator(func(val any) error {
+		input := strings.TrimSpace(val.(string))
+		if input == "" || input == "0" {
+			return nil
+		}
+
+		balanceFloat, err := strconv.ParseFloat(input, 64)
+		if err != nil {
+			return fmt.Errorf("invalid number format")
+		}
+
+		if balanceFloat < 0 {
+			return fmt.Errorf("initial balance can't be negative")
+		}
+
+		if balanceFloat > 9223372036854775 {
+			return fmt.Errorf("balance amount too large")
+		}
+
+		return nil
+	}), survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}))
+
+	if err != nil {
+		return 0, fmt.Errorf("input cancelled: %w", err)
+	}
+
+	balanceInput = strings.TrimSpace(balanceInput)
+	if balanceInput == "" || balanceInput == "0" {
+		return 0, nil
+	}
+
+	balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid input of Initial Balance")
+	}
+
+	amountInCents := int64(math.Round(balanceFloat * CentsPerUnit))
+	return amountInCents, nil
+}
+
+func setDescription() error {
+	promptDesc := &survey.Input{
+		Message: "Description (optional):",
+	}
+	err := survey.AskOne(promptDesc, &accDesc, survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}))
+	if err != nil {
+		return fmt.Errorf("input cancelled: %w", err)
+	}
+	return nil
+}
+
+func confirmProceed() error {
+	var confirm bool
+	promptConfirm := &survey.Confirm{
+		Message: "Proceed with account creation?",
+		Default: true,
+	}
+
+	err := survey.AskOne(promptConfirm, &confirm, survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}))
+	if err != nil {
+		return fmt.Errorf("input cancelled: %w", err)
+	}
+
+	if !confirm {
+		return fmt.Errorf("account creation cancelled")
+	}
+
+	return nil
+}
+
+func createAccount(name, _type, currency, desc string, amountInCents int64, parentID *int64) (*store.Account, error) {
+	newAccount, err := logic.CreateAccount(name, _type, currency, desc, parentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create account: %w", err)
+	}
+
+	if amountInCents != 0 {
+		err = logic.SetBalance(newAccount, amountInCents)
+		if err != nil {
+			return nil, fmt.Errorf("failed to set balance: %w", err)
+		}
+	}
+	return newAccount, nil
+}
+
+func validateAccountName(val any) error {
 	name, ok := val.(string)
 	if !ok {
 		return fmt.Errorf("account name must be a string")

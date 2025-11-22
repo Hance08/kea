@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/hance08/kea/internal/store"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -56,15 +57,16 @@ Example: kea account create -t A -n Bank -b 100000`,
 
 		// Flag mode
 		if hasFlags {
-			if err := validateAccountName(accName); err != nil {
-				return err
-			}
-
 			if accParent == "" && accType == "" {
 				return fmt.Errorf("must enter at least one of --type or --parent flag")
 			}
 			if accParent != "" && accType != "" {
 				return fmt.Errorf("--type and --parent flags can not use as the sametime")
+			}
+
+			// Validate account name first (before combining with parent/root)
+			if err := validateAccountName(accName); err != nil {
+				return err
 			}
 
 			if accParent != "" {
@@ -96,6 +98,10 @@ Example: kea account create -t A -n Bank -b 100000`,
 				} else {
 					finalCurrency = viper.GetString("defaults.currency")
 				}
+			}
+
+			if err := validateAccountName(finalName); err != nil {
+				return err
 			}
 
 			newAccount, err := logic.CreateAccount(finalName, finalType, finalCurrency, accDesc, parentID)
@@ -504,6 +510,14 @@ func validateAccountName(val any) error {
 		return fmt.Errorf("account name can't be empty")
 	}
 
+	isExisted, err := logic.CheckAccountExists(name)
+	if err != nil {
+		return fmt.Errorf("failed to check account existence: %w", err)
+	}
+	if isExisted {
+		return fmt.Errorf("account name %s is already existeddddd", name)
+	}
+
 	if strings.Contains(name, ":") {
 		return fmt.Errorf("account name cannot contain ':' character")
 	}
@@ -521,20 +535,38 @@ func validateAccountName(val any) error {
 	return nil
 }
 
-func processBalance(balanceInput string) (float64, error) {
-	balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
+func validateAccountNameWithPrefix(prefix string) func(any) error {
+	return func(val any) error {
+		partialName := val.(string)
+
+		if err := validateAccountName(partialName); err != nil {
+			return err
+		}
+
+		fullName := prefix + ":" + partialName
+		exists, err := logic.CheckAccountExists(fullName)
+		if err != nil {
+			return fmt.Errorf("failed to check account: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("account '%s' already exists", fullName)
+		}
+
+		return nil
+	}
+}
+
+func validateParentAccount(name string) (*store.Account, error) {
+	if name == "" {
+		return nil, fmt.Errorf("parent account name can't be empty")
+	}
+
+	parentAccount, err := logic.GetAccountByName(name)
 	if err != nil {
-		return 0, fmt.Errorf("invalid input of Initial Balance")
+		return nil, fmt.Errorf("parent account not found: %w", err)
 	}
 
-	if balanceFloat < 0 {
-		return 0, fmt.Errorf("initial balance can't be negative")
-	}
-
-	if balanceFloat > 9223372036854775 {
-		return 0, fmt.Errorf("balance amount too large")
-	}
-	return balanceFloat, nil
+	return parentAccount, nil
 }
 
 func checkCurrency() error {

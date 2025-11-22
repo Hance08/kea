@@ -162,8 +162,8 @@ func (s *Store) GetAccountByName(name string) (*Account, error) {
 
 func (s *Store) AccountExists(name string) (bool, error) {
 	var exists bool
-	err := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM accounts WHERE name = ?)", name)
-	if err != nil {
+	row := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM accounts WHERE name = ?)", name)
+	if err := row.Scan(&exists); err != nil {
 		return false, fmt.Errorf("failed to check account existence: %w", err)
 	}
 	return exists, nil

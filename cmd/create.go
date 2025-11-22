@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -55,7 +56,7 @@ Example: kea account create -t A -n Bank -b 100000`,
 
 		// Flag mode
 		if hasFlags {
-			if err := checkAccountName(); err != nil {
+			if err := validateAccountName(accName); err != nil {
 				return err
 			}
 
@@ -132,9 +133,35 @@ Example: kea account create -t A -n Bank -b 100000`,
 		switch isSubAccount {
 		case "y", "yes":
 			// step 2a: enter parent account name
-			fmt.Print("Parent account FULL name: ")
-			scanner.Scan()
-			accParent = strings.TrimSpace(scanner.Text())
+			allAccounts, err := logic.ListAllAccounts()
+			if err != nil {
+				return fmt.Errorf("failed to retrieve accounts: %w", err)
+			}
+
+			var accountNames []string
+			for _, acc := range allAccounts {
+				accountNames = append(accountNames, acc.Name)
+			}
+
+			prompt := &survey.Input{
+				Message: "Parent account FULL NAME:",
+				Suggest: func(toComplete string) []string {
+					var filtered []string
+					for _, name := range accountNames {
+						if strings.Contains(strings.ToLower(name), strings.ToLower(toComplete)) {
+							filtered = append(filtered, name)
+						}
+					}
+					return filtered
+				},
+			}
+
+			err = survey.AskOne(prompt, &accParent, survey.WithIcons(func(icons *survey.IconSet) {
+				icons.Question.Text = "-"
+			}))
+			if err != nil {
+				return fmt.Errorf("input cancelled: %w", err)
+			}
 
 			if accParent == "" {
 				return fmt.Errorf("parent account name can't be empty")
@@ -144,13 +171,13 @@ Example: kea account create -t A -n Bank -b 100000`,
 			if err != nil {
 				return fmt.Errorf("parent account not found: %w", err)
 			}
-
 			// step 3: enter account name
-			fmt.Print("Account Name (e.g. 'Savings'): ")
-			scanner.Scan()
-			accName = strings.TrimSpace(scanner.Text())
-			if err := checkAccountName(); err != nil {
-				return err
+			promptName := &survey.Input{
+				Message: "Account Name:",
+			}
+			err = survey.AskOne(promptName, &accName, survey.WithValidator(validateAccountName))
+			if err != nil {
+				return fmt.Errorf("input cancelled: %w", err)
 			}
 
 			finalName = accParent + ":" + accName
@@ -176,11 +203,12 @@ Example: kea account create -t A -n Bank -b 100000`,
 			}
 
 			// step 3: enter account name
-			fmt.Print("Account Name: ")
-			scanner.Scan()
-			accName = strings.TrimSpace(scanner.Text())
-			if err := checkAccountName(); err != nil {
-				return err
+			promptName := &survey.Input{
+				Message: "Account Name:",
+			}
+			err = survey.AskOne(promptName, &accName, survey.WithValidator(validateAccountName))
+			if err != nil {
+				return fmt.Errorf("input cancelled: %w", err)
 			}
 
 			finalName = rootName + ":" + accName
@@ -274,23 +302,30 @@ func init() {
 	createCmd.Flags().StringVarP(&accDesc, "description", "d", "", "Account description")
 }
 
-func checkAccountName() error {
-	if accName == "" {
+func validateAccountName(val interface{}) error {
+	name, ok := val.(string)
+	if !ok {
+		return fmt.Errorf("account name must be a string")
+	}
+
+	name = strings.TrimSpace(name)
+
+	if name == "" {
 		return fmt.Errorf("account name can't be empty")
 	}
 
-	if strings.Contains(accName, ":") {
+	if strings.Contains(name, ":") {
 		return fmt.Errorf("account name cannot contain ':' character")
 	}
 
 	reservedNames := []string{"Assets", "Liabilities", "Equity", "Revenue", "Expenses"}
 	for _, reserved := range reservedNames {
-		if accName == reserved {
-			return fmt.Errorf("'%s' is a reserved root account name", accName)
+		if strings.EqualFold(name, reserved) {
+			return fmt.Errorf("'%s' is a reserved root account name", name)
 		}
 	}
 
-	if len(accName) > 100 {
+	if len(name) > 100 {
 		return fmt.Errorf("account name too long (max 100 characters)")
 	}
 	return nil

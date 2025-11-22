@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp   INTEGER NOT NULL,              -- date of the transaction occurred (Unix timestamp)
     description TEXT,                          -- description
-    status      INTEGER NOT NULL DEFAULT 0,    -- 0=Pending, 1=Cleared
+    status      INTEGER NOT NULL DEFAULT 0     -- 0=Pending, 1=Cleared
 );
 
 -- create index for column "timestamp"

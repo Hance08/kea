@@ -153,6 +153,15 @@ func (s *Store) GetAccountByName(name string) (*Account, error) {
 	return acc, nil
 }
 
+func (s *Store) AccountExists(name string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM accounts WHERE name = ?)", name)
+	if err != nil {
+		return false, fmt.Errorf("failed to check account existence: %w", err)
+	}
+	return exists, nil
+}
+
 func (s *Store) GetAccountsByType(accType string) ([]*Account, error) {
 	rows, err := s.db.Query(`
 		SELECT id, name, type, parent_id, currency, description, is_hidden

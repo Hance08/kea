@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,7 @@ var (
 	dbStore         *store.Store
 	logic           *accounting.AccountingLogic
 	defaultCurrency string
+	migrationsFS    fs.FS
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -50,8 +52,6 @@ var rootCmd = &cobra.Command{
 
 		// fmt.Printf("Database path : %s\n", dbPath)
 
-		migrationsPath := "file://./migrations"
-
 		defaultCurrency = viper.GetString("defaults.currency")
 		if defaultCurrency == "" {
 			return fmt.Errorf("error : can't find 'defaults.currency' setting")
@@ -59,7 +59,7 @@ var rootCmd = &cobra.Command{
 
 		// 3. initialize Store
 		var err error
-		dbStore, err = store.NewStore(dbPath, migrationsPath)
+		dbStore, err = store.NewStore(dbPath, migrationsFS)
 		if err != nil {
 			return fmt.Errorf("failed to initialize database : %w", err)
 		}
@@ -81,7 +81,8 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func Execute() {
+func Execute(migrations fs.FS) {
+	migrationsFS = migrations
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)

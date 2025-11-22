@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -18,7 +19,7 @@ type Store struct {
 	db *sql.DB
 }
 
-func NewStore(dbPath string, migrationsPath string) (*Store, error) {
+func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		return nil, fmt.Errorf("can not create database directory %s: %w", dbDir, err)
@@ -31,7 +32,7 @@ func NewStore(dbPath string, migrationsPath string) (*Store, error) {
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("can not connect with database : %w", err)
 	}
-	if err := runMigrations(db, migrationsPath); err != nil {
+	if err := runMigrations(db, migrationsFS); err != nil {
 		return nil, fmt.Errorf("failed to migrate database : %w", err)
 	}
 	// fmt.Println("Successfully migrate database !")
@@ -43,14 +44,20 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func runMigrations(db *sql.DB, migrationsPath string) error {
+func runMigrations(db *sql.DB, migrationsFS fs.FS) error {
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to set up migrate driver : %w", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(
-		migrationsPath,
+	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create iofs source driver : %w", err)
+	}
+
+	m, err := migrate.NewWithInstance(
+		"iofs",
+		sourceDriver,
 		"sqlite3",
 		driver,
 	)

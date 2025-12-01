@@ -223,10 +223,10 @@ func (s *Store) GetAccountBalance(accountID int64) (int64, error) {
 	return 0, nil
 }
 
-func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) error {
+func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int64, error) {
 	dbTx, err := s.db.Begin()
 	if err != nil {
-		return fmt.Errorf("failed to start database : %w", err)
+		return 0, fmt.Errorf("failed to start database : %w", err)
 	}
 
 	defer dbTx.Rollback()
@@ -237,14 +237,14 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) erro
 		RETURNING id;
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to prepare transaction SQL : %w", err)
+		return 0, fmt.Errorf("failed to prepare transaction SQL : %w", err)
 	}
 	defer stmtTx.Close()
 
 	var newTxID int64
 	err = stmtTx.QueryRow(tx.Timestamp, tx.Description, tx.Status).Scan(&newTxID)
 	if err != nil {
-		return fmt.Errorf("failed to insert transaction : %w", err)
+		return 0, fmt.Errorf("failed to insert transaction : %w", err)
 	}
 
 	stmtSplit, err := dbTx.Prepare(`
@@ -252,16 +252,180 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) erro
 		VALUES (?, ?, ?, ?, ?);
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to prepare split SQL : %w", err)
+		return 0, fmt.Errorf("failed to prepare split SQL : %w", err)
 	}
 	defer stmtSplit.Close()
 
 	for _, split := range splits {
 		_, err := stmtSplit.Exec(newTxID, split.AccountID, split.Amount, split.Currency, split.Memo)
 		if err != nil {
-			return fmt.Errorf("failed to insert split : %w", err)
+			return 0, fmt.Errorf("failed to insert split : %w", err)
 		}
 	}
 
-	return dbTx.Commit()
+	if err := dbTx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return newTxID, nil
+}
+
+// GetTransactionByID retrieves a transaction and all its splits by transaction ID
+func (s *Store) GetTransactionByID(txID int64) (*Transaction, []*Split, error) {
+	// Query the transaction
+	var tx Transaction
+	err := s.db.QueryRow(`
+		SELECT id, timestamp, description, status
+		FROM transactions
+		WHERE id = ?
+	`, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, fmt.Errorf("transaction with ID %d not found", txID)
+		}
+		return nil, nil, fmt.Errorf("failed to query transaction: %w", err)
+	}
+
+	// Query all splits for this transaction
+	rows, err := s.db.Query(`
+		SELECT id, transaction_id, account_id, amount, currency, memo
+		FROM splits
+		WHERE transaction_id = ?
+		ORDER BY id
+	`, txID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to query splits: %w", err)
+	}
+	defer rows.Close()
+
+	var splits []*Split
+	for rows.Next() {
+		split := &Split{}
+		err := rows.Scan(
+			&split.ID,
+			&split.TransactionID,
+			&split.AccountID,
+			&split.Amount,
+			&split.Currency,
+			&split.Memo,
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to scan split: %w", err)
+		}
+		splits = append(splits, split)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("error iterating splits: %w", err)
+	}
+
+	return &tx, splits, nil
+}
+
+// GetTransactionsByAccount retrieves transactions that involve a specific account
+// Returns transactions ordered by timestamp (newest first)
+func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*Transaction, error) {
+	if limit <= 0 {
+		limit = 100 // Default limit
+	}
+
+	rows, err := s.db.Query(`
+		SELECT DISTINCT t.id, t.timestamp, t.description, t.status
+		FROM transactions t
+		INNER JOIN splits s ON t.id = s.transaction_id
+		WHERE s.account_id = ?
+		ORDER BY t.timestamp DESC, t.id DESC
+		LIMIT ?
+	`, accountID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var transactions []*Transaction
+	for rows.Next() {
+		tx := &Transaction{}
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+		transactions = append(transactions, tx)
+	}
+
+	return transactions, rows.Err()
+}
+
+// GetTransactionsByDateRange retrieves transactions within a time range
+// startTime and endTime are Unix timestamps
+func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transaction, error) {
+	rows, err := s.db.Query(`
+		SELECT id, timestamp, description, status
+		FROM transactions
+		WHERE timestamp >= ? AND timestamp <= ?
+		ORDER BY timestamp DESC, id DESC
+	`, startTime, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions by date range: %w", err)
+	}
+	defer rows.Close()
+
+	var transactions []*Transaction
+	for rows.Next() {
+		tx := &Transaction{}
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+		transactions = append(transactions, tx)
+	}
+
+	return transactions, rows.Err()
+}
+
+// UpdateTransactionStatus updates the status of a transaction
+// Status: 0=Pending, 1=Cleared
+func (s *Store) UpdateTransactionStatus(txID int64, status int) error {
+	result, err := s.db.Exec(`
+		UPDATE transactions
+		SET status = ?
+		WHERE id = ?
+	`, status, txID)
+	if err != nil {
+		return fmt.Errorf("failed to update transaction status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("transaction with ID %d not found", txID)
+	}
+
+	return nil
+}
+
+// DeleteTransaction deletes a transaction and all its associated splits
+// Due to ON DELETE CASCADE, splits will be automatically deleted
+func (s *Store) DeleteTransaction(txID int64) error {
+	result, err := s.db.Exec(`
+		DELETE FROM transactions
+		WHERE id = ?
+	`, txID)
+	if err != nil {
+		return fmt.Errorf("failed to delete transaction: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("transaction with ID %d not found", txID)
+	}
+
+	return nil
 }

@@ -100,8 +100,17 @@ Example: kea account create -t A -n Bank -b 100000`,
 				}
 			}
 
-			if err := validateAccountName(finalName); err != nil {
-				return err
+			// Validate final name (check existence and length, but allow colons)
+			if len(finalName) > 100 {
+				return fmt.Errorf("account name too long (max 100 characters)")
+			}
+
+			exists, err := logic.CheckAccountExists(finalName)
+			if err != nil {
+				return fmt.Errorf("failed to check account existence: %w", err)
+			}
+			if exists {
+				return fmt.Errorf("account '%s' already exists", finalName)
 			}
 
 			newAccount, err := logic.CreateAccount(finalName, finalType, finalCurrency, accDesc, parentID)

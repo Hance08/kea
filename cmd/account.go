@@ -82,35 +82,35 @@ func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
 }
 
 func displayAccountsList(accounts []*store.Account) {
-	headers := []string{"Name", "Type", "Currency", "Balance"}
+	headers := []string{"Name", "Type", "Balance"}
 
 	tableData := pterm.TableData{headers}
 
 	for _, acc := range accounts {
 		balance, _ := logic.GetAccountBalanceFormatted(acc.ID)
+		balanceWithCurrency := fmt.Sprintf("%s %s", balance, acc.Currency)
 
 		// Apply color based on account type
 		var coloredAccount, coloredType, coloredBalance string
 		switch acc.Type {
 		case "A", "R": // Assets, Revenue - Green (positive)
 			coloredType = pterm.Green(acc.Type)
-			coloredBalance = pterm.Green(balance)
+			coloredBalance = pterm.Green(balanceWithCurrency)
 			coloredAccount = pterm.Green(acc.Name)
 		case "L", "E": // Liabilities, Expenses - Red (caution)
 			coloredType = pterm.Red(acc.Type)
-			coloredBalance = pterm.Red(balance)
+			coloredBalance = pterm.Red(balanceWithCurrency)
 			coloredAccount = pterm.Red(acc.Name)
 		case "C": // Capital/Equity - Gray (system)
 			coloredType = pterm.Gray(acc.Type)
-			coloredBalance = pterm.Gray(balance)
+			coloredBalance = pterm.Gray(balanceWithCurrency)
 			coloredAccount = pterm.Gray(acc.Name)
 
 		default:
 			coloredType = acc.Type
 			coloredBalance = balance
 		}
-
-		row := []string{coloredAccount, coloredType, acc.Currency, coloredBalance}
+		row := []string{coloredAccount, coloredType, coloredBalance}
 		tableData = append(tableData, row)
 	}
 

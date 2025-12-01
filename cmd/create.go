@@ -73,7 +73,11 @@ Example: kea account create -t A -n Bank -b 100000`,
 
 				finalName = accParent + ":" + accName
 				finalType = parentAccount.Type
-				finalCurrency = parentAccount.Currency
+				if accCurrency != "" {
+					finalCurrency = accCurrency
+				} else {
+					finalCurrency = parentAccount.Currency
+				}
 				parentID = &parentAccount.ID
 
 			} else {

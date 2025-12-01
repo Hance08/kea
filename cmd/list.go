@@ -4,9 +4,8 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/hance08/kea/internal/store"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -69,20 +68,24 @@ func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
 }
 
 func displayAccountsList(accounts []*store.Account, showBalance bool) {
-	fmt.Println("Account List")
-	fmt.Println("--------------------------------------------------")
-	fmt.Printf("%-30s [%s] %s\n", "Name", "Type", "Currency")
-	fmt.Println("--------------------------------------------------")
-
-	for _, acc := range accounts {
-		fmt.Printf("%-30s [%s] %+6s\n", acc.Name, acc.Type, acc.Currency)
-
-		if showBalance {
-			balance, _ := logic.GetAccountBalanceFormatted(acc.ID)
-			fmt.Printf("  Balance: %s\n", balance)
-		}
-		fmt.Println("--------------------------------------------------")
+	headers := []string{"Name", "Type", "Currency"}
+	if showBalance {
+		headers = append(headers, "Balance")
 	}
 
-	fmt.Printf("Total: %d accounts\n", len(accounts))
+	tableData := pterm.TableData{headers}
+
+	for _, acc := range accounts {
+		row := []string{acc.Name, acc.Type, acc.Currency}
+		if showBalance {
+			balance, _ := logic.GetAccountBalanceFormatted(acc.ID)
+			row = append(row, balance)
+		}
+		tableData = append(tableData, row)
+	}
+
+	pterm.DefaultSection.Println("Account List")
+	pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+	pterm.Println()
+	pterm.Info.Printf("Total: %d accounts\n", len(accounts))
 }

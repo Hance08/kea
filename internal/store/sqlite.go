@@ -160,6 +160,33 @@ func (s *Store) GetAccountByName(name string) (*Account, error) {
 	return acc, nil
 }
 
+func (s *Store) GetAccountByID(id int64) (*Account, error) {
+	row := s.db.QueryRow("SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE id = ?", id)
+
+	acc := &Account{}
+
+	var parentID sql.NullInt64
+
+	err := row.Scan(
+		&acc.ID, &acc.Name, &acc.Type,
+		&parentID, &acc.Currency, &acc.Description,
+		&acc.IsHidden,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("account with ID %d not found", id)
+		}
+		return nil, fmt.Errorf("failed to query account with ID %d: %w", id, err)
+	}
+
+	if parentID.Valid {
+		acc.ParentID = &parentID.Int64
+	}
+
+	return acc, nil
+}
+
 func (s *Store) AccountExists(name string) (bool, error) {
 	var exists bool
 	row := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM accounts WHERE name = ?)", name)

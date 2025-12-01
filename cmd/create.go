@@ -1,20 +1,18 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
-// TODO: upgrade enter parent account using experience
 // TODO: add back to previous step command
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/store"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -48,8 +46,6 @@ Example: kea account create -t A -n Bank -b 100000`,
 		var finalName, finalType, finalCurrency string
 		var parentID *int64
 		var amountInCents int64 = 0
-
-		scanner := bufio.NewScanner(os.Stdin)
 
 		hasFlags := cmd.Flags().Changed("name") ||
 			cmd.Flags().Changed("type") ||
@@ -128,16 +124,21 @@ Example: kea account create -t A -n Bank -b 100000`,
 		}
 
 		// Interaaction mode
-		fmt.Println("\nCreating a new account")
-		fmt.Println("----------------------------------------")
-
+		printSeparator()
 		// step 1: check if is subaccount
-		fmt.Print("Is this a subaccount? (y/n): ")
-		scanner.Scan()
-		isSubAccount := strings.ToLower(strings.TrimSpace(scanner.Text()))
+		var isSubAccount bool
+		promptSubAccount := &survey.Confirm{
+			Message: "Is this a subaccount?",
+			Default: false,
+		}
+		err := survey.AskOne(promptSubAccount, &isSubAccount, survey.WithIcons(func(icons *survey.IconSet) {
+			icons.Question.Text = "-"
+		}))
+		if err != nil {
+			return fmt.Errorf("input cancelled: %w", err)
+		}
 
-		switch isSubAccount {
-		case "y", "yes":
+		if isSubAccount {
 			// step 2a: select parent account
 			parentAccount, err := selectParentAccount()
 			if err != nil {
@@ -155,7 +156,7 @@ Example: kea account create -t A -n Bank -b 100000`,
 			finalCurrency = parentAccount.Currency
 			parentID = &parentAccount.ID
 
-		case "n", "no":
+		} else {
 			// step 2b: select account type
 			accType, err := selectType()
 			if err != nil {
@@ -174,8 +175,6 @@ Example: kea account create -t A -n Bank -b 100000`,
 
 			finalName = rootName + ":" + accName
 			finalType = accType
-		default:
-			return fmt.Errorf("please enter y(yes) or n(no)")
 		}
 
 		// step 4: currency setting

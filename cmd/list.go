@@ -39,7 +39,7 @@ var listCmd = &cobra.Command{
 		}
 
 		if listTree {
-			// TODO: displayAccountsTree(accounts, listShowBalance)
+			displayAccountsTree(accounts, listShowBalance)
 		} else {
 			displayAccountsList(accounts, listShowBalance)
 		}

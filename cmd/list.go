@@ -85,7 +85,7 @@ func displayAccountsList(accounts []*store.Account, showBalance bool) {
 	}
 
 	pterm.DefaultSection.Println("Account List")
-	pterm.DefaultTable.WithHasHeader().WithBoxed().WithData(tableData).Render()
+	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 	pterm.Println()
 	pterm.Info.Printf("Total: %d accounts\n", len(accounts))
 }

@@ -410,6 +410,37 @@ func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transac
 	return transactions, rows.Err()
 }
 
+// GetAllTransactions retrieves recent transactions with a limit
+// Ordered by timestamp (newest first)
+func (s *Store) GetAllTransactions(limit int) ([]*Transaction, error) {
+	if limit <= 0 {
+		limit = 100 // Default limit
+	}
+
+	rows, err := s.db.Query(`
+		SELECT id, timestamp, description, status
+		FROM transactions
+		ORDER BY timestamp DESC, id DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions: %w", err)
+	}
+	defer rows.Close()
+
+	var transactions []*Transaction
+	for rows.Next() {
+		tx := &Transaction{}
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+		transactions = append(transactions, tx)
+	}
+
+	return transactions, rows.Err()
+}
+
 // UpdateTransactionStatus updates the status of a transaction
 // Status: 0=Pending, 1=Cleared
 func (s *Store) UpdateTransactionStatus(txID int64, status int) error {

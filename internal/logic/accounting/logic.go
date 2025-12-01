@@ -274,6 +274,15 @@ func (al *AccountingLogic) GetTransactionByID(txID int64) (*TransactionDetail, e
 	return detail, nil
 }
 
+// GetRecentTransactions retrieves recent transactions across all accounts
+func (al *AccountingLogic) GetRecentTransactions(limit int) ([]*store.Transaction, error) {
+	transactions, err := al.store.GetAllTransactions(limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
+	}
+	return transactions, nil
+}
+
 // GetTransactionHistory retrieves transaction history for a specific account
 func (al *AccountingLogic) GetTransactionHistory(accountName string, limit int) ([]*store.Transaction, error) {
 	// Get account by name

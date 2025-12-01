@@ -487,3 +487,123 @@ func (s *Store) DeleteTransaction(txID int64) error {
 
 	return nil
 }
+
+// UpdateTransactionBasic updates the basic fields of a transaction (description, timestamp, status)
+// Does not modify splits
+func (s *Store) UpdateTransactionBasic(txID int64, description string, timestamp int64, status int) error {
+	result, err := s.db.Exec(`
+		UPDATE transactions
+		SET description = ?, timestamp = ?, status = ?
+		WHERE id = ?
+	`, description, timestamp, status, txID)
+	if err != nil {
+		return fmt.Errorf("failed to update transaction: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("transaction with ID %d not found", txID)
+	}
+
+	return nil
+}
+
+// UpdateSplit updates a single split's information
+func (s *Store) UpdateSplit(splitID int64, accountID int64, amount int64, currency string, memo string) error {
+	result, err := s.db.Exec(`
+		UPDATE splits
+		SET account_id = ?, amount = ?, currency = ?, memo = ?
+		WHERE id = ?
+	`, accountID, amount, currency, memo, splitID)
+	if err != nil {
+		return fmt.Errorf("failed to update split: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("split with ID %d not found", splitID)
+	}
+
+	return nil
+}
+
+// DeleteSplit deletes a single split from a transaction
+func (s *Store) DeleteSplit(splitID int64) error {
+	result, err := s.db.Exec(`
+		DELETE FROM splits
+		WHERE id = ?
+	`, splitID)
+	if err != nil {
+		return fmt.Errorf("failed to delete split: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("split with ID %d not found", splitID)
+	}
+
+	return nil
+}
+
+// CreateSplit adds a new split to an existing transaction
+func (s *Store) CreateSplit(txID int64, split *Split) (int64, error) {
+	result, err := s.db.Exec(`
+		INSERT INTO splits (transaction_id, account_id, amount, currency, memo)
+		VALUES (?, ?, ?, ?, ?)
+	`, txID, split.AccountID, split.Amount, split.Currency, split.Memo)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create split: %w", err)
+	}
+
+	splitID, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last insert id: %w", err)
+	}
+
+	return splitID, nil
+}
+
+// GetSplitsByTransaction retrieves all splits for a transaction
+func (s *Store) GetSplitsByTransaction(txID int64) ([]*Split, error) {
+	rows, err := s.db.Query(`
+		SELECT id, transaction_id, account_id, amount, currency, memo
+		FROM splits
+		WHERE transaction_id = ?
+		ORDER BY id
+	`, txID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query splits: %w", err)
+	}
+	defer rows.Close()
+
+	var splits []*Split
+	for rows.Next() {
+		split := &Split{}
+		err := rows.Scan(
+			&split.ID,
+			&split.TransactionID,
+			&split.AccountID,
+			&split.Amount,
+			&split.Currency,
+			&split.Memo,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan split: %w", err)
+		}
+		splits = append(splits, split)
+	}
+
+	return splits, rows.Err()
+}

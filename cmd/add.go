@@ -180,13 +180,13 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 		mode = "transfer"
 	}
 
-	// Step 2: Get description
+	// Step 2: Get description (optional)
 	var description string
 	descPrompt := &survey.Input{
-		Message: "Transaction description:",
+		Message: "Transaction description (optional):",
 		Help:    getDescriptionHelp(mode),
 	}
-	if err := survey.AskOne(descPrompt, &description, survey.WithValidator(survey.Required)); err != nil {
+	if err := survey.AskOne(descPrompt, &description); err != nil {
 		return input, err
 	}
 
@@ -378,6 +378,9 @@ func displayTransactionSummary(input accounting.TransactionInput) {
 	date := time.Unix(input.Timestamp, 0).Format("2006-01-02")
 
 	// Create table data
+	if input.Description == "" {
+		input.Description = "None"
+	}
 	tableData := pterm.TableData{
 		{"Field", "Value"},
 		{"Date", date},

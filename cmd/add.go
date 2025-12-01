@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -427,11 +426,4 @@ func getStatusString(status int) string {
 		return "Pending"
 	}
 	return "Cleared"
-}
-
-// Helper function to parse amount string to float
-func parseAmount(s string) (float64, error) {
-	s = strings.TrimSpace(s)
-	s = strings.ReplaceAll(s, ",", "")
-	return strconv.ParseFloat(s, 64)
 }

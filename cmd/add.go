@@ -67,8 +67,12 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		if addDesc == "" || addAmount == "" || addFrom == "" || addTo == "" {
-			return fmt.Errorf("when using flags, --desc, --amount, --from, and --to are all required")
+		if addAmount == "" || addFrom == "" || addTo == "" {
+			return fmt.Errorf("when using flags, --amount, --from, and --to are all required")
+		}
+
+		if addDesc == "" {
+			addDesc = "-"
 		}
 
 		// Parse amount
@@ -187,6 +191,9 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 	}
 	if err := survey.AskOne(descPrompt, &description); err != nil {
 		return input, err
+	}
+	if description == "" {
+		description = "-"
 	}
 
 	// Step 3: Get amount
@@ -370,16 +377,12 @@ func getDescriptionHelp(mode string) string {
 }
 
 func displayTransactionSummary(input accounting.TransactionInput) {
-	fmt.Println()
 	pterm.DefaultSection.Println("Transaction Summary")
 
 	// Format timestamp
 	date := time.Unix(input.Timestamp, 0).Format("2006-01-02")
 
 	// Create table data
-	if input.Description == "" {
-		input.Description = "None"
-	}
 	tableData := pterm.TableData{
 		{"Field", "Value"},
 		{"Date", date},
@@ -390,7 +393,6 @@ func displayTransactionSummary(input accounting.TransactionInput) {
 	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 
 	// Display splits
-	fmt.Println()
 	pterm.DefaultSection.Println("Splits (Double-Entry)")
 
 	splitsData := pterm.TableData{

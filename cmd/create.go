@@ -223,7 +223,6 @@ Example: kea account create -t A -n Bank -b 100000`,
 		}
 
 		// print put full informtaion
-		fmt.Println("Confirm the following details:")
 		displayAccountSummary(finalName, finalType, finalCurrency, amountInCents, accDesc)
 
 		// confirm proceed the creation
@@ -597,26 +596,32 @@ func checkCurrency() error {
 }
 
 func displayAccountSummary(finalName, finalType, finalCurrency string, amountInCents int64, description string) {
-	fmt.Println("----------------------------------------")
-	fmt.Printf("  Full Name   : %s\n", finalName)
-	fmt.Printf("  Type        : %s\n", finalType)
-	fmt.Printf("  Currency    : %s\n", finalCurrency)
-	if amountInCents != 0 {
-		fmt.Printf("  Balance     : %.2f\n", float64(amountInCents)/100)
+	printSeparator()
+
+	balanceStr := fmt.Sprintf("%.2f", float64(amountInCents)/100)
+
+	descStr := description
+	if descStr == "" {
+		descStr = "None"
 	}
-	if description != "" {
-		fmt.Printf("  Description : %s\n", description)
+
+	tableData := pterm.TableData{
+		{pterm.Blue("Full Name"), finalName},
+		{pterm.Blue("Type"), finalType},
+		{pterm.Blue("Currency"), finalCurrency},
+		{pterm.Blue("Balance"), balanceStr},
+		{pterm.Blue("Description"), descStr},
 	}
-	fmt.Println("----------------------------------------")
+
+	pterm.DefaultTable.WithBoxed().WithData(tableData).Render()
 }
 
 func displaySuccessInformation(newAccountID int64, finalName string) {
-	fmt.Println("----------------------------------------")
-	fmt.Println("✓ Account created successfully!")
-	fmt.Printf("  Account ID  : %d\n", newAccountID)
-	fmt.Printf("  Full Name   : %s\n", finalName)
-	fmt.Println("\nNext steps:")
-	fmt.Println("  • View all accounts: kea account list")
-	fmt.Println("  • Add a transaction: kea add")
-	fmt.Println("----------------------------------------")
+	printSeparator()
+	tableData := pterm.TableData{
+		{pterm.Blue("Account ID"), fmt.Sprintf("%d", newAccountID)},
+		{pterm.Blue("Full Name"), finalName},
+	}
+	pterm.Success.Println("Account created successfully!")
+	pterm.DefaultTable.WithBoxed().WithData(tableData).Render()
 }

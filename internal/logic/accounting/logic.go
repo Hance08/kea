@@ -124,10 +124,15 @@ func (al *AccountingLogic) SetBalance(account *store.Account, amountInCents int6
 
 	_, err = al.store.CreateTransactionWithSplits(tx, splits)
 	return err
-} // TransactionSplitInput represents a split entry with account name instead of ID
+}
+
+// TransactionSplitInput represents a split entry with account name instead of ID
 type TransactionSplitInput struct {
+	ID          int64  // Split ID (0 for new splits)
 	AccountName string // e.g., "Assets:Bank:TaishinBank"
+	AccountID   int64  // Account ID (used in edit mode)
 	Amount      int64  // Amount in cents
+	Currency    string // Currency code
 	Memo        string // Optional memo for this split
 }
 
@@ -356,4 +361,126 @@ func (al *AccountingLogic) ParseAmountToCents(amountStr string) (int64, error) {
 
 	total := dollars*100 + cents
 	return total, nil
+}
+
+// UpdateTransactionComplete performs a complete update of a transaction including splits
+// This operation is atomic - either all changes succeed or all fail
+func (al *AccountingLogic) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []TransactionSplitInput) error {
+	// Validate status
+	if status != 0 && status != 1 {
+		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
+	}
+
+	// Validate that we have at least 2 splits
+	if len(splits) < 2 {
+		return fmt.Errorf("transaction must have at least 2 splits for double-entry bookkeeping")
+	}
+
+	// Validate splits balance
+	var total int64
+	for _, split := range splits {
+		total += split.Amount
+	}
+	if total != 0 {
+		return fmt.Errorf("splits must balance to zero (current sum: %d)", total)
+	}
+
+	// Validate all accounts exist
+	for _, split := range splits {
+		_, err := al.store.GetAccountByID(split.AccountID)
+		if err != nil {
+			return fmt.Errorf("account ID %d not found", split.AccountID)
+		}
+	}
+
+	// Check transaction exists
+	_, _, err := al.store.GetTransactionByID(txID)
+	if err != nil {
+		return fmt.Errorf("transaction not found: %w", err)
+	}
+
+	// Update basic transaction info
+	if err := al.store.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
+		return fmt.Errorf("failed to update transaction: %w", err)
+	}
+
+	// Get existing splits
+	existingSplits, err := al.store.GetSplitsByTransaction(txID)
+	if err != nil {
+		return fmt.Errorf("failed to get existing splits: %w", err)
+	}
+
+	// Create maps for comparison
+	existingSplitMap := make(map[int64]*store.Split)
+	for _, split := range existingSplits {
+		existingSplitMap[split.ID] = split
+	}
+
+	newSplitMap := make(map[int64]bool)
+	for _, split := range splits {
+		if split.ID != 0 {
+			newSplitMap[split.ID] = true
+		}
+	}
+
+	// Delete splits that are no longer present
+	for id := range existingSplitMap {
+		if !newSplitMap[id] {
+			if err := al.store.DeleteSplit(id); err != nil {
+				return fmt.Errorf("failed to delete split: %w", err)
+			}
+		}
+	}
+
+	// Update existing splits or create new ones
+	for _, split := range splits {
+		if split.ID == 0 {
+			// Create new split
+			newSplit := &store.Split{
+				TransactionID: txID,
+				AccountID:     split.AccountID,
+				Amount:        split.Amount,
+				Currency:      split.Currency,
+				Memo:          split.Memo,
+			}
+			_, err := al.store.CreateSplit(txID, newSplit)
+			if err != nil {
+				return fmt.Errorf("failed to create split: %w", err)
+			}
+		} else {
+			// Update existing split
+			if err := al.store.UpdateSplit(split.ID, split.AccountID, split.Amount, split.Currency, split.Memo); err != nil {
+				return fmt.Errorf("failed to update split: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// ValidateTransactionEdit validates a transaction edit without saving
+func (al *AccountingLogic) ValidateTransactionEdit(splits []TransactionSplitInput) error {
+	// Check minimum splits
+	if len(splits) < 2 {
+		return fmt.Errorf("transaction must have at least 2 splits")
+	}
+
+	// Check balance
+	var total int64
+	for _, split := range splits {
+		total += split.Amount
+	}
+	if total != 0 {
+		return fmt.Errorf("splits do not balance (sum: %s)", al.FormatAmountFromCents(total))
+	}
+
+	// Validate accounts exist
+	for i, split := range splits {
+		_, err := al.store.GetAccountByID(split.AccountID)
+		if err != nil {
+			return fmt.Errorf("split #%d: account ID %d not found", i+1, split.AccountID)
+		}
+	}
+
+	return nil
 }

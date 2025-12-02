@@ -10,10 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/constants"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui"
+	"github.com/hance08/kea/internal/ui/prompts"
+	"github.com/hance08/kea/internal/validation"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -61,7 +62,7 @@ func runAccountCreate(cmd *cobra.Command, args []string) error {
 		}
 
 		// Validate account name first (before combining with parent/root)
-		if err := validateAccountName(accName); err != nil {
+		if err := validator.ValidateAccountName(accName); err != nil {
 			return err
 		}
 
@@ -90,11 +91,11 @@ func runAccountCreate(cmd *cobra.Command, args []string) error {
 			finalType = accType
 
 			if accCurrency != "" {
-				if err := checkCurrency(); err != nil {
+				if err := validation.ValidateCurrency(accCurrency); err != nil {
 					return err
 				}
 
-				finalCurrency = accCurrency
+				finalCurrency = strings.ToUpper(strings.TrimSpace(accCurrency))
 			} else {
 				finalCurrency = viper.GetString("defaults.currency")
 			}
@@ -138,14 +139,9 @@ func runAccountCreate(cmd *cobra.Command, args []string) error {
 
 	// Interaaction mode
 	// step 1: check if is subaccount
-	var isSubAccount bool
-	promptSubAccount := &survey.Confirm{
-		Message: "Is this a subaccount?",
-		Default: false,
-	}
-	err := survey.AskOne(promptSubAccount, &isSubAccount, ui.IconOption())
+	isSubAccount, err := prompts.PromptIsSubAccount()
 	if err != nil {
-		return fmt.Errorf("input cancelled: %w", err)
+		return err
 	}
 
 	if isSubAccount {
@@ -247,26 +243,7 @@ func init() {
 }
 
 func selectType() (string, error) {
-	var selected string
-	promptSelect := &survey.Select{
-		Message: "Account Types:",
-		Options: []string{
-			"A - Assets",
-			"L - Liabilities",
-			"R - Revenue",
-			"E - Expenses",
-			"C - Equity (Advanced)",
-		},
-		Default: "A - Assets",
-	}
-
-	err := survey.AskOne(promptSelect, &selected, ui.IconOption())
-	if err != nil {
-		return "", fmt.Errorf("input cancelled: %w", err)
-	}
-	selectedType := strings.Split(selected, " ")[0]
-
-	return selectedType, nil
+	return prompts.PromptAccountType()
 }
 
 func selectParentAccount() (*store.Account, error) {
@@ -275,31 +252,13 @@ func selectParentAccount() (*store.Account, error) {
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
 	}
 
-	var accountNames []string
-	for _, acc := range allAccounts {
-		accountNames = append(accountNames, acc.Name)
-	}
-
-	prompt := &survey.Input{
-		Message: "Parent account FULL NAME:",
-		Suggest: func(toComplete string) []string {
-			var filtered []string
-			for _, name := range accountNames {
-				if strings.Contains(strings.ToLower(name), strings.ToLower(toComplete)) {
-					filtered = append(filtered, name)
-				}
-			}
-			return filtered
-		},
-	}
-
-	err = survey.AskOne(prompt, &accParent, ui.IconOption())
+	_, _, err = prompts.PromptParentAccount(allAccounts)
 	if err != nil {
-		return nil, fmt.Errorf("input cancelled: %w", err)
+		return nil, err
 	}
 
-	// check parent account
-	parentAccount, err := validateParentAccount(accParent)
+	// Validate parent account
+	parentAccount, err := validator.ValidateParentAccount(accParent)
 	if err != nil {
 		return nil, err
 	}
@@ -307,125 +266,22 @@ func selectParentAccount() (*store.Account, error) {
 }
 
 func enterAccountName(prefix string) error {
-	promptName := &survey.Input{
-		Message: "Account Name:",
-	}
-	err := survey.AskOne(promptName, &accName, survey.WithValidator(validateAccountNameWithPrefix(prefix)), ui.IconOption())
+	name, err := prompts.PromptAccountName(validator.ValidateAccountNameWithPrefix(prefix))
 	if err != nil {
-		return fmt.Errorf("input cancelled: %w", err)
+		return err
 	}
-
+	accName = name
 	return nil
 }
 
 func selectCurrency(defaultCurrency string, isInherited bool) (string, error) {
-	commonCurrencies := []string{
-		"USD - US Dollar",
-		"EUR - Euro",
-		"GBP - British Pound",
-		"JPY - Japanese Yen",
-		"CNY - Chinese Yuan",
-		"TWD - Taiwan Dollar",
-		"HKD - Hong Kong Dollar",
-		"SGD - Singapore Dollar",
-		"Other (Custom)",
-	}
-
-	// Find default option in the list
-	var defaultOption string
-	for _, curr := range commonCurrencies {
-		if strings.HasPrefix(curr, defaultCurrency) {
-			defaultOption = curr
-			break
-		}
-	}
-	// If not found in common currencies, use the first one
-	if defaultOption == "" {
-		defaultOption = commonCurrencies[0]
-	}
-
-	var message string
-	if isInherited {
-		message = fmt.Sprintf("Currency (inherited: %s):", defaultCurrency)
-	} else {
-		message = fmt.Sprintf("Currency (default: %s):", defaultCurrency)
-	}
-
-	var selected string
-	promptSelect := &survey.Select{
-		Message: message,
-		Options: commonCurrencies,
-		Default: defaultOption,
-	}
-
-	err := survey.AskOne(promptSelect, &selected, ui.IconOption())
-	if err != nil {
-		return "", fmt.Errorf("input cancelled: %w", err)
-	}
-
-	// If "Other (Custom)" is selected, ask for custom input
-	if selected == "Other (Custom)" {
-		var customCurrency string
-		promptInput := &survey.Input{
-			Message: "Enter currency code:",
-		}
-		err := survey.AskOne(promptInput, &customCurrency, survey.WithValidator(func(val interface{}) error {
-			curr := strings.TrimSpace(strings.ToUpper(val.(string)))
-			if curr == "" {
-				return fmt.Errorf("currency code can't be empty")
-			}
-			if len(curr) != 3 {
-				return fmt.Errorf("currency code must be 3 characters (e.g. USD)")
-			}
-			for _, c := range curr {
-				if c < 'A' || c > 'Z' {
-					return fmt.Errorf("currency code must contain only letters")
-				}
-			}
-			return nil
-		}), ui.IconOption())
-		if err != nil {
-			return "", fmt.Errorf("input cancelled: %w", err)
-		}
-		return strings.ToUpper(strings.TrimSpace(customCurrency)), nil
-	}
-
-	// Extract currency code from selection (first 3 characters)
-	currencyCode := strings.Split(selected, " ")[0]
-	return currencyCode, nil
+	return prompts.PromptCurrency(defaultCurrency, isInherited, validation.ValidateCurrency)
 }
 
 func setInitialBalance() (int64, error) {
-	var balanceInput string
-	promptBalance := &survey.Input{
-		Message: "Initial Balance (press Enter for 0):",
-		Default: "0",
-	}
-
-	err := survey.AskOne(promptBalance, &balanceInput, survey.WithValidator(func(val any) error {
-		input := strings.TrimSpace(val.(string))
-		if input == "" || input == "0" {
-			return nil
-		}
-
-		balanceFloat, err := strconv.ParseFloat(input, 64)
-		if err != nil {
-			return fmt.Errorf("invalid number format")
-		}
-
-		if balanceFloat < 0 {
-			return fmt.Errorf("initial balance can't be negative")
-		}
-
-		if balanceFloat > 9223372036854775 {
-			return fmt.Errorf("balance amount too large")
-		}
-
-		return nil
-	}), ui.IconOption())
-
+	balanceInput, err := prompts.PromptInitialBalance(validation.ValidateInitialBalance)
 	if err != nil {
-		return 0, fmt.Errorf("input cancelled: %w", err)
+		return 0, err
 	}
 
 	balanceInput = strings.TrimSpace(balanceInput)
@@ -443,26 +299,18 @@ func setInitialBalance() (int64, error) {
 }
 
 func setDescription() error {
-	promptDesc := &survey.Input{
-		Message: "Description (optional):",
-	}
-	err := survey.AskOne(promptDesc, &accDesc, ui.IconOption())
+	desc, err := prompts.PromptDescription("Description (optional):", false)
 	if err != nil {
-		return fmt.Errorf("input cancelled: %w", err)
+		return err
 	}
+	accDesc = desc
 	return nil
 }
 
 func confirmProceed() error {
-	var confirm bool
-	promptConfirm := &survey.Confirm{
-		Message: "Proceed with account creation?",
-		Default: true,
-	}
-
-	err := survey.AskOne(promptConfirm, &confirm, ui.IconOption())
+	confirm, err := prompts.PromptConfirm("Proceed with account creation?", true)
 	if err != nil {
-		return fmt.Errorf("input cancelled: %w", err)
+		return err
 	}
 
 	if !confirm {
@@ -485,92 +333,6 @@ func createAccount(name, _type, currency, desc string, amountInCents int64, pare
 		}
 	}
 	return newAccount, nil
-}
-
-func validateAccountName(val any) error {
-	name, ok := val.(string)
-	if !ok {
-		return fmt.Errorf("account name must be a string")
-	}
-
-	name = strings.TrimSpace(name)
-
-	if name == "" {
-		return fmt.Errorf("account name can't be empty")
-	}
-
-	isExisted, err := logic.CheckAccountExists(name)
-	if err != nil {
-		return fmt.Errorf("failed to check account existence: %w", err)
-	}
-	if isExisted {
-		return fmt.Errorf("account name %s is already existeddddd", name)
-	}
-
-	if strings.Contains(name, ":") {
-		return fmt.Errorf("account name cannot contain ':' character")
-	}
-
-	reservedNames := []string{"Assets", "Liabilities", "Equity", "Revenue", "Expenses"}
-	for _, reserved := range reservedNames {
-		if strings.EqualFold(name, reserved) {
-			return fmt.Errorf("'%s' is a reserved root account name", name)
-		}
-	}
-
-	if len(name) > 100 {
-		return fmt.Errorf("account name too long (max 100 characters)")
-	}
-	return nil
-}
-
-func validateAccountNameWithPrefix(prefix string) func(any) error {
-	return func(val any) error {
-		partialName := val.(string)
-
-		if err := validateAccountName(partialName); err != nil {
-			return err
-		}
-
-		fullName := prefix + ":" + partialName
-		exists, err := logic.CheckAccountExists(fullName)
-		if err != nil {
-			return fmt.Errorf("failed to check account: %w", err)
-		}
-		if exists {
-			return fmt.Errorf("account '%s' already exists", fullName)
-		}
-
-		return nil
-	}
-}
-
-func validateParentAccount(name string) (*store.Account, error) {
-	if name == "" {
-		return nil, fmt.Errorf("parent account name can't be empty")
-	}
-
-	parentAccount, err := logic.GetAccountByName(name)
-	if err != nil {
-		return nil, fmt.Errorf("parent account not found: %w", err)
-	}
-
-	return parentAccount, nil
-}
-
-func checkCurrency() error {
-	if accCurrency != "" {
-		if len(accCurrency) != 3 {
-			return fmt.Errorf("currency code must be 3 characters (e.g. USD)")
-		}
-
-		for _, c := range accCurrency {
-			if c < 'A' || c > 'Z' {
-				return fmt.Errorf("currency code must contain only letters")
-			}
-		}
-	}
-	return nil
 }
 
 func displayAccountSummary(finalName, finalType, finalCurrency string, amountInCents int64, description string) {

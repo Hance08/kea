@@ -32,20 +32,17 @@ date, type, account, description, amount, and status.`,
 
   # Limit the number of transactions
   kea list --limit 50`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return listTransactions()
-	},
+	RunE: runList,
 }
 
 func init() {
 	rootCmd.AddCommand(listCmd)
-	transactionCmd.AddCommand(listCmd)
 
 	listCmd.Flags().StringVarP(&listAccount, "account", "a", "", "Filter transactions by account name")
 	listCmd.Flags().IntVarP(&listLimit, "limit", "l", 20, "Maximum number of transactions to display")
 }
 
-func listTransactions() error {
+func runList(cmd *cobra.Command, args []string) error {
 
 	var transactions []*store.Transaction
 	var err error

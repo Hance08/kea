@@ -4,12 +4,14 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package account
 
 import (
-"github.com/hance08/kea/internal/logic/accounting"
-"github.com/spf13/cobra"
+	"github.com/hance08/kea/internal/logic/accounting"
+	"github.com/hance08/kea/internal/validation"
+	"github.com/spf13/cobra"
 )
 
 var (
-logic *accounting.AccountingLogic
+	logic     *accounting.AccountingLogic
+	validator *validation.AccountValidator
 )
 
 // AccountCmd represents the account command
@@ -27,4 +29,5 @@ func init() {
 // SetDependencies allows root command to inject dependencies
 func SetDependencies(l *accounting.AccountingLogic) {
 	logic = l
+	validator = validation.NewAccountValidator(l)
 }

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hance08/kea/cmd/account"
+	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/logic/accounting"
 	"github.com/hance08/kea/internal/store"
 	"github.com/spf13/cobra"
@@ -67,6 +69,10 @@ var rootCmd = &cobra.Command{
 		// 4. initialize logic and input Store
 		logic = accounting.NewLogic(dbStore)
 
+		// 5. inject dependencies into subcommands
+		transaction.SetDependencies(logic)
+		account.SetDependencies(logic)
+
 		if err := ensureSystemAccounts(); err != nil {
 			return fmt.Errorf("failed to initialize system account : %w", err)
 		}
@@ -95,6 +101,10 @@ func init() {
 	viper.SetDefault("database.path", filepath.Join(home, ".kea", "kea.db"))
 
 	viper.SetDefault("defaults.currency", "TWD")
+
+	// Register subcommands
+	rootCmd.AddCommand(transaction.TransactionCmd)
+	rootCmd.AddCommand(account.AccountCmd)
 }
 
 func initConfig() error {

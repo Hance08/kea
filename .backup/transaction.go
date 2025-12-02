@@ -9,9 +9,17 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/logic/accounting"
+	"github.com/hance08/kea/internal/store"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
+
+// surveyOpts contains custom options for all survey prompts
+var surveyOpts = []survey.AskOpt{
+	survey.WithIcons(func(icons *survey.IconSet) {
+		icons.Question.Text = "-"
+	}),
+}
 
 // transactionCmd represents the transaction command
 var transactionCmd = &cobra.Command{
@@ -172,7 +180,7 @@ func runTransactionDelete(cmd *cobra.Command, args []string) error {
 		Message: "Do you want to delete this transaction?",
 		Default: false,
 	}
-	if err := survey.AskOne(confirmPrompt, &confirmation); err != nil {
+	if err := survey.AskOne(confirmPrompt, &confirmation, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -188,6 +196,7 @@ func runTransactionDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	pterm.Success.Printf("Transaction #%d deleted successfully\n", txID)
+	printSeparator()
 	return nil
 }
 
@@ -204,6 +213,7 @@ func runTransactionClear(cmd *cobra.Command, args []string) error {
 	}
 
 	pterm.Success.Printf("Transaction #%d marked as cleared\n", txID)
+	printSeparator()
 	return nil
 }
 
@@ -232,17 +242,32 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 
 	// Main edit menu
 	for {
+		// Build menu options based on transaction complexity
+		menuOptions := []string{
+			"Basic Info (description, date, status)",
+		}
+
+		// Add quick edit options for simple transactions (2 splits)
+		if len(detail.Splits) == 2 {
+			menuOptions = append(menuOptions,
+				"Change Account (quick edit)",
+				"Change Amount (both sides)",
+			)
+		}
+
+		// Always show advanced option
+		menuOptions = append(menuOptions,
+			"Edit Splits (Advanced)",
+			"Save & Exit",
+			"Cancel (discard changes)",
+		)
+
 		var editChoice string
 		editPrompt := &survey.Select{
 			Message: "What would you like to edit?",
-			Options: []string{
-				"Basic Info (description, date, status)",
-				"Splits (accounts and amounts)",
-				"Save & Exit",
-				"Cancel (discard changes)",
-			},
+			Options: menuOptions,
 		}
-		if err := survey.AskOne(editPrompt, &editChoice); err != nil {
+		if err := survey.AskOne(editPrompt, &editChoice, surveyOpts...); err != nil {
 			return err
 		}
 
@@ -252,7 +277,17 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 				pterm.Error.Printf("Failed to edit basic info: %v\n", err)
 			}
 
-		case "Splits (accounts and amounts)":
+		case "Change Account (quick edit)":
+			if err := changeAccount(detail); err != nil {
+				pterm.Error.Printf("Failed to change account: %v\n", err)
+			}
+
+		case "Change Amount (both sides)":
+			if err := changeAmount(detail); err != nil {
+				pterm.Error.Printf("Failed to change amount: %v\n", err)
+			}
+
+		case "Edit Splits (Advanced)":
 			if err := editSplits(detail); err != nil {
 				pterm.Error.Printf("Failed to edit splits: %v\n", err)
 			}
@@ -273,6 +308,7 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 			}
 
 			pterm.Success.Printf("Transaction #%d updated successfully\n", txID)
+			printSeparator()
 			return nil
 
 		case "Cancel (discard changes)":
@@ -327,7 +363,6 @@ func displayTransactionDetail(detail *accounting.TransactionDetail) {
 	tableData = append(tableData, []string{"", "", balanceStr, ""})
 
 	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-	fmt.Println()
 }
 
 func editBasicInfo(detail *accounting.TransactionDetail) error {
@@ -337,7 +372,7 @@ func editBasicInfo(detail *accounting.TransactionDetail) error {
 		Message: "Description:",
 		Default: detail.Description,
 	}
-	if err := survey.AskOne(descPrompt, &newDescription); err != nil {
+	if err := survey.AskOne(descPrompt, &newDescription, surveyOpts...); err != nil {
 		return err
 	}
 	detail.Description = newDescription
@@ -349,7 +384,7 @@ func editBasicInfo(detail *accounting.TransactionDetail) error {
 		Message: "Date (YYYY-MM-DD):",
 		Default: currentDate,
 	}
-	if err := survey.AskOne(datePrompt, &newDateStr); err != nil {
+	if err := survey.AskOne(datePrompt, &newDateStr, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -372,7 +407,7 @@ func editBasicInfo(detail *accounting.TransactionDetail) error {
 		Options: statusOptions,
 		Default: defaultStatus,
 	}
-	if err := survey.AskOne(statusPrompt, &newStatus); err != nil {
+	if err := survey.AskOne(statusPrompt, &newStatus, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -383,6 +418,362 @@ func editBasicInfo(detail *accounting.TransactionDetail) error {
 	}
 
 	pterm.Success.Println("Basic info updated")
+	printSeparator()
+	return nil
+}
+
+// changeAccount allows quick account switching for simple transactions
+// Works best for 2-split transactions (Expense/Income/Transfer)
+func changeAccount(detail *accounting.TransactionDetail) error {
+	if len(detail.Splits) != 2 {
+		pterm.Warning.Println("This feature works best with 2-split transactions")
+		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
+		return nil
+	}
+
+	// Detect transaction type and check if editing is allowed
+	txType, err := detectTransactionType(detail)
+	if err != nil {
+		return err
+	}
+
+	if txType == "Opening" {
+		pterm.Warning.Println("Cannot use quick edit for Opening Balance transactions")
+		pterm.Info.Println("Use 'Edit Splits (Advanced)' if you need to modify this transaction")
+		return nil
+	}
+
+	// Get all accounts
+	accounts, err := logic.GetAllAccounts()
+	if err != nil {
+		return fmt.Errorf("failed to get accounts: %w", err)
+	}
+
+	// Display current splits with role labels
+	pterm.DefaultSection.Printf("Current transaction type: %s", txType)
+	pterm.DefaultSection.Printf("Current splits:")
+
+	roleLabels := getSplitRoleLabels(detail, txType)
+	for i, split := range detail.Splits {
+		amount := logic.FormatAmountFromCents(split.Amount)
+		sign := "+"
+		if split.Amount < 0 {
+			sign = ""
+		}
+		pterm.Printf("  %d. %s (%s): %s%s %s\n",
+			i+1, split.AccountName, roleLabels[i], sign, amount, split.Currency)
+	}
+	fmt.Println()
+
+	// Let user choose which split to change
+	var splitChoice string
+	splitPrompt := &survey.Select{
+		Message: "Which account do you want to change?",
+		Options: []string{
+			fmt.Sprintf("1. %s", detail.Splits[0].AccountName),
+			fmt.Sprintf("2. %s", detail.Splits[1].AccountName),
+			"Cancel",
+		},
+	}
+	if err := survey.AskOne(splitPrompt, &splitChoice, surveyOpts...); err != nil {
+		return err
+	}
+
+	if splitChoice == "Cancel" {
+		return nil
+	}
+
+	// Determine which split to edit (0 or 1)
+	splitIndex := 0
+	if splitChoice[0] == '2' {
+		splitIndex = 1
+	}
+
+	split := &detail.Splits[splitIndex]
+
+	// Filter accounts based on transaction type and split role
+	filteredAccounts := filterAccountsForChange(accounts, detail, txType, splitIndex)
+
+	if len(filteredAccounts) == 0 {
+		pterm.Warning.Println("No suitable accounts found for this change")
+		return nil
+	}
+
+	// Build account selection list
+	var accountNames []string
+	for _, acc := range filteredAccounts {
+		accountNames = append(accountNames, acc.Name)
+	}
+
+	// Select new account
+	var selectedAccount string
+	accountPrompt := &survey.Select{
+		Message: fmt.Sprintf("Select new %s:", roleLabels[splitIndex]),
+		Options: accountNames,
+		Default: split.AccountName,
+	}
+	if err := survey.AskOne(accountPrompt, &selectedAccount, surveyOpts...); err != nil {
+		return err
+	}
+
+	// Update the split
+	account, err := logic.GetAccountByName(selectedAccount)
+	if err != nil {
+		return err
+	}
+
+	split.AccountID = account.ID
+	split.AccountName = account.Name
+	split.Currency = account.Currency
+
+	pterm.Success.Printf("Account changed to: %s\n", account.Name)
+	printSeparator()
+	return nil
+}
+
+// detectTransactionType determines the type of transaction based on account types
+func detectTransactionType(detail *accounting.TransactionDetail) (string, error) {
+	if len(detail.Splits) != 2 {
+		return "Complex", nil
+	}
+
+	// Get account types for both splits
+	account1, err := logic.GetAccountByName(detail.Splits[0].AccountName)
+	if err != nil {
+		return "", err
+	}
+	account2, err := logic.GetAccountByName(detail.Splits[1].AccountName)
+	if err != nil {
+		return "", err
+	}
+
+	type1, type2 := account1.Type, account2.Type
+
+	// Check for Opening Balance
+	if type1 == "C" || type2 == "C" {
+		if account1.Name == "Equity:OpeningBalances" || account2.Name == "Equity:OpeningBalances" {
+			return "Opening", nil
+		}
+	}
+
+	// Expense: (A or L) + E
+	if (type1 == "A" || type1 == "L") && type2 == "E" {
+		return "Expense", nil
+	}
+	if type1 == "E" && (type2 == "A" || type2 == "L") {
+		return "Expense", nil
+	}
+
+	// Income: R + (A or L)
+	if type1 == "R" && (type2 == "A" || type2 == "L") {
+		return "Income", nil
+	}
+	if (type1 == "A" || type1 == "L") && type2 == "R" {
+		return "Income", nil
+	}
+
+	// Transfer: (A or L) + (A or L)
+	if (type1 == "A" || type1 == "L") && (type2 == "A" || type2 == "L") {
+		return "Transfer", nil
+	}
+
+	return "Other", nil
+}
+
+// getSplitRoleLabels returns descriptive labels for each split based on transaction type
+func getSplitRoleLabels(detail *accounting.TransactionDetail, txType string) []string {
+	labels := make([]string, len(detail.Splits))
+
+	if len(detail.Splits) != 2 {
+		for i := range labels {
+			labels[i] = "account"
+		}
+		return labels
+	}
+
+	switch txType {
+	case "Expense":
+		// Find which is the expense account
+		account1, _ := logic.GetAccountByName(detail.Splits[0].AccountName)
+		if account1 != nil && account1.Type == "E" {
+			labels[0] = "expense category"
+			labels[1] = "payment account"
+		} else {
+			labels[0] = "payment account"
+			labels[1] = "expense category"
+		}
+
+	case "Income":
+		// Find which is the revenue account
+		account1, _ := logic.GetAccountByName(detail.Splits[0].AccountName)
+		if account1 != nil && account1.Type == "R" {
+			labels[0] = "income source"
+			labels[1] = "receiving account"
+		} else {
+			labels[0] = "receiving account"
+			labels[1] = "income source"
+		}
+
+	case "Transfer":
+		// Determine by amount sign
+		if detail.Splits[0].Amount > 0 {
+			labels[0] = "receiving account"
+			labels[1] = "source account"
+		} else {
+			labels[0] = "source account"
+			labels[1] = "receiving account"
+		}
+
+	case "Opening":
+		labels[0] = "account"
+		labels[1] = "opening balance"
+
+	default:
+		labels[0] = "account"
+		labels[1] = "account"
+	}
+
+	return labels
+}
+
+// filterAccountsForChange returns accounts suitable for the given split change
+func filterAccountsForChange(accounts []*store.Account, detail *accounting.TransactionDetail, txType string, splitIndex int) []*store.Account {
+	var filtered []*store.Account
+
+	// Get the account type we're replacing
+	currentAccount, err := logic.GetAccountByName(detail.Splits[splitIndex].AccountName)
+	if err != nil {
+		return accounts // Fallback to all accounts if error
+	}
+
+	switch txType {
+	case "Expense":
+		if currentAccount.Type == "E" {
+			// Changing expense category - only show Expense accounts
+			for _, acc := range accounts {
+				if acc.Type == "E" {
+					filtered = append(filtered, acc)
+				}
+			}
+		} else {
+			// Changing payment account - only show Assets and Liabilities
+			for _, acc := range accounts {
+				if acc.Type == "A" || acc.Type == "L" {
+					filtered = append(filtered, acc)
+				}
+			}
+		}
+
+	case "Income":
+		if currentAccount.Type == "R" {
+			// Changing income source - only show Revenue accounts
+			for _, acc := range accounts {
+				if acc.Type == "R" {
+					filtered = append(filtered, acc)
+				}
+			}
+		} else {
+			// Changing receiving account - only show Assets and Liabilities
+			for _, acc := range accounts {
+				if acc.Type == "A" || acc.Type == "L" {
+					filtered = append(filtered, acc)
+				}
+			}
+		}
+
+	case "Transfer":
+		// Both sides must be Assets or Liabilities
+		for _, acc := range accounts {
+			if acc.Type == "A" || acc.Type == "L" {
+				filtered = append(filtered, acc)
+			}
+		}
+
+	default:
+		// For other types, return all accounts
+		filtered = accounts
+	}
+
+	return filtered
+}
+
+// changeAmount allows quick amount editing for simple transactions
+// Automatically adjusts both sides to maintain balance
+func changeAmount(detail *accounting.TransactionDetail) error {
+	if len(detail.Splits) != 2 {
+		pterm.Warning.Println("This feature works best with 2-split transactions")
+		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
+		return nil
+	}
+
+	// Display current amount
+	currentAmount := detail.Splits[0].Amount
+	if currentAmount < 0 {
+		currentAmount = -currentAmount
+	}
+	currentAmountStr := logic.FormatAmountFromCents(currentAmount)
+
+	pterm.DefaultSection.Printf("Current amount: %s %s", currentAmountStr, detail.Splits[0].Currency)
+	tableData := pterm.TableData{
+		{"#", "Account", "Amount"},
+	}
+
+	var balance int64
+	for i, split := range detail.Splits {
+		amount := logic.FormatAmountFromCents(split.Amount)
+		sign := "+"
+		if split.Amount < 0 {
+			sign = "-"
+			amount = logic.FormatAmountFromCents(-split.Amount)
+		}
+		memo := split.Memo
+		if memo == "" {
+			memo = "-"
+		}
+		tableData = append(tableData, []string{
+			fmt.Sprintf("%d", i+1),
+			split.AccountName,
+			fmt.Sprintf("%s%s %s", sign, amount, split.Currency),
+			memo,
+		})
+		balance += split.Amount
+	}
+
+	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+
+	// Input new amount
+	var newAmountStr string
+	amountPrompt := &survey.Input{
+		Message: "Enter new amount (positive number):",
+		Default: currentAmountStr,
+	}
+	if err := survey.AskOne(amountPrompt, &newAmountStr, surveyOpts...); err != nil {
+		return err
+	}
+
+	newAmount, err := logic.ParseAmountToCents(newAmountStr)
+	if err != nil {
+		return err
+	}
+
+	// Make sure it's positive
+	if newAmount < 0 {
+		newAmount = -newAmount
+	}
+
+	// Adjust both splits while maintaining their signs
+	if detail.Splits[0].Amount > 0 {
+		detail.Splits[0].Amount = newAmount
+		detail.Splits[1].Amount = -newAmount
+	} else {
+		detail.Splits[0].Amount = -newAmount
+		detail.Splits[1].Amount = newAmount
+	}
+
+	pterm.Success.Printf("Amount changed to: %s %s\n",
+		logic.FormatAmountFromCents(newAmount),
+		detail.Splits[0].Currency)
+	printSeparator()
 	return nil
 }
 
@@ -401,7 +792,7 @@ func editSplits(detail *accounting.TransactionDetail) error {
 				"Done (return to main menu)",
 			},
 		}
-		if err := survey.AskOne(actionPrompt, &action); err != nil {
+		if err := survey.AskOne(actionPrompt, &action, surveyOpts...); err != nil {
 			return err
 		}
 
@@ -444,7 +835,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 		Message: "Select account:",
 		Options: accountNames,
 	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount); err != nil {
+	if err := survey.AskOne(accountPrompt, &selectedAccount, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -459,7 +850,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	amountPrompt := &survey.Input{
 		Message: "Amount (use negative for credit):",
 	}
-	if err := survey.AskOne(amountPrompt, &amountStr); err != nil {
+	if err := survey.AskOne(amountPrompt, &amountStr, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -473,7 +864,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	memoPrompt := &survey.Input{
 		Message: "Memo (optional):",
 	}
-	if err := survey.AskOne(memoPrompt, &memo); err != nil {
+	if err := survey.AskOne(memoPrompt, &memo, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -489,6 +880,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	detail.Splits = append(detail.Splits, newSplit)
 
 	pterm.Success.Println("Split added")
+	printSeparator()
 	return nil
 }
 
@@ -509,7 +901,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 		Message: "Select split to edit:",
 		Options: splitOptions,
 	}
-	if err := survey.AskOne(splitPrompt, &selectedSplit); err != nil {
+	if err := survey.AskOne(splitPrompt, &selectedSplit, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -537,7 +929,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 		Options: accountNames,
 		Default: split.AccountName,
 	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount); err != nil {
+	if err := survey.AskOne(accountPrompt, &selectedAccount, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -553,7 +945,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 		Message: "Amount:",
 		Default: currentAmount,
 	}
-	if err := survey.AskOne(amountPrompt, &amountStr); err != nil {
+	if err := survey.AskOne(amountPrompt, &amountStr, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -568,7 +960,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 		Message: "Memo:",
 		Default: split.Memo,
 	}
-	if err := survey.AskOne(memoPrompt, &memo); err != nil {
+	if err := survey.AskOne(memoPrompt, &memo, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -580,6 +972,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 	split.Memo = memo
 
 	pterm.Success.Println("Split updated")
+	printSeparator()
 	return nil
 }
 
@@ -600,7 +993,7 @@ func deleteSplit(detail *accounting.TransactionDetail) error {
 		Message: "Select split to delete:",
 		Options: splitOptions,
 	}
-	if err := survey.AskOne(splitPrompt, &selectedSplit); err != nil {
+	if err := survey.AskOne(splitPrompt, &selectedSplit, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -615,7 +1008,7 @@ func deleteSplit(detail *accounting.TransactionDetail) error {
 		Message: fmt.Sprintf("Delete split: %s?", detail.Splits[splitIndex].AccountName),
 		Default: false,
 	}
-	if err := survey.AskOne(confirmPrompt, &confirm); err != nil {
+	if err := survey.AskOne(confirmPrompt, &confirm, surveyOpts...); err != nil {
 		return err
 	}
 
@@ -628,6 +1021,7 @@ func deleteSplit(detail *accounting.TransactionDetail) error {
 	detail.Splits = append(detail.Splits[:splitIndex], detail.Splits[splitIndex+1:]...)
 
 	pterm.Success.Println("Split deleted")
+	printSeparator()
 	return nil
 }
 

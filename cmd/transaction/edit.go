@@ -7,6 +7,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/logic/accounting"
 	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -169,24 +170,16 @@ func displayTransactionDetail(detail *accounting.TransactionDetail) {
 
 func editBasicInfo(detail *accounting.TransactionDetail) error {
 	// Edit description
-	var newDescription string
-	descPrompt := &survey.Input{
-		Message: "Description:",
-		Default: detail.Description,
-	}
-	if err := survey.AskOne(descPrompt, &newDescription, surveyOpts...); err != nil {
+	newDescription, err := prompts.PromptInput("Description:", detail.Description, nil)
+	if err != nil {
 		return err
 	}
 	detail.Description = newDescription
 
 	// Edit date
 	currentDate := time.Unix(detail.Timestamp, 0).Format("2006-01-02")
-	var newDateStr string
-	datePrompt := &survey.Input{
-		Message: "Date (YYYY-MM-DD):",
-		Default: currentDate,
-	}
-	if err := survey.AskOne(datePrompt, &newDateStr, surveyOpts...); err != nil {
+	newDateStr, err := prompts.PromptDate("Date (YYYY-MM-DD):", currentDate, "")
+	if err != nil {
 		return err
 	}
 
@@ -197,19 +190,13 @@ func editBasicInfo(detail *accounting.TransactionDetail) error {
 	detail.Timestamp = newDate.Unix()
 
 	// Edit status
-	statusOptions := []string{"Pending", "Cleared"}
 	defaultStatus := "Cleared"
 	if detail.Status == 0 {
 		defaultStatus = "Pending"
 	}
 
-	var newStatus string
-	statusPrompt := &survey.Select{
-		Message: "Status:",
-		Options: statusOptions,
-		Default: defaultStatus,
-	}
-	if err := survey.AskOne(statusPrompt, &newStatus, surveyOpts...); err != nil {
+	newStatus, err := prompts.PromptTransactionStatus(defaultStatus)
+	if err != nil {
 		return err
 	}
 
@@ -544,12 +531,8 @@ func changeAmount(detail *accounting.TransactionDetail) error {
 	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 
 	// Input new amount
-	var newAmountStr string
-	amountPrompt := &survey.Input{
-		Message: "Enter new amount (positive number):",
-		Default: currentAmountStr,
-	}
-	if err := survey.AskOne(amountPrompt, &newAmountStr, surveyOpts...); err != nil {
+	newAmountStr, err := prompts.PromptInput("Enter new amount (positive number):", currentAmountStr, nil)
+	if err != nil {
 		return err
 	}
 
@@ -648,11 +631,8 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	}
 
 	// Input amount
-	var amountStr string
-	amountPrompt := &survey.Input{
-		Message: "Amount (use negative for credit):",
-	}
-	if err := survey.AskOne(amountPrompt, &amountStr, surveyOpts...); err != nil {
+	amountStr, err := prompts.PromptInput("Amount (use negative for credit):", "", nil)
+	if err != nil {
 		return err
 	}
 
@@ -662,11 +642,8 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	}
 
 	// Input memo
-	var memo string
-	memoPrompt := &survey.Input{
-		Message: "Memo (optional):",
-	}
-	if err := survey.AskOne(memoPrompt, &memo, surveyOpts...); err != nil {
+	memo, err := prompts.PromptInput("Memo (optional):", "", nil)
+	if err != nil {
 		return err
 	}
 
@@ -742,12 +719,8 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 
 	// Edit amount
 	currentAmount := logic.FormatAmountFromCents(split.Amount)
-	var amountStr string
-	amountPrompt := &survey.Input{
-		Message: "Amount:",
-		Default: currentAmount,
-	}
-	if err := survey.AskOne(amountPrompt, &amountStr, surveyOpts...); err != nil {
+	amountStr, err := prompts.PromptInput("Amount:", currentAmount, nil)
+	if err != nil {
 		return err
 	}
 
@@ -757,12 +730,8 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 	}
 
 	// Edit memo
-	var memo string
-	memoPrompt := &survey.Input{
-		Message: "Memo:",
-		Default: split.Memo,
-	}
-	if err := survey.AskOne(memoPrompt, &memo, surveyOpts...); err != nil {
+	memo, err := prompts.PromptInput("Memo:", split.Memo, nil)
+	if err != nil {
 		return err
 	}
 

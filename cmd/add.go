@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/logic/accounting"
 	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -159,17 +159,8 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 	}
 
 	// Step 1: Select transaction type
-	var transactionType string
-	typePrompt := &survey.Select{
-		Message: "Choose the transaction type:",
-		Options: []string{
-			"Record Expense",
-			"Record Income",
-			"Transfer",
-		},
-		Help: "Select your desired accounting operation",
-	}
-	if err := survey.AskOne(typePrompt, &transactionType); err != nil {
+	transactionType, err := prompts.PromptTransactionType()
+	if err != nil {
 		return input, err
 	}
 
@@ -184,12 +175,8 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 	}
 
 	// Step 2: Get description (optional)
-	var description string
-	descPrompt := &survey.Input{
-		Message: "Transaction description (optional):",
-		Help:    getDescriptionHelp(mode),
-	}
-	if err := survey.AskOne(descPrompt, &description); err != nil {
+	description, err := prompts.PromptDescription("Transaction description (optional):", false)
+	if err != nil {
 		return input, err
 	}
 	if description == "" {
@@ -197,13 +184,16 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 	}
 
 	// Step 3: Get amount
-	var amountStr string
-	amountPrompt := &survey.Input{
-		Message: "Amount:",
-		Help:    "Enter the amount, no need currency symbol(e.g. 150 or 150.50)",
-	}
-	if err := survey.AskOne(amountPrompt, &amountStr, survey.WithValidator(survey.Required)); err != nil {
+	amountStr, err := prompts.PromptAmount(
+		"Amount:",
+		"Enter the amount, no need currency symbol(e.g. 150 or 150.50)",
+		nil, // No custom validator, will validate after
+	)
+	if err != nil {
 		return input, err
+	}
+	if amountStr == "" {
+		return input, fmt.Errorf("amount is required")
 	}
 
 	amountCents, err := logic.ParseAmountToCents(amountStr)
@@ -258,14 +248,8 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 	}
 
 	// Step 6: Transaction status
-	var statusStr string
-	statusPrompt := &survey.Select{
-		Message: "Transcation status:",
-		Options: []string{"Cleared", "Pending"},
-		Default: "Cleared",
-		Help:    "Cleared: Cleared transaction, Pending: Pending transaction",
-	}
-	if err := survey.AskOne(statusPrompt, &statusStr); err != nil {
+	statusStr, err := prompts.PromptTransactionStatus("Cleared")
+	if err != nil {
 		return input, err
 	}
 
@@ -275,13 +259,8 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 	}
 
 	// Step 7: Transaction date
-	var dateStr string
-	datePrompt := &survey.Input{
-		Message: "Transaction Date (YYYY-MM-DD):",
-		Default: time.Now().Format("2006-01-02"),
-		Help:    "Press Enter for today",
-	}
-	if err := survey.AskOne(datePrompt, &dateStr); err != nil {
+	dateStr, err := prompts.PromptTransactionDate()
+	if err != nil {
 		return input, err
 	}
 
@@ -314,52 +293,12 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 
 // selectAccount filters accounts by type and displays them with optional balance
 func selectAccount(accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
-	// Filter accounts by type
-	var filteredAccounts []*store.Account
-	typeMap := make(map[string]bool)
-	for _, t := range allowedTypes {
-		typeMap[t] = true
+	var balanceGetter func(int64) (string, error)
+	if showBalance {
+		balanceGetter = logic.GetAccountBalanceFormatted
 	}
 
-	for _, acc := range accounts {
-		if typeMap[acc.Type] && !acc.IsHidden {
-			filteredAccounts = append(filteredAccounts, acc)
-		}
-	}
-
-	if len(filteredAccounts) == 0 {
-		return "", fmt.Errorf("no available accounts (Type: %v)", allowedTypes)
-	}
-
-	// Build display options
-	options := make([]string, len(filteredAccounts))
-	accountMap := make(map[string]string) // display -> actual name
-
-	for i, acc := range filteredAccounts {
-		displayName := acc.Name
-
-		if showBalance {
-			balance, err := logic.GetAccountBalanceFormatted(acc.ID)
-			if err == nil {
-				displayName = fmt.Sprintf("%s (Balance: %s %s)", acc.Name, balance, acc.Currency)
-			}
-		}
-
-		options[i] = displayName
-		accountMap[displayName] = acc.Name
-	}
-
-	// Show selection prompt
-	var selected string
-	prompt := &survey.Select{
-		Message: message,
-		Options: options,
-	}
-	if err := survey.AskOne(prompt, &selected); err != nil {
-		return "", err
-	}
-
-	return accountMap[selected], nil
+	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
 }
 
 // getDescriptionHelp returns contextual help text based on transaction mode

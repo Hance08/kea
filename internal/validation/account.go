@@ -6,17 +6,15 @@ import (
 	"strings"
 
 	"github.com/hance08/kea/internal/constants"
-	"github.com/hance08/kea/internal/store"
 )
 
 // AccountStore defines the interface for account storage operations
-// This prevents circular dependency with logic package
+// This prevents circular dependency with store package
 type AccountStore interface {
 	CheckAccountExists(name string) (bool, error)
-	GetAccountByName(name string) (*store.Account, error)
 }
 
-// AccountValidator handles account validation logic
+// AccountValidator handles account validation store
 type AccountValidator struct {
 	store AccountStore
 }
@@ -43,11 +41,8 @@ func (v *AccountValidator) ValidateAccountName(val any) error {
 		return fmt.Errorf("account name cannot contain ':' character")
 	}
 
-	reservedNames := []string{"Assets", "Liabilities", "Equity", "Revenue", "Expenses"}
-	for _, reserved := range reservedNames {
-		if strings.EqualFold(name, reserved) {
-			return fmt.Errorf("'%s' is a reserved root account name", name)
-		}
+	if constants.ReservedNames[strings.ToLower(name)] {
+		return fmt.Errorf("'%s' is a reserved root account name", name)
 	}
 
 	if len(name) > constants.MaxNameLen {
@@ -59,6 +54,7 @@ func (v *AccountValidator) ValidateAccountName(val any) error {
 // ValidateAccountNameWithPrefix returns a validator that checks both name format and existence
 func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(any) error {
 	return func(val any) error {
+		// When creating subaccount, the partial name is the user entering name
 		partialName := val.(string)
 
 		if err := v.ValidateAccountName(partialName); err != nil {
@@ -66,6 +62,10 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(any
 		}
 
 		fullName := prefix + ":" + partialName
+		if len(fullName) > constants.MaxNameLen {
+			return fmt.Errorf("full account name too long")
+		}
+
 		exists, err := v.store.CheckAccountExists(fullName)
 		if err != nil {
 			return fmt.Errorf("failed to check account: %w", err)
@@ -95,25 +95,11 @@ func (v *AccountValidator) ValidateFullAccountName(fullName string) error {
 	return nil
 }
 
-// ValidateParentAccount validates and retrieves a parent account
-func (v *AccountValidator) ValidateParentAccount(name string) (*store.Account, error) {
-	if name == "" {
-		return nil, fmt.Errorf("parent account name can't be empty")
-	}
-
-	parentAccount, err := v.store.GetAccountByName(name)
-	if err != nil {
-		return nil, fmt.Errorf("parent account not found: %w", err)
-	}
-
-	return parentAccount, nil
-}
-
 // ValidateCurrency validates a currency code format
 // Accepts both string and any (for survey compatibility)
-func ValidateCurrency(val any) error {
+func (v *AccountValidator) ValidateCurrency(val any) error {
 	var currency string
-	
+
 	// Handle both string and any types
 	switch v := val.(type) {
 	case string:
@@ -121,9 +107,9 @@ func ValidateCurrency(val any) error {
 	default:
 		return fmt.Errorf("currency code must be a string")
 	}
-	
+
 	currency = strings.TrimSpace(strings.ToUpper(currency))
-	
+
 	if currency == "" {
 		return nil // Empty is allowed (will use default)
 	}
@@ -137,17 +123,17 @@ func ValidateCurrency(val any) error {
 			return fmt.Errorf("currency code must contain only letters")
 		}
 	}
-	
+
 	return nil
 }
 
 // ValidateInitialBalance validates initial balance input
-func ValidateInitialBalance(val any) error {
+func (v *AccountValidator) ValidateInitialBalance(val any) error {
 	input, ok := val.(string)
 	if !ok {
 		return fmt.Errorf("balance must be a string")
 	}
-	
+
 	input = strings.TrimSpace(input)
 	if input == "" || input == "0" {
 		return nil
@@ -161,8 +147,7 @@ func ValidateInitialBalance(val any) error {
 	if balanceFloat < 0 {
 		return fmt.Errorf("initial balance can't be negative")
 	}
-
-	if balanceFloat > 9223372036854775 {
+	if balanceFloat > constants.MaxSafeBalanceFloat {
 		return fmt.Errorf("balance amount too large")
 	}
 

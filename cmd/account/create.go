@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/logic/accounting"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
@@ -20,14 +21,38 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Command-line flags
 var (
 	accName     string
-	accParent   string
 	accType     string
+	accParent   string
 	accBalance  int
-	accDesc     string
 	accCurrency string
+	accDesc     string
 )
+
+// AccountCreator manages the state and logic for creating an account
+type AccountCreator struct {
+	name        string
+	fullName    string
+	parentID    *int64
+	accountType string
+	currency    string
+	balance     int64
+	description string
+
+	// Dependencies (injected)
+	logic     *accounting.AccountingLogic
+	validator *validation.AccountValidator
+}
+
+// NewAccountCreator creates a new AccountCreator instance with injected dependencies
+func NewAccountCreator(l *accounting.AccountingLogic, v *validation.AccountValidator) *AccountCreator {
+	return &AccountCreator{
+		logic:     l,
+		validator: v,
+	}
+}
 
 var createCmd = &cobra.Command{
 	Use:   "create",
@@ -43,243 +68,320 @@ Example: kea account create -t A -n Bank -b 100000`,
 	RunE:         runAccountCreate,
 }
 
+func init() {
+	createCmd.Flags().StringVarP(&accName, "name", "n", "", "Account name (without parent prefix)")
+	createCmd.Flags().StringVarP(&accType, "type", "t", "", "Account type: A (Assets), L (Liabilities), R (Revenue), E (Expenses), C (Equity)")
+	createCmd.Flags().StringVarP(&accParent, "parent", "p", "", "Parent account full name (mutually exclusive with --type)")
+	createCmd.Flags().IntVarP(&accBalance, "balance", "b", 0, "Initial balance (integer, for Assets and Liabilities only)")
+	createCmd.Flags().StringVar(&accCurrency, "currency", "", "Currency code (defaults to parent's currency or config default)")
+	createCmd.Flags().StringVarP(&accDesc, "description", "d", "", "Account description (optional)")
+}
+
 func runAccountCreate(cmd *cobra.Command, args []string) error {
-	var finalName, finalType, finalCurrency string
-	var parentID *int64
-	var amountInCents int64 = 0
+	// Inject dependencies from package-level variables
+	creator := NewAccountCreator(logic, validator)
 
 	hasFlags := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("type") ||
 		cmd.Flags().Changed("parent")
 
-	// Flag mode
 	if hasFlags {
-		if accParent == "" && accType == "" {
-			return fmt.Errorf("must enter at least one of --type or --parent flag")
-		}
-		if accParent != "" && accType != "" {
-			return fmt.Errorf("--type and --parent flags can not use as the sametime")
-		}
-
-		// Validate account name first (before combining with parent/root)
-		if err := validator.ValidateAccountName(accName); err != nil {
-			return err
-		}
-
-		if accParent != "" {
-			parentAccount, err := logic.GetAccountByName(accParent)
-			if err != nil {
-				return err
-			}
-
-			finalName = accParent + ":" + accName
-			finalType = parentAccount.Type
-			if accCurrency != "" {
-				finalCurrency = accCurrency
-			} else {
-				finalCurrency = parentAccount.Currency
-			}
-			parentID = &parentAccount.ID
-
-		} else {
-			rootName, err := logic.GetRootNameByType(accType)
-			if err != nil {
-				return err
-			}
-
-			finalName = rootName + ":" + accName
-			finalType = accType
-
-			if accCurrency != "" {
-				if err := validation.ValidateCurrency(accCurrency); err != nil {
-					return err
-				}
-
-				finalCurrency = strings.ToUpper(strings.TrimSpace(accCurrency))
-			} else {
-				finalCurrency = viper.GetString("defaults.currency")
-			}
-		}
-
-		// Validate final name (check existence and length, but allow colons)
-		if len(finalName) > constants.MaxNameLen {
-			return fmt.Errorf("account name too long (max 100 characters)")
-		}
-
-		exists, err := logic.CheckAccountExists(finalName)
-		if err != nil {
-			return fmt.Errorf("failed to check account existence: %w", err)
-		}
-		if exists {
-			return fmt.Errorf("account '%s' already exists", finalName)
-		}
-
-		newAccount, err := logic.CreateAccount(finalName, finalType, finalCurrency, accDesc, parentID)
-		if err != nil {
-			return err
-		}
-
-		if accBalance != 0 {
-			if accBalance < 0 {
-				return fmt.Errorf("initial balance can't be negative")
-			}
-			balanceFloat := float64(accBalance)
-			amountInCents = int64(math.Round(balanceFloat * constants.CentsPerUnit))
-
-			err = logic.SetBalance(newAccount, amountInCents)
-			if err != nil {
-				return err
-			}
-		}
-
-		displayAccountSummary(finalName, finalType, finalCurrency, amountInCents, accDesc)
-		displaySuccessInformation(newAccount.ID, finalName)
-		return nil
+		return creator.FlagsMode(cmd)
 	}
 
-	// Interaaction mode
-	// step 1: check if is subaccount
+	return creator.InteractiveMode()
+}
+
+// FlagsMode builds an account from command-line flags
+func (ac *AccountCreator) FlagsMode(cmd *cobra.Command) error {
+	// Validate flag combinations
+	if accParent == "" && accType == "" {
+		return fmt.Errorf("must enter at least one of --type or --parent flag")
+	}
+	if accParent != "" && accType != "" {
+		return fmt.Errorf("--type and --parent flags cannot be used at the same time")
+	}
+
+	// Validate account name (before combining with parent/root)
+	if err := ac.validator.ValidateAccountName(accName); err != nil {
+		return fmt.Errorf("invalid account name: %w", err)
+	}
+
+	ac.name = accName
+	ac.description = accDesc
+
+	// Build account based on parent or type
+	if accParent != "" {
+		if err := ac.buildFromParent(accParent, accCurrency); err != nil {
+			return err
+		}
+	} else {
+		if err := ac.buildFromType(accType, accCurrency); err != nil {
+			return err
+		}
+	}
+
+	// Validate final name using validation package
+	if err := ac.validator.ValidateFullAccountName(ac.fullName); err != nil {
+		return fmt.Errorf("validate account name: %w", err)
+	}
+
+	// Handle balance
+	if accBalance != 0 {
+		if accBalance < 0 {
+			return fmt.Errorf("initial balance can't be negative")
+		}
+		balanceFloat := float64(accBalance)
+		ac.balance = int64(math.Round(balanceFloat * constants.CentsPerUnit))
+	}
+
+	// Save account
+	newAccount, err := ac.Save()
+	if err != nil {
+		return err
+	}
+
+	ac.displaySummary()
+	displaySuccessInformation(newAccount.ID, ac.fullName)
+	return nil
+}
+
+// InteractiveMode builds an account through interactive prompts
+func (ac *AccountCreator) InteractiveMode() error {
+	// Step 1: Check if is subaccount
 	isSubAccount, err := prompts.PromptIsSubAccount()
 	if err != nil {
 		return err
 	}
 
 	if isSubAccount {
-		// step 2a: select parent account
-		parentAccount, err := selectParentAccount()
+		// Step 2: Select parent account
+		parentAccount, err := runSelectParentStep(ac)
 		if err != nil {
 			return err
 		}
-		accParent = parentAccount.Name
 
-		// step 3: enter account name
-		if err := enterAccountName(accParent); err != nil {
+		// Step 3: Enter account name
+		nameInput, err := runNameStep(ac, parentAccount.Name)
+		if err != nil {
 			return err
 		}
 
-		finalName = accParent + ":" + accName
-		finalType = parentAccount.Type
-		finalCurrency = parentAccount.Currency
-		parentID = &parentAccount.ID
+		ac.setName(nameInput)
+
+		if err := ac.buildFromParent(parentAccount.Name, parentAccount.Currency); err != nil {
+			return err
+		}
 
 	} else {
-		// step 2b: select account type
-		accType, err := selectType()
+		// Step 2: Select account type
+		accType, err := runSelectTypeStep()
 		if err != nil {
 			return err
 		}
 
-		rootName, err := logic.GetRootNameByType(accType)
+		rootName, err := ac.logic.GetRootNameByType(accType)
 		if err != nil {
 			return err
 		}
 
-		// step 3: enter account name
-		if err := enterAccountName(rootName); err != nil {
+		// Step 3: Enter account name
+		nameInput, err := runNameStep(ac, rootName)
+		if err != nil {
 			return err
 		}
 
-		finalName = rootName + ":" + accName
-		finalType = accType
+		ac.setName(nameInput)
+
+		if err := ac.buildFromType(accType, ""); err != nil {
+			return err
+		}
 	}
 
-	// step 4: currency setting
-	if finalCurrency == "" {
-		defaultCurrency := viper.GetString("defaults.currency")
-		selectedCurrency, err := selectCurrency(defaultCurrency, false)
-		if err != nil {
-			return err
-		}
+	// Step 4: Currency setting
+	currency, err := runCurrencyStep(ac)
+	if err != nil {
+		return err
+	}
+	ac.setCurrency(currency)
 
-		finalCurrency = selectedCurrency
-	} else {
-		selectedCurrency, err := selectCurrency(finalCurrency, true)
+	// Step 5: Initial balance setting
+	if ac.accountType == "A" || ac.accountType == "L" {
+		balance, err := runBalanceStep()
 		if err != nil {
-			return err
+			return err // 同樣建議回傳 err
 		}
-		finalCurrency = selectedCurrency
-
+		ac.setBalance(balance)
 	}
 
-	// step 5: initial balance setting
-	if finalType == "A" || finalType == "L" {
-		balance, err := setInitialBalance()
-		if err != nil {
-			return err
-		}
-		amountInCents = balance
-	}
-
-	// step 6: description setting
-	if err := setDescription(); err != nil {
+	// Step 6: Description setting
+	desc, err := runDescStep()
+	if err != nil {
 		return err
 	}
 
-	// print put full informtaion
-	displayAccountSummary(finalName, finalType, finalCurrency, amountInCents, accDesc)
+	ac.setDescription(desc)
+	ac.displaySummary()
 
-	// confirm proceed the creation
+	// Confirm proceed with creation
 	if err := confirmProceed(); err != nil {
 		return err
 	}
 
-	// create account
-	newAccount, err := createAccount(finalName, finalType, finalCurrency, accDesc, amountInCents, parentID)
+	// Save account
+	newAccount, err := ac.Save()
 	if err != nil {
 		return err
 	}
-	displaySuccessInformation(newAccount.ID, finalName)
+
+	displaySuccessInformation(newAccount.ID, ac.fullName)
+	return nil
+}
+
+// buildFromParent sets up account details based on parent account
+func (ac *AccountCreator) buildFromParent(parentName, currency string) error {
+	parentAccount, err := ac.logic.GetAccountByName(parentName)
+	if err != nil {
+		return err
+	}
+
+	ac.fullName = parentName + ":" + ac.name
+	ac.accountType = parentAccount.Type
+	ac.parentID = &parentAccount.ID
+
+	if currency != "" {
+		ac.currency = currency
+	} else {
+		ac.currency = parentAccount.Currency
+	}
 
 	return nil
 }
 
-func init() {
-	createCmd.Flags().StringVarP(&accName, "name", "n", "", "Account Name")
-	createCmd.Flags().StringVarP(&accParent, "parent", "p", "", "Parent FULL NAME)")
-	createCmd.Flags().StringVarP(&accType, "type", "t", "", "Account Type (A,L,R,E) (Only use with top level accounts)")
-	createCmd.Flags().IntVarP(&accBalance, "balance", "b", 0, "Setting Balance (Integer)")
-	createCmd.Flags().StringVar(&accCurrency, "currency", "", "Currency Code (If not specified, it will use parent's currency or default from config)")
-	createCmd.Flags().StringVarP(&accDesc, "description", "d", "", "Account description")
+// buildFromType sets up account details based on account type
+func (ac *AccountCreator) buildFromType(accType, currency string) error {
+	rootName, err := ac.logic.GetRootNameByType(accType)
+	if err != nil {
+		return fmt.Errorf("get root name: %w", err)
+	}
+
+	ac.fullName = rootName + ":" + ac.name
+	ac.accountType = accType
+
+	if currency != "" {
+		if err := validator.ValidateCurrency(currency); err != nil {
+			return err
+		}
+		ac.currency = strings.ToUpper(strings.TrimSpace(currency))
+	} else {
+		ac.currency = viper.GetString("defaults.currency")
+	}
+
+	return nil
 }
 
-func selectType() (string, error) {
-	return prompts.PromptAccountType()
+func (ac *AccountCreator) setName(name string) {
+	ac.name = name
 }
 
-func selectParentAccount() (*store.Account, error) {
-	allAccounts, err := logic.GetAllAccounts()
+func (ac *AccountCreator) setCurrency(currency string) {
+	ac.currency = currency
+}
+
+func (ac *AccountCreator) setBalance(balance int64) {
+	ac.balance = balance
+}
+
+func (ac *AccountCreator) setDescription(desc string) {
+	ac.description = desc
+}
+
+func (ac *AccountCreator) displaySummary() {
+	ui.Separator()
+
+	balanceStr := fmt.Sprintf("%.2f", float64(ac.balance)/100)
+
+	descStr := ac.description
+	if descStr == "" {
+		descStr = "None"
+	}
+
+	tableData := pterm.TableData{
+		{pterm.Blue("Full Name"), ac.fullName},
+		{pterm.Blue("Type"), ac.accountType},
+		{pterm.Blue("Currency"), ac.currency},
+		{pterm.Blue("Balance"), balanceStr},
+		{pterm.Blue("Description"), descStr},
+	}
+
+	pterm.DefaultTable.WithData(tableData).Render()
+}
+
+// Save persists the account to the database
+func (ac *AccountCreator) Save() (*store.Account, error) {
+	newAccount, err := ac.logic.CreateAccount(ac.fullName, ac.accountType, ac.currency, ac.description, ac.parentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create account: %w", err)
+	}
+
+	if ac.balance != 0 {
+		err = ac.logic.SetBalance(newAccount, ac.balance)
+		if err != nil {
+			return nil, fmt.Errorf("failed to set balance: %w", err)
+		}
+	}
+
+	return newAccount, nil
+}
+
+// Helper functions for interactive mode
+func runSelectParentStep(ac *AccountCreator) (*store.Account, error) {
+	allAccounts, err := ac.logic.GetAllAccounts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
 	}
 
-	_, _, err = prompts.PromptParentAccount(allAccounts)
+	selectedName, selectedAccount, err := prompts.PromptParentAccount(allAccounts)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate parent account
-	parentAccount, err := validator.ValidateParentAccount(accParent)
+	parentAccount, err := ac.logic.GetAccountByName(selectedName)
 	if err != nil {
 		return nil, err
 	}
+
+	if selectedAccount != nil && selectedAccount.Name == parentAccount.Name {
+		parentAccount = selectedAccount
+	}
+
 	return parentAccount, nil
 }
 
-func enterAccountName(prefix string) error {
-	name, err := prompts.PromptAccountName(validator.ValidateAccountNameWithPrefix(prefix))
-	if err != nil {
-		return err
+func runNameStep(ac *AccountCreator, prefix string) (string, error) {
+	return prompts.PromptAccountName(ac.validator.ValidateAccountNameWithPrefix(prefix))
+}
+
+func runSelectTypeStep() (string, error) {
+	return prompts.PromptAccountType()
+}
+
+func runCurrencyStep(ac *AccountCreator) (string, error) {
+	defaultCurrency := ac.currency
+
+	if defaultCurrency == "" {
+		//TODO: Validate the string in the config file
+		defaultCurrency = viper.GetString("defaults.currency")
 	}
-	accName = name
-	return nil
+
+	isInherited := ac.parentID != nil
+
+	return prompts.PromptCurrency(defaultCurrency, isInherited, validator.ValidateCurrency)
+
 }
 
-func selectCurrency(defaultCurrency string, isInherited bool) (string, error) {
-	return prompts.PromptCurrency(defaultCurrency, isInherited, validation.ValidateCurrency)
-}
-
-func setInitialBalance() (int64, error) {
-	balanceInput, err := prompts.PromptInitialBalance(validation.ValidateInitialBalance)
+func runBalanceStep() (int64, error) {
+	balanceInput, err := prompts.PromptInitialBalance(validator.ValidateInitialBalance)
 	if err != nil {
 		return 0, err
 	}
@@ -291,20 +393,15 @@ func setInitialBalance() (int64, error) {
 
 	balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
 	if err != nil {
-		return 0, fmt.Errorf("invalid input of Initial Balance")
+		return 0, fmt.Errorf("invalid balance input: must be a number")
 	}
 
-	amountInCents := int64(math.Round(balanceFloat * constants.CentsPerUnit))
-	return amountInCents, nil
+	return int64(math.Round(balanceFloat * constants.CentsPerUnit)), nil
+
 }
 
-func setDescription() error {
-	desc, err := prompts.PromptDescription("Description (optional):", false)
-	if err != nil {
-		return err
-	}
-	accDesc = desc
-	return nil
+func runDescStep() (string, error) {
+	return prompts.PromptDescription("Description (optional):", false)
 }
 
 func confirmProceed() error {
@@ -318,42 +415,6 @@ func confirmProceed() error {
 	}
 
 	return nil
-}
-
-func createAccount(name, _type, currency, desc string, amountInCents int64, parentID *int64) (*store.Account, error) {
-	newAccount, err := logic.CreateAccount(name, _type, currency, desc, parentID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create account: %w", err)
-	}
-
-	if amountInCents != 0 {
-		err = logic.SetBalance(newAccount, amountInCents)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set balance: %w", err)
-		}
-	}
-	return newAccount, nil
-}
-
-func displayAccountSummary(finalName, finalType, finalCurrency string, amountInCents int64, description string) {
-	ui.Separator()
-
-	balanceStr := fmt.Sprintf("%.2f", float64(amountInCents)/100)
-
-	descStr := description
-	if descStr == "" {
-		descStr = "None"
-	}
-
-	tableData := pterm.TableData{
-		{pterm.Blue("Full Name"), finalName},
-		{pterm.Blue("Type"), finalType},
-		{pterm.Blue("Currency"), finalCurrency},
-		{pterm.Blue("Balance"), balanceStr},
-		{pterm.Blue("Description"), descStr},
-	}
-
-	pterm.DefaultTable.WithData(tableData).Render()
 }
 
 func displaySuccessInformation(newAccountID int64, finalName string) {

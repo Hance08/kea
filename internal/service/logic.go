@@ -4,10 +4,18 @@ import (
 	"github.com/hance08/kea/internal/store"
 )
 
-type AccountingService struct {
-	store store.Repository
+type Config struct {
+	DefaultCurrency string
 }
 
-func NewLogic(s store.Repository) *AccountingService {
-	return &AccountingService{store: s}
+type AccountingService struct {
+	store  store.Repository
+	config Config
+}
+
+func NewLogic(s store.Repository, cfg Config) *AccountingService {
+	return &AccountingService{
+		store:  s,
+		config: cfg,
+	}
 }

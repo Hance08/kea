@@ -150,7 +150,16 @@ func initDB() error {
 }
 
 func initLogicAndDependencies() {
-	svc = service.NewLogic(dbStore)
+	currency := viper.GetString("defaults.currency")
+	if currency == "" {
+		currency = "USD"
+	}
+
+	svcConfig := service.Config{
+		DefaultCurrency: currency,
+	}
+
+	svc = service.NewLogic(dbStore, svcConfig)
 
 	transaction.SetDependencies(svc)
 	account.SetDependencies(svc)

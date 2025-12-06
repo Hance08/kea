@@ -1,130 +1,12 @@
-package accounting
+package service
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hance08/kea/internal/store"
 	"github.com/spf13/viper"
 )
-
-type AccountingLogic struct {
-	store *store.Store
-}
-
-func NewLogic(s *store.Store) *AccountingLogic {
-	return &AccountingLogic{store: s}
-}
-
-func (al *AccountingLogic) CreateAccount(name, accType, currency, description string, parentID *int64) (*store.Account, error) {
-	newID, err := al.store.CreateAccount(name, accType, currency, description, parentID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &store.Account{
-		ID:          newID,
-		Name:        name,
-		Type:        accType,
-		Currency:    currency,
-		Description: description,
-		ParentID:    parentID,
-		IsHidden:    false,
-	}, nil
-}
-
-func (al *AccountingLogic) GetAllAccounts() ([]*store.Account, error) {
-	return al.store.GetAllAccounts()
-}
-
-func (al *AccountingLogic) GetAccountByName(name string) (*store.Account, error) {
-	return al.store.GetAccountByName(name)
-}
-
-func (al *AccountingLogic) CheckAccountExists(name string) (bool, error) {
-	return al.store.AccountExists(name)
-}
-
-func (al *AccountingLogic) GetAccountsByType(accType string) ([]*store.Account, error) {
-	return al.store.GetAccountsByType(accType)
-}
-
-func (al *AccountingLogic) GetAccountBalanceFormatted(accountID int64) (string, error) {
-	balance, err := al.store.GetAccountBalance(accountID)
-	if err != nil {
-		return "", err
-	}
-
-	balanceFloat := float64(balance) / 100
-	return fmt.Sprintf("%.2f", balanceFloat), nil
-}
-
-func (al *AccountingLogic) GetRootNameByType(accType string) (string, error) {
-	switch strings.ToUpper(accType) {
-	case "A":
-		return "Assets", nil
-	case "L":
-		return "Liabilities", nil
-	case "E":
-		return "Expenses", nil
-	case "R":
-		return "Revenue", nil
-	case "C":
-		return "Equity", nil
-	default:
-		return "", fmt.Errorf("invalid account type '%s' (must be A, L, C, R, E)", accType)
-	}
-}
-
-func (al *AccountingLogic) SetBalance(account *store.Account, amountInCents int64) error {
-	if amountInCents == 0 {
-		return nil
-	}
-
-	openingBalanceAccount, err := al.store.GetAccountByName("Equity:OpeningBalances")
-	if err != nil {
-		return fmt.Errorf("error : can not find 'Equity:OpeningBalances' account, failed to set initial balance")
-	}
-
-	var balanceAmount int64
-	var equityAmount int64
-
-	switch account.Type {
-	case "A":
-		balanceAmount = amountInCents
-		equityAmount = -amountInCents
-	case "L":
-		balanceAmount = -amountInCents
-		equityAmount = amountInCents
-	default:
-		return fmt.Errorf("only Assets(A) and Liabilities(L) account can set balance")
-	}
-
-	tx := store.Transaction{
-		Timestamp:   time.Now().Unix(),
-		Description: "Opening Balance",
-		Status:      1,
-	}
-
-	splits := []store.Split{
-		{
-			AccountID: account.ID,
-			Amount:    balanceAmount,
-			Currency:  viper.GetString("defaults.currency"),
-			Memo:      "Opening Balance",
-		},
-		{
-			AccountID: openingBalanceAccount.ID,
-			Amount:    equityAmount,
-			Currency:  viper.GetString("defaults.currency"),
-			Memo:      "Opening Balance",
-		},
-	}
-
-	_, err = al.store.CreateTransactionWithSplits(tx, splits)
-	return err
-}
 
 // TransactionSplitInput represents a split entry with account name instead of ID
 type TransactionSplitInput struct {
@@ -149,7 +31,7 @@ type TransactionInput struct {
 // 1. All accounts exist
 // 2. Splits balance to zero (double-entry bookkeeping)
 // 3. At least 2 splits are provided
-func (al *AccountingLogic) CreateTransaction(input TransactionInput) (int64, error) {
+func (al *AccountingService) CreateTransaction(input TransactionInput) (int64, error) {
 	// Validate: at least 2 splits required
 	if len(input.Splits) < 2 {
 		return 0, fmt.Errorf("transaction must have at least 2 splits (got %d)", len(input.Splits))
@@ -207,7 +89,7 @@ func (al *AccountingLogic) CreateTransaction(input TransactionInput) (int64, err
 }
 
 // ValidateSplitsBalance validates that all splits sum to zero (double-entry principle)
-func (al *AccountingLogic) ValidateSplitsBalance(splits []store.Split) error {
+func (al *AccountingService) ValidateSplitsBalance(splits []store.Split) error {
 	var total int64 = 0
 
 	for _, split := range splits {
@@ -243,7 +125,7 @@ type SplitDetail struct {
 }
 
 // GetTransactionByID retrieves a transaction with all split details
-func (al *AccountingLogic) GetTransactionByID(txID int64) (*TransactionDetail, error) {
+func (al *AccountingService) GetTransactionByID(txID int64) (*TransactionDetail, error) {
 	tx, splits, err := al.store.GetTransactionByID(txID)
 	if err != nil {
 		return nil, err
@@ -280,7 +162,7 @@ func (al *AccountingLogic) GetTransactionByID(txID int64) (*TransactionDetail, e
 }
 
 // GetRecentTransactions retrieves recent transactions across all accounts
-func (al *AccountingLogic) GetRecentTransactions(limit int) ([]*store.Transaction, error) {
+func (al *AccountingService) GetRecentTransactions(limit int) ([]*store.Transaction, error) {
 	transactions, err := al.store.GetAllTransactions(limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
@@ -289,7 +171,7 @@ func (al *AccountingLogic) GetRecentTransactions(limit int) ([]*store.Transactio
 }
 
 // GetTransactionHistory retrieves transaction history for a specific account
-func (al *AccountingLogic) GetTransactionHistory(accountName string, limit int) ([]*store.Transaction, error) {
+func (al *AccountingService) GetTransactionHistory(accountName string, limit int) ([]*store.Transaction, error) {
 	// Get account by name
 	account, err := al.store.GetAccountByName(accountName)
 	if err != nil {
@@ -306,66 +188,21 @@ func (al *AccountingLogic) GetTransactionHistory(accountName string, limit int) 
 }
 
 // DeleteTransaction deletes a transaction
-func (al *AccountingLogic) DeleteTransaction(txID int64) error {
+func (al *AccountingService) DeleteTransaction(txID int64) error {
 	return al.store.DeleteTransaction(txID)
 }
 
 // UpdateTransactionStatus updates the status of a transaction
-func (al *AccountingLogic) UpdateTransactionStatus(txID int64, status int) error {
+func (al *AccountingService) UpdateTransactionStatus(txID int64, status int) error {
 	if status != 0 && status != 1 {
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
 	return al.store.UpdateTransactionStatus(txID, status)
 }
 
-// FormatAmountFromCents converts cents to currency string
-func (al *AccountingLogic) FormatAmountFromCents(cents int64) string {
-	return fmt.Sprintf("%.2f", float64(cents)/100.0)
-}
-
-// ParseAmountToCents converts currency string to cents
-// e.g., "150.50" -> 15050, "150" -> 15000
-func (al *AccountingLogic) ParseAmountToCents(amountStr string) (int64, error) {
-	var dollars, cents int64
-
-	// Handle formats: "150", "150.5", "150.50"
-	parts := strings.Split(amountStr, ".")
-
-	if len(parts) > 2 {
-		return 0, fmt.Errorf("invalid amount format: %s", amountStr)
-	}
-
-	// Parse dollar part
-	if parts[0] != "" {
-		_, err := fmt.Sscanf(parts[0], "%d", &dollars)
-		if err != nil {
-			return 0, fmt.Errorf("invalid amount: %s", amountStr)
-		}
-	}
-
-	// Parse cents part if exists
-	if len(parts) == 2 {
-		centStr := parts[1]
-		// Pad or truncate to 2 digits
-		if len(centStr) == 1 {
-			centStr += "0" // "150.5" -> "50"
-		} else if len(centStr) > 2 {
-			centStr = centStr[:2] // Truncate extra digits
-		}
-
-		_, err := fmt.Sscanf(centStr, "%d", &cents)
-		if err != nil {
-			return 0, fmt.Errorf("invalid cents: %s", amountStr)
-		}
-	}
-
-	total := dollars*100 + cents
-	return total, nil
-}
-
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
-func (al *AccountingLogic) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []TransactionSplitInput) error {
+func (al *AccountingService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []TransactionSplitInput) error {
 	// Validate status
 	if status != 0 && status != 1 {
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
@@ -459,7 +296,7 @@ func (al *AccountingLogic) UpdateTransactionComplete(txID int64, description str
 }
 
 // ValidateTransactionEdit validates a transaction edit without saving
-func (al *AccountingLogic) ValidateTransactionEdit(splits []TransactionSplitInput) error {
+func (al *AccountingService) ValidateTransactionEdit(splits []TransactionSplitInput) error {
 	// Check minimum splits
 	if len(splits) < 2 {
 		return fmt.Errorf("transaction must have at least 2 splits")

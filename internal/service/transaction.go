@@ -31,6 +31,7 @@ type TransactionInput struct {
 // 2. Splits balance to zero (double-entry bookkeeping)
 // 3. At least 2 splits are provided
 func (al *AccountingService) CreateTransaction(input TransactionInput) (int64, error) {
+	defaultCurrency := al.config.DefaultCurrency
 	// Validate: at least 2 splits required
 	if len(input.Splits) < 2 {
 		return 0, fmt.Errorf("transaction must have at least 2 splits (got %d)", len(input.Splits))
@@ -43,7 +44,7 @@ func (al *AccountingService) CreateTransaction(input TransactionInput) (int64, e
 
 	// Convert account names to account IDs and build splits
 	var splits []store.Split
-	currency := viper.GetString("defaults.currency")
+	currency := defaultCurrency
 
 	for i, splitInput := range input.Splits {
 		// Validate account exists

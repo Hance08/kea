@@ -69,6 +69,8 @@ func (al *AccountingService) GetRootNameByType(accType string) (string, error) {
 }
 
 func (al *AccountingService) SetBalance(account *store.Account, amountInCents int64) error {
+	currency := al.config.DefaultCurrency
+
 	if amountInCents == 0 {
 		return nil
 	}
@@ -102,13 +104,13 @@ func (al *AccountingService) SetBalance(account *store.Account, amountInCents in
 		{
 			AccountID: account.ID,
 			Amount:    balanceAmount,
-			Currency:  viper.GetString("defaults.currency"),
+			Currency:  currency,
 			Memo:      "Opening Balance",
 		},
 		{
 			AccountID: openingBalanceAccount.ID,
 			Amount:    equityAmount,
-			Currency:  viper.GetString("defaults.currency"),
+			Currency:  currency,
 			Memo:      "Opening Balance",
 		},
 	}

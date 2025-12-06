@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/store"
-	"github.com/spf13/viper"
 )
 
 // TransactionSplitInput represents a split entry with account name instead of ID

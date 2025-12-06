@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/store"
-	"github.com/spf13/viper"
 )
 
 func (al *AccountingService) CreateAccount(name, accType, currency, description string, parentID *int64) (*store.Account, error) {

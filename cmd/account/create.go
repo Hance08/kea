@@ -274,6 +274,7 @@ func (ac *AccountCreator) buildFromType(accType, currency string) error {
 		}
 		ac.currency = strings.ToUpper(strings.TrimSpace(currency))
 	} else {
+		//TODO: avoid using viper in here
 		ac.currency = viper.GetString("defaults.currency")
 	}
 
@@ -371,6 +372,7 @@ func runCurrencyStep(ac *AccountCreator) (string, error) {
 
 	if defaultCurrency == "" {
 		//TODO: Validate the string in the config file
+		//TODO: Avoid using viper in here
 		defaultCurrency = viper.GetString("defaults.currency")
 	}
 

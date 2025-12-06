@@ -24,7 +24,7 @@ func runTransactionShow(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get transaction details
-	detail, err := logic.GetTransactionByID(txID)
+	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil

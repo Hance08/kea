@@ -23,7 +23,7 @@ func runTransactionClear(cmd *cobra.Command, args []string) error {
 	}
 
 	// Update status to cleared (1)
-	if err := logic.UpdateTransactionStatus(txID, 1); err != nil {
+	if err := svc.UpdateTransactionStatus(txID, 1); err != nil {
 		pterm.Error.Printf("Failed to update transaction status: %v\n", err)
 		return nil
 	}

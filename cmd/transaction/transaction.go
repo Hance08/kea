@@ -4,12 +4,12 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package transaction
 
 import (
-	"github.com/hance08/kea/internal/logic/accounting"
+	"github.com/hance08/kea/internal/service"
 	"github.com/spf13/cobra"
 )
 
 var (
-	logic *accounting.AccountingLogic
+	svc *service.AccountingService
 )
 
 // TransactionCmd represents the transaction command
@@ -27,6 +27,6 @@ func init() {
 }
 
 // SetDependencies allows root command to inject dependencies
-func SetDependencies(l *accounting.AccountingLogic) {
-	logic = l
+func SetDependencies(s *service.AccountingService) {
+	svc = s
 }

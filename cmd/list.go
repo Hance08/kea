@@ -49,14 +49,14 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	if listAccount != "" {
 		// List transactions for specific account
-		transactions, err = logic.GetTransactionHistory(listAccount, listLimit)
+		transactions, err = svc.GetTransactionHistory(listAccount, listLimit)
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
 		pterm.Info.Printf("Showing transactions for account: %s\n\n", listAccount)
 	} else {
 		// List all recent transactions
-		transactions, err = logic.GetRecentTransactions(listLimit)
+		transactions, err = svc.GetRecentTransactions(listLimit)
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
@@ -138,7 +138,7 @@ func runList(cmd *cobra.Command, args []string) error {
 
 // getTransactionAmount retrieves the main amount of a transaction (largest positive split)
 func getTransactionAmount(txID int64) (string, error) {
-	detail, err := logic.GetTransactionByID(txID)
+	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
 	}
@@ -166,7 +166,7 @@ func getTransactionAmount(txID int64) (string, error) {
 // getTransactionType determines the type of transaction based on account types involved
 // Returns: "Expense", "Income", "Transfer", or "Other"
 func getTransactionType(txID int64) (string, error) {
-	detail, err := logic.GetTransactionByID(txID)
+	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +180,7 @@ func getTransactionType(txID int64) (string, error) {
 	isOpening := false
 	for _, split := range detail.Splits {
 		// Get account by ID to find its type
-		account, err := logic.GetAccountByName(split.AccountName)
+		account, err := svc.GetAccountByName(split.AccountName)
 		if err == nil {
 			accountTypes[account.Type] = true
 		}
@@ -213,7 +213,7 @@ func getTransactionType(txID int64) (string, error) {
 
 // getTransactionAccount returns the relevant account name based on transaction type
 func getTransactionAccount(txID int64, transType string) (string, error) {
-	detail, err := logic.GetTransactionByID(txID)
+	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
 	}
@@ -226,7 +226,7 @@ func getTransactionAccount(txID int64, transType string) (string, error) {
 	case "Expense":
 		// Find and return the Expense account (E type)
 		for _, split := range detail.Splits {
-			account, err := logic.GetAccountByName(split.AccountName)
+			account, err := svc.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "E" {
 				return split.AccountName, nil
 			}
@@ -235,7 +235,7 @@ func getTransactionAccount(txID int64, transType string) (string, error) {
 	case "Income":
 		// Find and return the Revenue account (R type)
 		for _, split := range detail.Splits {
-			account, err := logic.GetAccountByName(split.AccountName)
+			account, err := svc.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "R" {
 				return split.AccountName, nil
 			}
@@ -245,7 +245,7 @@ func getTransactionAccount(txID int64, transType string) (string, error) {
 		// Find and return the Asset account with positive amount (receiving account)
 		for _, split := range detail.Splits {
 			if split.Amount > 0 {
-				account, err := logic.GetAccountByName(split.AccountName)
+				account, err := svc.GetAccountByName(split.AccountName)
 				if err == nil && (account.Type == "A" || account.Type == "L") {
 					return split.AccountName, nil
 				}
@@ -255,7 +255,7 @@ func getTransactionAccount(txID int64, transType string) (string, error) {
 	case "Opening":
 		// For opening transactions, return the non-equity account
 		for _, split := range detail.Splits {
-			account, err := logic.GetAccountByName(split.AccountName)
+			account, err := svc.GetAccountByName(split.AccountName)
 			if err == nil && account.Type != "C" {
 				return split.AccountName, nil
 			}

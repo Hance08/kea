@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/hance08/kea/internal/logic/accounting"
+	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/pterm/pterm"
@@ -34,7 +34,7 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get current transaction details
-	detail, err := logic.GetTransactionByID(txID)
+	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil
@@ -98,7 +98,7 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 		case "Save & Exit":
 			// Validate before saving
 			splits := convertToSplitInputs(detail.Splits)
-			if err := logic.ValidateTransactionEdit(splits); err != nil {
+			if err := svc.ValidateTransactionEdit(splits); err != nil {
 				pterm.Error.Printf("Cannot save: %v\n", err)
 				pterm.Warning.Println("Please fix the errors before saving")
 				continue
@@ -121,7 +121,7 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func displayTransactionDetail(detail *accounting.TransactionDetail) {
+func displayTransactionDetail(detail *service.TransactionDetail) {
 	date := time.Unix(detail.Timestamp, 0).Format("2006-01-02 15:04")
 	status := "Cleared"
 	if detail.Status == 0 {
@@ -139,11 +139,11 @@ func displayTransactionDetail(detail *accounting.TransactionDetail) {
 
 	var balance int64
 	for i, split := range detail.Splits {
-		amount := logic.FormatAmountFromCents(split.Amount)
+		amount := svc.FormatAmountFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = "-"
-			amount = logic.FormatAmountFromCents(-split.Amount)
+			amount = svc.FormatAmountFromCents(-split.Amount)
 		}
 		memo := split.Memo
 		if memo == "" {
@@ -161,14 +161,14 @@ func displayTransactionDetail(detail *accounting.TransactionDetail) {
 	// Add balance row
 	balanceStr := "✓ Balanced"
 	if balance != 0 {
-		balanceStr = fmt.Sprintf("⚠ Unbalanced: %s", logic.FormatAmountFromCents(balance))
+		balanceStr = fmt.Sprintf("⚠ Unbalanced: %s", svc.FormatAmountFromCents(balance))
 	}
 	tableData = append(tableData, []string{"", "", balanceStr, ""})
 
 	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 }
 
-func editBasicInfo(detail *accounting.TransactionDetail) error {
+func editBasicInfo(detail *service.TransactionDetail) error {
 	// Edit description
 	newDescription, err := prompts.PromptInput("Description:", detail.Description, nil)
 	if err != nil {
@@ -213,7 +213,7 @@ func editBasicInfo(detail *accounting.TransactionDetail) error {
 
 // changeAccount allows quick account switching for simple transactions
 // Works best for 2-split transactions (Expense/Income/Transfer)
-func changeAccount(detail *accounting.TransactionDetail) error {
+func changeAccount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -233,7 +233,7 @@ func changeAccount(detail *accounting.TransactionDetail) error {
 	}
 
 	// Get all accounts
-	accounts, err := logic.GetAllAccounts()
+	accounts, err := svc.GetAllAccounts()
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -244,7 +244,7 @@ func changeAccount(detail *accounting.TransactionDetail) error {
 
 	roleLabels := getSplitRoleLabels(detail, txType)
 	for i, split := range detail.Splits {
-		amount := logic.FormatAmountFromCents(split.Amount)
+		amount := svc.FormatAmountFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = ""
@@ -306,7 +306,7 @@ func changeAccount(detail *accounting.TransactionDetail) error {
 	}
 
 	// Update the split
-	account, err := logic.GetAccountByName(selectedAccount)
+	account, err := svc.GetAccountByName(selectedAccount)
 	if err != nil {
 		return err
 	}
@@ -321,17 +321,17 @@ func changeAccount(detail *accounting.TransactionDetail) error {
 }
 
 // detectTransactionType determines the type of transaction based on account types
-func detectTransactionType(detail *accounting.TransactionDetail) (string, error) {
+func detectTransactionType(detail *service.TransactionDetail) (string, error) {
 	if len(detail.Splits) != 2 {
 		return "Complex", nil
 	}
 
 	// Get account types for both splits
-	account1, err := logic.GetAccountByName(detail.Splits[0].AccountName)
+	account1, err := svc.GetAccountByName(detail.Splits[0].AccountName)
 	if err != nil {
 		return "", err
 	}
-	account2, err := logic.GetAccountByName(detail.Splits[1].AccountName)
+	account2, err := svc.GetAccountByName(detail.Splits[1].AccountName)
 	if err != nil {
 		return "", err
 	}
@@ -370,7 +370,7 @@ func detectTransactionType(detail *accounting.TransactionDetail) (string, error)
 }
 
 // getSplitRoleLabels returns descriptive labels for each split based on transaction type
-func getSplitRoleLabels(detail *accounting.TransactionDetail, txType string) []string {
+func getSplitRoleLabels(detail *service.TransactionDetail, txType string) []string {
 	labels := make([]string, len(detail.Splits))
 
 	if len(detail.Splits) != 2 {
@@ -383,7 +383,7 @@ func getSplitRoleLabels(detail *accounting.TransactionDetail, txType string) []s
 	switch txType {
 	case "Expense":
 		// Find which is the expense account
-		account1, _ := logic.GetAccountByName(detail.Splits[0].AccountName)
+		account1, _ := svc.GetAccountByName(detail.Splits[0].AccountName)
 		if account1 != nil && account1.Type == "E" {
 			labels[0] = "expense category"
 			labels[1] = "payment account"
@@ -394,7 +394,7 @@ func getSplitRoleLabels(detail *accounting.TransactionDetail, txType string) []s
 
 	case "Income":
 		// Find which is the revenue account
-		account1, _ := logic.GetAccountByName(detail.Splits[0].AccountName)
+		account1, _ := svc.GetAccountByName(detail.Splits[0].AccountName)
 		if account1 != nil && account1.Type == "R" {
 			labels[0] = "income source"
 			labels[1] = "receiving account"
@@ -426,11 +426,11 @@ func getSplitRoleLabels(detail *accounting.TransactionDetail, txType string) []s
 }
 
 // filterAccountsForChange returns accounts suitable for the given split change
-func filterAccountsForChange(accounts []*store.Account, detail *accounting.TransactionDetail, txType string, splitIndex int) []*store.Account {
+func filterAccountsForChange(accounts []*store.Account, detail *service.TransactionDetail, txType string, splitIndex int) []*store.Account {
 	var filtered []*store.Account
 
 	// Get the account type we're replacing
-	currentAccount, err := logic.GetAccountByName(detail.Splits[splitIndex].AccountName)
+	currentAccount, err := svc.GetAccountByName(detail.Splits[splitIndex].AccountName)
 	if err != nil {
 		return accounts // Fallback to all accounts if error
 	}
@@ -488,7 +488,7 @@ func filterAccountsForChange(accounts []*store.Account, detail *accounting.Trans
 
 // changeAmount allows quick amount editing for simple transactions
 // Automatically adjusts both sides to maintain balance
-func changeAmount(detail *accounting.TransactionDetail) error {
+func changeAmount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -500,7 +500,7 @@ func changeAmount(detail *accounting.TransactionDetail) error {
 	if currentAmount < 0 {
 		currentAmount = -currentAmount
 	}
-	currentAmountStr := logic.FormatAmountFromCents(currentAmount)
+	currentAmountStr := svc.FormatAmountFromCents(currentAmount)
 
 	pterm.DefaultSection.Printf("Current amount: %s %s", currentAmountStr, detail.Splits[0].Currency)
 	tableData := pterm.TableData{
@@ -509,11 +509,11 @@ func changeAmount(detail *accounting.TransactionDetail) error {
 
 	var balance int64
 	for i, split := range detail.Splits {
-		amount := logic.FormatAmountFromCents(split.Amount)
+		amount := svc.FormatAmountFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = "-"
-			amount = logic.FormatAmountFromCents(-split.Amount)
+			amount = svc.FormatAmountFromCents(-split.Amount)
 		}
 		memo := split.Memo
 		if memo == "" {
@@ -536,7 +536,7 @@ func changeAmount(detail *accounting.TransactionDetail) error {
 		return err
 	}
 
-	newAmount, err := logic.ParseAmountToCents(newAmountStr)
+	newAmount, err := svc.ParseAmountToCents(newAmountStr)
 	if err != nil {
 		return err
 	}
@@ -556,13 +556,13 @@ func changeAmount(detail *accounting.TransactionDetail) error {
 	}
 
 	pterm.Success.Printf("Amount changed to: %s %s\n",
-		logic.FormatAmountFromCents(newAmount),
+		svc.FormatAmountFromCents(newAmount),
 		detail.Splits[0].Currency)
 	printSeparator()
 	return nil
 }
 
-func editSplits(detail *accounting.TransactionDetail) error {
+func editSplits(detail *service.TransactionDetail) error {
 	for {
 		// Display current splits with balance
 		displayTransactionDetail(detail)
@@ -603,9 +603,9 @@ func editSplits(detail *accounting.TransactionDetail) error {
 	}
 }
 
-func addSplit(detail *accounting.TransactionDetail) error {
+func addSplit(detail *service.TransactionDetail) error {
 	// Select account
-	accounts, err := logic.GetAllAccounts()
+	accounts, err := svc.GetAllAccounts()
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -625,7 +625,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	}
 
 	// Get account details
-	account, err := logic.GetAccountByName(selectedAccount)
+	account, err := svc.GetAccountByName(selectedAccount)
 	if err != nil {
 		return err
 	}
@@ -636,7 +636,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 		return err
 	}
 
-	amount, err := logic.ParseAmountToCents(amountStr)
+	amount, err := svc.ParseAmountToCents(amountStr)
 	if err != nil {
 		return err
 	}
@@ -648,7 +648,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	}
 
 	// Add split to detail
-	newSplit := accounting.SplitDetail{
+	newSplit := service.SplitDetail{
 		ID:          0, // New split
 		AccountID:   account.ID,
 		AccountName: account.Name,
@@ -663,7 +663,7 @@ func addSplit(detail *accounting.TransactionDetail) error {
 	return nil
 }
 
-func editOneSplit(detail *accounting.TransactionDetail) error {
+func editOneSplit(detail *service.TransactionDetail) error {
 	if len(detail.Splits) == 0 {
 		return fmt.Errorf("no splits to edit")
 	}
@@ -671,7 +671,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 	// Select split to edit
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := logic.FormatAmountFromCents(split.Amount)
+		amount := svc.FormatAmountFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
@@ -692,7 +692,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 	split := &detail.Splits[splitIndex]
 
 	// Edit account
-	accounts, err := logic.GetAllAccounts()
+	accounts, err := svc.GetAllAccounts()
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -712,19 +712,19 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 		return err
 	}
 
-	account, err := logic.GetAccountByName(selectedAccount)
+	account, err := svc.GetAccountByName(selectedAccount)
 	if err != nil {
 		return err
 	}
 
 	// Edit amount
-	currentAmount := logic.FormatAmountFromCents(split.Amount)
+	currentAmount := svc.FormatAmountFromCents(split.Amount)
 	amountStr, err := prompts.PromptInput("Amount:", currentAmount, nil)
 	if err != nil {
 		return err
 	}
 
-	amount, err := logic.ParseAmountToCents(amountStr)
+	amount, err := svc.ParseAmountToCents(amountStr)
 	if err != nil {
 		return err
 	}
@@ -747,7 +747,7 @@ func editOneSplit(detail *accounting.TransactionDetail) error {
 	return nil
 }
 
-func deleteSplit(detail *accounting.TransactionDetail) error {
+func deleteSplit(detail *service.TransactionDetail) error {
 	if len(detail.Splits) <= 2 {
 		return fmt.Errorf("cannot delete: transaction must have at least 2 splits")
 	}
@@ -755,7 +755,7 @@ func deleteSplit(detail *accounting.TransactionDetail) error {
 	// Select split to delete
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := logic.FormatAmountFromCents(split.Amount)
+		amount := svc.FormatAmountFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
@@ -796,10 +796,10 @@ func deleteSplit(detail *accounting.TransactionDetail) error {
 	return nil
 }
 
-func convertToSplitInputs(splits []accounting.SplitDetail) []accounting.TransactionSplitInput {
-	var inputs []accounting.TransactionSplitInput
+func convertToSplitInputs(splits []service.SplitDetail) []service.TransactionSplitInput {
+	var inputs []service.TransactionSplitInput
 	for _, split := range splits {
-		inputs = append(inputs, accounting.TransactionSplitInput{
+		inputs = append(inputs, service.TransactionSplitInput{
 			ID:          split.ID,
 			AccountName: split.AccountName,
 			AccountID:   split.AccountID,
@@ -811,9 +811,9 @@ func convertToSplitInputs(splits []accounting.SplitDetail) []accounting.Transact
 	return inputs
 }
 
-func saveTransactionChanges(txID int64, detail *accounting.TransactionDetail) error {
+func saveTransactionChanges(txID int64, detail *service.TransactionDetail) error {
 	splits := convertToSplitInputs(detail.Splits)
-	return logic.UpdateTransactionComplete(
+	return svc.UpdateTransactionComplete(
 		txID,
 		detail.Description,
 		detail.Timestamp,

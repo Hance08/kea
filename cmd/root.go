@@ -14,7 +14,7 @@ import (
 	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/constants"
 	"github.com/hance08/kea/internal/errhandler"
-	"github.com/hance08/kea/internal/logic/accounting"
+	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/spf13/cobra"
@@ -23,8 +23,8 @@ import (
 
 var (
 	cfgFile      string
-	dbStore      *store.Store
-	logic        *accounting.AccountingLogic
+	dbStore      store.Repository
+	svc          *service.AccountingService
 	migrationsFS fs.FS
 )
 
@@ -150,16 +150,16 @@ func initDB() error {
 }
 
 func initLogicAndDependencies() {
-	logic = accounting.NewLogic(dbStore)
+	svc = service.NewLogic(dbStore)
 
-	transaction.SetDependencies(logic)
-	account.SetDependencies(logic)
+	transaction.SetDependencies(svc)
+	account.SetDependencies(svc)
 }
 
 func initSysAcc() error {
 	sysAccName := constants.SystemAccountOpeningBalance
 
-	_, err := logic.GetAccountByName(sysAccName)
+	_, err := svc.GetAccountByName(sysAccName)
 
 	if err == nil {
 		return nil
@@ -171,7 +171,7 @@ func initSysAcc() error {
 		return err
 	}
 
-	_, err = logic.CreateAccount(
+	_, err = svc.CreateAccount(
 		sysAccName,
 		constants.TypeEquity,
 		currency,

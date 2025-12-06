@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/hance08/kea/internal/constants"
-	"github.com/hance08/kea/internal/logic/accounting"
+	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
@@ -42,12 +42,12 @@ type AccountCreator struct {
 	description string
 
 	// Dependencies (injected)
-	logic     *accounting.AccountingLogic
+	logic     *service.AccountingService
 	validator *validation.AccountValidator
 }
 
 // NewAccountCreator creates a new AccountCreator instance with injected dependencies
-func NewAccountCreator(l *accounting.AccountingLogic, v *validation.AccountValidator) *AccountCreator {
+func NewAccountCreator(l *service.AccountingService, v *validation.AccountValidator) *AccountCreator {
 	return &AccountCreator{
 		logic:     l,
 		validator: v,

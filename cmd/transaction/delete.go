@@ -32,7 +32,7 @@ func runTransactionDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get transaction details first to show what will be deleted
-	detail, err := logic.GetTransactionByID(txID)
+	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
@@ -71,7 +71,7 @@ func runTransactionDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Delete transaction
-	if err := logic.DeleteTransaction(txID); err != nil {
+	if err := svc.DeleteTransaction(txID); err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
 	}

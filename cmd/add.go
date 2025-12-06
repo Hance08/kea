@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hance08/kea/internal/logic/accounting"
+	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/pterm/pterm"
@@ -59,7 +59,7 @@ func init() {
 }
 
 func runAddTransaction(cmd *cobra.Command, args []string) error {
-	var input accounting.TransactionInput
+	var input service.TransactionInput
 
 	// Check if using flag mode or interactive mode
 	hasFlags := cmd.Flags().Changed("desc") || cmd.Flags().Changed("amount") ||
@@ -76,16 +76,16 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 		}
 
 		// Parse amount
-		amountCents, err := logic.ParseAmountToCents(addAmount)
+		amountCents, err := svc.ParseAmountToCents(addAmount)
 		if err != nil {
 			return fmt.Errorf("invalid amount: %w", err)
 		}
 
 		// Validate accounts exist
-		if exists, err := logic.CheckAccountExists(addFrom); err != nil || !exists {
+		if exists, err := svc.CheckAccountExists(addFrom); err != nil || !exists {
 			return fmt.Errorf("source account '%s' does not exist", addFrom)
 		}
-		if exists, err := logic.CheckAccountExists(addTo); err != nil || !exists {
+		if exists, err := svc.CheckAccountExists(addTo); err != nil || !exists {
 			return fmt.Errorf("destination account '%s' does not exist", addTo)
 		}
 
@@ -108,11 +108,11 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 		}
 
 		// Build transaction input
-		input = accounting.TransactionInput{
+		input = service.TransactionInput{
 			Timestamp:   timestamp,
 			Description: addDesc,
 			Status:      status,
-			Splits: []accounting.TransactionSplitInput{
+			Splits: []service.TransactionSplitInput{
 				{
 					AccountName: addTo,
 					Amount:      amountCents,
@@ -135,7 +135,7 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create transaction
-	txID, err := logic.CreateTransaction(input)
+	txID, err := svc.CreateTransaction(input)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)
 	}
@@ -149,11 +149,11 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func interactiveAddTransaction() (accounting.TransactionInput, error) {
-	var input accounting.TransactionInput
+func interactiveAddTransaction() (service.TransactionInput, error) {
+	var input service.TransactionInput
 
 	// Get all accounts
-	accounts, err := logic.GetAllAccounts()
+	accounts, err := svc.GetAllAccounts()
 	if err != nil {
 		return input, fmt.Errorf("failed to load accounts: %w", err)
 	}
@@ -196,7 +196,7 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 		return input, fmt.Errorf("amount is required")
 	}
 
-	amountCents, err := logic.ParseAmountToCents(amountStr)
+	amountCents, err := svc.ParseAmountToCents(amountStr)
 	if err != nil {
 		return input, fmt.Errorf("invalid amount format: %w", err)
 	}
@@ -270,11 +270,11 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 	}
 
 	// Build transaction input
-	input = accounting.TransactionInput{
+	input = service.TransactionInput{
 		Timestamp:   timestamp.Unix(),
 		Description: description,
 		Status:      status,
-		Splits: []accounting.TransactionSplitInput{
+		Splits: []service.TransactionSplitInput{
 			{
 				AccountName: toAccount,
 				Amount:      amountCents,
@@ -295,7 +295,7 @@ func interactiveAddTransaction() (accounting.TransactionInput, error) {
 func selectAccount(accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
-		balanceGetter = logic.GetAccountBalanceFormatted
+		balanceGetter = svc.GetAccountBalanceFormatted
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
@@ -315,7 +315,7 @@ func getDescriptionHelp(mode string) string {
 	}
 }
 
-func displayTransactionSummary(input accounting.TransactionInput) {
+func displayTransactionSummary(input service.TransactionInput) {
 	pterm.DefaultSection.Println("Transaction Summary")
 
 	// Format timestamp

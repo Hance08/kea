@@ -236,63 +236,61 @@ func (al *AccountingService) UpdateTransactionComplete(txID int64, description s
 		return fmt.Errorf("transaction not found: %w", err)
 	}
 
-	// Update basic transaction info
-	if err := al.store.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
-		return fmt.Errorf("failed to update transaction: %w", err)
-	}
-
-	// Get existing splits
-	existingSplits, err := al.store.GetSplitsByTransaction(txID)
-	if err != nil {
-		return fmt.Errorf("failed to get existing splits: %w", err)
-	}
-
-	// Create maps for comparison
-	existingSplitMap := make(map[int64]*store.Split)
-	for _, split := range existingSplits {
-		existingSplitMap[split.ID] = split
-	}
-
-	newSplitMap := make(map[int64]bool)
-	for _, split := range splits {
-		if split.ID != 0 {
-			newSplitMap[split.ID] = true
+	return al.store.ExecTx(func(repo store.Repository) error {
+		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
+			return err
 		}
-	}
 
-	// Delete splits that are no longer present
-	for id := range existingSplitMap {
-		if !newSplitMap[id] {
-			if err := al.store.DeleteSplit(id); err != nil {
-				return fmt.Errorf("failed to delete split: %w", err)
+		existingSplits, err := repo.GetSplitsByTransaction(txID)
+		if err != nil {
+			return err
+		}
+
+		existingSplitMap := make(map[int64]*store.Split)
+		for _, split := range existingSplits {
+			existingSplitMap[split.ID] = split
+		}
+
+		newSplitMap := make(map[int64]bool)
+		for _, split := range splits {
+			if split.ID != 0 {
+				newSplitMap[split.ID] = true
 			}
 		}
-	}
 
-	// Update existing splits or create new ones
-	for _, split := range splits {
-		if split.ID == 0 {
-			// Create new split
-			newSplit := &store.Split{
-				TransactionID: txID,
-				AccountID:     split.AccountID,
-				Amount:        split.Amount,
-				Currency:      split.Currency,
-				Memo:          split.Memo,
-			}
-			_, err := al.store.CreateSplit(txID, newSplit)
-			if err != nil {
-				return fmt.Errorf("failed to create split: %w", err)
-			}
-		} else {
-			// Update existing split
-			if err := al.store.UpdateSplit(split.ID, split.AccountID, split.Amount, split.Currency, split.Memo); err != nil {
-				return fmt.Errorf("failed to update split: %w", err)
+		// Delete splits that are no longer present
+		for id := range existingSplitMap {
+			if !newSplitMap[id] {
+				if err := repo.DeleteSplit(id); err != nil {
+					return fmt.Errorf("failed to delete split: %w", err)
+				}
 			}
 		}
-	}
 
-	return nil
+		// Update existing splits or create new ones
+		for _, split := range splits {
+			if split.ID == 0 {
+				// Create new split
+				newSplit := &store.Split{
+					TransactionID: txID,
+					AccountID:     split.AccountID,
+					Amount:        split.Amount,
+					Currency:      split.Currency,
+					Memo:          split.Memo,
+				}
+				_, err := repo.CreateSplit(txID, newSplit)
+				if err != nil {
+					return err
+				}
+			} else {
+				// Update existing split
+				if err := repo.UpdateSplit(split.ID, split.AccountID, split.Amount, split.Currency, split.Memo); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
 
 // ValidateTransactionEdit validates a transaction edit without saving

@@ -15,8 +15,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type DBTX interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	Prepare(query string) (*sql.Stmt, error)
+	Query(query string, args ...any) (*sql.Rows, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
 type Store struct {
-	db *sql.DB
+	db DBTX
 }
 
 func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
@@ -40,8 +47,34 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
+func (s *Store) ExecTx(fn func(Repository) error) error {
+	db, ok := s.db.(*sql.DB)
+	if !ok {
+		return fmt.Errorf("store is already in a transaction")
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	txStore := &Store{db: tx}
+
+	err = fn(txStore)
+	if err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("tx err: %v, rb err: %v", err, rbErr)
+		}
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *Store) Close() error {
-	return s.db.Close()
+	if db, ok := s.db.(*sql.DB); ok {
+		return db.Close()
+	}
+	return nil
 }
 
 func runMigrations(db *sql.DB, migrationsFS fs.FS) error {
@@ -251,7 +284,12 @@ func (s *Store) GetAccountBalance(accountID int64) (int64, error) {
 }
 
 func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int64, error) {
-	dbTx, err := s.db.Begin()
+	db, ok := s.db.(*sql.DB)
+	if !ok {
+		return 0, fmt.Errorf("CreateTransactionWithSplits cannot be called within an existing transaction")
+	}
+
+	dbTx, err := db.Begin()
 	if err != nil {
 		return 0, fmt.Errorf("failed to start database : %w", err)
 	}

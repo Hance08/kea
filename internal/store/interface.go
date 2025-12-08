@@ -27,5 +27,6 @@ type Repository interface {
 	DeleteSplit(splitID int64) error
 	GetSplitsByTransaction(txID int64) ([]*Split, error)
 
+	ExecTx(fn func(Repository) error) error
 	Close() error
 }

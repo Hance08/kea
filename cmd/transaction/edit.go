@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type EditCommandRunner struct {
+	svc *service.AccountingService
+}
+
 func NewEditCmd(svc *service.AccountingService) *cobra.Command {
 	return &cobra.Command{
 		Use:   "edit <transaction-id>",
@@ -20,12 +24,15 @@ func NewEditCmd(svc *service.AccountingService) *cobra.Command {
 		Long:  `Edit a transaction's description, date, status, and splits interactively.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTransactionEdit(svc, args)
+			runner := &EditCommandRunner{
+				svc: svc,
+			}
+			return runner.Run(args)
 		},
 	}
 }
 
-func runTransactionEdit(svc *service.AccountingService, args []string) error {
+func (r *EditCommandRunner) Run(args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
@@ -38,7 +45,7 @@ func runTransactionEdit(svc *service.AccountingService, args []string) error {
 	}
 
 	// Get current transaction details
-	detail, err := svc.GetTransactionByID(txID)
+	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil
@@ -46,7 +53,7 @@ func runTransactionEdit(svc *service.AccountingService, args []string) error {
 
 	// Show current transaction info
 	pterm.DefaultSection.Printf("Editing Transaction #%d", txID)
-	displayTransactionDetail(svc, detail)
+	r.displayTransactionDetail(detail)
 
 	// Main edit menu
 	for {
@@ -85,31 +92,31 @@ func runTransactionEdit(svc *service.AccountingService, args []string) error {
 			}
 
 		case "Change Account (quick edit)":
-			if err := changeAccount(svc, detail); err != nil {
+			if err := r.changeAccount(detail); err != nil {
 				pterm.Error.Printf("Failed to change account: %v\n", err)
 			}
 
 		case "Change Amount (both sides)":
-			if err := changeAmount(svc, detail); err != nil {
+			if err := r.changeAmount(detail); err != nil {
 				pterm.Error.Printf("Failed to change amount: %v\n", err)
 			}
 
 		case "Edit Splits (Advanced)":
-			if err := editSplits(svc, detail); err != nil {
+			if err := r.editSplits(detail); err != nil {
 				pterm.Error.Printf("Failed to edit splits: %v\n", err)
 			}
 
 		case "Save & Exit":
 			// Validate before saving
 			splits := convertToSplitInputs(detail.Splits)
-			if err := svc.ValidateTransactionEdit(splits); err != nil {
+			if err := r.svc.ValidateTransactionEdit(splits); err != nil {
 				pterm.Error.Printf("Cannot save: %v\n", err)
 				pterm.Warning.Println("Please fix the errors before saving")
 				continue
 			}
 
 			// Save changes
-			if err := saveTransactionChanges(svc, txID, detail); err != nil {
+			if err := r.saveTransactionChanges(txID, detail); err != nil {
 				pterm.Error.Printf("Failed to save changes: %v\n", err)
 				return nil
 			}
@@ -125,7 +132,7 @@ func runTransactionEdit(svc *service.AccountingService, args []string) error {
 	}
 }
 
-func displayTransactionDetail(svc *service.AccountingService, detail *service.TransactionDetail) {
+func (r *EditCommandRunner) displayTransactionDetail(detail *service.TransactionDetail) {
 	date := time.Unix(detail.Timestamp, 0).Format("2006-01-02 15:04")
 	status := "Cleared"
 	if detail.Status == 0 {
@@ -143,11 +150,11 @@ func displayTransactionDetail(svc *service.AccountingService, detail *service.Tr
 
 	var balance int64
 	for i, split := range detail.Splits {
-		amount := svc.FormatAmountFromCents(split.Amount)
+		amount := r.svc.FormatAmountFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = "-"
-			amount = svc.FormatAmountFromCents(-split.Amount)
+			amount = r.svc.FormatAmountFromCents(-split.Amount)
 		}
 		memo := split.Memo
 		if memo == "" {
@@ -165,7 +172,7 @@ func displayTransactionDetail(svc *service.AccountingService, detail *service.Tr
 	// Add balance row
 	balanceStr := "✓ Balanced"
 	if balance != 0 {
-		balanceStr = fmt.Sprintf("⚠ Unbalanced: %s", svc.FormatAmountFromCents(balance))
+		balanceStr = fmt.Sprintf("⚠ Unbalanced: %s", r.svc.FormatAmountFromCents(balance))
 	}
 	tableData = append(tableData, []string{"", "", balanceStr, ""})
 
@@ -217,7 +224,7 @@ func editBasicInfo(detail *service.TransactionDetail) error {
 
 // changeAccount allows quick account switching for simple transactions
 // Works best for 2-split transactions (Expense/Income/Transfer)
-func changeAccount(svc *service.AccountingService, detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -225,7 +232,7 @@ func changeAccount(svc *service.AccountingService, detail *service.TransactionDe
 	}
 
 	// Detect transaction type and check if editing is allowed
-	txType, err := detectTransactionType(svc, detail)
+	txType, err := r.detectTransactionType(detail)
 	if err != nil {
 		return err
 	}
@@ -237,7 +244,7 @@ func changeAccount(svc *service.AccountingService, detail *service.TransactionDe
 	}
 
 	// Get all accounts
-	accounts, err := svc.GetAllAccounts()
+	accounts, err := r.svc.GetAllAccounts()
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -246,9 +253,9 @@ func changeAccount(svc *service.AccountingService, detail *service.TransactionDe
 	pterm.DefaultSection.Printf("Current transaction type: %s", txType)
 	pterm.DefaultSection.Printf("Current splits:")
 
-	roleLabels := getSplitRoleLabels(svc, detail, txType)
+	roleLabels := r.getSplitRoleLabels(detail, txType)
 	for i, split := range detail.Splits {
-		amount := svc.FormatAmountFromCents(split.Amount)
+		amount := r.svc.FormatAmountFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = ""
@@ -285,7 +292,7 @@ func changeAccount(svc *service.AccountingService, detail *service.TransactionDe
 	split := &detail.Splits[splitIndex]
 
 	// Filter accounts based on transaction type and split role
-	filteredAccounts := filterAccountsForChange(svc, accounts, detail, txType, splitIndex)
+	filteredAccounts := r.filterAccountsForChange(accounts, detail, txType, splitIndex)
 
 	if len(filteredAccounts) == 0 {
 		pterm.Warning.Println("No suitable accounts found for this change")
@@ -310,7 +317,7 @@ func changeAccount(svc *service.AccountingService, detail *service.TransactionDe
 	}
 
 	// Update the split
-	account, err := svc.GetAccountByName(selectedAccount)
+	account, err := r.svc.GetAccountByName(selectedAccount)
 	if err != nil {
 		return err
 	}
@@ -325,17 +332,17 @@ func changeAccount(svc *service.AccountingService, detail *service.TransactionDe
 }
 
 // detectTransactionType determines the type of transaction based on account types
-func detectTransactionType(svc *service.AccountingService, detail *service.TransactionDetail) (string, error) {
+func (r *EditCommandRunner) detectTransactionType(detail *service.TransactionDetail) (string, error) {
 	if len(detail.Splits) != 2 {
 		return "Complex", nil
 	}
 
 	// Get account types for both splits
-	account1, err := svc.GetAccountByName(detail.Splits[0].AccountName)
+	account1, err := r.svc.GetAccountByName(detail.Splits[0].AccountName)
 	if err != nil {
 		return "", err
 	}
-	account2, err := svc.GetAccountByName(detail.Splits[1].AccountName)
+	account2, err := r.svc.GetAccountByName(detail.Splits[1].AccountName)
 	if err != nil {
 		return "", err
 	}
@@ -374,7 +381,7 @@ func detectTransactionType(svc *service.AccountingService, detail *service.Trans
 }
 
 // getSplitRoleLabels returns descriptive labels for each split based on transaction type
-func getSplitRoleLabels(svc *service.AccountingService, detail *service.TransactionDetail, txType string) []string {
+func (r *EditCommandRunner) getSplitRoleLabels(detail *service.TransactionDetail, txType string) []string {
 	labels := make([]string, len(detail.Splits))
 
 	if len(detail.Splits) != 2 {
@@ -387,7 +394,7 @@ func getSplitRoleLabels(svc *service.AccountingService, detail *service.Transact
 	switch txType {
 	case "Expense":
 		// Find which is the expense account
-		account1, _ := svc.GetAccountByName(detail.Splits[0].AccountName)
+		account1, _ := r.svc.GetAccountByName(detail.Splits[0].AccountName)
 		if account1 != nil && account1.Type == "E" {
 			labels[0] = "expense category"
 			labels[1] = "payment account"
@@ -398,7 +405,7 @@ func getSplitRoleLabels(svc *service.AccountingService, detail *service.Transact
 
 	case "Income":
 		// Find which is the revenue account
-		account1, _ := svc.GetAccountByName(detail.Splits[0].AccountName)
+		account1, _ := r.svc.GetAccountByName(detail.Splits[0].AccountName)
 		if account1 != nil && account1.Type == "R" {
 			labels[0] = "income source"
 			labels[1] = "receiving account"
@@ -430,11 +437,11 @@ func getSplitRoleLabels(svc *service.AccountingService, detail *service.Transact
 }
 
 // filterAccountsForChange returns accounts suitable for the given split change
-func filterAccountsForChange(svc *service.AccountingService, accounts []*store.Account, detail *service.TransactionDetail, txType string, splitIndex int) []*store.Account {
+func (r *EditCommandRunner) filterAccountsForChange(accounts []*store.Account, detail *service.TransactionDetail, txType string, splitIndex int) []*store.Account {
 	var filtered []*store.Account
 
 	// Get the account type we're replacing
-	currentAccount, err := svc.GetAccountByName(detail.Splits[splitIndex].AccountName)
+	currentAccount, err := r.svc.GetAccountByName(detail.Splits[splitIndex].AccountName)
 	if err != nil {
 		return accounts // Fallback to all accounts if error
 	}
@@ -492,7 +499,7 @@ func filterAccountsForChange(svc *service.AccountingService, accounts []*store.A
 
 // changeAmount allows quick amount editing for simple transactions
 // Automatically adjusts both sides to maintain balance
-func changeAmount(svc *service.AccountingService, detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) changeAmount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -504,7 +511,7 @@ func changeAmount(svc *service.AccountingService, detail *service.TransactionDet
 	if currentAmount < 0 {
 		currentAmount = -currentAmount
 	}
-	currentAmountStr := svc.FormatAmountFromCents(currentAmount)
+	currentAmountStr := r.svc.FormatAmountFromCents(currentAmount)
 
 	pterm.DefaultSection.Printf("Current amount: %s %s", currentAmountStr, detail.Splits[0].Currency)
 	tableData := pterm.TableData{
@@ -513,11 +520,11 @@ func changeAmount(svc *service.AccountingService, detail *service.TransactionDet
 
 	var balance int64
 	for i, split := range detail.Splits {
-		amount := svc.FormatAmountFromCents(split.Amount)
+		amount := r.svc.FormatAmountFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = "-"
-			amount = svc.FormatAmountFromCents(-split.Amount)
+			amount = r.svc.FormatAmountFromCents(-split.Amount)
 		}
 		memo := split.Memo
 		if memo == "" {
@@ -540,7 +547,7 @@ func changeAmount(svc *service.AccountingService, detail *service.TransactionDet
 		return err
 	}
 
-	newAmount, err := svc.ParseAmountToCents(newAmountStr)
+	newAmount, err := r.svc.ParseAmountToCents(newAmountStr)
 	if err != nil {
 		return err
 	}
@@ -560,16 +567,16 @@ func changeAmount(svc *service.AccountingService, detail *service.TransactionDet
 	}
 
 	pterm.Success.Printf("Amount changed to: %s %s\n",
-		svc.FormatAmountFromCents(newAmount),
+		r.svc.FormatAmountFromCents(newAmount),
 		detail.Splits[0].Currency)
 	ui.Separator()
 	return nil
 }
 
-func editSplits(svc *service.AccountingService, detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) editSplits(detail *service.TransactionDetail) error {
 	for {
 		// Display current splits with balance
-		displayTransactionDetail(svc, detail)
+		r.displayTransactionDetail(detail)
 
 		var action string
 		actionPrompt := &survey.Select{
@@ -587,17 +594,17 @@ func editSplits(svc *service.AccountingService, detail *service.TransactionDetai
 
 		switch action {
 		case "Add Split":
-			if err := addSplit(svc, detail); err != nil {
+			if err := r.addSplit(detail); err != nil {
 				pterm.Error.Printf("Failed to add split: %v\n", err)
 			}
 
 		case "Edit Split":
-			if err := editOneSplit(svc, detail); err != nil {
+			if err := r.editOneSplit(detail); err != nil {
 				pterm.Error.Printf("Failed to edit split: %v\n", err)
 			}
 
 		case "Delete Split":
-			if err := deleteSplit(svc, detail); err != nil {
+			if err := r.deleteSplit(detail); err != nil {
 				pterm.Error.Printf("Failed to delete split: %v\n", err)
 			}
 
@@ -607,9 +614,9 @@ func editSplits(svc *service.AccountingService, detail *service.TransactionDetai
 	}
 }
 
-func addSplit(svc *service.AccountingService, detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) addSplit(detail *service.TransactionDetail) error {
 	// Select account
-	accounts, err := svc.GetAllAccounts()
+	accounts, err := r.svc.GetAllAccounts()
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -629,7 +636,7 @@ func addSplit(svc *service.AccountingService, detail *service.TransactionDetail)
 	}
 
 	// Get account details
-	account, err := svc.GetAccountByName(selectedAccount)
+	account, err := r.svc.GetAccountByName(selectedAccount)
 	if err != nil {
 		return err
 	}
@@ -640,7 +647,7 @@ func addSplit(svc *service.AccountingService, detail *service.TransactionDetail)
 		return err
 	}
 
-	amount, err := svc.ParseAmountToCents(amountStr)
+	amount, err := r.svc.ParseAmountToCents(amountStr)
 	if err != nil {
 		return err
 	}
@@ -667,7 +674,7 @@ func addSplit(svc *service.AccountingService, detail *service.TransactionDetail)
 	return nil
 }
 
-func editOneSplit(svc *service.AccountingService, detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) error {
 	if len(detail.Splits) == 0 {
 		return fmt.Errorf("no splits to edit")
 	}
@@ -675,7 +682,7 @@ func editOneSplit(svc *service.AccountingService, detail *service.TransactionDet
 	// Select split to edit
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := svc.FormatAmountFromCents(split.Amount)
+		amount := r.svc.FormatAmountFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
@@ -696,7 +703,7 @@ func editOneSplit(svc *service.AccountingService, detail *service.TransactionDet
 	split := &detail.Splits[splitIndex]
 
 	// Edit account
-	accounts, err := svc.GetAllAccounts()
+	accounts, err := r.svc.GetAllAccounts()
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
 	}
@@ -716,19 +723,19 @@ func editOneSplit(svc *service.AccountingService, detail *service.TransactionDet
 		return err
 	}
 
-	account, err := svc.GetAccountByName(selectedAccount)
+	account, err := r.svc.GetAccountByName(selectedAccount)
 	if err != nil {
 		return err
 	}
 
 	// Edit amount
-	currentAmount := svc.FormatAmountFromCents(split.Amount)
+	currentAmount := r.svc.FormatAmountFromCents(split.Amount)
 	amountStr, err := prompts.PromptInput("Amount:", currentAmount, nil)
 	if err != nil {
 		return err
 	}
 
-	amount, err := svc.ParseAmountToCents(amountStr)
+	amount, err := r.svc.ParseAmountToCents(amountStr)
 	if err != nil {
 		return err
 	}
@@ -751,7 +758,7 @@ func editOneSplit(svc *service.AccountingService, detail *service.TransactionDet
 	return nil
 }
 
-func deleteSplit(svc *service.AccountingService, detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error {
 	if len(detail.Splits) <= 2 {
 		return fmt.Errorf("cannot delete: transaction must have at least 2 splits")
 	}
@@ -759,7 +766,7 @@ func deleteSplit(svc *service.AccountingService, detail *service.TransactionDeta
 	// Select split to delete
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := svc.FormatAmountFromCents(split.Amount)
+		amount := r.svc.FormatAmountFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
@@ -815,9 +822,9 @@ func convertToSplitInputs(splits []service.SplitDetail) []service.TransactionSpl
 	return inputs
 }
 
-func saveTransactionChanges(svc *service.AccountingService, txID int64, detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) saveTransactionChanges(txID int64, detail *service.TransactionDetail) error {
 	splits := convertToSplitInputs(detail.Splits)
-	return svc.UpdateTransactionComplete(
+	return r.svc.UpdateTransactionComplete(
 		txID,
 		detail.Description,
 		detail.Timestamp,

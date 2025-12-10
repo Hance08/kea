@@ -24,6 +24,12 @@ type addFlags struct {
 	Timestamp string
 }
 
+type AddCommandRunner struct {
+	svc   *service.AccountingService
+	flags *addFlags
+	cmd   *cobra.Command
+}
+
 func NewAddCmd(svc *service.AccountingService) *cobra.Command {
 	flags := &addFlags{}
 
@@ -47,7 +53,12 @@ func NewAddCmd(svc *service.AccountingService) *cobra.Command {
 
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAddTransaction(svc, flags, cmd)
+			runner := &AddCommandRunner{
+				svc:   svc,
+				flags: flags,
+				cmd:   cmd,
+			}
+			return runner.Run()
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Desc, "desc", "d", "", "Transaction description")
@@ -60,47 +71,47 @@ func NewAddCmd(svc *service.AccountingService) *cobra.Command {
 	return cmd
 }
 
-func runAddTransaction(svc *service.AccountingService, flags *addFlags, cmd *cobra.Command) error {
+func (r *AddCommandRunner) Run() error {
 	var input service.TransactionInput
 
 	// Check if using flag mode or interactive mode
-	hasFlags := cmd.Flags().Changed("desc") || cmd.Flags().Changed("amount") ||
-		cmd.Flags().Changed("from") || cmd.Flags().Changed("to")
+	hasFlags := r.cmd.Flags().Changed("desc") || r.cmd.Flags().Changed("amount") ||
+		r.cmd.Flags().Changed("from") || r.cmd.Flags().Changed("to")
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		if flags.Amount == "" || flags.From == "" || flags.To == "" {
+		if r.flags.Amount == "" || r.flags.From == "" || r.flags.To == "" {
 			return fmt.Errorf("when using flags, --amount, --from, and --to are all required")
 		}
 
-		if flags.Desc == "" {
-			flags.Desc = "-"
+		if r.flags.Desc == "" {
+			r.flags.Desc = "-"
 		}
 
 		// Parse amount
-		amountCents, err := svc.ParseAmountToCents(flags.Amount)
+		amountCents, err := r.svc.ParseAmountToCents(r.flags.Amount)
 		if err != nil {
 			return fmt.Errorf("invalid amount: %w", err)
 		}
 
 		// Validate accounts exist
-		if exists, err := svc.CheckAccountExists(flags.From); err != nil || !exists {
-			return fmt.Errorf("source account '%s' does not exist", flags.From)
+		if exists, err := r.svc.CheckAccountExists(r.flags.From); err != nil || !exists {
+			return fmt.Errorf("source account '%s' does not exist", r.flags.From)
 		}
-		if exists, err := svc.CheckAccountExists(flags.To); err != nil || !exists {
-			return fmt.Errorf("destination account '%s' does not exist", flags.To)
+		if exists, err := r.svc.CheckAccountExists(r.flags.To); err != nil || !exists {
+			return fmt.Errorf("destination account '%s' does not exist", r.flags.To)
 		}
 
 		// Parse status
 		status := 1 // Default: cleared
-		if strings.ToLower(flags.Status) == "pending" {
+		if strings.ToLower(r.flags.Status) == "pending" {
 			status = 0
 		}
 
 		// Parse timestamp
 		var timestamp int64
-		if flags.Timestamp != "" {
-			t, err := time.Parse("2006-01-02", flags.Timestamp)
+		if r.flags.Timestamp != "" {
+			t, err := time.Parse("2006-01-02", r.flags.Timestamp)
 			if err != nil {
 				return fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
 			}
@@ -112,16 +123,16 @@ func runAddTransaction(svc *service.AccountingService, flags *addFlags, cmd *cob
 		// Build transaction input
 		input = service.TransactionInput{
 			Timestamp:   timestamp,
-			Description: flags.Desc,
+			Description: r.flags.Desc,
 			Status:      status,
 			Splits: []service.TransactionSplitInput{
 				{
-					AccountName: flags.To,
+					AccountName: r.flags.To,
 					Amount:      amountCents,
 					Memo:        "",
 				},
 				{
-					AccountName: flags.From,
+					AccountName: r.flags.From,
 					Amount:      -amountCents,
 					Memo:        "",
 				},
@@ -130,14 +141,14 @@ func runAddTransaction(svc *service.AccountingService, flags *addFlags, cmd *cob
 	} else {
 		// Interactive mode
 		var err error
-		input, err = interactiveAddTransaction(svc)
+		input, err = r.interactiveAddTransaction()
 		if err != nil {
 			return err
 		}
 	}
 
 	// Create transaction
-	txID, err := svc.CreateTransaction(input)
+	txID, err := r.svc.CreateTransaction(input)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)
 	}
@@ -151,11 +162,11 @@ func runAddTransaction(svc *service.AccountingService, flags *addFlags, cmd *cob
 	return nil
 }
 
-func interactiveAddTransaction(svc *service.AccountingService) (service.TransactionInput, error) {
+func (r *AddCommandRunner) interactiveAddTransaction() (service.TransactionInput, error) {
 	var input service.TransactionInput
 
 	// Get all accounts
-	accounts, err := svc.GetAllAccounts()
+	accounts, err := r.svc.GetAllAccounts()
 	if err != nil {
 		return input, fmt.Errorf("failed to load accounts: %w", err)
 	}
@@ -198,7 +209,7 @@ func interactiveAddTransaction(svc *service.AccountingService) (service.Transact
 		return input, fmt.Errorf("amount is required")
 	}
 
-	amountCents, err := svc.ParseAmountToCents(amountStr)
+	amountCents, err := r.svc.ParseAmountToCents(amountStr)
 	if err != nil {
 		return input, fmt.Errorf("invalid amount format: %w", err)
 	}
@@ -209,36 +220,36 @@ func interactiveAddTransaction(svc *service.AccountingService) (service.Transact
 	switch mode {
 	case "expense":
 		// Record Expense: From Assets/Liabilities, To Expenses
-		fromAccount, err = selectAccount(svc, accounts, []string{"A", "L"}, "Payment Source:", true)
+		fromAccount, err = r.selectAccount(accounts, []string{"A", "L"}, "Payment Source:", true)
 		if err != nil {
 			return input, err
 		}
 
-		toAccount, err = selectAccount(svc, accounts, []string{"E"}, "Expense Type:", false)
+		toAccount, err = r.selectAccount(accounts, []string{"E"}, "Expense Type:", false)
 		if err != nil {
 			return input, err
 		}
 
 	case "income":
 		// Record Income: From Revenue, To Assets
-		fromAccount, err = selectAccount(svc, accounts, []string{"R"}, "Revenue Type:", false)
+		fromAccount, err = r.selectAccount(accounts, []string{"R"}, "Revenue Type:", false)
 		if err != nil {
 			return input, err
 		}
 
-		toAccount, err = selectAccount(svc, accounts, []string{"A"}, "Deposit To:", true)
+		toAccount, err = r.selectAccount(accounts, []string{"A"}, "Deposit To:", true)
 		if err != nil {
 			return input, err
 		}
 
 	case "transfer":
 		// Transfer: From Assets/Liabilities, To Assets/Liabilities
-		fromAccount, err = selectAccount(svc, accounts, []string{"A", "L"}, "From Account:", true)
+		fromAccount, err = r.selectAccount(accounts, []string{"A", "L"}, "From Account:", true)
 		if err != nil {
 			return input, err
 		}
 
-		toAccount, err = selectAccount(svc, accounts, []string{"A", "L"}, "To Account:", true)
+		toAccount, err = r.selectAccount(accounts, []string{"A", "L"}, "To Account:", true)
 		if err != nil {
 			return input, err
 		}
@@ -293,11 +304,11 @@ func interactiveAddTransaction(svc *service.AccountingService) (service.Transact
 	return input, nil
 }
 
-// selectAccount filters accounts by type and displays them with optional balance
-func selectAccount(svc *service.AccountingService, accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
+// r.selectAccount filters accounts by type and displays them with optional balance
+func (r *AddCommandRunner) selectAccount(accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
-		balanceGetter = svc.GetAccountBalanceFormatted
+		balanceGetter = r.svc.GetAccountBalanceFormatted
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)

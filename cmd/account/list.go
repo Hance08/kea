@@ -12,9 +12,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type listFlags struct {
+	Type       string
+	ShowHidden bool
+}
+
+type ListCommandRunner struct {
+	svc   *service.AccountingService
+	flags *listFlags
+}
+
 func NewListCmd(svc *service.AccountingService) *cobra.Command {
-	var listType string
-	var showHidden bool
+	flags := &listFlags{}
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -22,33 +31,42 @@ func NewListCmd(svc *service.AccountingService) *cobra.Command {
 		Long: `List all accounts in the system with their current balances.
 You can filter by account type or show hidden accounts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var accounts []*store.Account
-			var err error
-
-			if listType != "" {
-				accounts, err = svc.GetAccountsByType(listType)
-			} else {
-				accounts, err = svc.GetAllAccounts()
+			runner := &ListCommandRunner{
+				svc:   svc,
+				flags: flags,
 			}
-
-			if err != nil {
-				return fmt.Errorf("failed to get accounts: %w", err)
-			}
-
-			if !showHidden {
-				accounts = filterHiddenAccounts(accounts)
-			}
-
-			displayAccountsList(svc, accounts)
-
-			return nil
+			return runner.Run()
 		},
 	}
 
-	cmd.Flags().StringVarP(&listType, "type", "t", "", "Filter accounts by type (A, L, C, R, E)")
-	cmd.Flags().BoolVar(&showHidden, "show-hidden", false, "Show hidden accounts")
+	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Filter accounts by type (A, L, C, R, E)")
+	cmd.Flags().BoolVar(&flags.ShowHidden, "show-hidden", false, "Show hidden accounts")
 
 	return cmd
+}
+
+func (r *ListCommandRunner) Run() error {
+
+	var accounts []*store.Account
+	var err error
+
+	if r.flags.Type != "" {
+		accounts, err = r.svc.GetAccountsByType(r.flags.Type)
+	} else {
+		accounts, err = r.svc.GetAllAccounts()
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to get accounts: %w", err)
+	}
+
+	if !r.flags.ShowHidden {
+		accounts = filterHiddenAccounts(accounts)
+	}
+
+	r.displayAccountsList(accounts)
+
+	return nil
 }
 
 func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
@@ -61,12 +79,12 @@ func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
 	return filtered
 }
 
-func displayAccountsList(svc *service.AccountingService, accounts []*store.Account) {
+func (r *ListCommandRunner) displayAccountsList(accounts []*store.Account) {
 	headers := []string{"Name", "Type", "Balance"}
 	tableData := pterm.TableData{headers}
 
 	for _, acc := range accounts {
-		balance, _ := svc.GetAccountBalanceFormatted(acc.ID)
+		balance, _ := r.svc.GetAccountBalanceFormatted(acc.ID)
 		balanceWithCurrency := fmt.Sprintf("%s %s", balance, acc.Currency)
 
 		// Apply color based on account type

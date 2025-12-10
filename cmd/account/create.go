@@ -22,14 +22,14 @@ import (
 )
 
 // Command-line flags
-var (
-	accName     string
-	accType     string
-	accParent   string
-	accBalance  int
-	accCurrency string
-	accDesc     string
-)
+type createFlags struct {
+	Name        string
+	Type        string
+	Parent      string
+	Balance     int
+	Currency    string
+	Description string
+}
 
 // AccountCreator manages the state and logic for creating an account
 type AccountCreator struct {

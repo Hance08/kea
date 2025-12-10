@@ -54,69 +54,70 @@ func NewAccountCreator(l *service.AccountingService, v *validation.AccountValida
 	}
 }
 
-var createCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create a new account.",
-	Long: `In the beginning of using this tool, you need to create new accounts.
+func NewCreateCmd(svc *service.AccountingService) *cobra.Command {
+	flags := &createFlags{}
+	validator := validation.NewAccountValidator(svc)
+
+	cmd := &cobra.Command{
+		Use:   "create",
+		Short: "Create a new account.",
+		Long: `In the beginning of using this tool, you need to create new accounts.
 You must create type A (Asset), L(Liabilities), E(Expenses), R(Revenue)
 four basic accounts, e.g. create an Asset account called Bank.
 
 Advanced users can also create Equity (C) accounts.
 
 Example: kea account create -t A -n Bank -b 100000`,
-	SilenceUsage: true,
-	RunE:         runAccountCreate,
-}
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			creator := NewAccountCreator(svc, validator)
 
-func init() {
-	createCmd.Flags().StringVarP(&accName, "name", "n", "", "Account name (without parent prefix)")
-	createCmd.Flags().StringVarP(&accType, "type", "t", "", "Account type: A (Assets), L (Liabilities), R (Revenue), E (Expenses), C (Equity)")
-	createCmd.Flags().StringVarP(&accParent, "parent", "p", "", "Parent account full name (mutually exclusive with --type)")
-	createCmd.Flags().IntVarP(&accBalance, "balance", "b", 0, "Initial balance (integer, for Assets and Liabilities only)")
-	createCmd.Flags().StringVar(&accCurrency, "currency", "", "Currency code (defaults to parent's currency or config default)")
-	createCmd.Flags().StringVarP(&accDesc, "description", "d", "", "Account description (optional)")
-}
+			hasFlags := cmd.Flags().Changed("name") ||
+				cmd.Flags().Changed("type") ||
+				cmd.Flags().Changed("parent")
 
-func runAccountCreate(cmd *cobra.Command, args []string) error {
-	// Inject dependencies from package-level variables
-	creator := NewAccountCreator(logic, validator)
+			if hasFlags {
+				return creator.FlagsMode(flags)
+			}
 
-	hasFlags := cmd.Flags().Changed("name") ||
-		cmd.Flags().Changed("type") ||
-		cmd.Flags().Changed("parent")
-
-	if hasFlags {
-		return creator.FlagsMode(cmd)
+			return creator.InteractiveMode()
+		},
 	}
+	cmd.Flags().StringVarP(&flags.Name, "name", "n", "", "Account name")
+	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Account type: A, L, R, E, C")
+	cmd.Flags().StringVarP(&flags.Parent, "parent", "p", "", "Parent account full name")
+	cmd.Flags().IntVarP(&flags.Balance, "balance", "b", 0, "Initial balance")
+	cmd.Flags().StringVar(&flags.Currency, "currency", "", "Currency code")
+	cmd.Flags().StringVarP(&flags.Description, "description", "d", "", "Account description")
 
-	return creator.InteractiveMode()
+	return cmd
 }
 
 // FlagsMode builds an account from command-line flags
-func (ac *AccountCreator) FlagsMode(cmd *cobra.Command) error {
+func (ac *AccountCreator) FlagsMode(flags *createFlags) error {
 	// Validate flag combinations
-	if accParent == "" && accType == "" {
+	if flags.Parent == "" && flags.Type == "" {
 		return fmt.Errorf("must enter at least one of --type or --parent flag")
 	}
-	if accParent != "" && accType != "" {
+	if flags.Parent != "" && flags.Type != "" {
 		return fmt.Errorf("--type and --parent flags cannot be used at the same time")
 	}
 
 	// Validate account name (before combining with parent/root)
-	if err := ac.validator.ValidateAccountName(accName); err != nil {
+	if err := ac.validator.ValidateAccountName(flags.Name); err != nil {
 		return fmt.Errorf("invalid account name: %w", err)
 	}
 
-	ac.name = accName
-	ac.description = accDesc
+	ac.name = flags.Name
+	ac.description = flags.Description
 
 	// Build account based on parent or type
-	if accParent != "" {
-		if err := ac.buildFromParent(accParent, accCurrency); err != nil {
+	if flags.Parent != "" {
+		if err := ac.buildFromParent(flags.Parent, flags.Currency); err != nil {
 			return err
 		}
 	} else {
-		if err := ac.buildFromType(accType, accCurrency); err != nil {
+		if err := ac.buildFromType(flags.Type, flags.Currency); err != nil {
 			return err
 		}
 	}
@@ -127,11 +128,11 @@ func (ac *AccountCreator) FlagsMode(cmd *cobra.Command) error {
 	}
 
 	// Handle balance
-	if accBalance != 0 {
-		if accBalance < 0 {
+	if flags.Balance != 0 {
+		if flags.Balance < 0 {
 			return fmt.Errorf("initial balance can't be negative")
 		}
-		balanceFloat := float64(accBalance)
+		balanceFloat := float64(flags.Balance)
 		ac.balance = int64(math.Round(balanceFloat * constants.CentsPerUnit))
 	}
 
@@ -207,9 +208,9 @@ func (ac *AccountCreator) InteractiveMode() error {
 
 	// Step 5: Initial balance setting
 	if ac.accountType == "A" || ac.accountType == "L" {
-		balance, err := runBalanceStep()
+		balance, err := runBalanceStep(ac)
 		if err != nil {
-			return err // 同樣建議回傳 err
+			return err
 		}
 		ac.setBalance(balance)
 	}
@@ -269,7 +270,7 @@ func (ac *AccountCreator) buildFromType(accType, currency string) error {
 	ac.accountType = accType
 
 	if currency != "" {
-		if err := validator.ValidateCurrency(currency); err != nil {
+		if err := ac.validator.ValidateCurrency(currency); err != nil {
 			return err
 		}
 		ac.currency = strings.ToUpper(strings.TrimSpace(currency))
@@ -335,6 +336,26 @@ func (ac *AccountCreator) Save() (*store.Account, error) {
 	return newAccount, nil
 }
 
+func runBalanceStep(ac *AccountCreator) (int64, error) {
+	balanceInput, err := prompts.PromptInitialBalance(ac.validator.ValidateInitialBalance)
+	if err != nil {
+		return 0, err
+	}
+
+	balanceInput = strings.TrimSpace(balanceInput)
+	if balanceInput == "" || balanceInput == "0" {
+		return 0, nil
+	}
+
+	balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid balance input: must be a number")
+	}
+
+	return int64(math.Round(balanceFloat * constants.CentsPerUnit)), nil
+
+}
+
 // Helper functions for interactive mode
 func runSelectParentStep(ac *AccountCreator) (*store.Account, error) {
 	allAccounts, err := ac.logic.GetAllAccounts()
@@ -378,27 +399,7 @@ func runCurrencyStep(ac *AccountCreator) (string, error) {
 
 	isInherited := ac.parentID != nil
 
-	return prompts.PromptCurrency(defaultCurrency, isInherited, validator.ValidateCurrency)
-
-}
-
-func runBalanceStep() (int64, error) {
-	balanceInput, err := prompts.PromptInitialBalance(validator.ValidateInitialBalance)
-	if err != nil {
-		return 0, err
-	}
-
-	balanceInput = strings.TrimSpace(balanceInput)
-	if balanceInput == "" || balanceInput == "0" {
-		return 0, nil
-	}
-
-	balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid balance input: must be a number")
-	}
-
-	return int64(math.Round(balanceFloat * constants.CentsPerUnit)), nil
+	return prompts.PromptCurrency(defaultCurrency, isInherited, ac.validator.ValidateCurrency)
 
 }
 

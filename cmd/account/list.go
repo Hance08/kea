@@ -6,59 +6,49 @@ package account
 import (
 	"fmt"
 
+	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-var (
-	accountListType       string
-	accountListShowHidden bool
-)
+func NewListCmd(svc *service.AccountingService) *cobra.Command {
+	var listType string
+	var showHidden bool
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all accounts with their balances",
-	Long: `List all accounts in the system with their current balances.
-
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List all accounts with their balances",
+		Long: `List all accounts in the system with their current balances.
 You can filter by account type or show hidden accounts.`,
-	Example: `  # List all accounts
-  kea account list
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var accounts []*store.Account
+			var err error
 
-  # List only asset accounts
-  kea account list -t A
+			if listType != "" {
+				accounts, err = svc.GetAccountsByType(listType)
+			} else {
+				accounts, err = svc.GetAllAccounts()
+			}
 
-  # Show hidden accounts
-  kea account list --show-hidden`,
-	RunE: runAccountList,
-}
+			if err != nil {
+				return fmt.Errorf("failed to get accounts: %w", err)
+			}
 
-func init() {
-	listCmd.Flags().StringVarP(&accountListType, "type", "t", "", "Filter accounts by type (A, L, C, R, E)")
-	listCmd.Flags().BoolVar(&accountListShowHidden, "show-hidden", false, "Show hidden accounts")
-}
+			if !showHidden {
+				accounts = filterHiddenAccounts(accounts)
+			}
 
-func runAccountList(cmd *cobra.Command, args []string) error {
-	var accounts []*store.Account
-	var err error
+			displayAccountsList(svc, accounts)
 
-	if accountListType != "" {
-		accounts, err = logic.GetAccountsByType(accountListType)
-	} else {
-		accounts, err = logic.GetAllAccounts()
+			return nil
+		},
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to get accounts: %w", err)
-	}
+	cmd.Flags().StringVarP(&listType, "type", "t", "", "Filter accounts by type (A, L, C, R, E)")
+	cmd.Flags().BoolVar(&showHidden, "show-hidden", false, "Show hidden accounts")
 
-	if !accountListShowHidden {
-		accounts = filterHiddenAccounts(accounts)
-	}
-
-	displayAccountsList(accounts)
-
-	return nil
+	return cmd
 }
 
 func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
@@ -71,13 +61,12 @@ func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
 	return filtered
 }
 
-func displayAccountsList(accounts []*store.Account) {
+func displayAccountsList(svc *service.AccountingService, accounts []*store.Account) {
 	headers := []string{"Name", "Type", "Balance"}
-
 	tableData := pterm.TableData{headers}
 
 	for _, acc := range accounts {
-		balance, _ := logic.GetAccountBalanceFormatted(acc.ID)
+		balance, _ := svc.GetAccountBalanceFormatted(acc.ID)
 		balanceWithCurrency := fmt.Sprintf("%s %s", balance, acc.Currency)
 
 		// Apply color based on account type

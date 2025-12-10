@@ -7,21 +7,25 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-// editCmd edits a transaction
-var editCmd = &cobra.Command{
-	Use:   "edit <transaction-id>",
-	Short: "Edit a transaction",
-	Long:  `Edit a transaction's description, date, status, and splits interactively.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runTransactionEdit,
+func NewEditCmd(svc *service.AccountingService) *cobra.Command {
+	return &cobra.Command{
+		Use:   "edit <transaction-id>",
+		Short: "Edit a transaction",
+		Long:  `Edit a transaction's description, date, status, and splits interactively.`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTransactionEdit(svc, args)
+		},
+	}
 }
 
-func runTransactionEdit(cmd *cobra.Command, args []string) error {
+func runTransactionEdit(svc *service.AccountingService, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
@@ -42,7 +46,7 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 
 	// Show current transaction info
 	pterm.DefaultSection.Printf("Editing Transaction #%d", txID)
-	displayTransactionDetail(detail)
+	displayTransactionDetail(svc, detail)
 
 	// Main edit menu
 	for {
@@ -70,7 +74,7 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 			Message: "What would you like to edit?",
 			Options: menuOptions,
 		}
-		if err := survey.AskOne(editPrompt, &editChoice, surveyOpts...); err != nil {
+		if err := survey.AskOne(editPrompt, &editChoice, ui.IconOption()); err != nil {
 			return err
 		}
 
@@ -81,17 +85,17 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 			}
 
 		case "Change Account (quick edit)":
-			if err := changeAccount(detail); err != nil {
+			if err := changeAccount(svc, detail); err != nil {
 				pterm.Error.Printf("Failed to change account: %v\n", err)
 			}
 
 		case "Change Amount (both sides)":
-			if err := changeAmount(detail); err != nil {
+			if err := changeAmount(svc, detail); err != nil {
 				pterm.Error.Printf("Failed to change amount: %v\n", err)
 			}
 
 		case "Edit Splits (Advanced)":
-			if err := editSplits(detail); err != nil {
+			if err := editSplits(svc, detail); err != nil {
 				pterm.Error.Printf("Failed to edit splits: %v\n", err)
 			}
 
@@ -105,13 +109,13 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 			}
 
 			// Save changes
-			if err := saveTransactionChanges(txID, detail); err != nil {
+			if err := saveTransactionChanges(svc, txID, detail); err != nil {
 				pterm.Error.Printf("Failed to save changes: %v\n", err)
 				return nil
 			}
 
 			pterm.Success.Printf("Transaction #%d updated successfully\n", txID)
-			printSeparator()
+			ui.Separator()
 			return nil
 
 		case "Cancel (discard changes)":
@@ -121,7 +125,7 @@ func runTransactionEdit(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func displayTransactionDetail(detail *service.TransactionDetail) {
+func displayTransactionDetail(svc *service.AccountingService, detail *service.TransactionDetail) {
 	date := time.Unix(detail.Timestamp, 0).Format("2006-01-02 15:04")
 	status := "Cleared"
 	if detail.Status == 0 {
@@ -207,13 +211,13 @@ func editBasicInfo(detail *service.TransactionDetail) error {
 	}
 
 	pterm.Success.Println("Basic info updated")
-	printSeparator()
+	ui.Separator()
 	return nil
 }
 
 // changeAccount allows quick account switching for simple transactions
 // Works best for 2-split transactions (Expense/Income/Transfer)
-func changeAccount(detail *service.TransactionDetail) error {
+func changeAccount(svc *service.AccountingService, detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -221,7 +225,7 @@ func changeAccount(detail *service.TransactionDetail) error {
 	}
 
 	// Detect transaction type and check if editing is allowed
-	txType, err := detectTransactionType(detail)
+	txType, err := detectTransactionType(svc, detail)
 	if err != nil {
 		return err
 	}
@@ -242,7 +246,7 @@ func changeAccount(detail *service.TransactionDetail) error {
 	pterm.DefaultSection.Printf("Current transaction type: %s", txType)
 	pterm.DefaultSection.Printf("Current splits:")
 
-	roleLabels := getSplitRoleLabels(detail, txType)
+	roleLabels := getSplitRoleLabels(svc, detail, txType)
 	for i, split := range detail.Splits {
 		amount := svc.FormatAmountFromCents(split.Amount)
 		sign := "+"
@@ -264,7 +268,7 @@ func changeAccount(detail *service.TransactionDetail) error {
 			"Cancel",
 		},
 	}
-	if err := survey.AskOne(splitPrompt, &splitChoice, surveyOpts...); err != nil {
+	if err := survey.AskOne(splitPrompt, &splitChoice, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -281,7 +285,7 @@ func changeAccount(detail *service.TransactionDetail) error {
 	split := &detail.Splits[splitIndex]
 
 	// Filter accounts based on transaction type and split role
-	filteredAccounts := filterAccountsForChange(accounts, detail, txType, splitIndex)
+	filteredAccounts := filterAccountsForChange(svc, accounts, detail, txType, splitIndex)
 
 	if len(filteredAccounts) == 0 {
 		pterm.Warning.Println("No suitable accounts found for this change")
@@ -301,7 +305,7 @@ func changeAccount(detail *service.TransactionDetail) error {
 		Options: accountNames,
 		Default: split.AccountName,
 	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount, surveyOpts...); err != nil {
+	if err := survey.AskOne(accountPrompt, &selectedAccount, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -316,12 +320,12 @@ func changeAccount(detail *service.TransactionDetail) error {
 	split.Currency = account.Currency
 
 	pterm.Success.Printf("Account changed to: %s\n", account.Name)
-	printSeparator()
+	ui.Separator()
 	return nil
 }
 
 // detectTransactionType determines the type of transaction based on account types
-func detectTransactionType(detail *service.TransactionDetail) (string, error) {
+func detectTransactionType(svc *service.AccountingService, detail *service.TransactionDetail) (string, error) {
 	if len(detail.Splits) != 2 {
 		return "Complex", nil
 	}
@@ -370,7 +374,7 @@ func detectTransactionType(detail *service.TransactionDetail) (string, error) {
 }
 
 // getSplitRoleLabels returns descriptive labels for each split based on transaction type
-func getSplitRoleLabels(detail *service.TransactionDetail, txType string) []string {
+func getSplitRoleLabels(svc *service.AccountingService, detail *service.TransactionDetail, txType string) []string {
 	labels := make([]string, len(detail.Splits))
 
 	if len(detail.Splits) != 2 {
@@ -426,7 +430,7 @@ func getSplitRoleLabels(detail *service.TransactionDetail, txType string) []stri
 }
 
 // filterAccountsForChange returns accounts suitable for the given split change
-func filterAccountsForChange(accounts []*store.Account, detail *service.TransactionDetail, txType string, splitIndex int) []*store.Account {
+func filterAccountsForChange(svc *service.AccountingService, accounts []*store.Account, detail *service.TransactionDetail, txType string, splitIndex int) []*store.Account {
 	var filtered []*store.Account
 
 	// Get the account type we're replacing
@@ -488,7 +492,7 @@ func filterAccountsForChange(accounts []*store.Account, detail *service.Transact
 
 // changeAmount allows quick amount editing for simple transactions
 // Automatically adjusts both sides to maintain balance
-func changeAmount(detail *service.TransactionDetail) error {
+func changeAmount(svc *service.AccountingService, detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -558,14 +562,14 @@ func changeAmount(detail *service.TransactionDetail) error {
 	pterm.Success.Printf("Amount changed to: %s %s\n",
 		svc.FormatAmountFromCents(newAmount),
 		detail.Splits[0].Currency)
-	printSeparator()
+	ui.Separator()
 	return nil
 }
 
-func editSplits(detail *service.TransactionDetail) error {
+func editSplits(svc *service.AccountingService, detail *service.TransactionDetail) error {
 	for {
 		// Display current splits with balance
-		displayTransactionDetail(detail)
+		displayTransactionDetail(svc, detail)
 
 		var action string
 		actionPrompt := &survey.Select{
@@ -577,23 +581,23 @@ func editSplits(detail *service.TransactionDetail) error {
 				"Done (return to main menu)",
 			},
 		}
-		if err := survey.AskOne(actionPrompt, &action, surveyOpts...); err != nil {
+		if err := survey.AskOne(actionPrompt, &action, ui.IconOption()); err != nil {
 			return err
 		}
 
 		switch action {
 		case "Add Split":
-			if err := addSplit(detail); err != nil {
+			if err := addSplit(svc, detail); err != nil {
 				pterm.Error.Printf("Failed to add split: %v\n", err)
 			}
 
 		case "Edit Split":
-			if err := editOneSplit(detail); err != nil {
+			if err := editOneSplit(svc, detail); err != nil {
 				pterm.Error.Printf("Failed to edit split: %v\n", err)
 			}
 
 		case "Delete Split":
-			if err := deleteSplit(detail); err != nil {
+			if err := deleteSplit(svc, detail); err != nil {
 				pterm.Error.Printf("Failed to delete split: %v\n", err)
 			}
 
@@ -603,7 +607,7 @@ func editSplits(detail *service.TransactionDetail) error {
 	}
 }
 
-func addSplit(detail *service.TransactionDetail) error {
+func addSplit(svc *service.AccountingService, detail *service.TransactionDetail) error {
 	// Select account
 	accounts, err := svc.GetAllAccounts()
 	if err != nil {
@@ -620,7 +624,7 @@ func addSplit(detail *service.TransactionDetail) error {
 		Message: "Select account:",
 		Options: accountNames,
 	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount, surveyOpts...); err != nil {
+	if err := survey.AskOne(accountPrompt, &selectedAccount, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -659,11 +663,11 @@ func addSplit(detail *service.TransactionDetail) error {
 	detail.Splits = append(detail.Splits, newSplit)
 
 	pterm.Success.Println("Split added")
-	printSeparator()
+	ui.Separator()
 	return nil
 }
 
-func editOneSplit(detail *service.TransactionDetail) error {
+func editOneSplit(svc *service.AccountingService, detail *service.TransactionDetail) error {
 	if len(detail.Splits) == 0 {
 		return fmt.Errorf("no splits to edit")
 	}
@@ -680,7 +684,7 @@ func editOneSplit(detail *service.TransactionDetail) error {
 		Message: "Select split to edit:",
 		Options: splitOptions,
 	}
-	if err := survey.AskOne(splitPrompt, &selectedSplit, surveyOpts...); err != nil {
+	if err := survey.AskOne(splitPrompt, &selectedSplit, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -708,7 +712,7 @@ func editOneSplit(detail *service.TransactionDetail) error {
 		Options: accountNames,
 		Default: split.AccountName,
 	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount, surveyOpts...); err != nil {
+	if err := survey.AskOne(accountPrompt, &selectedAccount, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -743,11 +747,11 @@ func editOneSplit(detail *service.TransactionDetail) error {
 	split.Memo = memo
 
 	pterm.Success.Println("Split updated")
-	printSeparator()
+	ui.Separator()
 	return nil
 }
 
-func deleteSplit(detail *service.TransactionDetail) error {
+func deleteSplit(svc *service.AccountingService, detail *service.TransactionDetail) error {
 	if len(detail.Splits) <= 2 {
 		return fmt.Errorf("cannot delete: transaction must have at least 2 splits")
 	}
@@ -764,7 +768,7 @@ func deleteSplit(detail *service.TransactionDetail) error {
 		Message: "Select split to delete:",
 		Options: splitOptions,
 	}
-	if err := survey.AskOne(splitPrompt, &selectedSplit, surveyOpts...); err != nil {
+	if err := survey.AskOne(splitPrompt, &selectedSplit, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -779,7 +783,7 @@ func deleteSplit(detail *service.TransactionDetail) error {
 		Message: fmt.Sprintf("Delete split: %s?", detail.Splits[splitIndex].AccountName),
 		Default: false,
 	}
-	if err := survey.AskOne(confirmPrompt, &confirm, surveyOpts...); err != nil {
+	if err := survey.AskOne(confirmPrompt, &confirm, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -792,7 +796,7 @@ func deleteSplit(detail *service.TransactionDetail) error {
 	detail.Splits = append(detail.Splits[:splitIndex], detail.Splits[splitIndex+1:]...)
 
 	pterm.Success.Println("Split deleted")
-	printSeparator()
+	ui.Separator()
 	return nil
 }
 
@@ -811,7 +815,7 @@ func convertToSplitInputs(splits []service.SplitDetail) []service.TransactionSpl
 	return inputs
 }
 
-func saveTransactionChanges(txID int64, detail *service.TransactionDetail) error {
+func saveTransactionChanges(svc *service.AccountingService, txID int64, detail *service.TransactionDetail) error {
 	splits := convertToSplitInputs(detail.Splits)
 	return svc.UpdateTransactionComplete(
 		txID,

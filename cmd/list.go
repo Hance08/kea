@@ -18,6 +18,11 @@ type listFlags struct {
 	Limit   int
 }
 
+type ListCommandRunner struct {
+	svc   *service.AccountingService
+	flags *listFlags
+}
+
 func NewListCmd(svc *service.AccountingService) *cobra.Command {
 	flags := &listFlags{}
 
@@ -29,7 +34,11 @@ func NewListCmd(svc *service.AccountingService) *cobra.Command {
 This command displays a table of transactions with their details including
 date, type, account, description, amount, and status.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(svc, flags)
+			runner := &ListCommandRunner{
+				svc:   svc,
+				flags: flags,
+			}
+			return runner.Run()
 		},
 	}
 
@@ -39,25 +48,25 @@ date, type, account, description, amount, and status.`,
 	return cmd
 }
 
-func runList(svc *service.AccountingService, flags *listFlags) error {
+func (r *ListCommandRunner) Run() error {
 
 	var transactions []*store.Transaction
 	var err error
 
-	if flags.Account != "" {
+	if r.flags.Account != "" {
 		// List transactions for specific account
-		transactions, err = svc.GetTransactionHistory(flags.Account, flags.Limit)
+		transactions, err = r.svc.GetTransactionHistory(r.flags.Account, r.flags.Limit)
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
-		pterm.Info.Printf("Showing transactions for account: %s\n\n", flags.Account)
+		pterm.Info.Printf("Showing transactions for account: %s\n\n", r.flags.Account)
 	} else {
 		// List all recent transactions
-		transactions, err = svc.GetRecentTransactions(flags.Limit)
+		transactions, err = r.svc.GetRecentTransactions(r.flags.Limit)
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
-		pterm.DefaultSection.Printf("Showing recent transactions (limit: %d)", flags.Limit)
+		pterm.DefaultSection.Printf("Showing recent transactions (limit: %d)", r.flags.Limit)
 	}
 
 	if len(transactions) == 0 {
@@ -78,19 +87,19 @@ func runList(svc *service.AccountingService, flags *listFlags) error {
 		}
 
 		// Get transaction type
-		txType, err := getTransactionType(svc, tx.ID)
+		txType, err := r.getTransactionType(tx.ID)
 		if err != nil {
 			txType = "-"
 		}
 
 		// Get transaction account based on type
-		account, err := getTransactionAccount(svc, tx.ID, txType)
+		account, err := r.getTransactionAccount(tx.ID, txType)
 		if err != nil {
 			account = "-"
 		}
 
 		// Get transaction amount
-		amount, err := getTransactionAmount(svc, tx.ID)
+		amount, err := r.getTransactionAmount(tx.ID)
 		if err != nil {
 			amount = "-"
 		}
@@ -134,8 +143,8 @@ func runList(svc *service.AccountingService, flags *listFlags) error {
 }
 
 // getTransactionAmount retrieves the main amount of a transaction (largest positive split)
-func getTransactionAmount(svc *service.AccountingService, txID int64) (string, error) {
-	detail, err := svc.GetTransactionByID(txID)
+func (r *ListCommandRunner) getTransactionAmount(txID int64) (string, error) {
+	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
 	}
@@ -162,8 +171,8 @@ func getTransactionAmount(svc *service.AccountingService, txID int64) (string, e
 
 // getTransactionType determines the type of transaction based on account types involved
 // Returns: "Expense", "Income", "Transfer", or "Other"
-func getTransactionType(svc *service.AccountingService, txID int64) (string, error) {
-	detail, err := svc.GetTransactionByID(txID)
+func (r *ListCommandRunner) getTransactionType(txID int64) (string, error) {
+	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
 	}
@@ -177,7 +186,7 @@ func getTransactionType(svc *service.AccountingService, txID int64) (string, err
 	isOpening := false
 	for _, split := range detail.Splits {
 		// Get account by ID to find its type
-		account, err := svc.GetAccountByName(split.AccountName)
+		account, err := r.svc.GetAccountByName(split.AccountName)
 		if err == nil {
 			accountTypes[account.Type] = true
 		}
@@ -209,8 +218,8 @@ func getTransactionType(svc *service.AccountingService, txID int64) (string, err
 }
 
 // getTransactionAccount returns the relevant account name based on transaction type
-func getTransactionAccount(svc *service.AccountingService, txID int64, transType string) (string, error) {
-	detail, err := svc.GetTransactionByID(txID)
+func (r *ListCommandRunner) getTransactionAccount(txID int64, transType string) (string, error) {
+	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
 	}
@@ -223,7 +232,7 @@ func getTransactionAccount(svc *service.AccountingService, txID int64, transType
 	case "Expense":
 		// Find and return the Expense account (E type)
 		for _, split := range detail.Splits {
-			account, err := svc.GetAccountByName(split.AccountName)
+			account, err := r.svc.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "E" {
 				return split.AccountName, nil
 			}
@@ -232,7 +241,7 @@ func getTransactionAccount(svc *service.AccountingService, txID int64, transType
 	case "Income":
 		// Find and return the Revenue account (R type)
 		for _, split := range detail.Splits {
-			account, err := svc.GetAccountByName(split.AccountName)
+			account, err := r.svc.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "R" {
 				return split.AccountName, nil
 			}
@@ -242,7 +251,7 @@ func getTransactionAccount(svc *service.AccountingService, txID int64, transType
 		// Find and return the Asset account with positive amount (receiving account)
 		for _, split := range detail.Splits {
 			if split.Amount > 0 {
-				account, err := svc.GetAccountByName(split.AccountName)
+				account, err := r.svc.GetAccountByName(split.AccountName)
 				if err == nil && (account.Type == "A" || account.Type == "L") {
 					return split.AccountName, nil
 				}
@@ -252,7 +261,7 @@ func getTransactionAccount(svc *service.AccountingService, txID int64, transType
 	case "Opening":
 		// For opening transactions, return the non-equity account
 		for _, split := range detail.Splits {
-			account, err := svc.GetAccountByName(split.AccountName)
+			account, err := r.svc.GetAccountByName(split.AccountName)
 			if err == nil && account.Type != "C" {
 				return split.AccountName, nil
 			}

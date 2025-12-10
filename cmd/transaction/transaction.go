@@ -8,25 +8,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	svc *service.AccountingService
-)
+func NewTransactionCmd(svc *service.AccountingService) *cobra.Command {
+	txCmd := &cobra.Command{
+		Use:   "transaction",
+		Short: "Manage transactions",
+		Long:  "Manage transactions: view details, delete, or modify transaction status.",
+	}
 
-// TransactionCmd represents the transaction command
-var TransactionCmd = &cobra.Command{
-	Use:   "transaction",
-	Short: "Manage transactions",
-	Long:  "Manage transactions: view details, delete, or modify transaction status.",
-}
+	txCmd.AddCommand(NewShowCmd(svc))
+	txCmd.AddCommand(NewDeleteCmd(svc))
+	txCmd.AddCommand(NewClearCmd(svc))
+	txCmd.AddCommand(NewEditCmd(svc))
 
-func init() {
-	TransactionCmd.AddCommand(showCmd)
-	TransactionCmd.AddCommand(deleteCmd)
-	TransactionCmd.AddCommand(clearCmd)
-	TransactionCmd.AddCommand(editCmd)
-}
-
-// SetDependencies allows root command to inject dependencies
-func SetDependencies(s *service.AccountingService) {
-	svc = s
+	return txCmd
 }

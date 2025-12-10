@@ -7,60 +7,57 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-var (
-	listAccount string
-	listLimit   int
-)
+type listFlags struct {
+	Account string
+	Limit   int
+}
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List recent transactions",
-	Long: `List recent transactions from your accounting records.
+func NewListCmd(svc *service.AccountingService) *cobra.Command {
+	flags := &listFlags{}
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List recent transactions",
+		Long: `List recent transactions from your accounting records.
 
 This command displays a table of transactions with their details including
 date, type, account, description, amount, and status.`,
-	Example: `  # List recent transactions
-  kea list
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runList(svc, flags)
+		},
+	}
 
-  # List transactions for a specific account
-  kea list --account "Assets:Cash"
+	cmd.Flags().StringVarP(&flags.Account, "account", "a", "", "Filter transactions by account name")
+	cmd.Flags().IntVarP(&flags.Limit, "limit", "l", 20, "Maximum number of transactions to display")
 
-  # Limit the number of transactions
-  kea list --limit 50`,
-	RunE: runList,
+	return cmd
 }
 
-func init() {
-	rootCmd.AddCommand(listCmd)
-
-	listCmd.Flags().StringVarP(&listAccount, "account", "a", "", "Filter transactions by account name")
-	listCmd.Flags().IntVarP(&listLimit, "limit", "l", 20, "Maximum number of transactions to display")
-}
-
-func runList(cmd *cobra.Command, args []string) error {
+func runList(svc *service.AccountingService, flags *listFlags) error {
 
 	var transactions []*store.Transaction
 	var err error
 
-	if listAccount != "" {
+	if flags.Account != "" {
 		// List transactions for specific account
-		transactions, err = svc.GetTransactionHistory(listAccount, listLimit)
+		transactions, err = svc.GetTransactionHistory(flags.Account, flags.Limit)
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
-		pterm.Info.Printf("Showing transactions for account: %s\n\n", listAccount)
+		pterm.Info.Printf("Showing transactions for account: %s\n\n", flags.Account)
 	} else {
 		// List all recent transactions
-		transactions, err = svc.GetRecentTransactions(listLimit)
+		transactions, err = svc.GetRecentTransactions(flags.Limit)
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
-		pterm.DefaultSection.Printf("Showing recent transactions (limit: %d)", listLimit)
+		pterm.DefaultSection.Printf("Showing recent transactions (limit: %d)", flags.Limit)
 	}
 
 	if len(transactions) == 0 {
@@ -81,19 +78,19 @@ func runList(cmd *cobra.Command, args []string) error {
 		}
 
 		// Get transaction type
-		txType, err := getTransactionType(tx.ID)
+		txType, err := getTransactionType(svc, tx.ID)
 		if err != nil {
 			txType = "-"
 		}
 
 		// Get transaction account based on type
-		account, err := getTransactionAccount(tx.ID, txType)
+		account, err := getTransactionAccount(svc, tx.ID, txType)
 		if err != nil {
 			account = "-"
 		}
 
 		// Get transaction amount
-		amount, err := getTransactionAmount(tx.ID)
+		amount, err := getTransactionAmount(svc, tx.ID)
 		if err != nil {
 			amount = "-"
 		}
@@ -137,7 +134,7 @@ func runList(cmd *cobra.Command, args []string) error {
 }
 
 // getTransactionAmount retrieves the main amount of a transaction (largest positive split)
-func getTransactionAmount(txID int64) (string, error) {
+func getTransactionAmount(svc *service.AccountingService, txID int64) (string, error) {
 	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
@@ -165,7 +162,7 @@ func getTransactionAmount(txID int64) (string, error) {
 
 // getTransactionType determines the type of transaction based on account types involved
 // Returns: "Expense", "Income", "Transfer", or "Other"
-func getTransactionType(txID int64) (string, error) {
+func getTransactionType(svc *service.AccountingService, txID int64) (string, error) {
 	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
@@ -212,7 +209,7 @@ func getTransactionType(txID int64) (string, error) {
 }
 
 // getTransactionAccount returns the relevant account name based on transaction type
-func getTransactionAccount(txID int64, transType string) (string, error) {
+func getTransactionAccount(svc *service.AccountingService, txID int64, transType string) (string, error) {
 	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		return "", err

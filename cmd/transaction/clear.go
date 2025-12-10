@@ -3,20 +3,25 @@ package transaction
 import (
 	"fmt"
 
+	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/ui"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-// clearCmd marks a transaction as cleared
-var clearCmd = &cobra.Command{
-	Use:   "clear <transaction-id>",
-	Short: "Mark transaction as cleared",
-	Long:  `Mark a pending transaction as cleared (confirmed).`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runTransactionClear,
+func NewClearCmd(svc *service.AccountingService) *cobra.Command {
+	return &cobra.Command{
+		Use:   "clear <transaction-id>",
+		Short: "Mark transaction as cleared",
+		Long:  `Mark a pending transaction as cleared (confirmed).`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTransactionClear(svc, args)
+		},
+	}
 }
 
-func runTransactionClear(cmd *cobra.Command, args []string) error {
+func runTransactionClear(svc *service.AccountingService, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
@@ -29,6 +34,6 @@ func runTransactionClear(cmd *cobra.Command, args []string) error {
 	}
 
 	pterm.Success.Printf("Transaction #%d marked as cleared\n", txID)
-	printSeparator()
+	ui.Separator()
 	return nil
 }

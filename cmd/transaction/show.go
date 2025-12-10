@@ -4,32 +4,39 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hance08/kea/internal/service"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-// showCmd shows details of a specific transaction
-var showCmd = &cobra.Command{
-	Use:   "show <transaction-id>",
-	Short: "Show transaction details",
-	Long:  `Display detailed information about a specific transaction including all splits.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runTransactionShow,
+func NewShowCmd(svc *service.AccountingService) *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <transaction-id>",
+		Short: "Show transaction details",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTransactionShow(svc, args)
+		},
+	}
 }
 
-func runTransactionShow(cmd *cobra.Command, args []string) error {
+func runTransactionShow(svc *service.AccountingService, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	// Get transaction details
 	detail, err := svc.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil
 	}
 
+	displayTransactionInfo(detail)
+	return nil
+}
+
+func displayTransactionInfo(detail *service.TransactionDetail) error {
 	// Basic info table
 	date := time.Unix(detail.Timestamp, 0).Format("2006-01-02")
 	status := "Cleared"

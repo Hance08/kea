@@ -15,50 +15,52 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	addDesc      string
-	addAmount    string
-	addFrom      string
-	addTo        string
-	addStatus    string
-	addTimestamp string
-)
-
-// addCmd represents the add command
-var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Add a new transaction",
-	Long: `Add a new transaction to your accounting system.
-
-This command allows you to record financial transactions using double-entry bookkeeping.
-You can use flags for quick entry or interactive mode for guided input.
-
-Examples:
-  # Interactive mode (recommended for beginners)
-  kea add
-
-  # Quick mode with flags
-  kea add --desc "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"
-  
-  # With pending status (default is cleared)
-  kea add --desc "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
-
-	SilenceUsage: true,
-	RunE:         runAddTransaction,
+type addFlags struct {
+	Desc      string
+	Amount    string
+	From      string
+	To        string
+	Status    string
+	Timestamp string
 }
 
-func init() {
-	rootCmd.AddCommand(addCmd)
+func NewAddCmd(svc *service.AccountingService) *cobra.Command {
+	flags := &addFlags{}
 
-	addCmd.Flags().StringVarP(&addDesc, "desc", "d", "", "Transaction description")
-	addCmd.Flags().StringVarP(&addAmount, "amount", "a", "", "Transaction amount (e.g., 150 or 150.50)")
-	addCmd.Flags().StringVarP(&addFrom, "from", "f", "", "Source account (where money comes from)")
-	addCmd.Flags().StringVarP(&addTo, "to", "t", "", "Destination account (where money goes to)")
-	addCmd.Flags().StringVarP(&addStatus, "status", "s", "cleared", "Transaction status: pending or cleared")
-	addCmd.Flags().StringVar(&addTimestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
+	cmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add a new transaction",
+		Long: `Add a new transaction to your accounting system.
+
+	This command allows you to record financial transactions using double-entry bookkeeping.
+	You can use flags for quick entry or interactive mode for guided input.
+
+	Examples:
+	# Interactive mode (recommended for beginners)
+	kea add
+
+	# Quick mode with flags
+	kea add --desc "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"
+	
+	# With pending status (default is cleared)
+	kea add --desc "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
+
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runAddTransaction(svc, flags, cmd)
+		},
+	}
+	cmd.Flags().StringVarP(&flags.Desc, "desc", "d", "", "Transaction description")
+	cmd.Flags().StringVarP(&flags.Amount, "amount", "a", "", "Transaction amount (e.g., 150 or 150.50)")
+	cmd.Flags().StringVarP(&flags.From, "from", "f", "", "Source account (where money comes from)")
+	cmd.Flags().StringVarP(&flags.To, "to", "t", "", "Destination account (where money goes to)")
+	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
+	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
+
+	return cmd
 }
 
-func runAddTransaction(cmd *cobra.Command, args []string) error {
+func runAddTransaction(svc *service.AccountingService, flags *addFlags, cmd *cobra.Command) error {
 	var input service.TransactionInput
 
 	// Check if using flag mode or interactive mode
@@ -67,38 +69,38 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		if addAmount == "" || addFrom == "" || addTo == "" {
+		if flags.Amount == "" || flags.From == "" || flags.To == "" {
 			return fmt.Errorf("when using flags, --amount, --from, and --to are all required")
 		}
 
-		if addDesc == "" {
-			addDesc = "-"
+		if flags.Desc == "" {
+			flags.Desc = "-"
 		}
 
 		// Parse amount
-		amountCents, err := svc.ParseAmountToCents(addAmount)
+		amountCents, err := svc.ParseAmountToCents(flags.Amount)
 		if err != nil {
 			return fmt.Errorf("invalid amount: %w", err)
 		}
 
 		// Validate accounts exist
-		if exists, err := svc.CheckAccountExists(addFrom); err != nil || !exists {
-			return fmt.Errorf("source account '%s' does not exist", addFrom)
+		if exists, err := svc.CheckAccountExists(flags.From); err != nil || !exists {
+			return fmt.Errorf("source account '%s' does not exist", flags.From)
 		}
-		if exists, err := svc.CheckAccountExists(addTo); err != nil || !exists {
-			return fmt.Errorf("destination account '%s' does not exist", addTo)
+		if exists, err := svc.CheckAccountExists(flags.To); err != nil || !exists {
+			return fmt.Errorf("destination account '%s' does not exist", flags.To)
 		}
 
 		// Parse status
 		status := 1 // Default: cleared
-		if strings.ToLower(addStatus) == "pending" {
+		if strings.ToLower(flags.Status) == "pending" {
 			status = 0
 		}
 
 		// Parse timestamp
 		var timestamp int64
-		if addTimestamp != "" {
-			t, err := time.Parse("2006-01-02", addTimestamp)
+		if flags.Timestamp != "" {
+			t, err := time.Parse("2006-01-02", flags.Timestamp)
 			if err != nil {
 				return fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
 			}
@@ -110,16 +112,16 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 		// Build transaction input
 		input = service.TransactionInput{
 			Timestamp:   timestamp,
-			Description: addDesc,
+			Description: flags.Desc,
 			Status:      status,
 			Splits: []service.TransactionSplitInput{
 				{
-					AccountName: addTo,
+					AccountName: flags.To,
 					Amount:      amountCents,
 					Memo:        "",
 				},
 				{
-					AccountName: addFrom,
+					AccountName: flags.From,
 					Amount:      -amountCents,
 					Memo:        "",
 				},
@@ -128,7 +130,7 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 	} else {
 		// Interactive mode
 		var err error
-		input, err = interactiveAddTransaction()
+		input, err = interactiveAddTransaction(svc)
 		if err != nil {
 			return err
 		}
@@ -149,7 +151,7 @@ func runAddTransaction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func interactiveAddTransaction() (service.TransactionInput, error) {
+func interactiveAddTransaction(svc *service.AccountingService) (service.TransactionInput, error) {
 	var input service.TransactionInput
 
 	// Get all accounts
@@ -207,36 +209,36 @@ func interactiveAddTransaction() (service.TransactionInput, error) {
 	switch mode {
 	case "expense":
 		// Record Expense: From Assets/Liabilities, To Expenses
-		fromAccount, err = selectAccount(accounts, []string{"A", "L"}, "Payment Source:", true)
+		fromAccount, err = selectAccount(svc, accounts, []string{"A", "L"}, "Payment Source:", true)
 		if err != nil {
 			return input, err
 		}
 
-		toAccount, err = selectAccount(accounts, []string{"E"}, "Expense Type:", false)
+		toAccount, err = selectAccount(svc, accounts, []string{"E"}, "Expense Type:", false)
 		if err != nil {
 			return input, err
 		}
 
 	case "income":
 		// Record Income: From Revenue, To Assets
-		fromAccount, err = selectAccount(accounts, []string{"R"}, "Revenue Type:", false)
+		fromAccount, err = selectAccount(svc, accounts, []string{"R"}, "Revenue Type:", false)
 		if err != nil {
 			return input, err
 		}
 
-		toAccount, err = selectAccount(accounts, []string{"A"}, "Deposit To:", true)
+		toAccount, err = selectAccount(svc, accounts, []string{"A"}, "Deposit To:", true)
 		if err != nil {
 			return input, err
 		}
 
 	case "transfer":
 		// Transfer: From Assets/Liabilities, To Assets/Liabilities
-		fromAccount, err = selectAccount(accounts, []string{"A", "L"}, "From Account:", true)
+		fromAccount, err = selectAccount(svc, accounts, []string{"A", "L"}, "From Account:", true)
 		if err != nil {
 			return input, err
 		}
 
-		toAccount, err = selectAccount(accounts, []string{"A", "L"}, "To Account:", true)
+		toAccount, err = selectAccount(svc, accounts, []string{"A", "L"}, "To Account:", true)
 		if err != nil {
 			return input, err
 		}
@@ -292,27 +294,13 @@ func interactiveAddTransaction() (service.TransactionInput, error) {
 }
 
 // selectAccount filters accounts by type and displays them with optional balance
-func selectAccount(accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
+func selectAccount(svc *service.AccountingService, accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
 		balanceGetter = svc.GetAccountBalanceFormatted
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
-}
-
-// getDescriptionHelp returns contextual help text based on transaction mode
-func getDescriptionHelp(mode string) string {
-	switch mode {
-	case "expense":
-		return "e.g., Buying Coffee, Grocery Shopping, Taking a Taxi"
-	case "income":
-		return "e.g., Salary, Bonus, Investment Income"
-	case "transfer":
-		return "e.g., Withdrawal, Transfer, Credit Card Repayment"
-	default:
-		return "enter transaction description"
-	}
 }
 
 func displayTransactionSummary(input service.TransactionInput) {

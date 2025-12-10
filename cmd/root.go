@@ -12,85 +12,80 @@ import (
 
 	"github.com/hance08/kea/cmd/account"
 	"github.com/hance08/kea/cmd/transaction"
+	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/constants"
 	"github.com/hance08/kea/internal/errhandler"
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	cfgFile      string
-	dbStore      store.Repository
-	svc          *service.AccountingService
-	migrationsFS fs.FS
+	cfgFile string
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:                "kea",
-	Short:              "kea is a CLI/TUI based personal accounting tool",
-	Long:               `kea is a CLI/TUI based personal accounting tool`,
-	PersistentPreRunE:  setupApplication,
-	PersistentPostRunE: cleanupApplication,
-}
+func Execute(migrations fs.FS) {
+	initConfig()
 
-func init() {
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
-
-	appDir, err := getAppDataDir()
+	application, cleanup, err := app.NewApp(migrations)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
+		fmt.Fprintf(os.Stderr, "Error initializing app: %v\n", err)
 		os.Exit(1)
 	}
 
-	viper.SetDefault("database.path", filepath.Join(appDir, "kea.db"))
-	viper.SetDefault("defaults.currency", "USD")
+	defer cleanup()
 
-	rootCmd.AddCommand(transaction.TransactionCmd)
-	rootCmd.AddCommand(account.AccountCmd)
+	if err := ensureSystemAccount(application.Service); err != nil {
+		errhandler.HandleError(err)
+		os.Exit(1)
+	}
+
+	rootCmd := &cobra.Command{
+		Use:   "kea",
+		Short: "kea is a CLI/TUI based personal accounting tool",
+		Long:  `kea is a CLI/TUI based personal accounting tool`,
+	}
+
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
+
+	rootCmd.AddCommand(account.NewAccountCmd(application.Service))
+	rootCmd.AddCommand(transaction.NewTransactionCmd(application.Service))
+
+	rootCmd.AddCommand(NewAddCmd(application.Service))
+	rootCmd.AddCommand(NewInfoCmd())
+	rootCmd.AddCommand(NewListCmd(application.Service))
+	rootCmd.AddCommand(NewReportCmd())
+
+	rootCmd.SilenceErrors = true
+	if err := rootCmd.Execute(); err != nil {
+		errhandler.HandleError(err)
+		os.Exit(1)
+	}
 }
 
-func setupApplication(cmd *cobra.Command, args []string) error {
-	if isHelpCommand(cmd) {
+func ensureSystemAccount(svc *service.AccountingService) error {
+	sysAccName := constants.SystemAccountOpeningBalance
+
+	_, err := svc.GetAccountByName(sysAccName)
+	if err == nil {
 		return nil
 	}
 
-	err := initApp()
+	currency, err := initWizard()
 	if err != nil {
-		cmd.SilenceUsage = true
 		return err
 	}
 
-	return nil
-}
-
-func cleanupApplication(cmd *cobra.Command, args []string) error {
-	if dbStore != nil {
-		return dbStore.Close()
-	}
-	return nil
-}
-
-func isHelpCommand(cmd *cobra.Command) bool {
-	return cmd.Name() == "help" || cmd.Name() == "version" || cmd.Name() == "completion"
-}
-
-func initApp() error {
-	if err := initConfig(); err != nil {
-		return err
-	}
-
-	if err := initDB(); err != nil {
-		return err
-	}
-
-	initLogicAndDependencies()
-
-	if err := initSysAcc(); err != nil {
-		return err
+	_, err = svc.CreateAccount(
+		sysAccName,
+		constants.TypeEquity,
+		currency,
+		"Opening Balances (System Account)",
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("failed create system account: %w", err)
 	}
 
 	return nil
@@ -126,69 +121,6 @@ func initConfig() error {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return fmt.Errorf("config file error: %w", err)
 		}
-	}
-
-	return nil
-}
-
-func initDB() error {
-	dbPathRaw := viper.GetString("database.path")
-	if dbPathRaw == "" {
-		return fmt.Errorf("config 'database.path' is missing")
-	}
-
-	dbPath, err := expandPath(dbPathRaw)
-	if err != nil {
-		return fmt.Errorf("invalid database path: %w", err)
-	}
-
-	dbStore, err = store.NewStore(dbPath, migrationsFS)
-	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
-	}
-	return nil
-}
-
-func initLogicAndDependencies() {
-	currency := viper.GetString("defaults.currency")
-	if currency == "" {
-		currency = "USD"
-	}
-
-	svcConfig := service.Config{
-		DefaultCurrency: currency,
-	}
-
-	svc = service.NewLogic(dbStore, svcConfig)
-
-	transaction.SetDependencies(svc)
-	account.SetDependencies(svc)
-}
-
-func initSysAcc() error {
-	sysAccName := constants.SystemAccountOpeningBalance
-
-	_, err := svc.GetAccountByName(sysAccName)
-
-	if err == nil {
-		return nil
-	}
-	//TODO: Should be returned "Record Not Found" to avoid DB connection error
-
-	currency, err := initWizard()
-	if err != nil {
-		return err
-	}
-
-	_, err = svc.CreateAccount(
-		sysAccName,
-		constants.TypeEquity,
-		currency,
-		"Opening Balances (System Account)",
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("failed create system account: %w", err)
 	}
 
 	return nil
@@ -266,14 +198,4 @@ func createDefaultConfig() error {
 	}
 
 	return nil
-}
-
-func Execute(migrations fs.FS) {
-	migrationsFS = migrations
-	rootCmd.SilenceErrors = true
-	err := rootCmd.Execute()
-	if err != nil {
-		errhandler.HandleError(err)
-		os.Exit(1)
-	}
 }

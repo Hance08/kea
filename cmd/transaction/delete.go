@@ -5,27 +5,25 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/ui"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-// surveyOpts contains custom options for all survey prompts
-var surveyOpts = []survey.AskOpt{
-	survey.WithIcons(func(icons *survey.IconSet) {
-		icons.Question.Text = "-"
-	}),
+func NewDeleteCmd(svc *service.AccountingService) *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <transaction-id>",
+		Short: "Delete a transaction",
+		Long:  `Delete a transaction and all its associated splits. This action cannot be undone.`,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTransactionDelete(svc, args)
+		},
+	}
 }
 
-// deleteCmd deletes a transaction
-var deleteCmd = &cobra.Command{
-	Use:   "delete <transaction-id>",
-	Short: "Delete a transaction",
-	Long:  `Delete a transaction and all its associated splits. This action cannot be undone.`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runTransactionDelete,
-}
-
-func runTransactionDelete(cmd *cobra.Command, args []string) error {
+func runTransactionDelete(svc *service.AccountingService, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
@@ -61,7 +59,7 @@ func runTransactionDelete(cmd *cobra.Command, args []string) error {
 		Message: "Do you want to delete this transaction?",
 		Default: false,
 	}
-	if err := survey.AskOne(confirmPrompt, &confirmation, surveyOpts...); err != nil {
+	if err := survey.AskOne(confirmPrompt, &confirmation, ui.IconOption()); err != nil {
 		return err
 	}
 
@@ -77,10 +75,6 @@ func runTransactionDelete(cmd *cobra.Command, args []string) error {
 	}
 
 	pterm.Success.Printf("Transaction #%d deleted successfully\n", txID)
-	printSeparator()
+	ui.Separator()
 	return nil
-}
-
-func printSeparator() {
-	pterm.Println(pterm.Green("---------------------------------------------------------"))
 }

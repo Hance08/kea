@@ -18,11 +18,11 @@ type listFlags struct {
 }
 
 type ListCommandRunner struct {
-	svc   *service.AccountingService
+	svc   *service.Service
 	flags *listFlags
 }
 
-func NewListCmd(svc *service.AccountingService) *cobra.Command {
+func NewListCmd(svc *service.Service) *cobra.Command {
 	flags := &listFlags{}
 
 	cmd := &cobra.Command{
@@ -51,9 +51,9 @@ func (r *ListCommandRunner) Run() error {
 	var err error
 
 	if r.flags.Type != "" {
-		accounts, err = r.svc.GetAccountsByType(r.flags.Type)
+		accounts, err = r.svc.Account.GetAccountsByType(r.flags.Type)
 	} else {
-		accounts, err = r.svc.GetAllAccounts()
+		accounts, err = r.svc.Account.GetAllAccounts()
 	}
 
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *ListCommandRunner) displayAccountsList(accounts []*store.Account) {
 	tableData := pterm.TableData{headers}
 
 	for _, acc := range accounts {
-		balance, _ := r.svc.GetAccountBalanceFormatted(acc.ID)
+		balance, _ := r.svc.Account.GetAccountBalanceFormatted(acc.ID)
 		balanceWithCurrency := fmt.Sprintf("%s %s", balance, acc.Currency)
 
 		// Apply color based on account type

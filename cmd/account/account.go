@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewAccountCmd(svc *service.AccountingService) *cobra.Command {
+func NewAccountCmd(svc *service.Service) *cobra.Command {
 	accountCmd := &cobra.Command{
 		Use:   "account",
 		Short: "It can create, edit, delete account and show the list of all accounts.",

@@ -64,10 +64,10 @@ func Execute(migrations fs.FS) {
 	}
 }
 
-func initSysAcc(svc *service.AccountingService) error {
+func initSysAcc(svc *service.Service) error {
 	sysAccName := constants.SystemAccountOpeningBalance
 
-	_, err := svc.GetAccountByName(sysAccName)
+	_, err := svc.Account.GetAccountByName(sysAccName)
 	if err == nil {
 		return nil
 	}
@@ -81,7 +81,7 @@ func initSysAcc(svc *service.AccountingService) error {
 		}
 	}
 
-	_, err = svc.CreateAccount(
+	_, err = svc.Account.CreateAccount(
 		sysAccName,
 		constants.TypeEquity,
 		currency,

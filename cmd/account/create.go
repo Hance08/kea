@@ -41,13 +41,13 @@ type CreateCommandRunner struct {
 	balance     int64
 	description string
 
-	svc       *service.AccountingService
+	svc       *service.Service
 	validator *validation.AccountValidator
 }
 
-func NewCreateCmd(svc *service.AccountingService) *cobra.Command {
+func NewCreateCmd(svc *service.Service) *cobra.Command {
 	flags := &createFlags{}
-	validator := validation.NewAccountValidator(svc)
+	validator := validation.NewAccountValidator(svc.Account)
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -175,7 +175,7 @@ func (r *CreateCommandRunner) InteractiveMode() error {
 			return err
 		}
 
-		rootName, err := r.svc.GetRootNameByType(accType)
+		rootName, err := r.svc.Account.GetRootNameByType(accType)
 		if err != nil {
 			return err
 		}
@@ -235,7 +235,7 @@ func (r *CreateCommandRunner) InteractiveMode() error {
 
 // buildFromParent sets up account details based on parent account
 func (r *CreateCommandRunner) buildFromParent(parentName, currency string) error {
-	parentAccount, err := r.svc.GetAccountByName(parentName)
+	parentAccount, err := r.svc.Account.GetAccountByName(parentName)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (r *CreateCommandRunner) buildFromParent(parentName, currency string) error
 
 // buildFromType sets up account details based on account type
 func (r *CreateCommandRunner) buildFromType(accType, currency string) error {
-	rootName, err := r.svc.GetRootNameByType(accType)
+	rootName, err := r.svc.Account.GetRootNameByType(accType)
 	if err != nil {
 		return fmt.Errorf("get root name: %w", err)
 	}
@@ -315,13 +315,13 @@ func (r *CreateCommandRunner) displaySummary() {
 
 // Save persists the account to the database
 func (r *CreateCommandRunner) Save() (*store.Account, error) {
-	newAccount, err := r.svc.CreateAccount(r.fullName, r.accountType, r.currency, r.description, r.parentID)
+	newAccount, err := r.svc.Account.CreateAccount(r.fullName, r.accountType, r.currency, r.description, r.parentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create account: %w", err)
 	}
 
 	if r.balance != 0 {
-		err = r.svc.SetBalance(newAccount, r.balance)
+		err = r.svc.Account.SetBalance(newAccount, r.balance)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set balance: %w", err)
 		}
@@ -352,7 +352,7 @@ func (r *CreateCommandRunner) runBalanceStep() (int64, error) {
 
 // Helper functions for interactive mode
 func (r *CreateCommandRunner) runSelectParentStep() (*store.Account, error) {
-	allAccounts, err := r.svc.GetAllAccounts()
+	allAccounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
 	}
@@ -362,7 +362,7 @@ func (r *CreateCommandRunner) runSelectParentStep() (*store.Account, error) {
 		return nil, err
 	}
 
-	parentAccount, err := r.svc.GetAccountByName(selectedName)
+	parentAccount, err := r.svc.Account.GetAccountByName(selectedName)
 	if err != nil {
 		return nil, err
 	}

@@ -8,14 +8,17 @@ type Config struct {
 	DefaultCurrency string
 }
 
-type AccountingService struct {
-	store  store.Repository
-	config Config
+type Service struct {
+	Account     *AccountService
+	Transaction *TransactionService
+
+	repo store.Repository
 }
 
-func NewLogic(s store.Repository, cfg Config) *AccountingService {
-	return &AccountingService{
-		store:  s,
-		config: cfg,
+func NewService(repo store.Repository, cfg Config) *Service {
+	return &Service{
+		Account:     NewAccountService(repo, cfg),
+		Transaction: NewTransactionService(repo, cfg),
+		repo:        repo,
 	}
 }

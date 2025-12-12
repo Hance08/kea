@@ -20,6 +20,7 @@ type Transaction struct {
 	Timestamp   int64
 	Description string
 	Status      int
+	ExternalID  *string
 }
 
 type Split struct {

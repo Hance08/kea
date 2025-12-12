@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewDeleteCmd(svc *service.AccountingService) *cobra.Command {
+func NewDeleteCmd(svc *service.Service) *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <transaction-id>",
 		Short: "Delete a transaction",
@@ -23,14 +23,14 @@ func NewDeleteCmd(svc *service.AccountingService) *cobra.Command {
 	}
 }
 
-func runTransactionDelete(svc *service.AccountingService, args []string) error {
+func runTransactionDelete(svc *service.Service, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
 	// Get transaction details first to show what will be deleted
-	detail, err := svc.GetTransactionByID(txID)
+	detail, err := svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
@@ -69,7 +69,7 @@ func runTransactionDelete(svc *service.AccountingService, args []string) error {
 	}
 
 	// Delete transaction
-	if err := svc.DeleteTransaction(txID); err != nil {
+	if err := svc.Transaction.DeleteTransaction(txID); err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
 	}

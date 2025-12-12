@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewClearCmd(svc *service.AccountingService) *cobra.Command {
+func NewClearCmd(svc *service.Service) *cobra.Command {
 	return &cobra.Command{
 		Use:   "clear <transaction-id>",
 		Short: "Mark transaction as cleared",
@@ -21,14 +21,14 @@ func NewClearCmd(svc *service.AccountingService) *cobra.Command {
 	}
 }
 
-func runTransactionClear(svc *service.AccountingService, args []string) error {
+func runTransactionClear(svc *service.Service, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
 	// Update status to cleared (1)
-	if err := svc.UpdateTransactionStatus(txID, 1); err != nil {
+	if err := svc.Transaction.UpdateTransactionStatus(txID, 1); err != nil {
 		pterm.Error.Printf("Failed to update transaction status: %v\n", err)
 		return nil
 	}

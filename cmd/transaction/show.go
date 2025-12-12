@@ -10,10 +10,10 @@ import (
 )
 
 type ShowCommandRunner struct {
-	svc *service.AccountingService
+	svc *service.Service
 }
 
-func NewShowCmd(svc *service.AccountingService) *cobra.Command {
+func NewShowCmd(svc *service.Service) *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <transaction-id>",
 		Short: "Show transaction details",
@@ -33,7 +33,7 @@ func (r *ShowCommandRunner) Run(args []string) error {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	detail, err := r.svc.GetTransactionByID(txID)
+	detail, err := r.svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil

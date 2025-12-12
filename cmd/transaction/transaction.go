@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewTransactionCmd(svc *service.AccountingService) *cobra.Command {
+func NewTransactionCmd(svc *service.Service) *cobra.Command {
 	txCmd := &cobra.Command{
 		Use:   "transaction",
 		Short: "Manage transactions",

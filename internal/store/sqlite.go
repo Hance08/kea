@@ -297,8 +297,8 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int
 	defer dbTx.Rollback()
 
 	stmtTx, err := dbTx.Prepare(`
-		INSERT INTO transactions (timestamp, description, status)
-		VALUES (?, ?, ?)
+		INSERT INTO transactions (timestamp, description, status, external_id)
+		VALUES (?, ?, ?, ?)
 		RETURNING id;
 	`)
 	if err != nil {
@@ -307,8 +307,11 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int
 	defer stmtTx.Close()
 
 	var newTxID int64
-	err = stmtTx.QueryRow(tx.Timestamp, tx.Description, tx.Status).Scan(&newTxID)
+	err = stmtTx.QueryRow(tx.Timestamp, tx.Description, tx.Status, tx.ExternalID).Scan(&newTxID)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return 0, fmt.Errorf("transaction already exists (duplicate external_id)")
+		}
 		return 0, fmt.Errorf("failed to insert transaction : %w", err)
 	}
 

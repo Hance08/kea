@@ -189,12 +189,20 @@ func (al *AccountingService) GetTransactionHistory(accountName string, limit int
 
 // DeleteTransaction deletes a transaction
 func (al *AccountingService) DeleteTransaction(txID int64) error {
+	tx, _, err := al.store.GetTransactionByID(txID)
+	if err != nil {
+		return fmt.Errorf("failed to get transaction: %w", err)
+	}
+
+	if tx.Status == store.StatusReconciled {
+		return fmt.Errorf("operation Denied: Transaction #%d has been reconciled and cannot be deleted", tx.ID)
+	}
 	return al.store.DeleteTransaction(txID)
 }
 
 // UpdateTransactionStatus updates the status of a transaction
 func (al *AccountingService) UpdateTransactionStatus(txID int64, status int) error {
-	if status != 0 && status != 1 {
+	if status != store.StatusPending && status != store.StatusCleared {
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
 	return al.store.UpdateTransactionStatus(txID, status)
@@ -204,8 +212,19 @@ func (al *AccountingService) UpdateTransactionStatus(txID int64, status int) err
 // This operation is atomic - either all changes succeed or all fail
 func (al *AccountingService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []TransactionSplitInput) error {
 	// Validate status
-	if status != 0 && status != 1 {
-		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
+	if status != store.StatusPending && status != store.StatusCleared && status != store.StatusReconciled {
+		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
+	}
+
+	oldTx, _, err := al.store.GetTransactionByID(txID)
+	if err != nil {
+		return fmt.Errorf("transaction not found: %w", err)
+	}
+
+	if oldTx.Status == store.StatusReconciled {
+		if status == store.StatusReconciled {
+			return fmt.Errorf("operation denied: transaction #%d has been reconciled", txID)
+		}
 	}
 
 	// Validate that we have at least 2 splits
@@ -231,7 +250,7 @@ func (al *AccountingService) UpdateTransactionComplete(txID int64, description s
 	}
 
 	// Check transaction exists
-	_, _, err := al.store.GetTransactionByID(txID)
+	_, _, err = al.store.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}

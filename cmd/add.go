@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hance08/kea/internal/currency"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
@@ -25,12 +26,12 @@ type addFlags struct {
 }
 
 type AddCommandRunner struct {
-	svc   *service.AccountingService
+	svc   *service.Service
 	flags *addFlags
 	cmd   *cobra.Command
 }
 
-func NewAddCmd(svc *service.AccountingService) *cobra.Command {
+func NewAddCmd(svc *service.Service) *cobra.Command {
 	flags := &addFlags{}
 
 	cmd := &cobra.Command{
@@ -89,16 +90,16 @@ func (r *AddCommandRunner) Run() error {
 		}
 
 		// Parse amount
-		amountCents, err := r.svc.ParseAmountToCents(r.flags.Amount)
+		amountCents, err := currency.ParseToCents(r.flags.Amount)
 		if err != nil {
 			return fmt.Errorf("invalid amount: %w", err)
 		}
 
 		// Validate accounts exist
-		if exists, err := r.svc.CheckAccountExists(r.flags.From); err != nil || !exists {
+		if exists, err := r.svc.Account.CheckAccountExists(r.flags.From); err != nil || !exists {
 			return fmt.Errorf("source account '%s' does not exist", r.flags.From)
 		}
-		if exists, err := r.svc.CheckAccountExists(r.flags.To); err != nil || !exists {
+		if exists, err := r.svc.Account.CheckAccountExists(r.flags.To); err != nil || !exists {
 			return fmt.Errorf("destination account '%s' does not exist", r.flags.To)
 		}
 
@@ -148,7 +149,7 @@ func (r *AddCommandRunner) Run() error {
 	}
 
 	// Create transaction
-	txID, err := r.svc.CreateTransaction(input)
+	txID, err := r.svc.Transaction.CreateTransaction(input)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)
 	}
@@ -166,7 +167,7 @@ func (r *AddCommandRunner) interactiveAddTransaction() (service.TransactionInput
 	var input service.TransactionInput
 
 	// Get all accounts
-	accounts, err := r.svc.GetAllAccounts()
+	accounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
 		return input, fmt.Errorf("failed to load accounts: %w", err)
 	}
@@ -209,7 +210,7 @@ func (r *AddCommandRunner) interactiveAddTransaction() (service.TransactionInput
 		return input, fmt.Errorf("amount is required")
 	}
 
-	amountCents, err := r.svc.ParseAmountToCents(amountStr)
+	amountCents, err := currency.ParseToCents(amountStr)
 	if err != nil {
 		return input, fmt.Errorf("invalid amount format: %w", err)
 	}
@@ -308,7 +309,7 @@ func (r *AddCommandRunner) interactiveAddTransaction() (service.TransactionInput
 func (r *AddCommandRunner) selectAccount(accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
-		balanceGetter = r.svc.GetAccountBalanceFormatted
+		balanceGetter = r.svc.Account.GetAccountBalanceFormatted
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)

@@ -151,11 +151,11 @@ func (r *EditCommandRunner) displayTransactionDetail(detail *service.Transaction
 
 	var balance int64
 	for i, split := range detail.Splits {
-		amount := r.svc.FormatAmountFromCents(split.Amount)
+		amount := currency.FormatFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = "-"
-			amount = r.svc.FormatAmountFromCents(-split.Amount)
+			amount = currency.FormatFromCents(-split.Amount)
 		}
 		memo := split.Memo
 		if memo == "" {
@@ -173,7 +173,7 @@ func (r *EditCommandRunner) displayTransactionDetail(detail *service.Transaction
 	// Add balance row
 	balanceStr := "✓ Balanced"
 	if balance != 0 {
-		balanceStr = fmt.Sprintf("⚠ Unbalanced: %s", r.svc.FormatAmountFromCents(balance))
+		balanceStr = fmt.Sprintf("⚠ Unbalanced: %s", currency.FormatFromCents(balance))
 	}
 	tableData = append(tableData, []string{"", "", balanceStr, ""})
 
@@ -256,7 +256,7 @@ func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) err
 
 	roleLabels := r.getSplitRoleLabels(detail, txType)
 	for i, split := range detail.Splits {
-		amount := r.svc.FormatAmountFromCents(split.Amount)
+		amount := currency.FormatFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = ""
@@ -512,7 +512,7 @@ func (r *EditCommandRunner) changeAmount(detail *service.TransactionDetail) erro
 	if currentAmount < 0 {
 		currentAmount = -currentAmount
 	}
-	currentAmountStr := r.svc.FormatAmountFromCents(currentAmount)
+	currentAmountStr := currency.FormatFromCents(currentAmount)
 
 	pterm.DefaultSection.Printf("Current amount: %s %s", currentAmountStr, detail.Splits[0].Currency)
 	tableData := pterm.TableData{
@@ -521,11 +521,11 @@ func (r *EditCommandRunner) changeAmount(detail *service.TransactionDetail) erro
 
 	var balance int64
 	for i, split := range detail.Splits {
-		amount := r.svc.FormatAmountFromCents(split.Amount)
+		amount := currency.FormatFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = "-"
-			amount = r.svc.FormatAmountFromCents(-split.Amount)
+			amount = currency.FormatFromCents(-split.Amount)
 		}
 		memo := split.Memo
 		if memo == "" {
@@ -548,7 +548,7 @@ func (r *EditCommandRunner) changeAmount(detail *service.TransactionDetail) erro
 		return err
 	}
 
-	newAmount, err := r.svc.ParseAmountToCents(newAmountStr)
+	newAmount, err := currency.ParseToCents(newAmountStr)
 	if err != nil {
 		return err
 	}
@@ -568,7 +568,7 @@ func (r *EditCommandRunner) changeAmount(detail *service.TransactionDetail) erro
 	}
 
 	pterm.Success.Printf("Amount changed to: %s %s\n",
-		r.svc.FormatAmountFromCents(newAmount),
+		currency.FormatFromCents(newAmount),
 		detail.Splits[0].Currency)
 	ui.Separator()
 	return nil
@@ -648,7 +648,7 @@ func (r *EditCommandRunner) addSplit(detail *service.TransactionDetail) error {
 		return err
 	}
 
-	amount, err := r.svc.ParseAmountToCents(amountStr)
+	amount, err := currency.ParseToCents(amountStr)
 	if err != nil {
 		return err
 	}
@@ -683,7 +683,7 @@ func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) erro
 	// Select split to edit
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := r.svc.FormatAmountFromCents(split.Amount)
+		amount := currency.FormatFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
@@ -767,7 +767,7 @@ func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error
 	// Select split to delete
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := r.svc.FormatAmountFromCents(split.Amount)
+		amount := currency.FormatFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 

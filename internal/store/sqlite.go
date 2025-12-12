@@ -414,7 +414,7 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*Transac
 	var transactions []*Transaction
 	for rows.Next() {
 		tx := &Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
 		}
@@ -441,7 +441,7 @@ func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transac
 	var transactions []*Transaction
 	for rows.Next() {
 		tx := &Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
 		}
@@ -472,7 +472,7 @@ func (s *Store) GetAllTransactions(limit int) ([]*Transaction, error) {
 	var transactions []*Transaction
 	for rows.Next() {
 		tx := &Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
 		}

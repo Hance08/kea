@@ -343,10 +343,10 @@ func (s *Store) GetTransactionByID(txID int64) (*Transaction, []*Split, error) {
 	// Query the transaction
 	var tx Transaction
 	err := s.db.QueryRow(`
-		SELECT id, timestamp, description, status
+		SELECT id, timestamp, description, status, external_id
 		FROM transactions
 		WHERE id = ?
-	`, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status)
+	`, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -399,7 +399,7 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*Transac
 	}
 
 	rows, err := s.db.Query(`
-		SELECT DISTINCT t.id, t.timestamp, t.description, t.status
+		SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id
 		FROM transactions t
 		INNER JOIN splits s ON t.id = s.transaction_id
 		WHERE s.account_id = ?
@@ -428,7 +428,7 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*Transac
 // startTime and endTime are Unix timestamps
 func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transaction, error) {
 	rows, err := s.db.Query(`
-		SELECT id, timestamp, description, status
+		SELECT id, timestamp, description, status, external_id
 		FROM transactions
 		WHERE timestamp >= ? AND timestamp <= ?
 		ORDER BY timestamp DESC, id DESC
@@ -459,7 +459,7 @@ func (s *Store) GetAllTransactions(limit int) ([]*Transaction, error) {
 	}
 
 	rows, err := s.db.Query(`
-		SELECT id, timestamp, description, status
+		SELECT id, timestamp, description, status, external_id
 		FROM transactions
 		ORDER BY timestamp DESC, id DESC
 		LIMIT ?

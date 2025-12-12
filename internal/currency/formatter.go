@@ -1,18 +1,17 @@
-package service
+package currency
 
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hance08/kea/internal/constants"
 )
 
-// FormatAmountFromCents converts cents to currency string
-func (al *AccountingService) FormatAmountFromCents(cents int64) string {
-	return fmt.Sprintf("%.2f", float64(cents)/100.0)
+func FormatFromCents(cents int64) string {
+	return fmt.Sprintf("%.2f", float64(cents)/float64(constants.CentsPerUnit))
 }
 
-// ParseAmountToCents converts currency string to cents
-// e.g., "150.50" -> 15050, "150" -> 15000
-func (al *AccountingService) ParseAmountToCents(amountStr string) (int64, error) {
+func ParseToCents(amountStr string) (int64, error) {
 	var dollars, cents int64
 
 	// Handle formats: "150", "150.5", "150.50"
@@ -46,6 +45,6 @@ func (al *AccountingService) ParseAmountToCents(amountStr string) (int64, error)
 		}
 	}
 
-	total := dollars*100 + cents
+	total := dollars*int64(constants.CentsPerUnit) + cents
 	return total, nil
 }

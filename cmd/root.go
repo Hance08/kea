@@ -72,9 +72,13 @@ func initSysAcc(svc *service.AccountingService) error {
 		return nil
 	}
 
-	currency, err := initWizard()
-	if err != nil {
-		return err
+	currency := viper.GetString("defaults.currency")
+
+	if currency == "" {
+		currency, err = initWizard()
+		if err != nil {
+			return err
+		}
 	}
 
 	_, err = svc.CreateAccount(
@@ -110,6 +114,7 @@ func initConfig() error {
 	}
 
 	viper.SetEnvPrefix("KEA")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv() // allow using environment varibles to override
 
 	if err := viper.ReadInConfig(); err != nil {

@@ -1,5 +1,11 @@
 package store
 
+const (
+	StatusPending    = 0
+	StatusCleared    = 1
+	StatusReconciled = 2
+)
+
 type Account struct {
 	ID          int64
 	Name        string

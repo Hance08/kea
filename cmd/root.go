@@ -36,7 +36,7 @@ func Execute(migrations fs.FS) {
 
 	defer cleanup()
 
-	if err := ensureSystemAccount(application.Service); err != nil {
+	if err := initSysAcc(application.Service); err != nil {
 		errhandler.HandleError(err)
 		os.Exit(1)
 	}
@@ -64,7 +64,7 @@ func Execute(migrations fs.FS) {
 	}
 }
 
-func ensureSystemAccount(svc *service.AccountingService) error {
+func initSysAcc(svc *service.AccountingService) error {
 	sysAccName := constants.SystemAccountOpeningBalance
 
 	_, err := svc.GetAccountByName(sysAccName)

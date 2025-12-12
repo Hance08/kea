@@ -13,7 +13,7 @@ import (
 
 // app is a container that has all dependencies
 type App struct {
-	Service *service.AccountingService
+	Service *service.Service
 	Store   store.Repository
 }
 
@@ -37,7 +37,7 @@ func NewApp(migrationFS fs.FS) (*App, func(), error) {
 	}
 
 	svcConfig := service.Config{DefaultCurrency: currency}
-	svc := service.NewLogic(dbStore, svcConfig)
+	svc := service.NewService(dbStore, svcConfig)
 
 	cleanup := func() {
 		if err := dbStore.Close(); err != nil {

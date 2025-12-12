@@ -64,7 +64,15 @@ func PromptAccountSelection(
 	showBalance bool,
 	balanceGetter func(int64) (string, error),
 ) (string, error) {
-	// Filter accounts by type
+	// find all the father account(container)
+	parentIDs := make(map[int64]bool)
+	for _, acc := range accounts {
+		if acc.ParentID != nil {
+			parentIDs[*acc.ParentID] = true
+		}
+	}
+
+	// filter accounts by type
 	var filteredAccounts []*store.Account
 	typeMap := make(map[string]bool)
 	for _, t := range allowedTypes {
@@ -72,7 +80,9 @@ func PromptAccountSelection(
 	}
 
 	for _, acc := range accounts {
-		if typeMap[acc.Type] && !acc.IsHidden {
+		isContainer := parentIDs[acc.ID]
+
+		if typeMap[acc.Type] && !acc.IsHidden && !isContainer {
 			filteredAccounts = append(filteredAccounts, acc)
 		}
 	}

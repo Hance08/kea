@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/currency"
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/ui/views"
@@ -79,27 +77,28 @@ func (r *EditCommandRunner) Run(args []string) error {
 		)
 
 		var editChoice string
-		editPrompt := &survey.Select{
-			Message: "What would you like to edit?",
-			Options: menuOptions,
-		}
-		if err := survey.AskOne(editPrompt, &editChoice, ui.IconOption()); err != nil {
+		editChoice, err := prompts.PromptSelect(
+			"What would you like to edit?",
+			menuOptions,
+			"",
+		)
+		if err != nil {
 			return err
 		}
 
 		switch editChoice {
 		case "Basic Info (description, date, status)":
-			if err := editBasicInfo(detail); err != nil {
+			if err := r.editBasicInfo(detail); err != nil {
 				pterm.Error.Printf("Failed to edit basic info: %v\n", err)
 			}
 
 		case "Change Account (quick edit)":
-			if err := r.changeAccount(detail); err != nil {
+			if err := r.editAccount(detail); err != nil {
 				pterm.Error.Printf("Failed to change account: %v\n", err)
 			}
 
 		case "Change Amount (both sides)":
-			if err := r.changeAmount(detail); err != nil {
+			if err := r.editAmount(detail); err != nil {
 				pterm.Error.Printf("Failed to change amount: %v\n", err)
 			}
 
@@ -221,16 +220,18 @@ func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) err
 	fmt.Println()
 
 	// Let user choose which split to change
-	var splitChoice string
-	splitPrompt := &survey.Select{
-		Message: "Which account do you want to change?",
-		Options: []string{
-			fmt.Sprintf("1. %s", detail.Splits[0].AccountName),
-			fmt.Sprintf("2. %s", detail.Splits[1].AccountName),
-			"Cancel",
-		},
+	splitOptions := []string{
+		fmt.Sprintf("1. %s", detail.Splits[0].AccountName),
+		fmt.Sprintf("2. %s", detail.Splits[1].AccountName),
+		"Cancel",
 	}
-	if err := survey.AskOne(splitPrompt, &splitChoice, ui.IconOption()); err != nil {
+
+	splitChoice, err := prompts.PromptSelect(
+		"Which account do you want to change?",
+		splitOptions,
+		"",
+	)
+	if err != nil {
 		return err
 	}
 
@@ -261,13 +262,12 @@ func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) err
 	}
 
 	// Select new account
-	var selectedAccount string
-	accountPrompt := &survey.Select{
-		Message: fmt.Sprintf("Select new %s:", roleLabels[splitIndex]),
-		Options: accountNames,
-		Default: split.AccountName,
-	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount, ui.IconOption()); err != nil {
+	selectedAccount, err := prompts.PromptSelect(
+		fmt.Sprintf("Select new %s:", roleLabels[splitIndex]),
+		accountNames,
+		split.AccountName,
+	)
+	if err != nil {
 		return err
 	}
 
@@ -533,17 +533,19 @@ func (r *EditCommandRunner) editSplits(detail *service.TransactionDetail) error 
 		// Display current splits with balance
 		views.RenderTransactionDetail(detail)
 
-		var action string
-		actionPrompt := &survey.Select{
-			Message: "Splits Editor:",
-			Options: []string{
-				"Add Split",
-				"Edit Split",
-				"Delete Split",
-				"Done (return to main menu)",
-			},
+		options := []string{
+			"Add Split",
+			"Edit Split",
+			"Delete Split",
+			"Done (return to main menu)",
 		}
-		if err := survey.AskOne(actionPrompt, &action, ui.IconOption()); err != nil {
+
+		action, err := prompts.PromptSelect(
+			"Splits Editor:",
+			options,
+			"",
+		)
+		if err != nil {
 			return err
 		}
 
@@ -581,12 +583,12 @@ func (r *EditCommandRunner) addSplit(detail *service.TransactionDetail) error {
 		accountNames = append(accountNames, acc.Name)
 	}
 
-	var selectedAccount string
-	accountPrompt := &survey.Select{
-		Message: "Select account:",
-		Options: accountNames,
-	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount, ui.IconOption()); err != nil {
+	selectedAccount, err := prompts.PromptSelect(
+		"Select account:",
+		accountNames,
+		"",
+	)
+	if err != nil {
 		return err
 	}
 
@@ -641,12 +643,12 @@ func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) erro
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
-	var selectedSplit string
-	splitPrompt := &survey.Select{
-		Message: "Select split to edit:",
-		Options: splitOptions,
-	}
-	if err := survey.AskOne(splitPrompt, &selectedSplit, ui.IconOption()); err != nil {
+	selectedSplit, err := prompts.PromptSelect(
+		"Select split to edit:",
+		splitOptions,
+		"",
+	)
+	if err != nil {
 		return err
 	}
 
@@ -668,13 +670,12 @@ func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) erro
 		accountNames = append(accountNames, acc.Name)
 	}
 
-	var selectedAccount string
-	accountPrompt := &survey.Select{
-		Message: "Account:",
-		Options: accountNames,
-		Default: split.AccountName,
-	}
-	if err := survey.AskOne(accountPrompt, &selectedAccount, ui.IconOption()); err != nil {
+	selectedAccount, err := prompts.PromptSelect(
+		"Account:",
+		accountNames,
+		split.AccountName, // Default
+	)
+	if err != nil {
 		return err
 	}
 
@@ -725,12 +726,12 @@ func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
-	var selectedSplit string
-	splitPrompt := &survey.Select{
-		Message: "Select split to delete:",
-		Options: splitOptions,
-	}
-	if err := survey.AskOne(splitPrompt, &selectedSplit, ui.IconOption()); err != nil {
+	selectedSplit, err := prompts.PromptSelect(
+		"Select split to edit:",
+		splitOptions,
+		"",
+	)
+	if err != nil {
 		return err
 	}
 
@@ -740,12 +741,11 @@ func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error
 	splitIndex-- // Convert to 0-based index
 
 	// Confirm deletion
-	var confirm bool
-	confirmPrompt := &survey.Confirm{
-		Message: fmt.Sprintf("Delete split: %s?", detail.Splits[splitIndex].AccountName),
-		Default: false,
-	}
-	if err := survey.AskOne(confirmPrompt, &confirm, ui.IconOption()); err != nil {
+	confirm, err := prompts.PromptConfirm(
+		fmt.Sprintf("Delete split: %s?", detail.Splits[splitIndex].AccountName),
+		false, // Default value
+	)
+	if err != nil {
 		return err
 	}
 

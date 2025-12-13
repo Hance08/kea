@@ -50,3 +50,5 @@ _output/
 # Ignore local config or secrets files (uncomment if present)
 # secrets.json
 # config/local.yml
+
+kea_test

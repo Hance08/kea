@@ -2,11 +2,11 @@ package transaction
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui"
+	"github.com/hance08/kea/internal/ui/views"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -40,19 +40,12 @@ func runTransactionDelete(svc *service.Service, args []string) error {
 		return nil
 	}
 
-	// Show transaction summary
-	date := time.Unix(detail.Timestamp, 0).Format("2006-01-02")
-	pterm.Warning.Printf("About to delete transaction #%d:\n", detail.ID)
-	deletionInfo := pterm.TableData{
-		{"Date", date},
-		{"Description", detail.Description},
-		{"Splits", fmt.Sprint(len(detail.Splits))},
-	}
-
-	pterm.DefaultTable.WithData(deletionInfo).Render()
-
-	// Confirm deletion
-	pterm.Warning.Println("This action cannot be undone!")
+	views.RenderTransactionDeletePreview(views.TransactionDeletePreviewItem{
+		ID:          detail.ID,
+		Timestamp:   detail.Timestamp,
+		Description: detail.Description,
+		SplitCount:  len(detail.Splits),
+	})
 
 	var confirmation bool
 	confirmPrompt := &survey.Confirm{

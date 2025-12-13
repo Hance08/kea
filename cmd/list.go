@@ -9,6 +9,7 @@ import (
 
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/ui/views"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -49,7 +50,6 @@ date, type, account, description, amount, and status.`,
 }
 
 func (r *ListCommandRunner) Run() error {
-
 	var transactions []*store.Transaction
 	var err error
 
@@ -66,78 +66,45 @@ func (r *ListCommandRunner) Run() error {
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
-		pterm.DefaultSection.Printf("Showing recent transactions (limit: %d)", r.flags.Limit)
 	}
 
-	if len(transactions) == 0 {
-		pterm.Warning.Println("No transactions found")
-		return nil
-	}
-
-	// Display transactions table
-	tableData := pterm.TableData{
-		{"ID", "Date", "Type", "Account", "Description", "Amount", "Status"},
-	}
+	var viewItems []views.TransactionListItem
 
 	for _, tx := range transactions {
 		date := time.Unix(tx.Timestamp, 0).Format("2006-01-02")
+
 		status := "Cleared"
 		if tx.Status == 0 {
 			status = "Pending"
 		}
 
-		// Get transaction type
 		txType, err := r.getTransactionType(tx.ID)
 		if err != nil {
 			txType = "-"
 		}
 
-		// Get transaction account based on type
 		account, err := r.getTransactionAccount(tx.ID, txType)
 		if err != nil {
 			account = "-"
 		}
 
-		// Get transaction amount
 		amount, err := r.getTransactionAmount(tx.ID)
 		if err != nil {
 			amount = "-"
 		}
 
-		// Apply color based on transaction type
-		var coloredType, coloredAccount, coloredAmount string
-		switch txType {
-		case "Expense":
-			coloredType = pterm.Red(txType)
-			coloredAccount = pterm.Red(account)
-			coloredAmount = pterm.Red(amount)
-		case "Income":
-			coloredType = pterm.Green(txType)
-			coloredAccount = pterm.Green(account)
-			coloredAmount = pterm.Green(amount)
-		case "Transfer":
-			coloredType = pterm.Blue(txType)
-			coloredAccount = pterm.Blue(account)
-			coloredAmount = pterm.Blue(amount)
-		default:
-			coloredType = txType
-			coloredAccount = account
-			coloredAmount = amount
-		}
-
-		tableData = append(tableData, []string{
-			fmt.Sprintf("%d", tx.ID),
-			date,
-			coloredType,
-			coloredAccount,
-			tx.Description,
-			coloredAmount,
-			status,
+		viewItems = append(viewItems, views.TransactionListItem{
+			ID:          tx.ID,
+			Date:        date,
+			Type:        txType,
+			Account:     account,
+			Description: tx.Description,
+			Amount:      amount,
+			Status:      status,
 		})
 	}
 
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-	pterm.Info.Printf("Total: %d transactions\n", len(transactions))
+	views.NewTransactionListView().Render(viewItems, r.flags.Limit)
 
 	return nil
 }

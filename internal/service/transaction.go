@@ -124,6 +124,21 @@ type TransactionDetail struct {
 	Splits      []SplitDetail
 }
 
+func (d *TransactionDetail) ToSplitInputs() []TransactionSplitInput {
+	var inputs []TransactionSplitInput
+	for _, split := range d.Splits {
+		inputs = append(inputs, TransactionSplitInput{
+			ID:          split.ID,
+			AccountName: split.AccountName,
+			AccountID:   split.AccountID,
+			Amount:      split.Amount,
+			Currency:    split.Currency,
+			Memo:        split.Memo,
+		})
+	}
+	return inputs
+}
+
 // SplitDetail represents a split with account name included
 type SplitDetail struct {
 	ID          int64

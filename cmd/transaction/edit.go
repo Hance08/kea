@@ -10,6 +10,7 @@ import (
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
+	"github.com/hance08/kea/internal/ui/views"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -54,7 +55,7 @@ func (r *EditCommandRunner) Run(args []string) error {
 
 	// Show current transaction info
 	pterm.DefaultSection.Printf("Editing Transaction #%d", txID)
-	r.displayTransactionDetail(detail)
+	views.RenderTransactionDetail(detail)
 
 	// Main edit menu
 	for {
@@ -131,53 +132,6 @@ func (r *EditCommandRunner) Run(args []string) error {
 			return nil
 		}
 	}
-}
-
-func (r *EditCommandRunner) displayTransactionDetail(detail *service.TransactionDetail) {
-	date := time.Unix(detail.Timestamp, 0).Format("2006-01-02 15:04")
-	status := "Cleared"
-	if detail.Status == 0 {
-		status = "Pending"
-	}
-
-	pterm.Info.Printf("Date: %s | Status: %s\n", date, status)
-	pterm.Info.Printf("Description: %s\n", detail.Description)
-	pterm.Info.Printf("Splits: %d\n\n", len(detail.Splits))
-
-	// Display splits table
-	tableData := pterm.TableData{
-		{"#", "Account", "Amount", "Memo"},
-	}
-
-	var balance int64
-	for i, split := range detail.Splits {
-		amount := currency.FormatFromCents(split.Amount)
-		sign := "+"
-		if split.Amount < 0 {
-			sign = "-"
-			amount = currency.FormatFromCents(-split.Amount)
-		}
-		memo := split.Memo
-		if memo == "" {
-			memo = "-"
-		}
-		tableData = append(tableData, []string{
-			fmt.Sprintf("%d", i+1),
-			split.AccountName,
-			fmt.Sprintf("%s%s %s", sign, amount, split.Currency),
-			memo,
-		})
-		balance += split.Amount
-	}
-
-	// Add balance row
-	balanceStr := "✓ Balanced"
-	if balance != 0 {
-		balanceStr = fmt.Sprintf("⚠ Unbalanced: %s", currency.FormatFromCents(balance))
-	}
-	tableData = append(tableData, []string{"", "", balanceStr, ""})
-
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 }
 
 func editBasicInfo(detail *service.TransactionDetail) error {
@@ -577,7 +531,7 @@ func (r *EditCommandRunner) changeAmount(detail *service.TransactionDetail) erro
 func (r *EditCommandRunner) editSplits(detail *service.TransactionDetail) error {
 	for {
 		// Display current splits with balance
-		r.displayTransactionDetail(detail)
+		views.RenderTransactionDetail(detail)
 
 		var action string
 		actionPrompt := &survey.Select{

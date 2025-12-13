@@ -13,10 +13,9 @@ import (
 	"github.com/hance08/kea/internal/constants"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
-	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
+	"github.com/hance08/kea/internal/ui/views"
 	"github.com/hance08/kea/internal/validation"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -136,8 +135,13 @@ func (r *CreateCommandRunner) FlagsMode(flags *createFlags) error {
 		return err
 	}
 
-	r.displaySummary()
-	displaySuccessInformation(newAccount.ID, r.fullName)
+	views.RenderAccountSummary(views.AccountSummaryItem{
+		FullName:    r.fullName,
+		Type:        r.accountType,
+		Currency:    r.currency,
+		Balance:     r.balance,
+		Description: r.description})
+	views.RenderAccountSuccess(newAccount.ID, r.fullName)
 	return nil
 }
 
@@ -216,7 +220,12 @@ func (r *CreateCommandRunner) InteractiveMode() error {
 	}
 
 	r.setDescription(desc)
-	r.displaySummary()
+	views.RenderAccountSummary(views.AccountSummaryItem{
+		FullName:    r.fullName,
+		Type:        r.accountType,
+		Currency:    r.currency,
+		Balance:     r.balance,
+		Description: r.description})
 
 	// Confirm proceed with creation
 	if err := confirmProceed(); err != nil {
@@ -229,7 +238,7 @@ func (r *CreateCommandRunner) InteractiveMode() error {
 		return err
 	}
 
-	displaySuccessInformation(newAccount.ID, r.fullName)
+	views.RenderAccountSuccess(newAccount.ID, r.fullName)
 	return nil
 }
 
@@ -290,27 +299,6 @@ func (r *CreateCommandRunner) setBalance(balance int64) {
 
 func (r *CreateCommandRunner) setDescription(desc string) {
 	r.description = desc
-}
-
-func (r *CreateCommandRunner) displaySummary() {
-	ui.Separator()
-
-	balanceStr := fmt.Sprintf("%.2f", float64(r.balance)/100)
-
-	descStr := r.description
-	if descStr == "" {
-		descStr = "None"
-	}
-
-	tableData := pterm.TableData{
-		{pterm.Blue("Full Name"), r.fullName},
-		{pterm.Blue("Type"), r.accountType},
-		{pterm.Blue("Currency"), r.currency},
-		{pterm.Blue("Balance"), balanceStr},
-		{pterm.Blue("Description"), descStr},
-	}
-
-	pterm.DefaultTable.WithData(tableData).Render()
 }
 
 // Save persists the account to the database
@@ -412,14 +400,4 @@ func confirmProceed() error {
 	}
 
 	return nil
-}
-
-func displaySuccessInformation(newAccountID int64, finalName string) {
-	ui.Separator()
-	tableData := pterm.TableData{
-		{pterm.Blue("Account ID"), fmt.Sprintf("%d", newAccountID)},
-		{pterm.Blue("Full Name"), finalName},
-	}
-	pterm.DefaultTable.WithData(tableData).Render()
-	pterm.Success.Print("Account created successfully!")
 }

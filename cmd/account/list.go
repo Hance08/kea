@@ -8,7 +8,7 @@ import (
 
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
-	"github.com/pterm/pterm"
+	"github.com/hance08/kea/internal/ui/views"
 	"github.com/spf13/cobra"
 )
 
@@ -64,7 +64,7 @@ func (r *ListCommandRunner) Run() error {
 		accounts = filterHiddenAccounts(accounts)
 	}
 
-	r.displayAccountsList(accounts)
+	views.NewAccountListView().Render(accounts, r.svc.Account.GetAccountBalanceFormatted)
 
 	return nil
 }
@@ -77,41 +77,4 @@ func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
 		}
 	}
 	return filtered
-}
-
-func (r *ListCommandRunner) displayAccountsList(accounts []*store.Account) {
-	headers := []string{"Name", "Type", "Balance"}
-	tableData := pterm.TableData{headers}
-
-	for _, acc := range accounts {
-		balance, _ := r.svc.Account.GetAccountBalanceFormatted(acc.ID)
-		balanceWithCurrency := fmt.Sprintf("%s %s", balance, acc.Currency)
-
-		// Apply color based on account type
-		var coloredAccount, coloredType, coloredBalance string
-		switch acc.Type {
-		case "A", "R": // Assets, Revenue - Green (positive)
-			coloredType = pterm.Green(acc.Type)
-			coloredBalance = pterm.Green(balanceWithCurrency)
-			coloredAccount = pterm.Green(acc.Name)
-		case "L", "E": // Liabilities, Expenses - Red (caution)
-			coloredType = pterm.Red(acc.Type)
-			coloredBalance = pterm.Red(balanceWithCurrency)
-			coloredAccount = pterm.Red(acc.Name)
-		case "C": // Capital/Equity - Gray (system)
-			coloredType = pterm.Gray(acc.Type)
-			coloredBalance = pterm.Gray(balanceWithCurrency)
-			coloredAccount = pterm.Gray(acc.Name)
-
-		default:
-			coloredType = acc.Type
-			coloredBalance = balance
-		}
-		row := []string{coloredAccount, coloredType, coloredBalance}
-		tableData = append(tableData, row)
-	}
-
-	pterm.DefaultSection.Printf("Account List")
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-	pterm.Info.Printf("Total: %d accounts\n", len(accounts))
 }

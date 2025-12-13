@@ -109,7 +109,7 @@ func (r *EditCommandRunner) Run(args []string) error {
 
 		case "Save & Exit":
 			// Validate before saving
-			splits := convertToSplitInputs(detail.Splits)
+			splits := detail.ToSplitInputs()
 			if err := r.svc.Transaction.ValidateTransactionEdit(splits); err != nil {
 				pterm.Error.Printf("Cannot save: %v\n", err)
 				pterm.Warning.Println("Please fix the errors before saving")
@@ -133,7 +133,7 @@ func (r *EditCommandRunner) Run(args []string) error {
 	}
 }
 
-func editBasicInfo(detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) editBasicInfo(detail *service.TransactionDetail) error {
 	// Edit description
 	newDescription, err := prompts.PromptInput("Description:", detail.Description, nil)
 	if err != nil {
@@ -176,9 +176,9 @@ func editBasicInfo(detail *service.TransactionDetail) error {
 	return nil
 }
 
-// changeAccount allows quick account switching for simple transactions
+// editAccount allows quick account switching for simple transactions
 // Works best for 2-split transactions (Expense/Income/Transfer)
-func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) editAccount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -605,23 +605,8 @@ func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error
 	return nil
 }
 
-func convertToSplitInputs(splits []service.SplitDetail) []service.TransactionSplitInput {
-	var inputs []service.TransactionSplitInput
-	for _, split := range splits {
-		inputs = append(inputs, service.TransactionSplitInput{
-			ID:          split.ID,
-			AccountName: split.AccountName,
-			AccountID:   split.AccountID,
-			Amount:      split.Amount,
-			Currency:    split.Currency,
-			Memo:        split.Memo,
-		})
-	}
-	return inputs
-}
-
 func (r *EditCommandRunner) saveTransactionChanges(txID int64, detail *service.TransactionDetail) error {
-	splits := convertToSplitInputs(detail.Splits)
+	splits := detail.ToSplitInputs()
 	return r.svc.Transaction.UpdateTransactionComplete(
 		txID,
 		detail.Description,

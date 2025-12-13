@@ -186,12 +186,12 @@ func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) err
 	}
 
 	// Detect transaction type and check if editing is allowed
-	txType, err := r.detectTransactionType(detail)
+	txType, err := r.svc.Transaction.DetectTransactionType(detail.Splits)
 	if err != nil {
 		return err
 	}
 
-	if txType == "Opening" {
+	if txType == service.TxTypeOpening {
 		pterm.Warning.Println("Cannot use quick edit for Opening Balance transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' if you need to modify this transaction")
 		return nil
@@ -207,7 +207,8 @@ func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) err
 	pterm.DefaultSection.Printf("Current transaction type: %s", txType)
 	pterm.DefaultSection.Printf("Current splits:")
 
-	roleLabels := r.getSplitRoleLabels(detail, txType)
+	roleLabels := views.GetSplitRoleLabels(detail.Splits, txType)
+
 	for i, split := range detail.Splits {
 		amount := currency.FormatFromCents(split.Amount)
 		sign := "+"
@@ -247,8 +248,16 @@ func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) err
 
 	split := &detail.Splits[splitIndex]
 
-	// Filter accounts based on transaction type and split role
-	filteredAccounts := r.filterAccountsForChange(accounts, detail, txType, splitIndex)
+	currentAccount, err := r.svc.Account.GetAccountByName(split.AccountName)
+	if err != nil {
+		return fmt.Errorf("failed to get current account details: %w", err)
+	}
+
+	filteredAccounts := r.svc.Transaction.GetEligibleAccountsForEdit(
+		txType,
+		currentAccount.Type,
+		accounts,
+	)
 
 	if len(filteredAccounts) == 0 {
 		pterm.Warning.Println("No suitable accounts found for this change")
@@ -286,175 +295,9 @@ func (r *EditCommandRunner) changeAccount(detail *service.TransactionDetail) err
 	return nil
 }
 
-// detectTransactionType determines the type of transaction based on account types
-func (r *EditCommandRunner) detectTransactionType(detail *service.TransactionDetail) (string, error) {
-	if len(detail.Splits) != 2 {
-		return "Complex", nil
-	}
-
-	// Get account types for both splits
-	account1, err := r.svc.Account.GetAccountByName(detail.Splits[0].AccountName)
-	if err != nil {
-		return "", err
-	}
-	account2, err := r.svc.Account.GetAccountByName(detail.Splits[1].AccountName)
-	if err != nil {
-		return "", err
-	}
-
-	type1, type2 := account1.Type, account2.Type
-
-	// Check for Opening Balance
-	if type1 == "C" || type2 == "C" {
-		if account1.Name == "Equity:OpeningBalances" || account2.Name == "Equity:OpeningBalances" {
-			return "Opening", nil
-		}
-	}
-
-	// Expense: (A or L) + E
-	if (type1 == "A" || type1 == "L") && type2 == "E" {
-		return "Expense", nil
-	}
-	if type1 == "E" && (type2 == "A" || type2 == "L") {
-		return "Expense", nil
-	}
-
-	// Income: R + (A or L)
-	if type1 == "R" && (type2 == "A" || type2 == "L") {
-		return "Income", nil
-	}
-	if (type1 == "A" || type1 == "L") && type2 == "R" {
-		return "Income", nil
-	}
-
-	// Transfer: (A or L) + (A or L)
-	if (type1 == "A" || type1 == "L") && (type2 == "A" || type2 == "L") {
-		return "Transfer", nil
-	}
-
-	return "Other", nil
-}
-
-// getSplitRoleLabels returns descriptive labels for each split based on transaction type
-func (r *EditCommandRunner) getSplitRoleLabels(detail *service.TransactionDetail, txType string) []string {
-	labels := make([]string, len(detail.Splits))
-
-	if len(detail.Splits) != 2 {
-		for i := range labels {
-			labels[i] = "account"
-		}
-		return labels
-	}
-
-	switch txType {
-	case "Expense":
-		// Find which is the expense account
-		account1, _ := r.svc.Account.GetAccountByName(detail.Splits[0].AccountName)
-		if account1 != nil && account1.Type == "E" {
-			labels[0] = "expense category"
-			labels[1] = "payment account"
-		} else {
-			labels[0] = "payment account"
-			labels[1] = "expense category"
-		}
-
-	case "Income":
-		// Find which is the revenue account
-		account1, _ := r.svc.Account.GetAccountByName(detail.Splits[0].AccountName)
-		if account1 != nil && account1.Type == "R" {
-			labels[0] = "income source"
-			labels[1] = "receiving account"
-		} else {
-			labels[0] = "receiving account"
-			labels[1] = "income source"
-		}
-
-	case "Transfer":
-		// Determine by amount sign
-		if detail.Splits[0].Amount > 0 {
-			labels[0] = "receiving account"
-			labels[1] = "source account"
-		} else {
-			labels[0] = "source account"
-			labels[1] = "receiving account"
-		}
-
-	case "Opening":
-		labels[0] = "account"
-		labels[1] = "opening balance"
-
-	default:
-		labels[0] = "account"
-		labels[1] = "account"
-	}
-
-	return labels
-}
-
-// filterAccountsForChange returns accounts suitable for the given split change
-func (r *EditCommandRunner) filterAccountsForChange(accounts []*store.Account, detail *service.TransactionDetail, txType string, splitIndex int) []*store.Account {
-	var filtered []*store.Account
-
-	// Get the account type we're replacing
-	currentAccount, err := r.svc.Account.GetAccountByName(detail.Splits[splitIndex].AccountName)
-	if err != nil {
-		return accounts // Fallback to all accounts if error
-	}
-
-	switch txType {
-	case "Expense":
-		if currentAccount.Type == "E" {
-			// Changing expense category - only show Expense accounts
-			for _, acc := range accounts {
-				if acc.Type == "E" {
-					filtered = append(filtered, acc)
-				}
-			}
-		} else {
-			// Changing payment account - only show Assets and Liabilities
-			for _, acc := range accounts {
-				if acc.Type == "A" || acc.Type == "L" {
-					filtered = append(filtered, acc)
-				}
-			}
-		}
-
-	case "Income":
-		if currentAccount.Type == "R" {
-			// Changing income source - only show Revenue accounts
-			for _, acc := range accounts {
-				if acc.Type == "R" {
-					filtered = append(filtered, acc)
-				}
-			}
-		} else {
-			// Changing receiving account - only show Assets and Liabilities
-			for _, acc := range accounts {
-				if acc.Type == "A" || acc.Type == "L" {
-					filtered = append(filtered, acc)
-				}
-			}
-		}
-
-	case "Transfer":
-		// Both sides must be Assets or Liabilities
-		for _, acc := range accounts {
-			if acc.Type == "A" || acc.Type == "L" {
-				filtered = append(filtered, acc)
-			}
-		}
-
-	default:
-		// For other types, return all accounts
-		filtered = accounts
-	}
-
-	return filtered
-}
-
-// changeAmount allows quick amount editing for simple transactions
+// editAmount allows quick amount editing for simple transactions
 // Automatically adjusts both sides to maintain balance
-func (r *EditCommandRunner) changeAmount(detail *service.TransactionDetail) error {
+func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")

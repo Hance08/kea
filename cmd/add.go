@@ -12,6 +12,7 @@ import (
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
+	"github.com/hance08/kea/internal/ui/views"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -158,7 +159,7 @@ func (r *AddCommandRunner) Run() error {
 	pterm.Success.Printf("Transaction created successfully! (ID: %d)\n", txID)
 
 	// Display transaction summary
-	displayTransactionSummary(input)
+	views.RenderTransactionSummary(input)
 
 	return nil
 }
@@ -313,53 +314,6 @@ func (r *AddCommandRunner) selectAccount(accounts []*store.Account, allowedTypes
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
-}
-
-func displayTransactionSummary(input service.TransactionInput) {
-	pterm.DefaultSection.Println("Transaction Summary")
-
-	// Format timestamp
-	date := time.Unix(input.Timestamp, 0).Format("2006-01-02")
-
-	// Create table data
-	tableData := pterm.TableData{
-		{"Field", "Value"},
-		{"Date", date},
-		{"Description", input.Description},
-		{"Status", getStatusString(input.Status)},
-	}
-
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-
-	// Display splits
-	pterm.DefaultSection.Println("Splits (Double-Entry)")
-
-	splitsData := pterm.TableData{
-		{"Account", "Amount", "Type"},
-	}
-
-	for _, split := range input.Splits {
-		amountStr := fmt.Sprintf("%.2f", float64(split.Amount)/100.0)
-		typeStr := "Debit"
-		if split.Amount < 0 {
-			typeStr = "Credit"
-			amountStr = fmt.Sprintf("%.2f", float64(-split.Amount)/100.0)
-		}
-		splitsData = append(splitsData, []string{split.AccountName, amountStr, typeStr})
-	}
-
-	pterm.DefaultTable.WithHasHeader().WithData(splitsData).Render()
-
-	// Verify balance
-	var total int64
-	for _, split := range input.Splits {
-		total += split.Amount
-	}
-	if total == 0 {
-		pterm.Success.Println("✓ Splits balance verified (total = 0)")
-	} else {
-		pterm.Warning.Printf("⚠ Warning: Splits do not balance (total = %d)\n", total)
-	}
 }
 
 func getStatusString(status int) string {

@@ -3,7 +3,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/pterm/pterm"
+	"github.com/hance08/kea/internal/ui/views"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,22 +28,20 @@ func runInfo() {
 	rawDBPath := viper.GetString("database.path")
 	expandedDBPath, _ := expandPath(rawDBPath)
 
-	// 3. 檢查資料庫檔案是否存在
-	dbStatus := pterm.Green("Found")
+	dbExists := false
 	if _, err := os.Stat(expandedDBPath); os.IsNotExist(err) {
-		dbStatus = pterm.Red("Not Found (Will be created)")
+		dbExists = true
 	}
 
-	// 4. 顯示表格
-	data := pterm.TableData{
-		{"Configuration File", configPath},
-		{"Database Path", expandedDBPath},
-		{"Database Status", dbStatus},
-		{"Default Currency", viper.GetString("defaults.currency")},
-		{"AppData Directory", getAppDataDirOrPanic()},
+	items := views.SystemInfoItem{
+		ConfigPath:      configPath,
+		DBPath:          expandedDBPath,
+		DBExists:        dbExists,
+		DefaultCurrency: viper.GetString("defaults.currency"),
+		AppDataDir:      getAppDataDirOrPanic(),
 	}
 
-	pterm.DefaultTable.WithData(data).Render()
+	views.RenderSystemInfo(items)
 }
 
 func getAppDataDirOrPanic() string {

@@ -17,8 +17,8 @@ func NewAccountService(repo store.Repository, cfg Config) *AccountService {
 	return &AccountService{repo: repo, config: cfg}
 }
 
-func (al *AccountService) CreateAccount(name, accType, currency, description string, parentID *int64) (*store.Account, error) {
-	newID, err := al.repo.CreateAccount(name, accType, currency, description, parentID)
+func (as *AccountService) CreateAccount(name, accType, currency, description string, parentID *int64) (*store.Account, error) {
+	newID, err := as.repo.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
 		return nil, err
 	}
@@ -34,24 +34,24 @@ func (al *AccountService) CreateAccount(name, accType, currency, description str
 	}, nil
 }
 
-func (al *AccountService) GetAllAccounts() ([]*store.Account, error) {
-	return al.repo.GetAllAccounts()
+func (as *AccountService) GetAllAccounts() ([]*store.Account, error) {
+	return as.repo.GetAllAccounts()
 }
 
-func (al *AccountService) GetAccountByName(name string) (*store.Account, error) {
-	return al.repo.GetAccountByName(name)
+func (as *AccountService) GetAccountByName(name string) (*store.Account, error) {
+	return as.repo.GetAccountByName(name)
 }
 
-func (al *AccountService) CheckAccountExists(name string) (bool, error) {
-	return al.repo.AccountExists(name)
+func (as *AccountService) CheckAccountExists(name string) (bool, error) {
+	return as.repo.AccountExists(name)
 }
 
-func (al *AccountService) GetAccountsByType(accType string) ([]*store.Account, error) {
-	return al.repo.GetAccountsByType(accType)
+func (as *AccountService) GetAccountsByType(accType string) ([]*store.Account, error) {
+	return as.repo.GetAccountsByType(accType)
 }
 
-func (al *AccountService) GetAccountBalanceFormatted(accountID int64) (string, error) {
-	balance, err := al.repo.GetAccountBalance(accountID)
+func (as *AccountService) GetAccountBalanceFormatted(accountID int64) (string, error) {
+	balance, err := as.repo.GetAccountBalance(accountID)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +60,7 @@ func (al *AccountService) GetAccountBalanceFormatted(accountID int64) (string, e
 	return fmt.Sprintf("%.2f", balanceFloat), nil
 }
 
-func (al *AccountService) GetRootNameByType(accType string) (string, error) {
+func (as *AccountService) GetRootNameByType(accType string) (string, error) {
 	switch strings.ToUpper(accType) {
 	case "A":
 		return "Assets", nil
@@ -77,14 +77,14 @@ func (al *AccountService) GetRootNameByType(accType string) (string, error) {
 	}
 }
 
-func (al *AccountService) SetBalance(account *store.Account, amountInCents int64) error {
-	currency := al.config.DefaultCurrency
+func (as *AccountService) SetBalance(account *store.Account, amountInCents int64) error {
+	currency := as.config.DefaultCurrency
 
 	if amountInCents == 0 {
 		return nil
 	}
 
-	openingBalanceAccount, err := al.repo.GetAccountByName("Equity:OpeningBalances")
+	openingBalanceAccount, err := as.repo.GetAccountByName("Equity:OpeningBalances")
 	if err != nil {
 		return fmt.Errorf("error : can not find 'Equity:OpeningBalances' account, failed to set initial balance")
 	}
@@ -124,6 +124,6 @@ func (al *AccountService) SetBalance(account *store.Account, amountInCents int64
 		},
 	}
 
-	_, err = al.repo.CreateTransactionWithSplits(tx, splits)
+	_, err = as.repo.CreateTransactionWithSplits(tx, splits)
 	return err
 }

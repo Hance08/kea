@@ -40,8 +40,8 @@ func NewTransactionService(repo store.Repository, cfg Config) *TransactionServic
 // 1. All accounts exist
 // 2. Splits balance to zero (double-entry bookkeeping)
 // 3. At least 2 splits are provided
-func (al *TransactionService) CreateTransaction(input TransactionInput) (int64, error) {
-	defaultCurrency := al.config.DefaultCurrency
+func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, error) {
+	defaultCurrency := ts.config.DefaultCurrency
 	// Validate: at least 2 splits required
 	if len(input.Splits) < 2 {
 		return 0, fmt.Errorf("transaction must have at least 2 splits (got %d)", len(input.Splits))
@@ -58,12 +58,12 @@ func (al *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 
 	for i, splitInput := range input.Splits {
 		// Validate account exists
-		account, err := al.repo.GetAccountByName(splitInput.AccountName)
+		account, err := ts.repo.GetAccountByName(splitInput.AccountName)
 		if err != nil {
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 
-		// Use account's currency if available, otherwise use default
+		// Use account'ts currency if available, otherwise use default
 		splitCurrency := currency
 		if account.Currency != "" {
 			splitCurrency = account.Currency
@@ -78,7 +78,7 @@ func (al *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 	}
 
 	// Validate: splits must balance to zero
-	if err := al.ValidateSplitsBalance(splits); err != nil {
+	if err := ts.ValidateSplitsBalance(splits); err != nil {
 		return 0, err
 	}
 
@@ -90,7 +90,7 @@ func (al *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 	}
 
 	// Use store method to create transaction with splits
-	txID, err := al.repo.CreateTransactionWithSplits(tx, splits)
+	txID, err := ts.repo.CreateTransactionWithSplits(tx, splits)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create transaction: %w", err)
 	}
@@ -99,7 +99,7 @@ func (al *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 }
 
 // ValidateSplitsBalance validates that all splits sum to zero (double-entry principle)
-func (al *TransactionService) ValidateSplitsBalance(splits []store.Split) error {
+func (ts *TransactionService) ValidateSplitsBalance(splits []store.Split) error {
 	var total int64 = 0
 
 	for _, split := range splits {
@@ -135,8 +135,8 @@ type SplitDetail struct {
 }
 
 // GetTransactionByID retrieves a transaction with all split details
-func (al *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail, error) {
-	tx, splits, err := al.repo.GetTransactionByID(txID)
+func (ts *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail, error) {
+	tx, splits, err := ts.repo.GetTransactionByID(txID)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (al *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail
 
 	for _, split := range splits {
 		// Get account name by ID
-		account, err := al.repo.GetAccountByID(split.AccountID)
+		account, err := ts.repo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get account for split: %w", err)
 		}
@@ -172,8 +172,8 @@ func (al *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail
 }
 
 // GetRecentTransactions retrieves recent transactions across all accounts
-func (al *TransactionService) GetRecentTransactions(limit int) ([]*store.Transaction, error) {
-	transactions, err := al.repo.GetAllTransactions(limit)
+func (ts *TransactionService) GetRecentTransactions(limit int) ([]*store.Transaction, error) {
+	transactions, err := ts.repo.GetAllTransactions(limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
 	}
@@ -181,15 +181,15 @@ func (al *TransactionService) GetRecentTransactions(limit int) ([]*store.Transac
 }
 
 // GetTransactionHistory retrieves transaction history for a specific account
-func (al *TransactionService) GetTransactionHistory(accountName string, limit int) ([]*store.Transaction, error) {
+func (ts *TransactionService) GetTransactionHistory(accountName string, limit int) ([]*store.Transaction, error) {
 	// Get account by name
-	account, err := al.repo.GetAccountByName(accountName)
+	account, err := ts.repo.GetAccountByName(accountName)
 	if err != nil {
 		return nil, fmt.Errorf("account not found: %w", err)
 	}
 
 	// Get transactions for this account
-	transactions, err := al.repo.GetTransactionsByAccount(account.ID, limit)
+	transactions, err := ts.repo.GetTransactionsByAccount(account.ID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction history: %w", err)
 	}
@@ -198,8 +198,8 @@ func (al *TransactionService) GetTransactionHistory(accountName string, limit in
 }
 
 // DeleteTransaction deletes a transaction
-func (al *TransactionService) DeleteTransaction(txID int64) error {
-	tx, _, err := al.repo.GetTransactionByID(txID)
+func (ts *TransactionService) DeleteTransaction(txID int64) error {
+	tx, _, err := ts.repo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}
@@ -207,26 +207,26 @@ func (al *TransactionService) DeleteTransaction(txID int64) error {
 	if tx.Status == store.StatusReconciled {
 		return fmt.Errorf("operation Denied: Transaction #%d has been reconciled and cannot be deleted", tx.ID)
 	}
-	return al.repo.DeleteTransaction(txID)
+	return ts.repo.DeleteTransaction(txID)
 }
 
 // UpdateTransactionStatus updates the status of a transaction
-func (al *TransactionService) UpdateTransactionStatus(txID int64, status int) error {
+func (ts *TransactionService) UpdateTransactionStatus(txID int64, status int) error {
 	if status != store.StatusPending && status != store.StatusCleared {
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
-	return al.repo.UpdateTransactionStatus(txID, status)
+	return ts.repo.UpdateTransactionStatus(txID, status)
 }
 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
-func (al *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []TransactionSplitInput) error {
+func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []TransactionSplitInput) error {
 	// Validate status
 	if status != store.StatusPending && status != store.StatusCleared && status != store.StatusReconciled {
 		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
 	}
 
-	oldTx, _, err := al.repo.GetTransactionByID(txID)
+	oldTx, _, err := ts.repo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
@@ -253,19 +253,19 @@ func (al *TransactionService) UpdateTransactionComplete(txID int64, description 
 
 	// Validate all accounts exist
 	for _, split := range splits {
-		_, err := al.repo.GetAccountByID(split.AccountID)
+		_, err := ts.repo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return fmt.Errorf("account ID %d not found", split.AccountID)
 		}
 	}
 
 	// Check transaction exists
-	_, _, err = al.repo.GetTransactionByID(txID)
+	_, _, err = ts.repo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
 
-	return al.repo.ExecTx(func(repo store.Repository) error {
+	return ts.repo.ExecTx(func(repo store.Repository) error {
 		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
 			return err
 		}
@@ -323,7 +323,7 @@ func (al *TransactionService) UpdateTransactionComplete(txID int64, description 
 }
 
 // ValidateTransactionEdit validates a transaction edit without saving
-func (al *TransactionService) ValidateTransactionEdit(splits []TransactionSplitInput) error {
+func (ts *TransactionService) ValidateTransactionEdit(splits []TransactionSplitInput) error {
 	// Check minimum splits
 	if len(splits) < 2 {
 		return fmt.Errorf("transaction must have at least 2 splits")
@@ -340,7 +340,7 @@ func (al *TransactionService) ValidateTransactionEdit(splits []TransactionSplitI
 
 	// Validate accounts exist
 	for i, split := range splits {
-		_, err := al.repo.GetAccountByID(split.AccountID)
+		_, err := ts.repo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return fmt.Errorf("split #%d: account ID %d not found", i+1, split.AccountID)
 		}

@@ -6,19 +6,7 @@ import (
 	"github.com/hance08/kea/internal/utils"
 )
 
-type TransactionType string
-
-const (
-	TxTypeExpense    TransactionType = "Expense"
-	TxTypeIncome     TransactionType = "Income"
-	TxTypeTransfer   TransactionType = "Transfer"
-	TxTypeOpening    TransactionType = "Opening"
-	TxTypeDeposit    TransactionType = "Deposit"
-	TxTypeWithdrawal TransactionType = "Withdrawal"
-	TxTypeOther      TransactionType = "Other"
-)
-
-func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (TransactionType, error) {
+func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionType, error) {
 	// Fallback for empty splits
 	if len(splits) == 0 {
 		return TxTypeOther, nil
@@ -37,7 +25,7 @@ func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (Transa
 	)
 
 	for _, split := range splits {
-		acc, err := s.repo.GetAccountByID(split.AccountID)
+		acc, err := ts.repo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return TxTypeOther, err
 		}
@@ -102,7 +90,7 @@ func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (Transa
 	return TxTypeOther, nil
 }
 
-func (s *TransactionService) DetectTransactionAccount(splits []SplitDetail, txType string) (string, error) {
+func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType string) (string, error) {
 	if len(splits) == 0 {
 		return "-", nil
 	}
@@ -111,7 +99,7 @@ func (s *TransactionService) DetectTransactionAccount(splits []SplitDetail, txTy
 	case "Expense":
 		// Find and return the Expense account (E type)
 		for _, split := range splits {
-			account, err := s.repo.GetAccountByName(split.AccountName)
+			account, err := ts.repo.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "E" {
 				return split.AccountName, nil
 			}
@@ -120,7 +108,7 @@ func (s *TransactionService) DetectTransactionAccount(splits []SplitDetail, txTy
 	case "Income":
 		// Find and return the Revenue account (R type)
 		for _, split := range splits {
-			account, err := s.repo.GetAccountByName(split.AccountName)
+			account, err := ts.repo.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "R" {
 				return split.AccountName, nil
 			}
@@ -130,7 +118,7 @@ func (s *TransactionService) DetectTransactionAccount(splits []SplitDetail, txTy
 		// Find and return the Asset account with positive amount (receiving account)
 		for _, split := range splits {
 			if split.Amount > 0 {
-				account, err := s.repo.GetAccountByName(split.AccountName)
+				account, err := ts.repo.GetAccountByName(split.AccountName)
 				if err == nil && (account.Type == "A" || account.Type == "L") {
 					return split.AccountName, nil
 				}
@@ -140,7 +128,7 @@ func (s *TransactionService) DetectTransactionAccount(splits []SplitDetail, txTy
 	case "Opening":
 		// For opening transactions, return the non-equity account
 		for _, split := range splits {
-			account, err := s.repo.GetAccountByName(split.AccountName)
+			account, err := ts.repo.GetAccountByName(split.AccountName)
 			if err == nil && account.Type != "C" {
 				return split.AccountName, nil
 			}
@@ -163,29 +151,29 @@ func (s *TransactionService) DetectTransactionAccount(splits []SplitDetail, txTy
 	return "-", nil
 }
 
-func (s *TransactionService) GetEligibleAccountsForEdit(txType TransactionType, currentAccountType string, allAccounts []*store.Account) []*store.Account {
+func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, currentAccountType string, allAccounts []*store.Account) []*store.Account {
 	switch txType {
 	case TxTypeExpense:
 		if currentAccountType == "E" {
-			return s.filterAccountsByType(allAccounts, []string{"E"})
+			return ts.filterAccountsByTypes(allAccounts, []string{"E"})
 		}
-		return s.filterAccountsByType(allAccounts, []string{"A", "L"})
+		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
 
 	case TxTypeIncome:
 		if currentAccountType == "R" {
-			return s.filterAccountsByType(allAccounts, []string{"R"})
+			return ts.filterAccountsByTypes(allAccounts, []string{"R"})
 		}
-		return s.filterAccountsByType(allAccounts, []string{"A", "L"})
+		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
 
 	case TxTypeTransfer:
-		return s.filterAccountsByType(allAccounts, []string{"A", "L"})
+		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
 
 	default:
 		return allAccounts
 	}
 }
 
-func (s *TransactionService) filterAccountsByType(accounts []*store.Account, allowedTypes []string) []*store.Account {
+func (ts *TransactionService) filterAccountsByTypes(accounts []*store.Account, allowedTypes []string) []*store.Account {
 	var filtered []*store.Account
 
 	typeMap := make(map[string]bool)

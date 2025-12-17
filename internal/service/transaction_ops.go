@@ -115,13 +115,23 @@ func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 		Status:      input.Status,
 	}
 
-	// Use store method to create transaction with splits
-	txID, err := ts.repo.CreateTransactionWithSplits(tx, splits)
+	var newTxID int64
+
+	err := ts.repo.ExecTx(func(repo store.Repository) error {
+		var err error
+
+		newTxID, err = repo.CreateTransactionWithSplits(tx, splits)
+		if err != nil {
+			return fmt.Errorf("failed to create transaction: %w", err)
+		}
+		return nil
+	})
+
 	if err != nil {
-		return 0, fmt.Errorf("failed to create transaction: %w", err)
+		return 0, err
 	}
 
-	return txID, nil
+	return newTxID, nil
 }
 
 // DeleteTransaction deletes a transaction

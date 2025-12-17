@@ -75,6 +75,7 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 
 func (r *AddCommandRunner) Run() error {
 	var input service.TransactionInput
+	var err error
 
 	// Check if using flag mode or interactive mode
 	hasFlags := r.cmd.Flags().Changed("desc") || r.cmd.Flags().Changed("amount") ||
@@ -82,71 +83,13 @@ func (r *AddCommandRunner) Run() error {
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		if r.flags.Amount == "" || r.flags.From == "" || r.flags.To == "" {
-			return fmt.Errorf("when using flags, --amount, --from, and --to are all required")
-		}
-
-		if r.flags.Desc == "" {
-			r.flags.Desc = "-"
-		}
-
-		// Parse amount
-		amountCents, err := currency.ParseToCents(r.flags.Amount)
-		if err != nil {
-			return fmt.Errorf("invalid amount: %w", err)
-		}
-
-		// Validate accounts exist
-		if exists, err := r.svc.Account.CheckAccountExists(r.flags.From); err != nil || !exists {
-			return fmt.Errorf("source account '%s' does not exist", r.flags.From)
-		}
-		if exists, err := r.svc.Account.CheckAccountExists(r.flags.To); err != nil || !exists {
-			return fmt.Errorf("destination account '%s' does not exist", r.flags.To)
-		}
-
-		// Parse status
-		status := 1 // Default: cleared
-		if strings.ToLower(r.flags.Status) == "pending" {
-			status = 0
-		}
-
-		// Parse timestamp
-		var timestamp int64
-		if r.flags.Timestamp != "" {
-			t, err := time.Parse("2006-01-02", r.flags.Timestamp)
-			if err != nil {
-				return fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
-			}
-			timestamp = t.Unix()
-		} else {
-			timestamp = time.Now().Unix()
-		}
-
-		// Build transaction input
-		input = service.TransactionInput{
-			Timestamp:   timestamp,
-			Description: r.flags.Desc,
-			Status:      status,
-			Splits: []service.TransactionSplitInput{
-				{
-					AccountName: r.flags.To,
-					Amount:      amountCents,
-					Memo:        "",
-				},
-				{
-					AccountName: r.flags.From,
-					Amount:      -amountCents,
-					Memo:        "",
-				},
-			},
-		}
+		input, err = r.flagsMode()
 	} else {
 		// Interactive mode
-		var err error
-		input, err = r.interactiveAddTransaction()
-		if err != nil {
-			return err
-		}
+		input, err = r.interactiveMode()
+	}
+	if err != nil {
+		return err
 	}
 
 	// Create transaction
@@ -164,7 +107,74 @@ func (r *AddCommandRunner) Run() error {
 	return nil
 }
 
-func (r *AddCommandRunner) interactiveAddTransaction() (service.TransactionInput, error) {
+// TODO: 拆分邏輯，因為未來會需要更多的add方法(目前 新增消費、新增收入、新增轉帳)
+func (r *AddCommandRunner) flagsMode() (service.TransactionInput, error) {
+	var input service.TransactionInput
+
+	// Flag mode: validate all required flags
+	if r.flags.Amount == "" || r.flags.From == "" || r.flags.To == "" {
+		return input, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
+	}
+
+	if r.flags.Desc == "" {
+		r.flags.Desc = "-"
+	}
+
+	// Parse amount
+	amountCents, err := currency.ParseToCents(r.flags.Amount)
+	if err != nil {
+		return input, fmt.Errorf("invalid amount: %w", err)
+	}
+
+	// Validate accounts exist
+	if exists, err := r.svc.Account.CheckAccountExists(r.flags.From); err != nil || !exists {
+		return input, fmt.Errorf("source account '%s' does not exist", r.flags.From)
+	}
+	if exists, err := r.svc.Account.CheckAccountExists(r.flags.To); err != nil || !exists {
+		return input, fmt.Errorf("destination account '%s' does not exist", r.flags.To)
+	}
+
+	// Parse status
+	status := 1 // Default: cleared
+	if strings.ToLower(r.flags.Status) == "pending" {
+		status = 0
+	}
+
+	// Parse timestamp
+	var timestamp int64
+	if r.flags.Timestamp != "" {
+		t, err := time.Parse("2006-01-02", r.flags.Timestamp)
+		if err != nil {
+			return input, fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
+		}
+		timestamp = t.Unix()
+	} else {
+		timestamp = time.Now().Unix()
+	}
+
+	// Build transaction input
+	input = service.TransactionInput{
+		Timestamp:   timestamp,
+		Description: r.flags.Desc,
+		Status:      status,
+		Splits: []service.TransactionSplitInput{
+			{
+				AccountName: r.flags.To,
+				Amount:      amountCents,
+				Memo:        "",
+			},
+			{
+				AccountName: r.flags.From,
+				Amount:      -amountCents,
+				Memo:        "",
+			},
+		},
+	}
+
+	return input, nil
+}
+
+func (r *AddCommandRunner) interactiveMode() (service.TransactionInput, error) {
 	var input service.TransactionInput
 
 	// Get all accounts
@@ -314,11 +324,4 @@ func (r *AddCommandRunner) selectAccount(accounts []*store.Account, allowedTypes
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
-}
-
-func getStatusString(status int) string {
-	if status == 0 {
-		return "Pending"
-	}
-	return "Cleared"
 }

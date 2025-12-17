@@ -5,35 +5,7 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/store"
-	"github.com/hance08/kea/internal/utils"
 )
-
-// TransactionSplitInput represents a split entry with account name instead of ID
-type TransactionSplitInput struct {
-	ID          int64  // Split ID (0 for new splits)
-	AccountName string // e.g., "Assets:Bank:TaishinBank"
-	AccountID   int64  // Account ID (used in edit mode)
-	Amount      int64  // Amount in cents
-	Currency    string // Currency code
-	Memo        string // Optional memo for this split
-}
-
-// TransactionInput represents user input for creating a transaction
-type TransactionInput struct {
-	Timestamp   int64                   // Unix timestamp, 0 means current time
-	Description string                  // Transaction description
-	Splits      []TransactionSplitInput // List of splits (must balance to 0)
-	Status      int                     // 0=Pending, 1=Cleared
-}
-
-type TransactionService struct {
-	repo   store.Repository
-	config Config
-}
-
-func NewTransactionService(repo store.Repository, cfg Config) *TransactionService {
-	return &TransactionService{repo: repo, config: cfg}
-}
 
 // CreateTransaction creates a new transaction with validation
 // It validates that:
@@ -96,120 +68,6 @@ func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 	}
 
 	return txID, nil
-}
-
-// ValidateSplitsBalance validates that all splits sum to zero (double-entry principle)
-func (ts *TransactionService) ValidateSplitsBalance(splits []store.Split) error {
-	var total int64 = 0
-
-	for _, split := range splits {
-		total += split.Amount
-	}
-
-	if total != 0 {
-		return fmt.Errorf("splits do not balance: total is %d cents (%.2f), must be 0. "+
-			"In double-entry bookkeeping, debits must equal credits",
-			total, float64(total)/100.0)
-	}
-
-	return nil
-}
-
-// TransactionDetail represents a transaction with full split details including account names
-type TransactionDetail struct {
-	ID          int64
-	Timestamp   int64
-	Description string
-	Status      int
-	Splits      []SplitDetail
-}
-
-func (d *TransactionDetail) ToSplitInputs() []TransactionSplitInput {
-	var inputs []TransactionSplitInput
-	for _, split := range d.Splits {
-		inputs = append(inputs, TransactionSplitInput{
-			ID:          split.ID,
-			AccountName: split.AccountName,
-			AccountID:   split.AccountID,
-			Amount:      split.Amount,
-			Currency:    split.Currency,
-			Memo:        split.Memo,
-		})
-	}
-	return inputs
-}
-
-// SplitDetail represents a split with account name included
-type SplitDetail struct {
-	ID          int64
-	AccountID   int64
-	AccountName string
-	Amount      int64
-	Currency    string
-	Memo        string
-}
-
-// GetTransactionByID retrieves a transaction with all split details
-func (ts *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail, error) {
-	tx, splits, err := ts.repo.GetTransactionByID(txID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert to detail format with account names
-	detail := &TransactionDetail{
-		ID:          tx.ID,
-		Timestamp:   tx.Timestamp,
-		Description: tx.Description,
-		Status:      tx.Status,
-		Splits:      make([]SplitDetail, 0, len(splits)),
-	}
-
-	for _, split := range splits {
-		// Get account name by ID
-		account, err := ts.repo.GetAccountByID(split.AccountID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get account for split: %w", err)
-		}
-
-		splitDetail := SplitDetail{
-			ID:          split.ID,
-			AccountID:   split.AccountID,
-			AccountName: account.Name,
-			Amount:      split.Amount,
-			Currency:    split.Currency,
-			Memo:        split.Memo,
-		}
-		detail.Splits = append(detail.Splits, splitDetail)
-	}
-
-	return detail, nil
-}
-
-// GetRecentTransactions retrieves recent transactions across all accounts
-func (ts *TransactionService) GetRecentTransactions(limit int) ([]*store.Transaction, error) {
-	transactions, err := ts.repo.GetAllTransactions(limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
-	}
-	return transactions, nil
-}
-
-// GetTransactionHistory retrieves transaction history for a specific account
-func (ts *TransactionService) GetTransactionHistory(accountName string, limit int) ([]*store.Transaction, error) {
-	// Get account by name
-	account, err := ts.repo.GetAccountByName(accountName)
-	if err != nil {
-		return nil, fmt.Errorf("account not found: %w", err)
-	}
-
-	// Get transactions for this account
-	transactions, err := ts.repo.GetTransactionsByAccount(account.ID, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get transaction history: %w", err)
-	}
-
-	return transactions, nil
 }
 
 // DeleteTransaction deletes a transaction
@@ -335,31 +193,4 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		}
 		return nil
 	})
-}
-
-// ValidateTransactionEdit validates a transaction edit without saving
-func (ts *TransactionService) ValidateTransactionEdit(splits []TransactionSplitInput) error {
-	// Check minimum splits
-	if len(splits) < 2 {
-		return fmt.Errorf("transaction must have at least 2 splits")
-	}
-
-	// Check balance
-	var total int64
-	for _, split := range splits {
-		total += split.Amount
-	}
-	if total != 0 {
-		return fmt.Errorf("splits do not balance (sum: %s)", utils.FormatFromCents(total))
-	}
-
-	// Validate accounts exist
-	for i, split := range splits {
-		_, err := ts.repo.GetAccountByID(split.AccountID)
-		if err != nil {
-			return fmt.Errorf("split #%d: account ID %d not found", i+1, split.AccountID)
-		}
-	}
-
-	return nil
 }

@@ -11,14 +11,11 @@ type Config struct {
 type Service struct {
 	Account     *AccountService
 	Transaction *TransactionService
-
-	repo store.Repository
 }
 
 func NewService(repo store.Repository, cfg Config) *Service {
 	return &Service{
 		Account:     NewAccountService(repo, cfg),
 		Transaction: NewTransactionService(repo, cfg),
-		repo:        repo,
 	}
 }

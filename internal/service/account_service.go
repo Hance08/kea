@@ -8,11 +8,11 @@ import (
 )
 
 type AccountService struct {
-	repo   store.Repository
+	repo   store.AccountRepository
 	config Config
 }
 
-func NewAccountService(repo store.Repository, cfg Config) *AccountService {
+func NewAccountService(repo store.AccountRepository, cfg Config) *AccountService {
 	return &AccountService{repo: repo, config: cfg}
 }
 

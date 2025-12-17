@@ -17,7 +17,6 @@ import (
 	"github.com/hance08/kea/internal/ui/views"
 	"github.com/hance08/kea/internal/validation"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // Command-line flags
@@ -290,8 +289,7 @@ func (r *CreateCommandRunner) buildFromType(accType, currency string) error {
 		}
 		r.currency = strings.ToUpper(strings.TrimSpace(currency))
 	} else {
-		//TODO: avoid using viper in here
-		r.currency = viper.GetString("defaults.currency")
+		r.currency = r.svc.Config.Defaults.Currency
 	}
 
 	return nil
@@ -383,8 +381,7 @@ func (r *CreateCommandRunner) runCurrencyStep() (string, error) {
 
 	if defaultCurrency == "" {
 		//TODO: Validate the string in the config file
-		//TODO: Avoid using viper in here
-		defaultCurrency = viper.GetString("defaults.currency")
+		defaultCurrency = r.svc.Config.Defaults.Currency
 	}
 
 	isInherited := r.parentID != nil

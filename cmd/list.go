@@ -28,8 +28,9 @@ func NewListCmd(svc *service.Service) *cobra.Command {
 	flags := &listFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List recent transactions",
+		Use:     "list",
+		Aliases: []string{"tls"},
+		Short:   "List recent transactions (alias: tls)",
 		Long: `List recent transactions from your accounting records.
 
 This command displays a table of transactions with their details including

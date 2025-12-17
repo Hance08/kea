@@ -65,15 +65,7 @@ Example: kea account create -t A -n Bank -b 100000`,
 				validator: validator,
 			}
 
-			hasFlags := cmd.Flags().Changed("name") ||
-				cmd.Flags().Changed("type") ||
-				cmd.Flags().Changed("parent")
-
-			if hasFlags {
-				return runner.FlagsMode(flags)
-			}
-
-			return runner.InteractiveMode()
+			return runner.Run(flags, cmd)
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Name, "name", "n", "", "Account name")
@@ -86,8 +78,28 @@ Example: kea account create -t A -n Bank -b 100000`,
 	return cmd
 }
 
+func (r *CreateCommandRunner) Run(flags *createFlags, cmd *cobra.Command) error {
+	hasFlags := cmd.Flags().Changed("name") ||
+		cmd.Flags().Changed("type") ||
+		cmd.Flags().Changed("parent")
+
+	if hasFlags {
+		err := r.flagsMode(flags)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := r.interactiveMode()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // FlagsMode builds an account from command-line flags
-func (r *CreateCommandRunner) FlagsMode(flags *createFlags) error {
+func (r *CreateCommandRunner) flagsMode(flags *createFlags) error {
 	// Validate flag combinations
 	if flags.Parent == "" && flags.Type == "" {
 		return fmt.Errorf("must enter at least one of --type or --parent flag")
@@ -146,7 +158,7 @@ func (r *CreateCommandRunner) FlagsMode(flags *createFlags) error {
 }
 
 // InteractiveMode builds an account through interactive prompts
-func (r *CreateCommandRunner) InteractiveMode() error {
+func (r *CreateCommandRunner) interactiveMode() error {
 	// Step 1: Check if is subaccount
 	isSubAccount, err := prompts.PromptIsSubAccount()
 	if err != nil {

@@ -28,7 +28,7 @@ func NewTxListCmd(svc *service.Service) *cobra.Command {
 	flags := &txListFlags{}
 
 	cmd := &cobra.Command{
-		Use:     "list",
+		Use:     "tx-list",
 		Aliases: []string{"tls"},
 		Short:   "List recent transactions (alias: tls)",
 		Long: `List recent transactions from your accounting records.

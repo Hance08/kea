@@ -26,7 +26,7 @@ func NewAccListCmd(svc *service.Service) *cobra.Command {
 	flags := &accListFlags{}
 
 	cmd := &cobra.Command{
-		Use:     "list",
+		Use:     "acc-list",
 		Aliases: []string{"als"},
 		Short:   "List all accounts with their balances (alias: als)",
 		Long: `List all accounts in the system with their current balances.

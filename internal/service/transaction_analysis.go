@@ -90,7 +90,77 @@ func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (Transa
 		return TxTypeIncome, nil
 	}
 
+	if hasEquity && assetOrLiabCnt >= 1 {
+		if isAssetIncrease {
+			return TxTypeDeposit, nil
+		} else {
+			return TxTypeWithdrawal, nil
+		}
+
+	}
+
 	return TxTypeOther, nil
+}
+
+func (s *TransactionService) DetectTransactionAccount(splits []SplitDetail, txType string) (string, error) {
+	if len(splits) == 0 {
+		return "-", nil
+	}
+
+	switch txType {
+	case "Expense":
+		// Find and return the Expense account (E type)
+		for _, split := range splits {
+			account, err := s.repo.GetAccountByName(split.AccountName)
+			if err == nil && account.Type == "E" {
+				return split.AccountName, nil
+			}
+		}
+
+	case "Income":
+		// Find and return the Revenue account (R type)
+		for _, split := range splits {
+			account, err := s.repo.GetAccountByName(split.AccountName)
+			if err == nil && account.Type == "R" {
+				return split.AccountName, nil
+			}
+		}
+
+	case "Transfer":
+		// Find and return the Asset account with positive amount (receiving account)
+		for _, split := range splits {
+			if split.Amount > 0 {
+				account, err := s.repo.GetAccountByName(split.AccountName)
+				if err == nil && (account.Type == "A" || account.Type == "L") {
+					return split.AccountName, nil
+				}
+			}
+		}
+
+	case "Opening":
+		// For opening transactions, return the non-equity account
+		for _, split := range splits {
+			account, err := s.repo.GetAccountByName(split.AccountName)
+			if err == nil && account.Type != "C" {
+				return split.AccountName, nil
+			}
+		}
+
+	case "Other":
+		// For other types, return the first account with positive amount
+		for _, split := range splits {
+			if split.Amount > 0 {
+				return split.AccountName, nil
+			}
+		}
+	}
+
+	// Fallback: return first account name
+	if len(splits) > 0 {
+		return splits[0].AccountName, nil
+	}
+
+	return "-", nil
 }
 
 func (s *TransactionService) GetEligibleAccountsForEdit(txType TransactionType, currentAccountType string, allAccounts []*store.Account) []*store.Account {

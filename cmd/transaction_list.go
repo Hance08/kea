@@ -154,68 +154,16 @@ func (r *TxListCommandRunner) getTransactionType(txID int64) (string, error) {
 }
 
 // getTransactionAccount returns the relevant account name based on transaction type
-func (r *TxListCommandRunner) getTransactionAccount(txID int64, transType string) (string, error) {
+func (r *TxListCommandRunner) getTransactionAccount(txID int64, txType string) (string, error) {
 	detail, err := r.svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
 	}
 
-	if len(detail.Splits) == 0 {
-		return "-", nil
+	txAccount, err := r.svc.Transaction.DetectTransactionAccount(detail.Splits, txType)
+	if err != nil {
+		return "", err
 	}
 
-	switch transType {
-	case "Expense":
-		// Find and return the Expense account (E type)
-		for _, split := range detail.Splits {
-			account, err := r.svc.Account.GetAccountByName(split.AccountName)
-			if err == nil && account.Type == "E" {
-				return split.AccountName, nil
-			}
-		}
-
-	case "Income":
-		// Find and return the Revenue account (R type)
-		for _, split := range detail.Splits {
-			account, err := r.svc.Account.GetAccountByName(split.AccountName)
-			if err == nil && account.Type == "R" {
-				return split.AccountName, nil
-			}
-		}
-
-	case "Transfer":
-		// Find and return the Asset account with positive amount (receiving account)
-		for _, split := range detail.Splits {
-			if split.Amount > 0 {
-				account, err := r.svc.Account.GetAccountByName(split.AccountName)
-				if err == nil && (account.Type == "A" || account.Type == "L") {
-					return split.AccountName, nil
-				}
-			}
-		}
-
-	case "Opening":
-		// For opening transactions, return the non-equity account
-		for _, split := range detail.Splits {
-			account, err := r.svc.Account.GetAccountByName(split.AccountName)
-			if err == nil && account.Type != "C" {
-				return split.AccountName, nil
-			}
-		}
-
-	case "Other":
-		// For other types, return the first account with positive amount
-		for _, split := range detail.Splits {
-			if split.Amount > 0 {
-				return split.AccountName, nil
-			}
-		}
-	}
-
-	// Fallback: return first account name
-	if len(detail.Splits) > 0 {
-		return detail.Splits[0].AccountName, nil
-	}
-
-	return "-", nil
+	return txAccount, nil
 }

@@ -1,7 +1,7 @@
 package store
 
-type Repository interface {
-	// Account Operations
+// Account Operations
+type AccountRepository interface {
 	CreateAccount(name, accType, currency, description string, parentID *int64) (int64, error)
 	GetAllAccounts() ([]*Account, error)
 	GetAccountByName(name string) (*Account, error)
@@ -9,8 +9,10 @@ type Repository interface {
 	AccountExists(name string) (bool, error)
 	GetAccountsByType(accType string) ([]*Account, error)
 	GetAccountBalance(accountID int64) (int64, error)
+}
 
-	// Transaction Operations
+// Transaction Operations & Split Operations
+type TransactionRepository interface {
 	CreateTransactionWithSplits(tx Transaction, splits []Split) (int64, error)
 	GetTransactionByID(txID int64) (*Transaction, []*Split, error)
 	GetTransactionsByAccount(accountID int64, limit int) ([]*Transaction, error)
@@ -21,11 +23,14 @@ type Repository interface {
 	DeleteTransaction(txID int64) error
 	UpdateTransactionBasic(txID int64, description string, timestamp int64, status int) error
 
-	// Split Operations
 	CreateSplit(txID int64, split *Split) (int64, error)
 	UpdateSplit(splitID int64, accountID int64, amount int64, currency string, memo string) error
 	DeleteSplit(splitID int64) error
 	GetSplitsByTransaction(txID int64) ([]*Split, error)
+}
+type Repository interface {
+	AccountRepository
+	TransactionRepository
 
 	ExecTx(fn func(Repository) error) error
 	Close() error

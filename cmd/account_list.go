@@ -1,7 +1,7 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
-package account
+package cmd
 
 import (
 	"fmt"
@@ -12,26 +12,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type listFlags struct {
+type accListFlags struct {
 	Type       string
 	ShowHidden bool
 }
 
-type ListCommandRunner struct {
+type AccListCommandRunner struct {
 	svc   *service.Service
-	flags *listFlags
+	flags *accListFlags
 }
 
-func NewListCmd(svc *service.Service) *cobra.Command {
-	flags := &listFlags{}
+func NewAccListCmd(svc *service.Service) *cobra.Command {
+	flags := &accListFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List all accounts with their balances",
+		Use:     "list",
+		Aliases: []string{"als"},
+		Short:   "List all accounts with their balances (alias: als)",
 		Long: `List all accounts in the system with their current balances.
 You can filter by account type or show hidden accounts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &ListCommandRunner{
+			runner := &AccListCommandRunner{
 				svc:   svc,
 				flags: flags,
 			}
@@ -45,7 +46,7 @@ You can filter by account type or show hidden accounts.`,
 	return cmd
 }
 
-func (r *ListCommandRunner) Run() error {
+func (r *AccListCommandRunner) Run() error {
 
 	var accounts []*store.Account
 	var err error

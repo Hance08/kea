@@ -15,7 +15,6 @@ func NewAccountCmd(svc *service.Service) *cobra.Command {
 		Long:  `It can create, edit, delete account and show the list of all accounts.`,
 	}
 
-	accountCmd.AddCommand(NewListCmd(svc))
 	accountCmd.AddCommand(NewCreateCmd(svc))
 
 	return accountCmd

@@ -3,29 +3,37 @@ package cmd
 import (
 	"os"
 
+	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui/views"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-func NewInfoCmd() *cobra.Command {
+type InfoCommandRunner struct {
+	svc *service.Service
+}
+
+func NewInfoCmd(svc *service.Service) *cobra.Command {
 	return &cobra.Command{
 		Use:   "info",
 		Short: "Display application information",
 		Long:  `Display current configuration, database path, and system details.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			runInfo()
+		RunE: func(cmd *cobra.Command, args []string) error {
+			runner := &InfoCommandRunner{
+				svc: svc,
+			}
+
+			return runner.Run()
 		},
 	}
 }
 
-func runInfo() {
-	configPath := viper.ConfigFileUsed()
+func (r *InfoCommandRunner) Run() error {
+	configPath := r.svc.Config.ConfigPath
 	if configPath == "" {
 		configPath = "(None, using defaults)"
 	}
 
-	rawDBPath := viper.GetString("database.path")
+	rawDBPath := r.svc.Config.Database.Path
 	expandedDBPath, _ := expandPath(rawDBPath)
 
 	dbExists := false
@@ -37,11 +45,12 @@ func runInfo() {
 		ConfigPath:      configPath,
 		DBPath:          expandedDBPath,
 		DBExists:        dbExists,
-		DefaultCurrency: viper.GetString("defaults.currency"),
+		DefaultCurrency: r.svc.Config.Defaults.Currency,
 		AppDataDir:      getAppDataDirOrPanic(),
 	}
 
 	views.RenderSystemInfo(items)
+	return nil
 }
 
 func getAppDataDirOrPanic() string {

@@ -3,16 +3,19 @@ package service
 import (
 	"github.com/hance08/kea/internal/constants"
 	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/utils"
 )
 
 type TransactionType string
 
 const (
-	TxTypeExpense  TransactionType = "Expense"
-	TxTypeIncome   TransactionType = "Income"
-	TxTypeTransfer TransactionType = "Transfer"
-	TxTypeOpening  TransactionType = "Opening"
-	TxTypeOther    TransactionType = "Other"
+	TxTypeExpense    TransactionType = "Expense"
+	TxTypeIncome     TransactionType = "Income"
+	TxTypeTransfer   TransactionType = "Transfer"
+	TxTypeOpening    TransactionType = "Opening"
+	TxTypeDeposit    TransactionType = "Deposit"
+	TxTypeWithdrawal TransactionType = "Withdrawal"
+	TxTypeOther      TransactionType = "Other"
 )
 
 func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (TransactionType, error) {
@@ -21,46 +24,49 @@ func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (Transa
 		return TxTypeOther, nil
 	}
 
-	// Collect account types for all splits
-	accountTypes := make([]string, 0, len(splits))
-	accountNames := make([]string, 0, len(splits))
+	var totalRevenueAmount int64
+	var totalExpenseAmount int64
+
+	var (
+		hasExpense      bool
+		hasRevenue      bool
+		hasEquity       bool
+		assetOrLiabCnt  int
+		isOpening       bool
+		isAssetIncrease bool
+	)
 
 	for _, split := range splits {
 		acc, err := s.repo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return TxTypeOther, err
 		}
-		accountTypes = append(accountTypes, acc.Type)
-		accountNames = append(accountNames, acc.Name)
-	}
 
-	// Opening check: any equity split with system opening balance account
-	isOpening := false
-	for i, t := range accountTypes {
-		if t == constants.TypeEquity && accountNames[i] == constants.SystemAccountOpeningBalance {
+		if split.Memo == constants.OpeningAccountMemo {
 			isOpening = true
-			break
 		}
-	}
-	if isOpening {
-		return TxTypeOpening, nil
-	}
 
-	var (
-		hasExpense     bool
-		hasRevenue     bool
-		assetOrLiabCnt int
-	)
-
-	for _, t := range accountTypes {
-		switch t {
+		switch acc.Type {
 		case "E":
 			hasExpense = true
+			totalExpenseAmount += split.Amount
 		case "R":
 			hasRevenue = true
-		case "A", "L":
+			totalRevenueAmount += utils.AbsInt64(split.Amount)
+		case "A":
 			assetOrLiabCnt++
+			if split.Amount > 0 {
+				isAssetIncrease = true
+			}
+		case "L":
+			assetOrLiabCnt++
+		case "C":
+			hasEquity = true
 		}
+	}
+
+	if isOpening {
+		return TxTypeOpening, nil
 	}
 
 	// Prioritize transfer when there are two or more asset/liability legs,
@@ -69,6 +75,13 @@ func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (Transa
 		return TxTypeTransfer, nil
 	}
 
+	if hasExpense && hasRevenue {
+		if totalRevenueAmount >= totalExpenseAmount {
+			return TxTypeIncome, nil
+		} else {
+			return TxTypeExpense, nil
+		}
+	}
 	if hasExpense && assetOrLiabCnt >= 1 {
 		return TxTypeExpense, nil
 	}

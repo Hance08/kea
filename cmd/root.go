@@ -13,6 +13,7 @@ import (
 	"github.com/hance08/kea/cmd/account"
 	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/app"
+	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/constants"
 	"github.com/hance08/kea/internal/errhandler"
 	"github.com/hance08/kea/internal/service"
@@ -23,12 +24,13 @@ import (
 
 var (
 	cfgFile string
+	cfg     *config.Config
 )
 
 func Execute(migrations fs.FS) {
 	initConfig()
 
-	application, cleanup, err := app.NewApp(migrations)
+	application, cleanup, err := app.NewApp(cfg, migrations)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing app: %v\n", err)
 		os.Exit(1)
@@ -53,7 +55,7 @@ func Execute(migrations fs.FS) {
 	rootCmd.AddCommand(transaction.NewTransactionCmd(application.Service))
 
 	rootCmd.AddCommand(NewAddCmd(application.Service))
-	rootCmd.AddCommand(NewInfoCmd())
+	rootCmd.AddCommand(NewInfoCmd(application.Service))
 	rootCmd.AddCommand(NewAccListCmd(application.Service))
 	rootCmd.AddCommand(NewTxListCmd(application.Service))
 	rootCmd.AddCommand(NewReportCmd())
@@ -128,6 +130,13 @@ func initConfig() error {
 			return fmt.Errorf("config file error: %w", err)
 		}
 	}
+
+	cfg = config.NewDefault()
+	if err := viper.Unmarshal(cfg); err != nil {
+		return fmt.Errorf("unable to decode into struct, %v", err)
+	}
+
+	cfg.ConfigPath = viper.ConfigFileUsed()
 
 	return nil
 }

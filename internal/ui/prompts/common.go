@@ -87,7 +87,15 @@ func PromptSelect(message string, options []string, defaultOption string) (strin
 	prompt := &survey.Select{
 		Message: message,
 		Options: options,
-		Default: defaultOption,
+	}
+
+	if defaultOption != "" {
+		for _, opt := range options {
+			if opt == defaultOption {
+				prompt.Default = defaultOption
+				break
+			}
+		}
 	}
 
 	err := survey.AskOne(prompt, &selected, ui.IconOption())

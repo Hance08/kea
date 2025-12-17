@@ -145,7 +145,7 @@ func (r *TxListCommandRunner) getTransactionType(txID int64) (string, error) {
 		return "", err
 	}
 
-	txType, err := r.svc.Transaction.DetectTransactionType(detail.Splits)
+	txType, err := r.svc.Transaction.DetermineType(detail.Splits)
 	if err != nil {
 		return "", err
 	}
@@ -160,7 +160,7 @@ func (r *TxListCommandRunner) getTransactionAccount(txID int64, txType string) (
 		return "", err
 	}
 
-	txAccount, err := r.svc.Transaction.DetectTransactionAccount(detail.Splits, txType)
+	txAccount, err := r.svc.Transaction.GetDisplayAccount(detail.Splits, txType)
 	if err != nil {
 		return "", err
 	}

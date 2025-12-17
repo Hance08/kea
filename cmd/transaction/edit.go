@@ -186,7 +186,7 @@ func (r *EditCommandRunner) editAccount(detail *service.TransactionDetail) error
 	}
 
 	// Detect transaction type and check if editing is allowed
-	txType, err := r.svc.Transaction.DetectTransactionType(detail.Splits)
+	txType, err := r.svc.Transaction.DetermineType(detail.Splits)
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (r *EditCommandRunner) editAccount(detail *service.TransactionDetail) error
 		return fmt.Errorf("failed to get current account details: %w", err)
 	}
 
-	filteredAccounts := r.svc.Transaction.GetEligibleAccountsForEdit(
+	filteredAccounts := r.svc.Transaction.GetAllowedAccounts(
 		txType,
 		currentAccount.Type,
 		accounts,

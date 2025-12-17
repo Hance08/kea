@@ -432,7 +432,7 @@ func changeAccount(detail *accounting.TransactionDetail) error {
 	}
 
 	// Detect transaction type and check if editing is allowed
-	txType, err := detectTransactionType(detail)
+	txType, err := DetermineType(detail)
 	if err != nil {
 		return err
 	}
@@ -531,8 +531,8 @@ func changeAccount(detail *accounting.TransactionDetail) error {
 	return nil
 }
 
-// detectTransactionType determines the type of transaction based on account types
-func detectTransactionType(detail *accounting.TransactionDetail) (string, error) {
+// DetermineType determines the type of transaction based on account types
+func DetermineType(detail *accounting.TransactionDetail) (string, error) {
 	if len(detail.Splits) != 2 {
 		return "Complex", nil
 	}

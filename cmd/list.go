@@ -145,44 +145,12 @@ func (r *ListCommandRunner) getTransactionType(txID int64) (string, error) {
 		return "", err
 	}
 
-	if len(detail.Splits) == 0 {
-		return "Other", nil
+	txType, err := r.svc.Transaction.DetectTransactionType(detail.Splits)
+	if err != nil {
+		return "", err
 	}
 
-	// Get account types for all splits
-	accountTypes := make(map[string]bool)
-	isOpening := false
-	for _, split := range detail.Splits {
-		// Get account by ID to find its type
-		account, err := r.svc.Account.GetAccountByName(split.AccountName)
-		if err == nil {
-			accountTypes[account.Type] = true
-		}
-		if account.Description == "Opening Balances (System Account)" {
-			isOpening = true
-		}
-	}
-
-	// Determine transaction type based on account types
-	hasExpense := accountTypes["E"]
-	hasRevenue := accountTypes["R"]
-	hasAsset := accountTypes["A"]
-	hasLiability := accountTypes["L"]
-
-	if isOpening {
-		return "Opening", nil
-	}
-	if hasExpense && (hasAsset || hasLiability) {
-		return "Expense", nil
-	}
-	if hasRevenue && hasAsset {
-		return "Income", nil
-	}
-	if (hasAsset || hasLiability) && !hasExpense && !hasRevenue && !isOpening {
-		return "Transfer", nil
-	}
-
-	return "Other", nil
+	return string(txType), nil
 }
 
 // getTransactionAccount returns the relevant account name based on transaction type

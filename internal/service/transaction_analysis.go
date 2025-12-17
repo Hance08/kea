@@ -16,49 +16,65 @@ const (
 )
 
 func (s *TransactionService) DetectTransactionType(splits []SplitDetail) (TransactionType, error) {
-	if len(splits) != 2 {
+	// Fallback for empty splits
+	if len(splits) == 0 {
 		return TxTypeOther, nil
 	}
 
-	acc1, err := s.repo.GetAccountByID(splits[0].AccountID)
-	if err != nil {
-		return TxTypeOther, err
-	}
-	acc2, err := s.repo.GetAccountByID(splits[1].AccountID)
-	if err != nil {
-		return TxTypeOther, err
+	// Collect account types for all splits
+	accountTypes := make([]string, 0, len(splits))
+	accountNames := make([]string, 0, len(splits))
+
+	for _, split := range splits {
+		acc, err := s.repo.GetAccountByID(split.AccountID)
+		if err != nil {
+			return TxTypeOther, err
+		}
+		accountTypes = append(accountTypes, acc.Type)
+		accountNames = append(accountNames, acc.Name)
 	}
 
-	type1 := acc1.Type
-	type2 := acc2.Type
-	name1 := acc1.Name
-	name2 := acc2.Name
+	// Opening check: any equity split with system opening balance account
+	isOpening := false
+	for i, t := range accountTypes {
+		if t == constants.TypeEquity && accountNames[i] == constants.SystemAccountOpeningBalance {
+			isOpening = true
+			break
+		}
+	}
+	if isOpening {
+		return TxTypeOpening, nil
+	}
 
-	if type1 == constants.TypeEquity || type2 == constants.TypeEquity {
-		if name1 == constants.SystemAccountOpeningBalance || name2 == constants.SystemAccountOpeningBalance {
-			return TxTypeOpening, nil
+	var (
+		hasExpense     bool
+		hasRevenue     bool
+		assetOrLiabCnt int
+	)
+
+	for _, t := range accountTypes {
+		switch t {
+		case "E":
+			hasExpense = true
+		case "R":
+			hasRevenue = true
+		case "A", "L":
+			assetOrLiabCnt++
 		}
 	}
 
-	isAssetOrLiab1 := type1 == "A" || type1 == "L"
-	isAssetOrLiab2 := type2 == "A" || type2 == "L"
-
-	if isAssetOrLiab1 && type2 == "E" {
-		return TxTypeExpense, nil
-	}
-	if type1 == "E" && isAssetOrLiab2 {
-		return TxTypeExpense, nil
-	}
-
-	if type1 == "R" && isAssetOrLiab2 {
-		return TxTypeIncome, nil
-	}
-	if isAssetOrLiab1 && type2 == "R" {
-		return TxTypeIncome, nil
-	}
-
-	if isAssetOrLiab1 && isAssetOrLiab2 {
+	// Prioritize transfer when there are two or more asset/liability legs,
+	// even if there are extra expense/revenue splits (e.g., fees).
+	if assetOrLiabCnt >= 2 {
 		return TxTypeTransfer, nil
+	}
+
+	if hasExpense && assetOrLiabCnt >= 1 {
+		return TxTypeExpense, nil
+	}
+
+	if hasRevenue && assetOrLiabCnt >= 1 {
+		return TxTypeIncome, nil
 	}
 
 	return TxTypeOther, nil

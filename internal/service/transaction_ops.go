@@ -8,7 +8,7 @@ import (
 )
 
 func (ts *TransactionService) CreateOpeningBalance(account *store.Account, amountInCents int64) error {
-	currency := ts.config.DefaultCurrency
+	currency := ts.config.Defaults.Currency
 
 	if amountInCents == 0 {
 		return nil
@@ -67,7 +67,7 @@ func (ts *TransactionService) CreateOpeningBalance(account *store.Account, amoun
 // 2. Splits balance to zero (double-entry bookkeeping)
 // 3. At least 2 splits are provided
 func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, error) {
-	defaultCurrency := ts.config.DefaultCurrency
+	defaultCurrency := ts.config.Defaults.Currency
 	// Validate: at least 2 splits required
 	if len(input.Splits) < 2 {
 		return 0, fmt.Errorf("transaction must have at least 2 splits (got %d)", len(input.Splits))

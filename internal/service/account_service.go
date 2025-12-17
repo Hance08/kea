@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/store"
 )
 
 type AccountService struct {
 	repo   store.AccountRepository
-	config Config
+	config *config.Config
 }
 
-func NewAccountService(repo store.AccountRepository, cfg Config) *AccountService {
+func NewAccountService(repo store.AccountRepository, cfg *config.Config) *AccountService {
 	return &AccountService{repo: repo, config: cfg}
 }
 

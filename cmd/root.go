@@ -54,7 +54,8 @@ func Execute(migrations fs.FS) {
 
 	rootCmd.AddCommand(NewAddCmd(application.Service))
 	rootCmd.AddCommand(NewInfoCmd())
-	rootCmd.AddCommand(NewListCmd(application.Service))
+	rootCmd.AddCommand(NewAccListCmd(application.Service))
+	rootCmd.AddCommand(NewTxListCmd(application.Service))
 	rootCmd.AddCommand(NewReportCmd())
 
 	rootCmd.SilenceErrors = true

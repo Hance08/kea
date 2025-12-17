@@ -7,6 +7,60 @@ import (
 	"github.com/hance08/kea/internal/store"
 )
 
+func (ts *TransactionService) CreateOpeningBalance(account *store.Account, amountInCents int64) error {
+	currency := ts.config.DefaultCurrency
+
+	if amountInCents == 0 {
+		return nil
+	}
+
+	openingBalanceAccount, err := ts.repo.GetAccountByName("Equity:OpeningBalances")
+	if err != nil {
+		return fmt.Errorf("error : can not find 'Equity:OpeningBalances' account, failed to set initial balance")
+	}
+
+	var balanceAmount int64
+	var equityAmount int64
+
+	switch account.Type {
+	case "A":
+		balanceAmount = amountInCents
+		equityAmount = -amountInCents
+	case "L":
+		balanceAmount = -amountInCents
+		equityAmount = amountInCents
+	default:
+		return fmt.Errorf("only Assets(A) and Liabilities(L) account can set balance")
+	}
+
+	tx := store.Transaction{
+		Timestamp:   time.Now().Unix(),
+		Description: "Opening Balance",
+		Status:      1,
+	}
+
+	splits := []store.Split{
+		{
+			AccountID: account.ID,
+			Amount:    balanceAmount,
+			Currency:  currency,
+			Memo:      "Opening Balance",
+		},
+		{
+			AccountID: openingBalanceAccount.ID,
+			Amount:    equityAmount,
+			Currency:  currency,
+			Memo:      "Opening Balance",
+		},
+	}
+
+	return ts.repo.ExecTx(func(repo store.Repository) error {
+		_, err = ts.repo.CreateTransactionWithSplits(tx, splits)
+		return err
+	})
+
+}
+
 // CreateTransaction creates a new transaction with validation
 // It validates that:
 // 1. All accounts exist

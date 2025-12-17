@@ -12,6 +12,7 @@ const (
 const (
 	SystemAccountOpeningBalance = "Equity:OpeningBalances"
 	TypeEquity                  = "C"
+	OpeningAccountMemo          = "Opening Balance"
 )
 
 var ReservedNames = map[string]bool{

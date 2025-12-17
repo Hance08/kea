@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hance08/kea/internal/currency"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/ui/views"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -121,7 +121,7 @@ func (r *AddCommandRunner) flagsMode() (service.TransactionInput, error) {
 	}
 
 	// Parse amount
-	amountCents, err := currency.ParseToCents(r.flags.Amount)
+	amountCents, err := utils.ParseToCents(r.flags.Amount)
 	if err != nil {
 		return input, fmt.Errorf("invalid amount: %w", err)
 	}
@@ -221,7 +221,7 @@ func (r *AddCommandRunner) interactiveMode() (service.TransactionInput, error) {
 		return input, fmt.Errorf("amount is required")
 	}
 
-	amountCents, err := currency.ParseToCents(amountStr)
+	amountCents, err := utils.ParseToCents(amountStr)
 	if err != nil {
 		return input, fmt.Errorf("invalid amount format: %w", err)
 	}

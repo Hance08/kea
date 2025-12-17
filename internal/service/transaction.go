@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hance08/kea/internal/currency"
 	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/utils"
 )
 
 // TransactionSplitInput represents a split entry with account name instead of ID
@@ -350,7 +350,7 @@ func (ts *TransactionService) ValidateTransactionEdit(splits []TransactionSplitI
 		total += split.Amount
 	}
 	if total != 0 {
-		return fmt.Errorf("splits do not balance (sum: %s)", currency.FormatFromCents(total))
+		return fmt.Errorf("splits do not balance (sum: %s)", utils.FormatFromCents(total))
 	}
 
 	// Validate accounts exist

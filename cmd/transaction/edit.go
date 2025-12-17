@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hance08/kea/internal/currency"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/ui/views"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -210,7 +210,7 @@ func (r *EditCommandRunner) editAccount(detail *service.TransactionDetail) error
 	roleLabels := views.GetSplitRoleLabels(detail.Splits, txType)
 
 	for i, split := range detail.Splits {
-		amount := currency.FormatFromCents(split.Amount)
+		amount := utils.FormatFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = ""
@@ -309,7 +309,7 @@ func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error 
 	if currentAmount < 0 {
 		currentAmount = -currentAmount
 	}
-	currentAmountStr := currency.FormatFromCents(currentAmount)
+	currentAmountStr := utils.FormatFromCents(currentAmount)
 
 	pterm.DefaultSection.Printf("Current amount: %s %s", currentAmountStr, detail.Splits[0].Currency)
 	tableData := pterm.TableData{
@@ -318,11 +318,11 @@ func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error 
 
 	var balance int64
 	for i, split := range detail.Splits {
-		amount := currency.FormatFromCents(split.Amount)
+		amount := utils.FormatFromCents(split.Amount)
 		sign := "+"
 		if split.Amount < 0 {
 			sign = "-"
-			amount = currency.FormatFromCents(-split.Amount)
+			amount = utils.FormatFromCents(-split.Amount)
 		}
 		memo := split.Memo
 		if memo == "" {
@@ -345,7 +345,7 @@ func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error 
 		return err
 	}
 
-	newAmount, err := currency.ParseToCents(newAmountStr)
+	newAmount, err := utils.ParseToCents(newAmountStr)
 	if err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error 
 	}
 
 	pterm.Success.Printf("Amount changed to: %s %s\n",
-		currency.FormatFromCents(newAmount),
+		utils.FormatFromCents(newAmount),
 		detail.Splits[0].Currency)
 	ui.Separator()
 	return nil
@@ -447,7 +447,7 @@ func (r *EditCommandRunner) addSplit(detail *service.TransactionDetail) error {
 		return err
 	}
 
-	amount, err := currency.ParseToCents(amountStr)
+	amount, err := utils.ParseToCents(amountStr)
 	if err != nil {
 		return err
 	}
@@ -482,7 +482,7 @@ func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) erro
 	// Select split to edit
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := currency.FormatFromCents(split.Amount)
+		amount := utils.FormatFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 
@@ -528,13 +528,13 @@ func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) erro
 	}
 
 	// Edit amount
-	currentAmount := currency.FormatFromCents(split.Amount)
+	currentAmount := utils.FormatFromCents(split.Amount)
 	amountStr, err := prompts.PromptInput("Amount:", currentAmount, nil)
 	if err != nil {
 		return err
 	}
 
-	amount, err := currency.ParseToCents(amountStr)
+	amount, err := utils.ParseToCents(amountStr)
 	if err != nil {
 		return err
 	}
@@ -565,7 +565,7 @@ func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error
 	// Select split to delete
 	var splitOptions []string
 	for i, split := range detail.Splits {
-		amount := currency.FormatFromCents(split.Amount)
+		amount := utils.FormatFromCents(split.Amount)
 		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
 	}
 

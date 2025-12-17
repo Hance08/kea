@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hance08/kea/internal/currency"
 	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/pterm/pterm"
 )
 
@@ -32,7 +32,7 @@ func RenderTransactionDetail(detail *service.TransactionDetail) {
 	}
 
 	for _, split := range detail.Splits {
-		amountStr := currency.FormatFromCents(split.Amount)
+		amountStr := utils.FormatFromCents(split.Amount)
 		fullAmountStr := fmt.Sprintf("%s %s", amountStr, split.Currency)
 
 		typeStr := "Debit +"
@@ -40,7 +40,7 @@ func RenderTransactionDetail(detail *service.TransactionDetail) {
 			typeStr = "Credit -"
 
 			absAmount := -split.Amount
-			fullAmountStr = fmt.Sprintf("%s %s", currency.FormatFromCents(absAmount), split.Currency)
+			fullAmountStr = fmt.Sprintf("%s %s", utils.FormatFromCents(absAmount), split.Currency)
 		}
 
 		accountName := split.AccountName

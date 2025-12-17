@@ -14,18 +14,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type listFlags struct {
+type txListFlags struct {
 	Account string
 	Limit   int
 }
 
-type ListCommandRunner struct {
+type TxListCommandRunner struct {
 	svc   *service.Service
-	flags *listFlags
+	flags *txListFlags
 }
 
-func NewListCmd(svc *service.Service) *cobra.Command {
-	flags := &listFlags{}
+func NewTxListCmd(svc *service.Service) *cobra.Command {
+	flags := &txListFlags{}
 
 	cmd := &cobra.Command{
 		Use:     "list",
@@ -36,7 +36,7 @@ func NewListCmd(svc *service.Service) *cobra.Command {
 This command displays a table of transactions with their details including
 date, type, account, description, amount, and status.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &ListCommandRunner{
+			runner := &TxListCommandRunner{
 				svc:   svc,
 				flags: flags,
 			}
@@ -50,7 +50,7 @@ date, type, account, description, amount, and status.`,
 	return cmd
 }
 
-func (r *ListCommandRunner) Run() error {
+func (r *TxListCommandRunner) Run() error {
 	var transactions []*store.Transaction
 	var err error
 
@@ -111,7 +111,7 @@ func (r *ListCommandRunner) Run() error {
 }
 
 // getTransactionAmount retrieves the main amount of a transaction (largest positive split)
-func (r *ListCommandRunner) getTransactionAmount(txID int64) (string, error) {
+func (r *TxListCommandRunner) getTransactionAmount(txID int64) (string, error) {
 	detail, err := r.svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
@@ -139,7 +139,7 @@ func (r *ListCommandRunner) getTransactionAmount(txID int64) (string, error) {
 
 // getTransactionType determines the type of transaction based on account types involved
 // Returns: "Expense", "Income", "Transfer", or "Other"
-func (r *ListCommandRunner) getTransactionType(txID int64) (string, error) {
+func (r *TxListCommandRunner) getTransactionType(txID int64) (string, error) {
 	detail, err := r.svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		return "", err
@@ -154,7 +154,7 @@ func (r *ListCommandRunner) getTransactionType(txID int64) (string, error) {
 }
 
 // getTransactionAccount returns the relevant account name based on transaction type
-func (r *ListCommandRunner) getTransactionAccount(txID int64, transType string) (string, error) {
+func (r *TxListCommandRunner) getTransactionAccount(txID int64, transType string) (string, error) {
 	detail, err := r.svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		return "", err

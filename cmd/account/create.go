@@ -222,7 +222,7 @@ func (r *CreateCommandRunner) interactiveMode() error {
 		if err != nil {
 			return err
 		}
-		r.setBalance(balance)
+		r.CreateOpeningBalance(balance)
 	}
 
 	// Step 6: Description setting
@@ -305,7 +305,7 @@ func (r *CreateCommandRunner) setCurrency(currency string) {
 	r.currency = currency
 }
 
-func (r *CreateCommandRunner) setBalance(balance int64) {
+func (r *CreateCommandRunner) CreateOpeningBalance(balance int64) {
 	r.balance = balance
 }
 
@@ -321,7 +321,7 @@ func (r *CreateCommandRunner) Save() (*store.Account, error) {
 	}
 
 	if r.balance != 0 {
-		err = r.svc.Account.SetBalance(newAccount, r.balance)
+		err = r.svc.Transaction.CreateOpeningBalance(newAccount, r.balance)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set balance: %w", err)
 		}

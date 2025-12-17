@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
-	"github.com/spf13/viper"
 )
 
 // app is a container that has all dependencies
@@ -18,8 +18,8 @@ type App struct {
 }
 
 // NewApp initialize config, database and core logic, then return App entity
-func NewApp(migrationFS fs.FS) (*App, func(), error) {
-	dbPathRaw := viper.GetString("database.path")
+func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
+	dbPathRaw := cfg.Database.Path
 
 	if dbPathRaw == "" {
 		appDir, _ := getAppDataDir()
@@ -31,13 +31,7 @@ func NewApp(migrationFS fs.FS) (*App, func(), error) {
 		return nil, nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	currency := viper.GetString("defaults.currency")
-	if currency == "" {
-		currency = "USD"
-	}
-
-	svcConfig := service.Config{DefaultCurrency: currency}
-	svc := service.NewService(dbStore, svcConfig)
+	svc := service.NewService(dbStore, cfg)
 
 	cleanup := func() {
 		if err := dbStore.Close(); err != nil {

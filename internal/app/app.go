@@ -11,7 +11,6 @@ import (
 	"github.com/hance08/kea/internal/store"
 )
 
-// app is a container that has all dependencies
 type App struct {
 	Service *service.Service
 	Store   store.Repository

@@ -113,12 +113,12 @@ func initConfig() error {
 	}
 
 	if err := createDefaultConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to ensure config file: %v\n", err)
+		return fmt.Errorf("failed to ensure config file: %w", err)
 	}
 
 	viper.SetEnvPrefix("KEA")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.AutomaticEnv() // allow using environment varibles to override
+	viper.AutomaticEnv() // allow using environment variables to override
 
 	if err := viper.ReadInConfig(); err != nil {
 

@@ -1,6 +1,5 @@
 package store
 
-// Account Operations
 type AccountRepository interface {
 	CreateAccount(name, accType, currency, description string, parentID *int64) (int64, error)
 	GetAllAccounts() ([]*Account, error)
@@ -11,7 +10,6 @@ type AccountRepository interface {
 	GetAccountBalance(accountID int64) (int64, error)
 }
 
-// Transaction Operations & Split Operations
 type TransactionRepository interface {
 	CreateTransactionWithSplits(tx Transaction, splits []Split) (int64, error)
 	GetTransactionByID(txID int64) (*Transaction, []*Split, error)

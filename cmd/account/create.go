@@ -1,10 +1,7 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
-// TODO: add back to previous step command
 package account
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"

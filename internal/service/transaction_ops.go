@@ -89,7 +89,7 @@ func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 
-		// Use account'ts currency if available, otherwise use default
+		// Use account's currency if available, otherwise use default
 		splitCurrency := currency
 		if account.Currency != "" {
 			splitCurrency = account.Currency

@@ -84,15 +84,19 @@ func (r *CreateCommandRunner) Run(flags *createFlags, cmd *cobra.Command) error 
 	if hasFlags {
 		err := r.flagsMode(flags)
 		if err != nil {
-			return err
+			if errors.Is(err, store.ErrAccountExists) {
+				pterm.Error.Println("Account already exists")
+			} else {
+				return err
+			}
 		}
+		return nil
 	}
 
 	err := r.interactiveMode()
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

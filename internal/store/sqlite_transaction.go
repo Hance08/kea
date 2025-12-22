@@ -125,19 +125,11 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*Transac
 	if err != nil {
 		return nil, fmt.Errorf("failed to query transactions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	var transactions []*Transaction
-	for rows.Next() {
-		tx := &Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan transaction: %w", err)
-		}
-		transactions = append(transactions, tx)
-	}
-
-	return transactions, rows.Err()
+	return s.scanTransactions(rows)
 }
 
 func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transaction, error) {
@@ -150,19 +142,11 @@ func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transac
 	if err != nil {
 		return nil, fmt.Errorf("failed to query transactions by date range: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	var transactions []*Transaction
-	for rows.Next() {
-		tx := &Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan transaction: %w", err)
-		}
-		transactions = append(transactions, tx)
-	}
-
-	return transactions, rows.Err()
+	return s.scanTransactions(rows)
 }
 
 func (s *Store) GetAllTransactions(limit int) ([]*Transaction, error) {
@@ -179,19 +163,11 @@ func (s *Store) GetAllTransactions(limit int) ([]*Transaction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query transactions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	var transactions []*Transaction
-	for rows.Next() {
-		tx := &Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan transaction: %w", err)
-		}
-		transactions = append(transactions, tx)
-	}
-
-	return transactions, rows.Err()
+	return s.scanTransactions(rows)
 }
 
 func (s *Store) UpdateTransactionStatus(txID int64, status int) error {
@@ -351,4 +327,22 @@ func (s *Store) GetSplitsByTransaction(txID int64) ([]*Split, error) {
 	}
 
 	return splits, rows.Err()
+}
+
+func (s *Store) scanTransactions(rows *sql.Rows) ([]*Transaction, error) {
+	var transactions []*Transaction
+	for rows.Next() {
+		tx := &Transaction{}
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan transaction: %w", err)
+		}
+		transactions = append(transactions, tx)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return transactions, nil
 }

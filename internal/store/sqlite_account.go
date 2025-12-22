@@ -172,23 +172,9 @@ func (s *Store) scanAccounts(rows *sql.Rows) ([]*Account, error) {
 		accounts = append(accounts, acc)
 	}
 
-	return accounts, rows.Err()
-}
-
-func (s *Store) GetAccountBalance(accountID int64) (int64, error) {
-	var balance sql.NullInt64
-	err := s.db.QueryRow(`
-        SELECT SUM(amount)
-        FROM splits
-        WHERE account_id = ?
-    `, accountID).Scan(&balance)
-
-	if err != nil {
-		return 0, fmt.Errorf("failed to calculate balance: %w", err)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
-	if balance.Valid {
-		return balance.Int64, nil
-	}
-	return 0, nil
+	return accounts, nil
 }

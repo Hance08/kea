@@ -21,7 +21,7 @@ type createFlags struct {
 	Name        string
 	Type        string
 	Parent      string
-	Balance     int
+	BalanceStr  string
 	Currency    string
 	Description string
 }
@@ -67,7 +67,7 @@ Example: kea account create -t A -n Bank -b 100000`,
 	cmd.Flags().StringVarP(&flags.Name, "name", "n", "", "Account name")
 	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Account type: A, L, R, E, C")
 	cmd.Flags().StringVarP(&flags.Parent, "parent", "p", "", "Parent account full name")
-	cmd.Flags().IntVarP(&flags.Balance, "balance", "b", 0, "Initial balance")
+	cmd.Flags().StringVarP(&flags.BalanceStr, "balance", "b", "0", "Initial balance")
 	cmd.Flags().StringVar(&flags.Currency, "currency", "", "Currency code")
 	cmd.Flags().StringVarP(&flags.Description, "description", "d", "", "Account description")
 

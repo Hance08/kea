@@ -44,7 +44,7 @@ type CreateCommandRunner struct {
 
 func NewCreateCmd(svc *service.Service) *cobra.Command {
 	flags := &createFlags{}
-	validator := validation.NewAccountValidator(svc.Account)
+	validator := validation.NewAccountValidator()
 
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -376,7 +376,28 @@ func (r *CreateCommandRunner) runSelectParentStep() (*store.Account, error) {
 }
 
 func (r *CreateCommandRunner) runNameStep(prefix string) (string, error) {
-	return prompts.PromptAccountName(r.validator.ValidateAccountNameWithPrefix(prefix))
+	surveyValidator := func(val interface{}) error {
+		inputStr, ok := val.(string)
+		if !ok {
+			return fmt.Errorf("invalid type")
+		}
+
+		if err := r.validator.ValidateAccountName(inputStr); err != nil {
+			return err
+		}
+
+		fullName := prefix + ":" + inputStr
+
+		exists, err := r.svc.Account.CheckAccountExists(fullName)
+		if err != nil {
+			return fmt.Errorf("failed to validate: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("account '%s' already exists", fullName)
+		}
+		return nil
+	}
+	return prompts.PromptAccountName(surveyValidator)
 }
 
 func (r *CreateCommandRunner) runCurrencyStep() (string, error) {

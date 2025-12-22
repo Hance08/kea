@@ -12,7 +12,9 @@ import (
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/ui/views"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/hance08/kea/internal/validation"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -129,13 +131,12 @@ func (r *CreateCommandRunner) flagsMode(flags *createFlags) error {
 	}
 
 	// Handle balance
-	if flags.Balance != 0 {
-		if flags.Balance < 0 {
-			return fmt.Errorf("initial balance can't be negative")
-		}
-		balanceFloat := float64(flags.Balance)
-		r.balance = int64(math.Round(balanceFloat * constants.CentsPerUnit))
+	balance, err := utils.ParseToCents(flags.BalanceStr)
+	if err != nil {
+		return fmt.Errorf("invalid balance format '%s': please enter a number (e.g. 100 or 100.50)", flags.BalanceStr)
 	}
+
+	r.balance = balance
 
 	// Save account
 	newAccount, err := r.Save()
@@ -143,13 +144,18 @@ func (r *CreateCommandRunner) flagsMode(flags *createFlags) error {
 		return err
 	}
 
-	views.RenderAccountSummary(views.AccountSummaryItem{
+	if err := views.RenderAccountSummary(views.AccountSummaryItem{
 		FullName:    r.fullName,
 		Type:        r.accountType,
 		Currency:    r.currency,
 		Balance:     r.balance,
-		Description: r.description})
-	views.RenderAccountSuccess(newAccount.ID, r.fullName)
+		Description: r.description}); err != nil {
+		return err
+	}
+
+	if err := views.RenderAccountSuccess(newAccount.ID, r.fullName); err != nil {
+		return err
+	}
 	return nil
 }
 

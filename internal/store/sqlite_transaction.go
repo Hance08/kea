@@ -27,7 +27,7 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int
 	if err != nil {
 		var sqliteErr sqlite.Error
 		if errors.As(err, &sqliteErr) {
-			if sqliteErr.Code == sqlite.ErrConstraint || sqliteErr.ExtendedCode == sqlite.ErrConstraintUnique {
+			if errors.Is(sqliteErr.Code, sqlite.ErrConstraint) || errors.Is(sqliteErr.ExtendedCode, sqlite.ErrConstraintUnique) {
 				return 0, fmt.Errorf("transaction already exists (duplicate external_id)")
 			}
 		}

@@ -1,23 +1,22 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/hance08/kea/cmd/account"
 	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/constants"
-	"github.com/hance08/kea/internal/errhandler"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui/prompts"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -28,25 +27,34 @@ var (
 )
 
 func Execute(migrations fs.FS) {
-	initConfig()
+	pterm.Error.Prefix = pterm.Prefix{
+		Text:  " ERROR ",
+		Style: pterm.NewStyle(pterm.BgLightRed, pterm.FgBlack),
+	}
+
+	if err := initConfig(); err != nil {
+		pterm.Error.Println(err)
+		os.Exit(1)
+	}
 
 	application, cleanup, err := app.NewApp(cfg, migrations)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error initializing app: %v\n", err)
+		pterm.Error.Println(err)
 		os.Exit(1)
 	}
 
 	defer cleanup()
 
 	if err := initSysAcc(application.Service); err != nil {
-		errhandler.HandleError(err)
+		pterm.Error.Println(err)
 		os.Exit(1)
 	}
 
 	rootCmd := &cobra.Command{
-		Use:   "kea",
-		Short: "kea is a CLI/TUI based personal accounting tool",
-		Long:  `kea is a CLI/TUI based personal accounting tool`,
+		Use:           "kea",
+		Short:         "kea is a CLI/TUI based personal accounting tool",
+		Long:          `kea is a CLI/TUI based personal accounting tool`,
+		SilenceErrors: true,
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
@@ -62,7 +70,10 @@ func Execute(migrations fs.FS) {
 
 	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {
-		errhandler.HandleError(err)
+		errMsg := err.Error()
+		displayMsg := capitalize(errMsg)
+
+		pterm.Error.Println(displayMsg)
 		os.Exit(1)
 	}
 }
@@ -82,6 +93,7 @@ func initSysAcc(svc *service.Service) error {
 		if err != nil {
 			return err
 		}
+		cfg.Defaults.Currency = currency
 	}
 
 	_, err = svc.Account.CreateAccount(
@@ -104,7 +116,7 @@ func initConfig() error {
 	} else {
 		appDir, err := getAppDataDir()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error getting app dir:", err)
+			return fmt.Errorf("error getting app dir: %w", err)
 		}
 
 		viper.AddConfigPath(appDir)
@@ -126,7 +138,7 @@ func initConfig() error {
 			return fmt.Errorf("failed to read config file: %w", err)
 		}
 
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+		if !errors.As(err, &viper.ConfigFileNotFoundError{}) {
 			return fmt.Errorf("config file error: %w", err)
 		}
 	}
@@ -155,10 +167,10 @@ func initWizard() (string, error) {
 	viper.Set("defaults.currency", currency)
 
 	if err := viper.WriteConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to save config to file: %v\n", err)
-	} else {
-		fmt.Printf("✔ Configuration saved. Default currency set to: %s\n", currency)
+		return "", fmt.Errorf("failed to save config to file: %w", err)
 	}
+
+	pterm.Success.Printf("Configuration saved. Default currency set to: %s\n", currency)
 
 	return currency, nil
 }
@@ -213,4 +225,13 @@ func createDefaultConfig() error {
 	}
 
 	return nil
+}
+
+func capitalize(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }

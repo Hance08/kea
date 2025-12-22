@@ -238,12 +238,14 @@ func (r *CreateCommandRunner) interactiveMode() error {
 	}
 
 	r.setDescription(desc)
-	views.RenderAccountSummary(views.AccountSummaryItem{
+	if err := views.RenderAccountSummary(views.AccountSummaryItem{
 		FullName:    r.fullName,
 		Type:        r.accountType,
 		Currency:    r.currency,
 		Balance:     r.balance,
-		Description: r.description})
+		Description: r.description}); err != nil {
+		return err
+	}
 
 	// Confirm proceed with creation
 	if err := confirmProceed(); err != nil {
@@ -256,7 +258,9 @@ func (r *CreateCommandRunner) interactiveMode() error {
 		return err
 	}
 
-	views.RenderAccountSuccess(newAccount.ID, r.fullName)
+	if err := views.RenderAccountSuccess(newAccount.ID, r.fullName); err != nil {
+		return err
+	}
 	return nil
 }
 

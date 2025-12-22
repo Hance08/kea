@@ -8,7 +8,7 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func RenderTransactionSummary(input service.TransactionInput) {
+func RenderTransactionSummary(input service.TransactionInput) error {
 	pterm.DefaultSection.Println("Transaction Summary")
 
 	date := time.Unix(input.Timestamp, 0).Format("2006-01-02")
@@ -25,7 +25,9 @@ func RenderTransactionSummary(input service.TransactionInput) {
 		{"Status", status},
 	}
 
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	if err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render(); err != nil {
+		return err
+	}
 
 	pterm.DefaultSection.Println("Splits (Double-Entry)")
 
@@ -46,11 +48,15 @@ func RenderTransactionSummary(input service.TransactionInput) {
 		total += split.Amount
 	}
 
-	pterm.DefaultTable.WithHasHeader().WithData(splitsData).Render()
+	if err := pterm.DefaultTable.WithHasHeader().WithData(splitsData).Render(); err != nil {
+		return err
+	}
 
 	if total == 0 {
 		pterm.Success.Println("✓ Splits balance verified (total = 0)")
 	} else {
 		pterm.Warning.Printf("⚠ Warning: Splits do not balance (total = %d)\n", total)
 	}
+
+	return nil
 }

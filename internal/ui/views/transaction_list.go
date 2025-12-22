@@ -22,10 +22,10 @@ func NewTransactionListView() *TransactionListView {
 	return &TransactionListView{}
 }
 
-func (v *TransactionListView) Render(items []TransactionListItem, limit int) {
+func (v *TransactionListView) Render(items []TransactionListItem, limit int) error {
 	if len(items) == 0 {
 		pterm.Warning.Println("No transactions found")
-		return
+		return nil
 	}
 
 	pterm.DefaultSection.Printf("Showing recent transactions (limit: %d)", limit)
@@ -67,6 +67,9 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) {
 		})
 	}
 
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	if err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render(); err != nil {
+		return err
+	}
 	pterm.Info.Printf("Total: %d transactions\n", len(items))
+	return nil
 }

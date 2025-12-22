@@ -9,7 +9,7 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func RenderTransactionDetail(detail *service.TransactionDetail) {
+func RenderTransactionDetail(detail *service.TransactionDetail) error {
 	date := time.Unix(detail.Timestamp, 0).Format("2005-01-02")
 	status := "Pending"
 	if detail.Status == 1 {
@@ -24,7 +24,9 @@ func RenderTransactionDetail(detail *service.TransactionDetail) {
 		{"Description", detail.Description},
 		{"Status", status},
 	}
-	pterm.DefaultTable.WithHasHeader().WithData(infoData).Render()
+	if err := pterm.DefaultTable.WithHasHeader().WithData(infoData).Render(); err != nil {
+		return err
+	}
 
 	pterm.DefaultSection.Println("Splits (Double-Entry)")
 	splitsData := pterm.TableData{
@@ -61,5 +63,8 @@ func RenderTransactionDetail(detail *service.TransactionDetail) {
 		})
 	}
 
-	pterm.DefaultTable.WithHasHeader().WithData(splitsData).Render()
+	if err := pterm.DefaultTable.WithHasHeader().WithData(splitsData).Render(); err != nil {
+		return err
+	}
+	return nil
 }

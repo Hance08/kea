@@ -10,7 +10,7 @@ type SystemInfoItem struct {
 	AppDataDir      string
 }
 
-func RenderSystemInfo(data SystemInfoItem) {
+func RenderSystemInfo(data SystemInfoItem) error {
 	dbStatus := pterm.Green("Found")
 	if !data.DBExists {
 		dbStatus = pterm.Red("Not Found (Will be created)")
@@ -24,5 +24,5 @@ func RenderSystemInfo(data SystemInfoItem) {
 		{"AppData Directory", data.AppDataDir},
 	}
 
-	pterm.DefaultTable.WithData(tableData).Render()
+	return pterm.DefaultTable.WithData(tableData).Render()
 }

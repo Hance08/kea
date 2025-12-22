@@ -15,7 +15,7 @@ type TransactionDeletePreviewItem struct {
 	SplitCount  int
 }
 
-func RenderTransactionDeletePreview(data TransactionDeletePreviewItem) {
+func RenderTransactionDeletePreview(data TransactionDeletePreviewItem) error {
 	date := time.Unix(data.Timestamp, 0).Format("2006-01-02")
 
 	pterm.Warning.Printf("About to delete transaction #%d:\n", data.ID)
@@ -26,8 +26,11 @@ func RenderTransactionDeletePreview(data TransactionDeletePreviewItem) {
 		{"Splits", fmt.Sprint(data.SplitCount)},
 	}
 
-	pterm.DefaultTable.WithData(deletionInfo).Render()
+	if err := pterm.DefaultTable.WithData(deletionInfo).Render(); err != nil {
+		return err
+	}
 	pterm.Warning.Println("This action cannot be undone!")
+	return nil
 }
 
 func RenderTransactionDeleteSuccess(id int64) {

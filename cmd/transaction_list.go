@@ -102,7 +102,9 @@ func (r *TxListCommandRunner) Run() error {
 		})
 	}
 
-	views.NewTransactionListView().Render(viewItems, r.flags.Limit)
+	if err := views.NewTransactionListView().Render(viewItems, r.flags.Limit); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -15,7 +15,7 @@ type AccountSummaryItem struct {
 	Description string
 }
 
-func RenderAccountSummary(data AccountSummaryItem) {
+func RenderAccountSummary(data AccountSummaryItem) error {
 	ui.Separator()
 
 	balanceStr := fmt.Sprintf("%.2f", float64(data.Balance)/100)
@@ -33,10 +33,10 @@ func RenderAccountSummary(data AccountSummaryItem) {
 		{pterm.Blue("Description"), descStr},
 	}
 
-	pterm.DefaultTable.WithData(tableData).Render()
+	return pterm.DefaultTable.WithData(tableData).Render()
 }
 
-func RenderAccountSuccess(id int64, fullName string) {
+func RenderAccountSuccess(id int64, fullName string) error {
 	ui.Separator()
 
 	tableData := pterm.TableData{
@@ -44,6 +44,11 @@ func RenderAccountSuccess(id int64, fullName string) {
 		{pterm.Blue("Full Name"), fullName},
 	}
 
-	pterm.DefaultTable.WithData(tableData).Render()
+	if err := pterm.DefaultTable.WithData(tableData).Render(); err != nil {
+		return err
+	}
+
 	pterm.Success.Print("Account created successfully!\n")
+
+	return nil
 }

@@ -13,7 +13,7 @@ func NewAccountListView() *AccountListView {
 	return &AccountListView{}
 }
 
-func (v *AccountListView) Render(accounts []*store.Account, balanceGetter func(int64) (string, error)) {
+func (v *AccountListView) Render(accounts []*store.Account, balanceGetter func(int64) (string, error)) error {
 	headers := []string{"Name", "Type", "Balance"}
 	tableData := pterm.TableData{headers}
 
@@ -44,6 +44,11 @@ func (v *AccountListView) Render(accounts []*store.Account, balanceGetter func(i
 	}
 
 	pterm.DefaultSection.Printf("Account List")
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	if err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render(); err != nil {
+		return err
+	}
+
 	pterm.Info.Printf("Total: %d accounts\n", len(accounts))
+
+	return nil
 }

@@ -40,12 +40,14 @@ func runTransactionDelete(svc *service.Service, args []string) error {
 		return nil
 	}
 
-	views.RenderTransactionDeletePreview(views.TransactionDeletePreviewItem{
+	if err := views.RenderTransactionDeletePreview(views.TransactionDeletePreviewItem{
 		ID:          detail.ID,
 		Timestamp:   detail.Timestamp,
 		Description: detail.Description,
 		SplitCount:  len(detail.Splits),
-	})
+	}); err != nil {
+		return err
+	}
 
 	var confirmation bool
 	confirmPrompt := &survey.Confirm{

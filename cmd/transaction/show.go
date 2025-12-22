@@ -39,6 +39,8 @@ func (r *ShowCommandRunner) Run(args []string) error {
 		return nil
 	}
 
-	views.RenderTransactionDetail(detail)
+	if err := views.RenderTransactionDetail(detail); err != nil {
+		return err
+	}
 	return nil
 }

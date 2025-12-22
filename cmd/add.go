@@ -99,7 +99,9 @@ func (r *AddCommandRunner) Run() error {
 	pterm.Success.Printf("Transaction created successfully! (ID: %d)\n", txID)
 
 	// Display transaction summary
-	views.RenderTransactionSummary(input)
+	if err := views.RenderTransactionSummary(input); err != nil {
+		return err
+	}
 
 	return nil
 }

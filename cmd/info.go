@@ -49,7 +49,9 @@ func (r *InfoCommandRunner) Run() error {
 		AppDataDir:      getAppDataDirOrPanic(),
 	}
 
-	views.RenderSystemInfo(items)
+	if err := views.RenderSystemInfo(items); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -62,7 +62,9 @@ func (r *AccListCommandRunner) Run() error {
 		accounts = filterHiddenAccounts(accounts)
 	}
 
-	views.NewAccountListView().Render(accounts, r.svc.Account.GetAccountBalanceFormatted)
+	if err := views.NewAccountListView().Render(accounts, r.svc.Account.GetAccountBalanceFormatted); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -53,7 +53,9 @@ func (r *EditCommandRunner) Run(args []string) error {
 
 	// Show current transaction info
 	pterm.DefaultSection.Printf("Editing Transaction #%d", txID)
-	views.RenderTransactionDetail(detail)
+	if err := views.RenderTransactionDetail(detail); err != nil {
+		return err
+	}
 
 	// Main edit menu
 	for {
@@ -337,7 +339,9 @@ func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error 
 		balance += split.Amount
 	}
 
-	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	if err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render(); err != nil {
+		return fmt.Errorf("failed to render table with data: %w", err)
+	}
 
 	// Input new amount
 	newAmountStr, err := prompts.PromptInput("Enter new amount (positive number):", currentAmountStr, nil)
@@ -374,7 +378,9 @@ func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error 
 func (r *EditCommandRunner) editSplits(detail *service.TransactionDetail) error {
 	for {
 		// Display current splits with balance
-		views.RenderTransactionDetail(detail)
+		if err := views.RenderTransactionDetail(detail); err != nil {
+			return err
+		}
 
 		options := []string{
 			"Add Split",

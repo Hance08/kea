@@ -37,7 +37,7 @@ func (r *InfoCommandRunner) Run() error {
 	expandedDBPath, _ := expandPath(rawDBPath)
 
 	dbExists := false
-	if _, err := os.Stat(expandedDBPath); os.IsNotExist(err) {
+	if _, err := os.Stat(expandedDBPath); err == nil {
 		dbExists = true
 	}
 

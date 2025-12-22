@@ -485,26 +485,10 @@ func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) erro
 		return fmt.Errorf("no splits to edit")
 	}
 
-	// Select split to edit
-	var splitOptions []string
-	for i, split := range detail.Splits {
-		amount := utils.FormatFromCents(split.Amount)
-		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
-	}
-
-	selectedSplit, err := prompts.PromptSelect(
-		"Select split to edit:",
-		splitOptions,
-		"",
-	)
+	splitIndex, err := r.selectSplit(detail, "Select split to edit")
 	if err != nil {
 		return err
 	}
-
-	// Find split index
-	var splitIndex int
-	fmt.Sscanf(selectedSplit, "#%d:", &splitIndex)
-	splitIndex-- // Convert to 0-based index
 
 	split := &detail.Splits[splitIndex]
 
@@ -568,26 +552,10 @@ func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error
 		return fmt.Errorf("cannot delete: transaction must have at least 2 splits")
 	}
 
-	// Select split to delete
-	var splitOptions []string
-	for i, split := range detail.Splits {
-		amount := utils.FormatFromCents(split.Amount)
-		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
-	}
-
-	selectedSplit, err := prompts.PromptSelect(
-		"Select split to edit:",
-		splitOptions,
-		"",
-	)
+	splitIndex, err := r.selectSplit(detail, "Select split to edit")
 	if err != nil {
 		return err
 	}
-
-	// Find split index
-	var splitIndex int
-	fmt.Sscanf(selectedSplit, "#%d:", &splitIndex)
-	splitIndex-- // Convert to 0-based index
 
 	// Confirm deletion
 	confirm, err := prompts.PromptConfirm(
@@ -620,4 +588,28 @@ func (r *EditCommandRunner) saveTransactionChanges(txID int64, detail *service.T
 		detail.Status,
 		splits,
 	)
+}
+
+func (r *EditCommandRunner) selectSplit(detail *service.TransactionDetail, promptMsg string) (int, error) {
+	var splitOptions []string
+	for i, split := range detail.Splits {
+		amount := utils.FormatFromCents(split.Amount)
+		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
+	}
+
+	selectedSplit, err := prompts.PromptSelect(
+		promptMsg,
+		splitOptions,
+		"",
+	)
+	if err != nil {
+		return -1, err
+	}
+
+	var splitIndex int
+	if _, err := fmt.Sscanf(selectedSplit, "#%d:", &splitIndex); err != nil {
+		return -1, fmt.Errorf("failed to parse split index: %w", err)
+	}
+
+	return splitIndex - 1, nil
 }

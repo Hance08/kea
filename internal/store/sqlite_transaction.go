@@ -19,7 +19,9 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int
 	if err != nil {
 		return 0, fmt.Errorf("failed to prepare transaction SQL: %w", err)
 	}
-	defer stmtTx.Close()
+	defer func() {
+		_ = stmtTx.Close()
+	}()
 
 	var newTxID int64
 	err = stmtTx.QueryRow(tx.Timestamp, tx.Description, tx.Status, tx.ExternalID).Scan(&newTxID)
@@ -41,7 +43,9 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int
 	if err != nil {
 		return 0, fmt.Errorf("failed to prepare split SQL: %w", err)
 	}
-	defer stmtSplit.Close()
+	defer func() {
+		_ = stmtSplit.Close()
+	}()
 
 	for _, split := range splits {
 		_, err := stmtSplit.Exec(newTxID, split.AccountID, split.Amount, split.Currency, split.Memo)
@@ -77,7 +81,9 @@ func (s *Store) GetTransactionByID(txID int64) (*Transaction, []*Split, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to query splits: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var splits []*Split
 	for rows.Next() {
@@ -323,7 +329,9 @@ func (s *Store) GetSplitsByTransaction(txID int64) ([]*Split, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query splits: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var splits []*Split
 	for rows.Next() {

@@ -17,7 +17,9 @@ func (s *Store) CreateAccount(name, accType, currency, description string, paren
 	if err != nil {
 		return 0, fmt.Errorf("failed to prepare SQL : %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		_ = stmt.Close()
+	}()
 
 	var newID int64
 
@@ -45,30 +47,11 @@ func (s *Store) GetAllAccounts() ([]*Account, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	var accounts []*Account
-	for rows.Next() {
-		acc := &Account{}
-		var parentID sql.NullInt64
-
-		err := rows.Scan(
-			&acc.ID, &acc.Name, &acc.Type,
-			&parentID, &acc.Currency, &acc.Description,
-			&acc.IsHidden,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan account: %w", err)
-		}
-
-		if parentID.Valid {
-			acc.ParentID = &parentID.Int64
-		}
-
-		accounts = append(accounts, acc)
-	}
-
-	return accounts, rows.Err()
+	return s.scanAccounts(rows)
 }
 
 func (s *Store) GetAccountByName(name string) (*Account, error) {
@@ -142,8 +125,32 @@ func (s *Store) GetAccountsByType(accType string) ([]*Account, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
+	return s.scanAccounts(rows)
+}
+
+func (s *Store) GetAccountBalance(accountID int64) (int64, error) {
+	var balance sql.NullInt64
+	err := s.db.QueryRow(`
+        SELECT SUM(amount)
+        FROM splits
+        WHERE account_id = ?
+    `, accountID).Scan(&balance)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate balance: %w", err)
+	}
+
+	if balance.Valid {
+		return balance.Int64, nil
+	}
+	return 0, nil
+}
+
+func (s *Store) scanAccounts(rows *sql.Rows) ([]*Account, error) {
 	var accounts []*Account
 	for rows.Next() {
 		acc := &Account{}

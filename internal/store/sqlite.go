@@ -32,6 +32,13 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 	}
 
 	db, err := sql.Open("sqlite3", dbPath+"?_foreign_keys=on")
+	success := false
+	defer func() {
+		if !success {
+			_ = db.Close()
+		}
+	}()
+
 	if err != nil {
 		return nil, fmt.Errorf("can not open database : %w", err)
 	}
@@ -42,6 +49,7 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 		return nil, fmt.Errorf("failed to migrate database : %w", err)
 	}
 
+	success = true
 	return &Store{db: db}, nil
 }
 
@@ -86,6 +94,10 @@ func runMigrations(db *sql.DB, migrationsFS fs.FS) error {
 		return fmt.Errorf("failed to create iofs source driver : %w", err)
 	}
 
+	defer func() {
+		_ = sourceDriver.Close()
+	}()
+	
 	m, err := migrate.NewWithInstance(
 		"iofs",
 		sourceDriver,

@@ -69,7 +69,6 @@ func runTransactionDelete(svc *service.Service, args []string) error {
 		return nil
 	}
 
-	pterm.Success.Printf("Transaction #%d deleted successfully\n", txID)
-	ui.Separator()
+	views.RenderTransactionDeleteSuccess(txID)
 	return nil
 }

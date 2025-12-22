@@ -66,9 +66,8 @@ func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionTy
 	if hasExpense && hasRevenue {
 		if totalRevenueAmount >= totalExpenseAmount {
 			return TxTypeIncome, nil
-		} else {
-			return TxTypeExpense, nil
 		}
+		return TxTypeExpense, nil
 	}
 	if hasExpense && assetOrLiabCnt >= 1 {
 		return TxTypeExpense, nil
@@ -81,10 +80,8 @@ func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionTy
 	if hasEquity && assetOrLiabCnt >= 1 {
 		if isAssetIncrease {
 			return TxTypeDeposit, nil
-		} else {
-			return TxTypeWithdrawal, nil
 		}
-
+		return TxTypeWithdrawal, nil
 	}
 
 	return TxTypeOther, nil

@@ -16,12 +16,11 @@ type AccountStore interface {
 
 // AccountValidator handles account validation store
 type AccountValidator struct {
-	store AccountStore
 }
 
 // NewAccountValidator creates a new account validator
-func NewAccountValidator(store AccountStore) *AccountValidator {
-	return &AccountValidator{store: store}
+func NewAccountValidator() *AccountValidator {
+	return &AccountValidator{}
 }
 
 // ValidateAccountName validates a basic account name (without checking existence)
@@ -66,14 +65,6 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(any
 			return fmt.Errorf("full account name too long")
 		}
 
-		exists, err := v.store.CheckAccountExists(fullName)
-		if err != nil {
-			return fmt.Errorf("failed to check account: %w", err)
-		}
-		if exists {
-			return fmt.Errorf("account '%s' already exists", fullName)
-		}
-
 		return nil
 	}
 }
@@ -82,14 +73,6 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(any
 func (v *AccountValidator) ValidateFullAccountName(fullName string) error {
 	if len(fullName) > constants.MaxNameLen {
 		return fmt.Errorf("account name too long (max %d characters)", constants.MaxNameLen)
-	}
-
-	exists, err := v.store.CheckAccountExists(fullName)
-	if err != nil {
-		return fmt.Errorf("failed to check account existence: %w", err)
-	}
-	if exists {
-		return fmt.Errorf("account '%s' already exists", fullName)
 	}
 
 	return nil

@@ -80,22 +80,15 @@ func (r *addRunner) Run() error {
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		input, err = r.flagsMode()
+		txID, input, err = r.flagsMode()
 	} else {
 		// Interactive mode
-		input, err = r.interactiveMode()
+		txID, input, err = r.interactiveMode()
 	}
 	if err != nil {
 		return err
 	}
 
-	// Create transaction
-	txID, err := r.svc.Transaction.CreateTransaction(input)
-	if err != nil {
-		return fmt.Errorf("failed to create transaction: %w", err)
-	}
-
-	// Success message
 	pterm.Success.Printf("Transaction created successfully! (ID: %d)\n", txID)
 
 	// Display transaction summary
@@ -106,13 +99,11 @@ func (r *addRunner) Run() error {
 	return nil
 }
 
-// TODO: 拆分邏輯，因為未來會需要更多的add方法(目前 新增消費、新增收入、新增轉帳)
-func (r *AddCommandRunner) flagsMode() (service.TransactionInput, error) {
-	var input service.TransactionInput
+func (r *addRunner) flagsMode() (int64, service.TransactionInput, error) {
 
 	// Flag mode: validate all required flags
 	if r.flags.Amount == "" || r.flags.From == "" || r.flags.To == "" {
-		return input, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
+		return 0, service.TransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
 	}
 
 	if r.flags.Desc == "" {
@@ -122,15 +113,7 @@ func (r *AddCommandRunner) flagsMode() (service.TransactionInput, error) {
 	// Parse amount
 	amountCents, err := utils.ParseToCents(r.flags.Amount)
 	if err != nil {
-		return input, fmt.Errorf("invalid amount: %w", err)
-	}
-
-	// Validate accounts exist
-	if exists, err := r.svc.Account.CheckAccountExists(r.flags.From); err != nil || !exists {
-		return input, fmt.Errorf("source account '%s' does not exist", r.flags.From)
-	}
-	if exists, err := r.svc.Account.CheckAccountExists(r.flags.To); err != nil || !exists {
-		return input, fmt.Errorf("destination account '%s' does not exist", r.flags.To)
+		return 0, service.TransactionInput{}, fmt.Errorf("invalid amount: %w", err)
 	}
 
 	// Parse status
@@ -144,64 +127,48 @@ func (r *AddCommandRunner) flagsMode() (service.TransactionInput, error) {
 	if r.flags.Timestamp != "" {
 		t, err := time.Parse("2006-01-02", r.flags.Timestamp)
 		if err != nil {
-			return input, fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
+			return 0, service.TransactionInput{}, fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
 		}
 		timestamp = t.Unix()
 	} else {
 		timestamp = time.Now().Unix()
 	}
 
-	// Build transaction input
-	input = service.TransactionInput{
-		Timestamp:   timestamp,
-		Description: r.flags.Desc,
-		Status:      status,
-		Splits: []service.TransactionSplitInput{
-			{
-				AccountName: r.flags.To,
-				Amount:      amountCents,
-				Memo:        "",
-			},
-			{
-				AccountName: r.flags.From,
-				Amount:      -amountCents,
-				Memo:        "",
-			},
-		},
+	txID, input, err := r.svc.Transaction.CreateSimpleTransaction(
+		r.flags.From,
+		r.flags.To,
+		amountCents,
+		r.flags.Desc,
+		timestamp,
+		status,
+	)
+
+	if err != nil {
+		return 0, service.TransactionInput{}, err
 	}
 
-	return input, nil
+	return txID, input, nil
 }
 
-func (r *AddCommandRunner) interactiveMode() (service.TransactionInput, error) {
-	var input service.TransactionInput
-
+func (r *addRunner) interactiveMode() (int64, service.TransactionInput, error) {
 	// Get all accounts
 	accounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
-		return input, fmt.Errorf("failed to load accounts: %w", err)
+		return 0, service.TransactionInput{}, fmt.Errorf("failed to load accounts: %w", err)
 	}
 
 	// Step 1: Select transaction type
-	transactionType, err := prompts.PromptTransactionType()
+	rawType, err := prompts.PromptTransactionType()
 	if err != nil {
-		return input, err
+		return 0, service.TransactionInput{}, err
 	}
 
-	// Determine transaction mode
-	var mode string
-	if strings.Contains(transactionType, "Expense") {
-		mode = "expense"
-	} else if strings.Contains(transactionType, "Income") {
-		mode = "income"
-	} else {
-		mode = "transfer"
-	}
+	mode := r.determineMode(rawType)
 
 	// Step 2: Get description (optional)
 	description, err := prompts.PromptDescription("Transaction description (optional):", false)
 	if err != nil {
-		return input, err
+		return 0, service.TransactionInput{}, err
 	}
 	if description == "" {
 		description = "-"
@@ -214,67 +181,48 @@ func (r *AddCommandRunner) interactiveMode() (service.TransactionInput, error) {
 		nil, // No custom validator, will validate after
 	)
 	if err != nil {
-		return input, err
+		return 0, service.TransactionInput{}, err
 	}
 	if amountStr == "" {
-		return input, fmt.Errorf("amount is required")
+		return 0, service.TransactionInput{}, fmt.Errorf("amount is required")
 	}
 
 	amountCents, err := utils.ParseToCents(amountStr)
 	if err != nil {
-		return input, fmt.Errorf("invalid amount format: %w", err)
+		return 0, service.TransactionInput{}, fmt.Errorf("invalid amount format: %w", err)
+	}
+
+	uiConfigs := map[string]struct{ Src, Dst string }{
+		constants.ModeExpense:  {"Payment Source:", "Expense Type:"},
+		constants.ModeIncome:   {"Revenue Type:", "Deposit To:"},
+		constants.ModeTransfer: {"From Account:", "To Account:"},
 	}
 
 	// Step 4 & 5: Select accounts based on mode
-	var fromAccount, toAccount string
+	rule, err := r.svc.Transaction.GetTransactionRule(mode)
+	if err != nil {
+		return 0, service.TransactionInput{}, err
+	}
 
-	switch mode {
-	case "expense":
-		// Record Expense: From Assets/Liabilities, To Expenses
-		fromAccount, err = r.selectAccount(accounts, []string{"A", "L"}, "Payment Source:", true)
-		if err != nil {
-			return input, err
-		}
+	uiConf, ok := uiConfigs[mode]
+	if !ok {
+		return 0, service.TransactionInput{}, fmt.Errorf("UI config missing for mode: %s", mode)
+	}
 
-		toAccount, err = r.selectAccount(accounts, []string{"E"}, "Expense Type:", false)
-		if err != nil {
-			return input, err
-		}
+	fromAccount, err := r.selectAccount(accounts, rule.SourceTypes, uiConf.Src, true)
+	if err != nil {
+		return 0, service.TransactionInput{}, err
+	}
 
-	case "income":
-		// Record Income: From Revenue, To Assets
-		fromAccount, err = r.selectAccount(accounts, []string{"R"}, "Revenue Type:", false)
-		if err != nil {
-			return input, err
-		}
-
-		toAccount, err = r.selectAccount(accounts, []string{"A"}, "Deposit To:", true)
-		if err != nil {
-			return input, err
-		}
-
-	case "transfer":
-		// Transfer: From Assets/Liabilities, To Assets/Liabilities
-		fromAccount, err = r.selectAccount(accounts, []string{"A", "L"}, "From Account:", true)
-		if err != nil {
-			return input, err
-		}
-
-		toAccount, err = r.selectAccount(accounts, []string{"A", "L"}, "To Account:", true)
-		if err != nil {
-			return input, err
-		}
-
-		// Validate: cannot transfer to the same account
-		if fromAccount == toAccount {
-			return input, fmt.Errorf("cannot transfer to the same account")
-		}
+	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Src, mode != "expense")
+	if err != nil {
+		return 0, service.TransactionInput{}, err
 	}
 
 	// Step 6: Transaction status
 	statusStr, err := prompts.PromptTransactionStatus("Cleared")
 	if err != nil {
-		return input, err
+		return 0, service.TransactionInput{}, err
 	}
 
 	status := 1
@@ -285,42 +233,47 @@ func (r *AddCommandRunner) interactiveMode() (service.TransactionInput, error) {
 	// Step 7: Transaction date
 	dateStr, err := prompts.PromptTransactionDate()
 	if err != nil {
-		return input, err
+		return 0, service.TransactionInput{}, err
 	}
 
-	timestamp, err := time.Parse("2006-01-02", dateStr)
+	t, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		return input, fmt.Errorf("invalid date format: %w", err)
+		return 0, service.TransactionInput{}, fmt.Errorf("invalid date format: %w", err)
+	}
+	timestamp := t.Unix()
+
+	txID, input, err := r.svc.Transaction.CreateSimpleTransaction(
+		fromAccount,
+		toAccount,
+		amountCents,
+		description,
+		timestamp,
+		status,
+	)
+
+	if err != nil {
+		return 0, service.TransactionInput{}, err
 	}
 
-	// Build transaction input
-	input = service.TransactionInput{
-		Timestamp:   timestamp.Unix(),
-		Description: description,
-		Status:      status,
-		Splits: []service.TransactionSplitInput{
-			{
-				AccountName: toAccount,
-				Amount:      amountCents,
-				Memo:        "",
-			},
-			{
-				AccountName: fromAccount,
-				Amount:      -amountCents,
-				Memo:        "",
-			},
-		},
-	}
-
-	return input, nil
+	return txID, input, nil
 }
 
 // r.selectAccount filters accounts by type and displays them with optional balance
-func (r *AddCommandRunner) selectAccount(accounts []*store.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
+func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
 		balanceGetter = r.svc.Account.GetAccountBalanceFormatted
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
+}
+
+func (r *addRunner) determineMode(rawInput string) string {
+	if strings.Contains(rawInput, "Expense") {
+		return constants.ModeExpense
+	}
+	if strings.Contains(rawInput, "Income") {
+		return constants.ModeIncome
+	}
+	return constants.ModeTransfer
 }

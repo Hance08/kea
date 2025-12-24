@@ -148,6 +148,27 @@ func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType str
 	return "-", nil
 }
 
+func (ts *TransactionService) GetDisplayAmount(splits []SplitDetail) (int64, string) {
+	if len(splits) == 0 {
+		return 0, ""
+	}
+
+	var maxAmount int64
+	var currency string
+	if len(splits) > 0 {
+		currency = splits[0].Currency
+	}
+
+	for _, split := range splits {
+		if split.Amount > maxAmount {
+			maxAmount = split.Amount
+			currency = split.Currency
+		}
+	}
+
+	return maxAmount, currency
+}
+
 func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, currentAccountType string, allAccounts []*model.Account) []*model.Account {
 	switch txType {
 	case TxTypeExpense:

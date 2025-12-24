@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
@@ -38,94 +40,64 @@ func (r *editRunner) Run(args []string) error {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	// Prevent editing opening balance transaction
-	if txID == 1 {
-		pterm.Error.Println("Cannot edit the opening balance transaction")
-		return nil
-	}
-
-	// Get current transaction details
+	// Fetch Data
 	detail, err := r.svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil
 	}
 
-	// Show current transaction info
-	pterm.DefaultSection.Printf("Editing Transaction #%d", txID)
+	if !r.svc.Transaction.IsEditable(detail) {
+		pterm.Error.Println("This transaction cannot be edited (System Transaction)")
+		return nil
+	}
+
+	ui.PrintL1Title("Editing Transaction #%d", txID)
+
 	if err := views.RenderTransactionDetail(detail); err != nil {
 		return err
 	}
 
-	// Main edit menu
+	return r.runEditMenu(txID, detail)
+}
+
+func (r *editRunner) runEditMenu(txID int64, detail *service.TransactionDetail) error {
 	for {
-		// Build menu options based on transaction complexity
-		menuOptions := []string{
-			"Basic Info (description, date, status)",
-		}
+		menuOptions := r.buildMenuOptions(detail)
 
-		// Add quick edit options for simple transactions (2 splits)
-		if len(detail.Splits) == 2 {
-			menuOptions = append(menuOptions,
-				"Change Account (quick edit)",
-				"Change Amount (both sides)",
-			)
-		}
-
-		menuOptions = append(menuOptions,
-			"Edit Splits (Advanced)",
-			"Save & Exit",
-			"Cancel (discard changes)",
-		)
-
-		var editChoice string
-		editChoice, err := prompts.PromptSelect(
-			"What would you like to edit?",
-			menuOptions,
-			"",
-		)
+		choice, err := prompts.PromptSelect("What would you like to edit?", menuOptions, "")
 		if err != nil {
 			return err
 		}
 
-		switch editChoice {
+		switch choice {
 		case "Basic Info (description, date, status)":
-			if err := r.editBasicInfo(detail); err != nil {
-				pterm.Error.Printf("Failed to edit basic info: %v\n", err)
+			if err := r.actionEditBasicInfo(detail); err != nil {
+				pterm.Error.Printf("Failed: %v\n", err)
 			}
 
 		case "Change Account (quick edit)":
-			if err := r.editAccount(detail); err != nil {
-				pterm.Error.Printf("Failed to change account: %v\n", err)
+			if err := r.actionQuickChangeAccount(detail); err != nil {
+				pterm.Error.Printf("Failed: %v\n", err)
 			}
 
 		case "Change Amount (both sides)":
-			if err := r.editAmount(detail); err != nil {
-				pterm.Error.Printf("Failed to change amount: %v\n", err)
+			if err := r.actionQuickChangeAmount(detail); err != nil {
+				pterm.Error.Printf("Failed: %v\n", err)
 			}
 
 		case "Edit Splits (Advanced)":
-			if err := r.editSplits(detail); err != nil {
-				pterm.Error.Printf("Failed to edit splits: %v\n", err)
+			if err := r.runSplitsMenu(detail); err != nil {
+				pterm.Error.Printf("Failed: %v\n", err)
 			}
 
 		case "Save & Exit":
-			// Validate before saving
-			splits := detail.ToSplitInputs()
-			if err := r.svc.Transaction.ValidateTransactionEdit(splits); err != nil {
+			if err := r.actionSave(txID, detail); err != nil {
+				// Save failed, stay in loop
 				pterm.Error.Printf("Cannot save: %v\n", err)
 				pterm.Warning.Println("Please fix the errors before saving")
 				continue
 			}
-
-			// Save changes
-			if err := r.saveTransactionChanges(txID, detail); err != nil {
-				pterm.Error.Printf("Failed to save changes: %v\n", err)
-				return nil
-			}
-
-			pterm.Success.Printf("Transaction #%d updated successfully\n", txID)
-			ui.Separator()
 			return nil
 
 		case "Cancel (discard changes)":
@@ -135,216 +107,141 @@ func (r *editRunner) Run(args []string) error {
 	}
 }
 
-func (r *editRunner) editBasicInfo(detail *service.TransactionDetail) error {
-	// Edit description
-	newDescription, err := prompts.PromptInput("Description:", detail.Description, nil)
+func (r *editRunner) buildMenuOptions(detail *service.TransactionDetail) []string {
+	options := []string{
+		"Basic Info (description, date, status)",
+	}
+
+	// Quick edit options only for simple transactions
+	if len(detail.Splits) == 2 {
+		options = append(options,
+			"Change Account (quick edit)",
+			"Change Amount (both sides)",
+		)
+	}
+
+	options = append(options,
+		"Edit Splits (Advanced)",
+		"Save & Exit",
+		"Cancel (discard changes)",
+	)
+	return options
+}
+
+// ==========================================
+// Actions: Basic & Quick Edits
+// ==========================================
+
+func (r *editRunner) actionEditBasicInfo(detail *service.TransactionDetail) error {
+	// Description
+	desc, err := prompts.PromptInput("Description:", detail.Description, nil)
 	if err != nil {
 		return err
 	}
-	detail.Description = newDescription
+	detail.Description = desc
 
-	// Edit date
+	// Date
 	currentDate := time.Unix(detail.Timestamp, 0).Format("2006-01-02")
-	newDateStr, err := prompts.PromptDate("Date (YYYY-MM-DD):", currentDate, "")
+	dateStr, err := prompts.PromptDate("Date (YYYY-MM-DD):", currentDate, "")
 	if err != nil {
 		return err
 	}
-
-	newDate, err := time.Parse("2006-01-02", newDateStr)
+	t, err := time.Parse("2006-01-02", dateStr) // PromptDate validates format
 	if err != nil {
-		return fmt.Errorf("invalid date format: %w", err)
-	}
-	detail.Timestamp = newDate.Unix()
-
-	// Edit status
-	defaultStatus := "Cleared"
-	if detail.Status == 0 {
-		defaultStatus = "Pending"
+		return fmt.Errorf("unexpected date format error: %w", err)
 	}
 
-	newStatus, err := prompts.PromptTransactionStatus(defaultStatus)
+	detail.Timestamp = t.Unix()
+
+	// Status
+	statusStr, err := prompts.PromptTransactionStatus(r.getStatusString(detail.Status))
 	if err != nil {
 		return err
 	}
-
-	if newStatus == "Pending" {
-		detail.Status = 0
-	} else {
-		detail.Status = 1
-	}
+	detail.Status = r.getStatusValue(statusStr)
 
 	pterm.Success.Println("Basic info updated")
 	ui.Separator()
 	return nil
 }
 
-// editAccount allows quick account switching for simple transactions
-// Works best for 2-split transactions (Expense/Income/Transfer)
-func (r *editRunner) editAccount(detail *service.TransactionDetail) error {
+func (r *editRunner) actionQuickChangeAccount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
-		pterm.Warning.Println("This feature works best with 2-split transactions")
-		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
-		return nil
+		return fmt.Errorf("quick edit supports only 2 splits")
 	}
 
-	// Detect transaction type and check if editing is allowed
+	// Determine Type (Asset/Expense/etc)
 	txType, err := r.svc.Transaction.DetermineType(detail.Splits)
 	if err != nil {
 		return err
 	}
 
 	if txType == service.TxTypeOpening {
-		pterm.Warning.Println("Cannot use quick edit for Opening Balance transactions")
-		pterm.Info.Println("Use 'Edit Splits (Advanced)' if you need to modify this transaction")
+		pterm.Warning.Println("Cannot quick-edit Opening Balance transaction")
 		return nil
 	}
 
-	// Get all accounts
-	accounts, err := r.svc.Account.GetAllAccounts()
+	// Show current state
+	pterm.DefaultSection.Printf("Current splits (%s):", txType)
+	views.RenderSimpleSplitList(detail.Splits, txType)
+
+	// Select which split to change
+	splitIndex, err := r.promptSplitSelection(detail)
 	if err != nil {
-		return fmt.Errorf("failed to get accounts: %w", err)
+		return err // User cancelled or error
+	}
+	if splitIndex == -1 {
+		return nil // Cancelled
 	}
 
-	// Display current splits with role labels
-	pterm.DefaultSection.Printf("Current transaction type: %s", txType)
-	pterm.DefaultSection.Printf("Current splits:")
+	targetSplit := &detail.Splits[splitIndex]
 
-	roleLabels := views.GetSplitRoleLabels(detail.Splits, txType)
-
-	for i, split := range detail.Splits {
-		amount := utils.FormatFromCents(split.Amount)
-		sign := "+"
-		if split.Amount < 0 {
-			sign = ""
-		}
-		pterm.Printf("  %d. %s (%s): %s%s %s\n",
-			i+1, split.AccountName, roleLabels[i], sign, amount, split.Currency)
-	}
-	fmt.Println()
-
-	// Let user choose which split to change
-	splitOptions := []string{
-		fmt.Sprintf("1. %s", detail.Splits[0].AccountName),
-		fmt.Sprintf("2. %s", detail.Splits[1].AccountName),
-		"Cancel",
-	}
-
-	splitChoice, err := prompts.PromptSelect(
-		"Which account do you want to change?",
-		splitOptions,
-		"",
-	)
+	// Filter compatible accounts
+	allAccounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
 		return err
 	}
 
-	if splitChoice == "Cancel" {
-		return nil
-	}
-
-	// Determine which split to edit (0 or 1)
-	splitIndex := 0
-	if splitChoice[0] == '2' {
-		splitIndex = 1
-	}
-
-	split := &detail.Splits[splitIndex]
-
-	currentAccount, err := r.svc.Account.GetAccountByName(split.AccountName)
+	currentAcc, err := r.svc.Account.GetAccountByName(targetSplit.AccountName)
 	if err != nil {
-		return fmt.Errorf("failed to get current account details: %w", err)
+		return fmt.Errorf("failed to load account details for '%s': %w", targetSplit.AccountName, err)
 	}
 
-	filteredAccounts := r.svc.Transaction.GetAllowedAccounts(
-		txType,
-		currentAccount.Type,
-		accounts,
-	)
+	compatibleAccounts := r.svc.Transaction.GetAllowedAccounts(txType, currentAcc.Type, allAccounts)
 
-	if len(filteredAccounts) == 0 {
-		pterm.Warning.Println("No suitable accounts found for this change")
+	if len(compatibleAccounts) == 0 {
+		pterm.Warning.Println("No other compatible accounts found")
 		return nil
-	}
-
-	// Build account selection list
-	var accountNames []string
-	for _, acc := range filteredAccounts {
-		accountNames = append(accountNames, acc.Name)
 	}
 
 	// Select new account
-	selectedAccount, err := prompts.PromptSelect(
-		fmt.Sprintf("Select new %s:", roleLabels[splitIndex]),
-		accountNames,
-		split.AccountName,
-	)
+	newAccName, err := r.promptAccountSelectionFromList(compatibleAccounts, targetSplit.AccountName)
 	if err != nil {
 		return err
 	}
 
-	// Update the split
-	account, err := r.svc.Account.GetAccountByName(selectedAccount)
-	if err != nil {
-		return err
-	}
+	newAcc, _ := r.svc.Account.GetAccountByName(newAccName)
 
-	split.AccountID = account.ID
-	split.AccountName = account.Name
-	split.Currency = account.Currency
+	// Apply Change
+	targetSplit.AccountID = newAcc.ID
+	targetSplit.AccountName = newAcc.Name
+	targetSplit.Currency = newAcc.Currency
 
-	pterm.Success.Printf("Account changed to: %s\n", account.Name)
+	pterm.Success.Printf("Account changed to: %s\n", newAcc.Name)
 	ui.Separator()
 	return nil
 }
 
-// editAmount allows quick amount editing for simple transactions
-// Automatically adjusts both sides to maintain balance
-func (r *editRunner) editAmount(detail *service.TransactionDetail) error {
+func (r *editRunner) actionQuickChangeAmount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
-		pterm.Warning.Println("This feature works best with 2-split transactions")
-		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
-		return nil
+		return fmt.Errorf("quick edit supports only 2 splits")
 	}
 
-	// Display current amount
-	currentAmount := detail.Splits[0].Amount
-	if currentAmount < 0 {
-		currentAmount = -currentAmount
-	}
-	currentAmountStr := utils.FormatFromCents(currentAmount)
+	// UI: Show Current
+	currentAbsAmount := utils.AbsInt64(detail.Splits[0].Amount)
 
-	pterm.DefaultSection.Printf("Current amount: %s %s", currentAmountStr, detail.Splits[0].Currency)
-	tableData := pterm.TableData{
-		{"#", "Account", "Amount"},
-	}
-
-	var balance int64
-	for i, split := range detail.Splits {
-		amount := utils.FormatFromCents(split.Amount)
-		sign := "+"
-		if split.Amount < 0 {
-			sign = "-"
-			amount = utils.FormatFromCents(-split.Amount)
-		}
-		memo := split.Memo
-		if memo == "" {
-			memo = "-"
-		}
-		tableData = append(tableData, []string{
-			fmt.Sprintf("%d", i+1),
-			split.AccountName,
-			fmt.Sprintf("%s%s %s", sign, amount, split.Currency),
-			memo,
-		})
-		balance += split.Amount
-	}
-
-	if err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render(); err != nil {
-		return fmt.Errorf("failed to render table with data: %w", err)
-	}
-
-	// Input new amount
-	newAmountStr, err := prompts.PromptInput("Enter new amount (positive number):", currentAmountStr, nil)
+	// UI: Prompt
+	newAmountStr, err := prompts.PromptInput("Enter new amount:", utils.FormatFromCents(currentAbsAmount), nil)
 	if err != nil {
 		return err
 	}
@@ -353,263 +250,228 @@ func (r *editRunner) editAmount(detail *service.TransactionDetail) error {
 	if err != nil {
 		return err
 	}
+	newAbsAmount := utils.AbsInt64(newAmount)
 
-	// Make sure it's positive
-	if newAmount < 0 {
-		newAmount = -newAmount
+	// Logic: Update both sides, preserving sign
+	if err := detail.UpdateAmountPreservingBalance(newAbsAmount); err != nil {
+		return err
 	}
 
-	// Adjust both splits while maintaining their signs
-	if detail.Splits[0].Amount > 0 {
-		detail.Splits[0].Amount = newAmount
-		detail.Splits[1].Amount = -newAmount
-	} else {
-		detail.Splits[0].Amount = -newAmount
-		detail.Splits[1].Amount = newAmount
-	}
-
-	pterm.Success.Printf("Amount changed to: %s %s\n",
-		utils.FormatFromCents(newAmount),
-		detail.Splits[0].Currency)
+	pterm.Success.Println("Amount updated")
 	ui.Separator()
 	return nil
 }
 
-func (r *editRunner) editSplits(detail *service.TransactionDetail) error {
+// ==========================================
+// Sub-Menu: Advanced Splits Editor
+// ==========================================
+
+func (r *editRunner) runSplitsMenu(detail *service.TransactionDetail) error {
 	for {
-		// Display current splits with balance
 		if err := views.RenderTransactionDetail(detail); err != nil {
 			return err
 		}
 
-		options := []string{
-			"Add Split",
-			"Edit Split",
-			"Delete Split",
-			"Done (return to main menu)",
-		}
-
-		action, err := prompts.PromptSelect(
-			"Splits Editor:",
-			options,
-			"",
-		)
+		action, err := prompts.PromptSelect("Splits Editor:", []string{
+			"Add Split", "Edit Split", "Delete Split", "Done",
+		}, "")
 		if err != nil {
 			return err
 		}
 
 		switch action {
 		case "Add Split":
-			if err := r.addSplit(detail); err != nil {
-				pterm.Error.Printf("Failed to add split: %v\n", err)
+			if err := r.actionAddSplit(detail); err != nil {
+				return err
 			}
-
 		case "Edit Split":
-			if err := r.editOneSplit(detail); err != nil {
-				pterm.Error.Printf("Failed to edit split: %v\n", err)
+			if err := r.actionEditSplit(detail); err != nil {
+				return err
 			}
-
 		case "Delete Split":
-			if err := r.deleteSplit(detail); err != nil {
-				pterm.Error.Printf("Failed to delete split: %v\n", err)
+			if err := r.actionDeleteSplit(detail); err != nil {
+				return err
 			}
-
-		case "Done (return to main menu)":
+		case "Done":
 			return nil
 		}
 	}
 }
 
-func (r *editRunner) addSplit(detail *service.TransactionDetail) error {
-	// Select account
-	accounts, err := r.svc.Account.GetAllAccounts()
-	if err != nil {
-		return fmt.Errorf("failed to get accounts: %w", err)
-	}
-
-	var accountNames []string
-	for _, acc := range accounts {
-		accountNames = append(accountNames, acc.Name)
-	}
-
-	selectedAccount, err := prompts.PromptSelect(
-		"Select account:",
-		accountNames,
-		"",
-	)
+func (r *editRunner) actionAddSplit(detail *service.TransactionDetail) error {
+	// 1. Select Account
+	accName, err := r.promptAccountSelection("")
 	if err != nil {
 		return err
 	}
 
-	// Get account details
-	account, err := r.svc.Account.GetAccountByName(selectedAccount)
+	acc, _ := r.svc.Account.GetAccountByName(accName)
+
+	// 2. Input Amount
+	amount, err := r.promptAmount("Amount (negative for credit):", 0)
 	if err != nil {
 		return err
 	}
 
-	// Input amount
-	amountStr, err := prompts.PromptInput("Amount (use negative for credit):", "", nil)
-	if err != nil {
-		return err
-	}
-
-	amount, err := utils.ParseToCents(amountStr)
-	if err != nil {
-		return err
-	}
-
-	// Input memo
+	// 3. Input Memo
 	memo, err := prompts.PromptInput("Memo (optional):", "", nil)
 	if err != nil {
 		return err
 	}
 
-	// Add split to detail
-	newSplit := service.SplitDetail{
-		ID:          0, // New split
-		AccountID:   account.ID,
-		AccountName: account.Name,
-		Amount:      amount,
-		Currency:    account.Currency,
-		Memo:        memo,
-	}
-	detail.Splits = append(detail.Splits, newSplit)
-
-	pterm.Success.Println("Split added")
-	ui.Separator()
+	// 4. Append
+	detail.Splits = append(detail.Splits, service.SplitDetail{
+		AccountID: acc.ID, AccountName: acc.Name, Currency: acc.Currency,
+		Amount: amount, Memo: memo,
+	})
 	return nil
 }
 
-func (r *editRunner) editOneSplit(detail *service.TransactionDetail) error {
-	if len(detail.Splits) == 0 {
-		return fmt.Errorf("no splits to edit")
+func (r *editRunner) actionEditSplit(detail *service.TransactionDetail) error {
+	idx, err := r.promptSplitSelection(detail)
+	if err != nil || idx == -1 {
+		return err
 	}
 
-	splitIndex, err := r.selectSplit(detail, "Select split to edit")
+	split := &detail.Splits[idx]
+
+	// Edit Account
+	newAccName, err := r.promptAccountSelection(split.AccountName)
+	if err != nil {
+		return err
+	}
+	acc, _ := r.svc.Account.GetAccountByName(newAccName)
+
+	// Edit Amount
+	newAmount, err := r.promptAmount("Amount:", split.Amount)
 	if err != nil {
 		return err
 	}
 
-	split := &detail.Splits[splitIndex]
-
-	// Edit account
-	accounts, err := r.svc.Account.GetAllAccounts()
-	if err != nil {
-		return fmt.Errorf("failed to get accounts: %w", err)
-	}
-
-	var accountNames []string
-	for _, acc := range accounts {
-		accountNames = append(accountNames, acc.Name)
-	}
-
-	selectedAccount, err := prompts.PromptSelect(
-		"Account:",
-		accountNames,
-		split.AccountName, // Default
-	)
+	// Edit Memo
+	newMemo, err := prompts.PromptInput("Memo:", split.Memo, nil)
 	if err != nil {
 		return err
 	}
 
-	account, err := r.svc.Account.GetAccountByName(selectedAccount)
-	if err != nil {
-		return err
-	}
+	// Apply
+	split.AccountID = acc.ID
+	split.AccountName = acc.Name
+	split.Currency = acc.Currency
+	split.Amount = newAmount
+	split.Memo = newMemo
 
-	// Edit amount
-	currentAmount := utils.FormatFromCents(split.Amount)
-	amountStr, err := prompts.PromptInput("Amount:", currentAmount, nil)
-	if err != nil {
-		return err
-	}
-
-	amount, err := utils.ParseToCents(amountStr)
-	if err != nil {
-		return err
-	}
-
-	// Edit memo
-	memo, err := prompts.PromptInput("Memo:", split.Memo, nil)
-	if err != nil {
-		return err
-	}
-
-	// Update split
-	split.AccountID = account.ID
-	split.AccountName = account.Name
-	split.Amount = amount
-	split.Currency = account.Currency
-	split.Memo = memo
-
-	pterm.Success.Println("Split updated")
-	ui.Separator()
 	return nil
 }
 
-func (r *editRunner) deleteSplit(detail *service.TransactionDetail) error {
-	if len(detail.Splits) <= 2 {
-		return fmt.Errorf("cannot delete: transaction must have at least 2 splits")
-	}
-
-	splitIndex, err := r.selectSplit(detail, "Select split to edit")
-	if err != nil {
-		return err
-	}
-
-	// Confirm deletion
-	confirm, err := prompts.PromptConfirm(
-		fmt.Sprintf("Delete split: %s?", detail.Splits[splitIndex].AccountName),
-		false, // Default value
-	)
-	if err != nil {
-		return err
-	}
-
-	if !confirm {
-		pterm.Info.Println("Deletion cancelled")
+func (r *editRunner) actionDeleteSplit(detail *service.TransactionDetail) error {
+	if len(detail.Splits) <= constants.MinSplitsCount {
+		pterm.Warning.Printf("Transaction must have at least %d splits\n", constants.MinSplitsCount)
 		return nil
 	}
 
-	// Delete split
-	detail.Splits = append(detail.Splits[:splitIndex], detail.Splits[splitIndex+1:]...)
+	idx, err := r.promptSplitSelection(detail)
+	if err != nil || idx == -1 {
+		return err
+	}
 
-	pterm.Success.Println("Split deleted")
-	ui.Separator()
+	// Confirm
+	if yes, _ := prompts.PromptConfirm("Delete this split?", false); !yes {
+		return nil
+	}
+
+	// Remove (Slice deletion trick)
+	detail.Splits = append(detail.Splits[:idx], detail.Splits[idx+1:]...)
 	return nil
 }
 
-func (r *editRunner) saveTransactionChanges(txID int64, detail *service.TransactionDetail) error {
-	splits := detail.ToSplitInputs()
-	return r.svc.Transaction.UpdateTransactionComplete(
-		txID,
-		detail.Description,
-		detail.Timestamp,
-		detail.Status,
-		splits,
-	)
-}
+// ==========================================
+// Finalize
+// ==========================================
 
-func (r *editRunner) selectSplit(detail *service.TransactionDetail, promptMsg string) (int, error) {
-	var splitOptions []string
-	for i, split := range detail.Splits {
-		amount := utils.FormatFromCents(split.Amount)
-		splitOptions = append(splitOptions, fmt.Sprintf("#%d: %s (%s %s)", i+1, split.AccountName, amount, split.Currency))
+func (r *editRunner) actionSave(txID int64, detail *service.TransactionDetail) error {
+	// Validate via Service
+	splits := detail.ToSplitInputs()
+	if err := r.svc.Transaction.ValidateTransactionEdit(splits); err != nil {
+		return err
 	}
 
-	selectedSplit, err := prompts.PromptSelect(
-		promptMsg,
-		splitOptions,
-		"",
-	)
+	// Execute Update
+	if err := r.svc.Transaction.UpdateTransactionComplete(
+		txID, detail.Description, detail.Timestamp, detail.Status, splits,
+	); err != nil {
+		return err
+	}
+
+	pterm.Success.Printf("Transaction #%d saved successfully\n", txID)
+	return nil
+}
+
+// ==========================================
+// Helpers (UI & Logic)
+// ==========================================
+
+func (r *editRunner) getStatusString(status int) string {
+	if status == 0 {
+		return "Pending"
+	}
+	return "Cleared"
+}
+
+func (r *editRunner) getStatusValue(s string) int {
+	if s == "Pending" {
+		return 0
+	}
+	return 1
+}
+
+func (r *editRunner) promptAccountSelection(defaultName string) (string, error) {
+	accounts, err := r.svc.Account.GetAllAccounts()
+	if err != nil {
+		return "", err
+	}
+	return r.promptAccountSelectionFromList(accounts, defaultName)
+}
+
+func (r *editRunner) promptAccountSelectionFromList(accounts []*model.Account, defaultName string) (string, error) {
+	var names []string
+	for _, a := range accounts {
+		names = append(names, a.Name)
+	}
+	return prompts.PromptSelect("Select Account:", names, defaultName)
+}
+
+func (r *editRunner) promptAmount(label string, defaultCents int64) (int64, error) {
+	defaultStr := ""
+	if defaultCents != 0 {
+		defaultStr = utils.FormatFromCents(defaultCents)
+	}
+	valStr, err := prompts.PromptInput(label, defaultStr, nil)
+	if err != nil {
+		return 0, err
+	}
+	return utils.ParseToCents(valStr)
+}
+
+func (r *editRunner) promptSplitSelection(detail *service.TransactionDetail) (int, error) {
+	var options []string
+	for i, s := range detail.Splits {
+		options = append(options, fmt.Sprintf("#%d %s (%s)", i+1, s.AccountName, utils.FormatFromCents(s.Amount)))
+	}
+	options = append(options, "Cancel")
+
+	choice, err := prompts.PromptSelect("Select Split:", options, "")
 	if err != nil {
 		return -1, err
 	}
-
-	var splitIndex int
-	if _, err := fmt.Sscanf(selectedSplit, "#%d:", &splitIndex); err != nil {
-		return -1, fmt.Errorf("failed to parse split index: %w", err)
+	if choice == "Cancel" {
+		return -1, nil
 	}
 
-	return splitIndex - 1, nil
+	var idx int
+	_, err = fmt.Sscanf(choice, "#%d", &idx)
+	if err != nil {
+		return -1, fmt.Errorf("failed to parse selection: %w", err)
+	}
+	return idx - 1, nil
 }

@@ -190,6 +190,10 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 
 // DeleteTransaction deletes a transaction
 func (ts *TransactionService) DeleteTransaction(txID int64) error {
+	if txID == 1 {
+		return fmt.Errorf("operation denied: cannot delete the initial opening transaction")
+	}
+
 	tx, _, err := ts.repo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction: %w", err)
@@ -314,4 +318,17 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		}
 		return nil
 	})
+}
+
+func (ts *TransactionService) IsEditable(detail *TransactionDetail) bool {
+	if detail.ID == constants.OpeningBalanceTransactionID {
+		return false
+	}
+
+	// (Future feature)
+	// if detail.Status == model.StatusReconciled {
+	//     return false
+	// }
+
+	return true
 }

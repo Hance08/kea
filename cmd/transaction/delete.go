@@ -40,10 +40,6 @@ func (r *deleteRunner) Run(args []string) error {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
 	}
-	if detail.ID == 1 {
-		pterm.Error.Println("Can't delete the opening transaction")
-		return nil
-	}
 
 	if err := views.RenderTransactionDeletePreview(views.TransactionDeletePreviewItem{
 		ID:          detail.ID,

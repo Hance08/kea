@@ -69,35 +69,41 @@ func (r *listRunner) Run() error {
 	var viewItems []views.TransactionListItem
 
 	for _, tx := range transactions {
-		date := time.Unix(tx.Timestamp, 0).Format("2006-01-02")
-
-		status := "Cleared"
-		if tx.Status == 0 {
-			status = "Pending"
+		detail, err := r.svc.Transaction.GetTransactionByID(tx.ID)
+		if err != nil {
+			pterm.Warning.Printf("Skipping transaction %d: %v\n", tx.ID, err)
+			continue
 		}
 
-		txType, err := r.getTransactionType(tx.ID)
+		txTypeEnum, err := r.svc.Transaction.DetermineType(detail.Splits)
+		txType := string(txTypeEnum)
 		if err != nil {
 			txType = "-"
 		}
 
-		account, err := r.getTransactionAccount(tx.ID, txType)
+		accountName, err := r.svc.Transaction.GetDisplayAccount(detail.Splits, txType)
 		if err != nil {
-			account = "-"
+			accountName = "-"
 		}
 
-		amount, err := r.getTransactionAmount(tx.ID)
-		if err != nil {
-			amount = "-"
+		amountCents, currency := r.svc.Transaction.GetDisplayAmount(detail.Splits)
+
+		amountFloat := float64(amountCents) / 100.0
+		amountStr := fmt.Sprintf("%.2f %s", amountFloat, currency)
+
+		date := time.Unix(tx.Timestamp, 0).Format("2006-01-02")
+		status := "Cleared"
+		if tx.Status == 0 {
+			status = "Pending"
 		}
 
 		viewItems = append(viewItems, views.TransactionListItem{
 			ID:          tx.ID,
 			Date:        date,
 			Type:        txType,
-			Account:     account,
+			Account:     accountName,
 			Description: tx.Description,
-			Amount:      amount,
+			Amount:      amountStr,
 			Status:      status,
 		})
 	}
@@ -107,62 +113,4 @@ func (r *listRunner) Run() error {
 	}
 
 	return nil
-}
-
-// getTransactionAmount retrieves the main amount of a transaction (largest positive split)
-func (r *listRunner) getTransactionAmount(txID int64) (string, error) {
-	detail, err := r.svc.Transaction.GetTransactionByID(txID)
-	if err != nil {
-		return "", err
-	}
-
-	if len(detail.Splits) == 0 {
-		return "0.00", nil
-	}
-
-	// Find the largest positive amount (the "to" account in typical transactions)
-	var maxAmount int64
-	var currency string
-
-	for _, split := range detail.Splits {
-		if split.Amount > maxAmount {
-			maxAmount = split.Amount
-			currency = split.Currency
-		}
-	}
-
-	// Format amount
-	amountFloat := float64(maxAmount) / 100.0
-	return fmt.Sprintf("%.2f %s", amountFloat, currency), nil
-}
-
-// getTransactionType determines the type of transaction based on account types involved
-// Returns: "Expense", "Income", "Transfer", or "Other"
-func (r *listRunner) getTransactionType(txID int64) (string, error) {
-	detail, err := r.svc.Transaction.GetTransactionByID(txID)
-	if err != nil {
-		return "", err
-	}
-
-	txType, err := r.svc.Transaction.DetermineType(detail.Splits)
-	if err != nil {
-		return "", err
-	}
-
-	return string(txType), nil
-}
-
-// getTransactionAccount returns the relevant account name based on transaction type
-func (r *listRunner) getTransactionAccount(txID int64, txType string) (string, error) {
-	detail, err := r.svc.Transaction.GetTransactionByID(txID)
-	if err != nil {
-		return "", err
-	}
-
-	txAccount, err := r.svc.Transaction.GetDisplayAccount(detail.Splits, txType)
-	if err != nil {
-		return "", err
-	}
-
-	return txAccount, nil
 }

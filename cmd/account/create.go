@@ -83,7 +83,7 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 		cmd.Flags().Changed("parent")
 
 	if hasFlags {
-		err := r.flagsMode(flags)
+		err := r.runFromFlags(flags)
 		if err != nil {
 			if errors.Is(err, store.ErrAccountExists) {
 				pterm.Error.Println("Account already exists")
@@ -94,15 +94,14 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 		return nil
 	}
 
-	err := r.interactiveMode()
+	err := r.runInteractive()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// FlagsMode builds an account from command-line flags
-func (r *createRunner) flagsMode(flags *createFlags) error {
+func (r *createRunner) runFromFlags(flags *createFlags) error {
 	// Validate flag combinations
 	if flags.Parent == "" && flags.Type == "" {
 		return fmt.Errorf("must enter at least one of --type or --parent flag")
@@ -121,11 +120,11 @@ func (r *createRunner) flagsMode(flags *createFlags) error {
 
 	// Build account based on parent or type
 	if flags.Parent != "" {
-		if err := r.buildFromParent(flags.Parent, flags.Currency); err != nil {
+		if err := r.buildFromParentName(flags.Parent, flags.Currency); err != nil {
 			return err
 		}
 	} else {
-		if err := r.buildFromType(flags.Type, flags.Currency); err != nil {
+		if err := r.buildFromTypeFlag(flags.Type, flags.Currency); err != nil {
 			return err
 		}
 	}
@@ -174,26 +173,24 @@ func (r *createRunner) interactiveMode() error {
 
 	if isSubAccount {
 		// Step 2: Select parent account
-		parentAccount, err := r.runSelectParentStep()
+		parentAccount, err := r.promptParent()
 		if err != nil {
 			return err
 		}
 
 		// Step 3: Enter account name
-		nameInput, err := r.runNameStep(parentAccount.Name)
+		nameInput, err := r.promptName(parentAccount.Name)
 		if err != nil {
 			return err
 		}
 
-		r.setName(nameInput)
+		r.name = nameInput
 
-		if err := r.buildFromParent(parentAccount.Name, parentAccount.Currency); err != nil {
-			return err
-		}
+		r.applyParentSettings(parentAccount, parentAccount.Currency)
 
 	} else {
 		// Step 2: Select account type
-		accType, err := runSelectTypeStep()
+		accType, err := r.promptType()
 		if err != nil {
 			return err
 		}
@@ -204,41 +201,41 @@ func (r *createRunner) interactiveMode() error {
 		}
 
 		// Step 3: Enter account name
-		nameInput, err := r.runNameStep(rootName)
+		nameInput, err := r.promptName(rootName)
 		if err != nil {
 			return err
 		}
 
-		r.setName(nameInput)
+		r.name = nameInput
 
-		if err := r.buildFromType(accType, ""); err != nil {
+		if err := r.applyTypeSettings(rootName, accType, ""); err != nil {
 			return err
 		}
 	}
 
 	// Step 4: Currency setting
-	currency, err := r.runCurrencyStep()
+	currency, err := r.promptCurrency()
 	if err != nil {
 		return err
 	}
-	r.setCurrency(currency)
+	r.currency = currency
 
 	// Step 5: Initial balance setting
 	if r.accountType == "A" || r.accountType == "L" {
-		balance, err := r.runBalanceStep()
+		balance, err := r.promptBalance()
 		if err != nil {
 			return err
 		}
-		r.CreateOpeningBalance(balance)
+		r.balance = balance
 	}
 
 	// Step 6: Description setting
-	desc, err := runDescStep()
+	desc, err := r.promptDescription()
 	if err != nil {
 		return err
 	}
 
-	r.setDescription(desc)
+	r.description = desc
 	if err := views.RenderAccountSummary(views.AccountSummaryItem{
 		FullName:    r.fullName,
 		Type:        r.accountType,
@@ -249,12 +246,12 @@ func (r *createRunner) interactiveMode() error {
 	}
 
 	// Confirm proceed with creation
-	if err := confirmProceed(); err != nil {
+	if err := r.confirm(); err != nil {
 		return err
 	}
 
-	// Save account
-	newAccount, err := r.Save()
+	// createAccount account
+	newAccount, err := r.createAccount()
 	if err != nil {
 		return err
 	}
@@ -265,126 +262,88 @@ func (r *createRunner) interactiveMode() error {
 	return nil
 }
 
-// buildFromParent sets up account details based on parent account
-func (r *createRunner) buildFromParent(parentName, currency string) error {
+func (r *createRunner) createAccount() (*model.Account, error) {
+
+	return r.svc.CreateAccountWithBalance(
+		r.fullName,
+		r.accountType,
+		r.currency,
+		r.description,
+		r.parentID,
+		r.balance,
+	)
+
+}
+
+func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride string) error {
+	r.fullName = r.svc.Account.FormatAccountName(rootName, r.name)
+	r.accountType = accType
+
+	if currencyOverride != "" {
+		if err := r.validator.ValidateCurrency(currencyOverride); err != nil {
+			return err
+		}
+		r.currency = strings.ToUpper(strings.TrimSpace(currencyOverride))
+	} else {
+		r.currency = r.svc.Config.Defaults.Currency
+	}
+	return nil
+}
+
+func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverride string) {
+	r.fullName = r.svc.Account.FormatAccountName(parent.Name, r.name)
+	r.accountType = parent.Type
+	r.parentID = &parent.ID
+
+	if currencyOverride != "" {
+		r.currency = currencyOverride
+	} else {
+		r.currency = parent.Currency
+	}
+}
+
+func (r *createRunner) buildFromParentName(parentName, currency string) error {
 	parentAccount, err := r.svc.Account.GetAccountByName(parentName)
 	if err != nil {
 		return err
 	}
 
-	r.fullName = parentName + ":" + r.name
-	r.accountType = parentAccount.Type
-	r.parentID = &parentAccount.ID
-
-	if currency != "" {
-		r.currency = currency
-	} else {
-		r.currency = parentAccount.Currency
-	}
-
+	r.applyParentSettings(parentAccount, currency)
 	return nil
 }
 
-// buildFromType sets up account details based on account type
-func (r *createRunner) buildFromType(accType, currency string) error {
+func (r *createRunner) buildFromTypeFlag(accType, currency string) error {
 	rootName, err := r.svc.Account.GetRootNameByType(accType)
 	if err != nil {
 		return fmt.Errorf("get root name: %w", err)
 	}
 
-	r.fullName = rootName + ":" + r.name
-	r.accountType = accType
-
-	if currency != "" {
-		if err := r.validator.ValidateCurrency(currency); err != nil {
-			return err
-		}
-		r.currency = strings.ToUpper(strings.TrimSpace(currency))
-	} else {
-		r.currency = r.svc.Config.Defaults.Currency
-	}
-
-	return nil
+	return r.applyTypeSettings(rootName, accType, currency)
 }
 
-func (r *createRunner) setName(name string) {
-	r.name = name
+func (r *createRunner) promptType() (string, error) {
+	return prompts.PromptAccountType()
 }
 
-func (r *createRunner) setCurrency(currency string) {
-	r.currency = currency
-}
-
-func (r *createRunner) CreateOpeningBalance(balance int64) {
-	r.balance = balance
-}
-
-func (r *createRunner) setDescription(desc string) {
-	r.description = desc
-}
-
-// Save persists the account to the database
-func (r *createRunner) Save() (*model.Account, error) {
-	newAccount, err := r.svc.Account.CreateAccount(r.fullName, r.accountType, r.currency, r.description, r.parentID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create account: %w", err)
-	}
-
-	if r.balance != 0 {
-		err = r.svc.Transaction.CreateOpeningBalance(newAccount, r.balance)
-		if err != nil {
-			return nil, fmt.Errorf("failed to set balance: %w", err)
-		}
-	}
-
-	return newAccount, nil
-}
-
-func (r *createRunner) runBalanceStep() (int64, error) {
-	balanceInput, err := prompts.PromptInitialBalance(r.validator.ValidateInitialBalance)
-	if err != nil {
-		return 0, err
-	}
-
-	balanceInput = strings.TrimSpace(balanceInput)
-	if balanceInput == "" || balanceInput == "0" {
-		return 0, nil
-	}
-
-	balanceFloat, err := strconv.ParseFloat(balanceInput, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid balance input: must be a number")
-	}
-
-	return int64(math.Round(balanceFloat * constants.CentsPerUnit)), nil
-
-}
-
-// Helper functions for interactive mode
-func (r *createRunner) runSelectParentStep() (*model.Account, error) {
+func (r *createRunner) promptParent() (*model.Account, error) {
 	allAccounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
 	}
 
-	selectedName, selectedAccount, err := prompts.PromptParentAccount(allAccounts)
+	_, selectedAccount, err := prompts.PromptParentAccount(allAccounts)
 	if err != nil {
 		return nil, err
 	}
 
-	parentAccount, err := r.svc.Account.GetAccountByName(selectedName)
-	if err != nil {
-		return nil, err
+	if selectedAccount == nil {
+		return nil, fmt.Errorf("no account selected")
 	}
 
-	if selectedAccount != nil && selectedAccount.Name == parentAccount.Name {
-		parentAccount = selectedAccount
-	}
-
-	return parentAccount, nil
+	return selectedAccount, nil
 }
 
-func (r *createRunner) runNameStep(prefix string) (string, error) {
+func (r *createRunner) promptName(prefix string) (string, error) {
 	surveyValidator := func(val interface{}) error {
 		inputStr, ok := val.(string)
 		if !ok {
@@ -395,7 +354,7 @@ func (r *createRunner) runNameStep(prefix string) (string, error) {
 			return err
 		}
 
-		fullName := prefix + ":" + inputStr
+		fullName := r.svc.Account.FormatAccountName(prefix, inputStr)
 
 		exists, err := r.svc.Account.CheckAccountExists(fullName)
 		if err != nil {
@@ -409,7 +368,7 @@ func (r *createRunner) runNameStep(prefix string) (string, error) {
 	return prompts.PromptAccountName(surveyValidator)
 }
 
-func (r *createRunner) runCurrencyStep() (string, error) {
+func (r *createRunner) promptCurrency() (string, error) {
 	defaultCurrency := r.currency
 
 	if defaultCurrency == "" {
@@ -423,15 +382,20 @@ func (r *createRunner) runCurrencyStep() (string, error) {
 
 }
 
-func runSelectTypeStep() (string, error) {
-	return prompts.PromptAccountType()
+func (r *createRunner) promptBalance() (int64, error) {
+	balanceInput, err := prompts.PromptInitialBalance(r.validator.ValidateInitialBalance)
+	if err != nil {
+		return 0, err
+	}
+
+	return utils.ParseToCents(balanceInput)
 }
 
-func runDescStep() (string, error) {
+func (r *createRunner) promptDescription() (string, error) {
 	return prompts.PromptDescription("Description (optional):", false)
 }
 
-func confirmProceed() error {
+func (r *createRunner) confirm() error {
 	confirm, err := prompts.PromptConfirm("Proceed with account creation?", true)
 	if err != nil {
 		return err

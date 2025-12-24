@@ -142,18 +142,9 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 
 	r.balance = balance
 
-	// Save account
-	newAccount, err := r.Save()
+	// createAccount account
+	newAccount, err := r.createAccount()
 	if err != nil {
-		return err
-	}
-
-	if err := views.RenderAccountSummary(views.AccountSummaryItem{
-		FullName:    r.fullName,
-		Type:        r.accountType,
-		Currency:    r.currency,
-		Balance:     r.balance,
-		Description: r.description}); err != nil {
 		return err
 	}
 
@@ -163,8 +154,7 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 	return nil
 }
 
-// InteractiveMode builds an account through interactive prompts
-func (r *createRunner) interactiveMode() error {
+func (r *createRunner) runInteractive() error {
 	// Step 1: Check if is subaccount
 	isSubAccount, err := prompts.PromptIsSubAccount()
 	if err != nil {

@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 
+	"github.com/hance08/kea/internal/constants"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
@@ -27,7 +28,7 @@ func (ts *TransactionService) ValidateSplitsBalance(splits []model.Split) error 
 // ValidateTransactionEdit validates a transaction edit without saving
 func (ts *TransactionService) ValidateTransactionEdit(splits []TransactionSplitInput) error {
 	// Check minimum splits
-	if len(splits) < 2 {
+	if len(splits) < constants.MinSplitsCount {
 		return fmt.Errorf("transaction must have at least 2 splits")
 	}
 

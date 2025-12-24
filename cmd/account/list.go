@@ -1,35 +1,35 @@
-package cmd
+package account
 
 import (
 	"fmt"
 
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/views"
 	"github.com/spf13/cobra"
 )
 
-type accListFlags struct {
+type listFlags struct {
 	Type       string
 	ShowHidden bool
 }
 
-type AccListCommandRunner struct {
+type listRunner struct {
 	svc   *service.Service
-	flags *accListFlags
+	flags *listFlags
 }
 
-func NewAccListCmd(svc *service.Service) *cobra.Command {
-	flags := &accListFlags{}
+func NewListCmd(svc *service.Service) *cobra.Command {
+	flags := &listFlags{}
 
 	cmd := &cobra.Command{
-		Use:     "acc-list",
-		Aliases: []string{"als"},
-		Short:   "List all accounts with their balances (alias: als)",
+		Use:     "list",
+		Aliases: []string{"ls", "l"},
+		Short:   "List all accounts with their balances.",
 		Long: `List all accounts in the system with their current balances.
 You can filter by account type or show hidden accounts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &AccListCommandRunner{
+			runner := &listRunner{
 				svc:   svc,
 				flags: flags,
 			}
@@ -43,9 +43,9 @@ You can filter by account type or show hidden accounts.`,
 	return cmd
 }
 
-func (r *AccListCommandRunner) Run() error {
+func (r *listRunner) Run() error {
 
-	var accounts []*store.Account
+	var accounts []*model.Account
 	var err error
 
 	if r.flags.Type != "" {
@@ -69,8 +69,8 @@ func (r *AccListCommandRunner) Run() error {
 	return nil
 }
 
-func filterHiddenAccounts(accounts []*store.Account) []*store.Account {
-	var filtered []*store.Account
+func filterHiddenAccounts(accounts []*model.Account) []*model.Account {
+	var filtered []*model.Account
 	for _, acc := range accounts {
 		if !acc.IsHidden {
 			filtered = append(filtered, acc)

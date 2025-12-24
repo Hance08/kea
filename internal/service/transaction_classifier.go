@@ -57,24 +57,23 @@ func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionTy
 		return TxTypeOpening, nil
 	}
 
-	// Prioritize transfer when there are two or more asset/liability legs,
-	// even if there are extra expense/revenue splits (e.g., fees).
-	if assetOrLiabCnt >= 2 {
-		return TxTypeTransfer, nil
-	}
-
 	if hasExpense && hasRevenue {
 		if totalRevenueAmount >= totalExpenseAmount {
 			return TxTypeIncome, nil
 		}
 		return TxTypeExpense, nil
 	}
+
 	if hasExpense && assetOrLiabCnt >= 1 {
 		return TxTypeExpense, nil
 	}
 
 	if hasRevenue && assetOrLiabCnt >= 1 {
 		return TxTypeIncome, nil
+	}
+
+	if assetOrLiabCnt >= 2 {
+		return TxTypeTransfer, nil
 	}
 
 	if hasEquity && assetOrLiabCnt >= 1 {

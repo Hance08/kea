@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hance08/kea/internal/config"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/store"
 )
 
@@ -54,7 +55,7 @@ func (ts *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail
 }
 
 // GetRecentTransactions retrieves recent transactions across all accounts
-func (ts *TransactionService) GetRecentTransactions(limit int) ([]*store.Transaction, error) {
+func (ts *TransactionService) GetRecentTransactions(limit int) ([]*model.Transaction, error) {
 	transactions, err := ts.repo.GetAllTransactions(limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
@@ -63,7 +64,7 @@ func (ts *TransactionService) GetRecentTransactions(limit int) ([]*store.Transac
 }
 
 // GetTransactionHistory retrieves transaction history for a specific account
-func (ts *TransactionService) GetTransactionHistory(accountName string, limit int) ([]*store.Transaction, error) {
+func (ts *TransactionService) GetTransactionHistory(accountName string, limit int) ([]*model.Transaction, error) {
 	// Get account by name
 	account, err := ts.repo.GetAccountByName(accountName)
 	if err != nil {

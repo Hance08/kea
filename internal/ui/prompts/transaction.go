@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/ui"
 )
 
@@ -58,7 +58,7 @@ func PromptTransactionDate() (string, error) {
 
 // PromptAccountSelection prompts for account selection with optional balance display
 func PromptAccountSelection(
-	accounts []*store.Account,
+	accounts []*model.Account,
 	allowedTypes []string,
 	message string,
 	showBalance bool,
@@ -73,7 +73,7 @@ func PromptAccountSelection(
 	}
 
 	// filter accounts by type
-	var filteredAccounts []*store.Account
+	var filteredAccounts []*model.Account
 	typeMap := make(map[string]bool)
 	for _, t := range allowedTypes {
 		typeMap[t] = true

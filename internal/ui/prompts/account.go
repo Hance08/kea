@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/ui"
 )
 
@@ -30,9 +30,9 @@ func PromptAccountType() (string, error) {
 }
 
 // PromptParentAccount prompts for parent account with autocomplete
-func PromptParentAccount(accounts []*store.Account) (string, *store.Account, error) {
+func PromptParentAccount(accounts []*model.Account) (string, *model.Account, error) {
 	var accountNames []string
-	accountMap := make(map[string]*store.Account)
+	accountMap := make(map[string]*model.Account)
 
 	for _, acc := range accounts {
 		accountNames = append(accountNames, acc.Name)

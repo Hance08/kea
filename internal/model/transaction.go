@@ -1,4 +1,4 @@
-package store
+package model
 
 const (
 	StatusPending    = 0

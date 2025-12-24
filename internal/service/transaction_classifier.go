@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/hance08/kea/internal/constants"
-	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
 
@@ -148,7 +148,7 @@ func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType str
 	return "-", nil
 }
 
-func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, currentAccountType string, allAccounts []*store.Account) []*store.Account {
+func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, currentAccountType string, allAccounts []*model.Account) []*model.Account {
 	switch txType {
 	case TxTypeExpense:
 		if currentAccountType == "E" {
@@ -170,8 +170,8 @@ func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, current
 	}
 }
 
-func (ts *TransactionService) filterAccountsByTypes(accounts []*store.Account, allowedTypes []string) []*store.Account {
-	var filtered []*store.Account
+func (ts *TransactionService) filterAccountsByTypes(accounts []*model.Account, allowedTypes []string) []*model.Account {
+	var filtered []*model.Account
 
 	typeMap := make(map[string]bool)
 	for _, t := range allowedTypes {

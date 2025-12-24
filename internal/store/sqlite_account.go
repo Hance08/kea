@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hance08/kea/internal/model"
 	sqlite "github.com/mattn/go-sqlite3"
 )
 
@@ -38,7 +39,7 @@ func (s *Store) CreateAccount(name, accType, currency, description string, paren
 	return newID, nil
 }
 
-func (s *Store) GetAllAccounts() ([]*Account, error) {
+func (s *Store) GetAllAccounts() ([]*model.Account, error) {
 	rows, err := s.db.Query(`
         SELECT id, name, type, parent_id, currency, description, is_hidden
         FROM accounts
@@ -54,10 +55,10 @@ func (s *Store) GetAllAccounts() ([]*Account, error) {
 	return s.scanAccounts(rows)
 }
 
-func (s *Store) GetAccountByName(name string) (*Account, error) {
+func (s *Store) GetAccountByName(name string) (*model.Account, error) {
 	row := s.db.QueryRow("SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE name = ?", name)
 
-	acc := &Account{}
+	acc := &model.Account{}
 	var parentID sql.NullInt64
 
 	err := row.Scan(
@@ -80,10 +81,10 @@ func (s *Store) GetAccountByName(name string) (*Account, error) {
 	return acc, nil
 }
 
-func (s *Store) GetAccountByID(id int64) (*Account, error) {
+func (s *Store) GetAccountByID(id int64) (*model.Account, error) {
 	row := s.db.QueryRow("SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE id = ?", id)
 
-	acc := &Account{}
+	acc := &model.Account{}
 	var parentID sql.NullInt64
 
 	err := row.Scan(
@@ -115,7 +116,7 @@ func (s *Store) AccountExists(name string) (bool, error) {
 	return exists, nil
 }
 
-func (s *Store) GetAccountsByType(accType string) ([]*Account, error) {
+func (s *Store) GetAccountsByType(accType string) ([]*model.Account, error) {
 	rows, err := s.db.Query(`
         SELECT id, name, type, parent_id, currency, description, is_hidden
         FROM accounts
@@ -150,10 +151,10 @@ func (s *Store) GetAccountBalance(accountID int64) (int64, error) {
 	return 0, nil
 }
 
-func (s *Store) scanAccounts(rows *sql.Rows) ([]*Account, error) {
-	var accounts []*Account
+func (s *Store) scanAccounts(rows *sql.Rows) ([]*model.Account, error) {
+	var accounts []*model.Account
 	for rows.Next() {
-		acc := &Account{}
+		acc := &model.Account{}
 		var parentID sql.NullInt64
 
 		err := rows.Scan(

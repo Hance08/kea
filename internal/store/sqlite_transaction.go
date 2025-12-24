@@ -5,12 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hance08/kea/internal/model"
 	sqlite "github.com/mattn/go-sqlite3"
 )
 
 // CreateTransactionWithSplits inserts a transaction and its splits.
 // It relies on the caller (Service layer) to wrap it in ExecTx for atomicity.
-func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int64, error) {
+func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model.Split) (int64, error) {
 	stmtTx, err := s.db.Prepare(`
         INSERT INTO transactions (timestamp, description, status, external_id)
         VALUES (?, ?, ?, ?)
@@ -57,8 +58,8 @@ func (s *Store) CreateTransactionWithSplits(tx Transaction, splits []Split) (int
 	return newTxID, nil
 }
 
-func (s *Store) GetTransactionByID(txID int64) (*Transaction, []*Split, error) {
-	var tx Transaction
+func (s *Store) GetTransactionByID(txID int64) (*model.Transaction, []*model.Split, error) {
+	var tx model.Transaction
 	err := s.db.QueryRow(`
         SELECT id, timestamp, description, status, external_id
         FROM transactions
@@ -85,9 +86,9 @@ func (s *Store) GetTransactionByID(txID int64) (*Transaction, []*Split, error) {
 		_ = rows.Close()
 	}()
 
-	var splits []*Split
+	var splits []*model.Split
 	for rows.Next() {
-		split := &Split{}
+		split := &model.Split{}
 		err := rows.Scan(
 			&split.ID,
 			&split.TransactionID,
@@ -109,7 +110,7 @@ func (s *Store) GetTransactionByID(txID int64) (*Transaction, []*Split, error) {
 	return &tx, splits, nil
 }
 
-func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*Transaction, error) {
+func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -132,7 +133,7 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*Transac
 	return s.scanTransactions(rows)
 }
 
-func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transaction, error) {
+func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error) {
 	rows, err := s.db.Query(`
         SELECT id, timestamp, description, status, external_id
         FROM transactions
@@ -149,7 +150,7 @@ func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*Transac
 	return s.scanTransactions(rows)
 }
 
-func (s *Store) GetAllTransactions(limit int) ([]*Transaction, error) {
+func (s *Store) GetAllTransactions(limit int) ([]*model.Transaction, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -278,7 +279,7 @@ func (s *Store) DeleteSplit(splitID int64) error {
 	return nil
 }
 
-func (s *Store) CreateSplit(txID int64, split *Split) (int64, error) {
+func (s *Store) CreateSplit(txID int64, split *model.Split) (int64, error) {
 	result, err := s.db.Exec(`
         INSERT INTO splits (transaction_id, account_id, amount, currency, memo)
         VALUES (?, ?, ?, ?, ?)
@@ -295,7 +296,7 @@ func (s *Store) CreateSplit(txID int64, split *Split) (int64, error) {
 	return splitID, nil
 }
 
-func (s *Store) GetSplitsByTransaction(txID int64) ([]*Split, error) {
+func (s *Store) GetSplitsByTransaction(txID int64) ([]*model.Split, error) {
 	rows, err := s.db.Query(`
         SELECT id, transaction_id, account_id, amount, currency, memo
         FROM splits
@@ -309,9 +310,9 @@ func (s *Store) GetSplitsByTransaction(txID int64) ([]*Split, error) {
 		_ = rows.Close()
 	}()
 
-	var splits []*Split
+	var splits []*model.Split
 	for rows.Next() {
-		split := &Split{}
+		split := &model.Split{}
 		err := rows.Scan(
 			&split.ID,
 			&split.TransactionID,
@@ -329,10 +330,10 @@ func (s *Store) GetSplitsByTransaction(txID int64) ([]*Split, error) {
 	return splits, rows.Err()
 }
 
-func (s *Store) scanTransactions(rows *sql.Rows) ([]*Transaction, error) {
-	var transactions []*Transaction
+func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
+	var transactions []*model.Transaction
 	for rows.Next() {
-		tx := &Transaction{}
+		tx := &model.Transaction{}
 		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)

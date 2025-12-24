@@ -3,12 +3,12 @@ package service
 import (
 	"fmt"
 
-	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
 
 // ValidateSplitsBalance validates that all splits sum to zero (double-entry principle)
-func (ts *TransactionService) ValidateSplitsBalance(splits []store.Split) error {
+func (ts *TransactionService) ValidateSplitsBalance(splits []model.Split) error {
 	var total int64 = 0
 
 	for _, split := range splits {

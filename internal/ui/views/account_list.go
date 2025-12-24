@@ -3,7 +3,7 @@ package views
 import (
 	"fmt"
 
-	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/model"
 	"github.com/pterm/pterm"
 )
 
@@ -13,7 +13,7 @@ func NewAccountListView() *AccountListView {
 	return &AccountListView{}
 }
 
-func (v *AccountListView) Render(accounts []*store.Account, balanceGetter func(int64) (string, error)) error {
+func (v *AccountListView) Render(accounts []*model.Account, balanceGetter func(int64) (string, error)) error {
 	headers := []string{"Name", "Type", "Balance"}
 	tableData := pterm.TableData{headers}
 

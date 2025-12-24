@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/ui/prompts"
@@ -306,24 +307,24 @@ func (r *CreateCommandRunner) buildFromType(accType, currency string) error {
 	return nil
 }
 
-func (r *CreateCommandRunner) setName(name string) {
+func (r *createRunner) setName(name string) {
 	r.name = name
 }
 
-func (r *CreateCommandRunner) setCurrency(currency string) {
+func (r *createRunner) setCurrency(currency string) {
 	r.currency = currency
 }
 
-func (r *CreateCommandRunner) CreateOpeningBalance(balance int64) {
+func (r *createRunner) CreateOpeningBalance(balance int64) {
 	r.balance = balance
 }
 
-func (r *CreateCommandRunner) setDescription(desc string) {
+func (r *createRunner) setDescription(desc string) {
 	r.description = desc
 }
 
 // Save persists the account to the database
-func (r *CreateCommandRunner) Save() (*store.Account, error) {
+func (r *createRunner) Save() (*model.Account, error) {
 	newAccount, err := r.svc.Account.CreateAccount(r.fullName, r.accountType, r.currency, r.description, r.parentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create account: %w", err)

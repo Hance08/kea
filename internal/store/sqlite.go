@@ -89,7 +89,7 @@ func runMigrations(db *sql.DB, migrationsFS fs.FS) error {
 		return fmt.Errorf("failed to set up migrate driver : %w", err)
 	}
 
-	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	sourceDriver, err := iofs.New(migrationsFS, ".")
 	if err != nil {
 		return fmt.Errorf("failed to create iofs source driver : %w", err)
 	}
@@ -97,7 +97,7 @@ func runMigrations(db *sql.DB, migrationsFS fs.FS) error {
 	defer func() {
 		_ = sourceDriver.Close()
 	}()
-	
+
 	m, err := migrate.NewWithInstance(
 		"iofs",
 		sourceDriver,

@@ -98,6 +98,6 @@ func PromptSelect(message string, options []string, defaultOption string) (strin
 		}
 	}
 
-	err := survey.AskOne(prompt, &selected, ui.IconOption())
+	err := survey.AskOne(prompt, &selected, ui.GetSurveyStyle())
 	return selected, err
 }

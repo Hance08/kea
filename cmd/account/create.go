@@ -48,8 +48,9 @@ func NewCreateCmd(svc *service.Service) *cobra.Command {
 	validator := validation.NewAccountValidator()
 
 	cmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create a new account.",
+		Use:     "create",
+		Aliases: []string{"c"},
+		Short:   "Create a new account.",
 		Long: `In the beginning of using this tool, you need to create new accounts.
 You must create type A (Asset), L(Liabilities), E(Expenses), R(Revenue)
 four basic accounts, e.g. create an Asset account called Bank.

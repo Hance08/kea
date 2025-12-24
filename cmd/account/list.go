@@ -59,7 +59,7 @@ func (r *listRunner) Run() error {
 	}
 
 	if !r.flags.ShowHidden {
-		accounts = filterHiddenAccounts(accounts)
+		accounts = r.filterHiddenAccounts(accounts)
 	}
 
 	if err := views.NewAccountListView().Render(accounts, r.svc.Account.GetAccountBalanceFormatted); err != nil {
@@ -69,7 +69,7 @@ func (r *listRunner) Run() error {
 	return nil
 }
 
-func filterHiddenAccounts(accounts []*model.Account) []*model.Account {
+func (r *listRunner) filterHiddenAccounts(accounts []*model.Account) []*model.Account {
 	var filtered []*model.Account
 	for _, acc := range accounts {
 		if !acc.IsHidden {

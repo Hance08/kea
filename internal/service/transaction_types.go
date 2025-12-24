@@ -1,5 +1,9 @@
 package service
 
+import (
+	"errors"
+)
+
 type TransactionType string
 type TransactionRule struct {
 	Mode         string // e.g., "expense", "income", "transfer"
@@ -68,4 +72,18 @@ func (d *TransactionDetail) ToSplitInputs() []TransactionSplitInput {
 		})
 	}
 	return inputs
+}
+
+func (d *TransactionDetail) UpdateAmountPreservingBalance(newAbsAmount int64) error {
+	if len(d.Splits) != 2 {
+		return errors.New("auto-balance only supports 2 splits")
+	}
+	if d.Splits[0].Amount >= 0 {
+		d.Splits[0].Amount = newAbsAmount
+		d.Splits[1].Amount = -newAbsAmount
+	} else {
+		d.Splits[0].Amount = -newAbsAmount
+		d.Splits[1].Amount = newAbsAmount
+	}
+	return nil
 }

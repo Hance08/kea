@@ -124,6 +124,8 @@ func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 
 	var newTxID int64
 
+	// Execute Database Transaction:
+	// Ensure atomicity when writing the transaction and its splits.
 	err := ts.repo.ExecTx(func(repo store.Repository) error {
 		var err error
 
@@ -139,6 +141,51 @@ func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 	}
 
 	return newTxID, nil
+}
+
+// CreateSimpleTransaction simplifies the creation of a double-entry transaction by
+// abstracting the "Credit/Debit" logic into a directional "From -> To" flow.
+//
+// It automatically generates two balanced splits:
+//   - A Credit (negative) to the fromAccount (Source).
+//   - A Debit (positive) to the toAccount (Destination).
+//
+// Returns the new TransactionID and the constructed TransactionInput (useful for UI rendering).
+func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status int) (int64, TransactionInput, error) {
+	if fromAccount == toAccount {
+		return 0, TransactionInput{}, fmt.Errorf("source and destination accounts cannot be the same")
+	}
+
+	if amount <= 0 {
+		return 0, TransactionInput{}, fmt.Errorf("amount must be positive")
+	}
+
+	splits := []TransactionSplitInput{
+		{
+			AccountName: toAccount,
+			Amount:      amount,
+			Memo:        "",
+		},
+		{
+			AccountName: fromAccount,
+			Amount:      -amount,
+			Memo:        "",
+		},
+	}
+
+	input := TransactionInput{
+		Timestamp:   timestamp,
+		Description: desc,
+		Status:      status,
+		Splits:      splits,
+	}
+
+	id, err := ts.CreateTransaction(input)
+	if err != nil {
+		return 0, TransactionInput{}, err
+	}
+
+	return id, input, nil
 }
 
 // DeleteTransaction deletes a transaction

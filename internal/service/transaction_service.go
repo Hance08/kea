@@ -17,6 +17,31 @@ func NewTransactionService(repo store.Repository, cfg *config.Config) *Transacti
 	return &TransactionService{repo: repo, config: cfg}
 }
 
+func (ts *TransactionService) GetTransactionRule(mode string) (TransactionRule, error) {
+	switch mode {
+	case "expense":
+		return TransactionRule{
+			Mode:        "expense",
+			SourceTypes: []string{"A", "L"}, // Assets, Liabilities
+			DestTypes:   []string{"E"},      // Expenses
+		}, nil
+	case "income":
+		return TransactionRule{
+			Mode:        "income",
+			SourceTypes: []string{"R"},      // Revenue (Income)
+			DestTypes:   []string{"A", "L"}, // Assets, Liabilities
+		}, nil
+	case "transfer":
+		return TransactionRule{
+			Mode:        "transfer",
+			SourceTypes: []string{"A", "L"},
+			DestTypes:   []string{"A", "L"},
+		}, nil
+	default:
+		return TransactionRule{}, fmt.Errorf("unknown transaction mode: %s", mode)
+	}
+}
+
 // GetTransactionByID retrieves a transaction with all split details
 func (ts *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail, error) {
 	tx, splits, err := ts.repo.GetTransactionByID(txID)

@@ -1,6 +1,13 @@
 package service
 
 type TransactionType string
+type TransactionRule struct {
+	Mode         string // e.g., "expense", "income", "transfer"
+	SourceTypes  []string
+	DestTypes    []string
+	SourcePrompt string
+	DestPrompt   string
+}
 
 const (
 	TxTypeExpense    TransactionType = "Expense"

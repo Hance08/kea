@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type ShowCommandRunner struct {
+type showRunner struct {
 	svc *service.Service
 }
 
@@ -19,7 +19,7 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 		Short: "Show transaction details",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &ShowCommandRunner{
+			runner := &showRunner{
 				svc: svc,
 			}
 			return runner.Run(args)
@@ -27,7 +27,7 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 	}
 }
 
-func (r *ShowCommandRunner) Run(args []string) error {
+func (r *showRunner) Run(args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])

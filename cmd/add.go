@@ -24,7 +24,7 @@ type addFlags struct {
 	Timestamp string
 }
 
-type AddCommandRunner struct {
+type addRunner struct {
 	svc   *service.Service
 	flags *addFlags
 	cmd   *cobra.Command
@@ -50,10 +50,8 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 	
 	# With pending status (default is cleared)
 	kea add --desc "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
-
-		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &AddCommandRunner{
+			runner := &addRunner{
 				svc:   svc,
 				flags: flags,
 				cmd:   cmd,
@@ -71,7 +69,8 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 	return cmd
 }
 
-func (r *AddCommandRunner) Run() error {
+func (r *addRunner) Run() error {
+	var txID int64
 	var input service.TransactionInput
 	var err error
 

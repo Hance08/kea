@@ -9,6 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type clearRunner struct {
+	svc *service.Service
+}
+
 func NewClearCmd(svc *service.Service) *cobra.Command {
 	return &cobra.Command{
 		Use:   "clear <transaction-id>",
@@ -16,19 +20,20 @@ func NewClearCmd(svc *service.Service) *cobra.Command {
 		Long:  `Mark a pending transaction as cleared (confirmed).`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTransactionClear(svc, args)
+			runner := &clearRunner{svc: svc}
+			return runner.Run(args)
 		},
 	}
 }
 
-func runTransactionClear(svc *service.Service, args []string) error {
+func (r *clearRunner) Run(args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
 	// Update status to cleared (1)
-	if err := svc.Transaction.UpdateTransactionStatus(txID, 1); err != nil {
+	if err := r.svc.Transaction.UpdateTransactionStatus(txID, 1); err != nil {
 		pterm.Error.Printf("Failed to update transaction status: %v\n", err)
 		return nil
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type EditCommandRunner struct {
+type editRunner struct {
 	svc *service.Service
 }
 
@@ -24,7 +24,7 @@ func NewEditCmd(svc *service.Service) *cobra.Command {
 		Long:  `Edit a transaction's description, date, status, and splits interactively.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &EditCommandRunner{
+			runner := &editRunner{
 				svc: svc,
 			}
 			return runner.Run(args)
@@ -32,7 +32,7 @@ func NewEditCmd(svc *service.Service) *cobra.Command {
 	}
 }
 
-func (r *EditCommandRunner) Run(args []string) error {
+func (r *editRunner) Run(args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
@@ -135,7 +135,7 @@ func (r *EditCommandRunner) Run(args []string) error {
 	}
 }
 
-func (r *EditCommandRunner) editBasicInfo(detail *service.TransactionDetail) error {
+func (r *editRunner) editBasicInfo(detail *service.TransactionDetail) error {
 	// Edit description
 	newDescription, err := prompts.PromptInput("Description:", detail.Description, nil)
 	if err != nil {
@@ -180,7 +180,7 @@ func (r *EditCommandRunner) editBasicInfo(detail *service.TransactionDetail) err
 
 // editAccount allows quick account switching for simple transactions
 // Works best for 2-split transactions (Expense/Income/Transfer)
-func (r *EditCommandRunner) editAccount(detail *service.TransactionDetail) error {
+func (r *editRunner) editAccount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -299,7 +299,7 @@ func (r *EditCommandRunner) editAccount(detail *service.TransactionDetail) error
 
 // editAmount allows quick amount editing for simple transactions
 // Automatically adjusts both sides to maintain balance
-func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error {
+func (r *editRunner) editAmount(detail *service.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		pterm.Warning.Println("This feature works best with 2-split transactions")
 		pterm.Info.Println("Use 'Edit Splits (Advanced)' for complex transactions")
@@ -375,7 +375,7 @@ func (r *EditCommandRunner) editAmount(detail *service.TransactionDetail) error 
 	return nil
 }
 
-func (r *EditCommandRunner) editSplits(detail *service.TransactionDetail) error {
+func (r *editRunner) editSplits(detail *service.TransactionDetail) error {
 	for {
 		// Display current splits with balance
 		if err := views.RenderTransactionDetail(detail); err != nil {
@@ -420,7 +420,7 @@ func (r *EditCommandRunner) editSplits(detail *service.TransactionDetail) error 
 	}
 }
 
-func (r *EditCommandRunner) addSplit(detail *service.TransactionDetail) error {
+func (r *editRunner) addSplit(detail *service.TransactionDetail) error {
 	// Select account
 	accounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
@@ -480,7 +480,7 @@ func (r *EditCommandRunner) addSplit(detail *service.TransactionDetail) error {
 	return nil
 }
 
-func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) error {
+func (r *editRunner) editOneSplit(detail *service.TransactionDetail) error {
 	if len(detail.Splits) == 0 {
 		return fmt.Errorf("no splits to edit")
 	}
@@ -547,7 +547,7 @@ func (r *EditCommandRunner) editOneSplit(detail *service.TransactionDetail) erro
 	return nil
 }
 
-func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error {
+func (r *editRunner) deleteSplit(detail *service.TransactionDetail) error {
 	if len(detail.Splits) <= 2 {
 		return fmt.Errorf("cannot delete: transaction must have at least 2 splits")
 	}
@@ -579,7 +579,7 @@ func (r *EditCommandRunner) deleteSplit(detail *service.TransactionDetail) error
 	return nil
 }
 
-func (r *EditCommandRunner) saveTransactionChanges(txID int64, detail *service.TransactionDetail) error {
+func (r *editRunner) saveTransactionChanges(txID int64, detail *service.TransactionDetail) error {
 	splits := detail.ToSplitInputs()
 	return r.svc.Transaction.UpdateTransactionComplete(
 		txID,
@@ -590,7 +590,7 @@ func (r *EditCommandRunner) saveTransactionChanges(txID int64, detail *service.T
 	)
 }
 
-func (r *EditCommandRunner) selectSplit(detail *service.TransactionDetail, promptMsg string) (int, error) {
+func (r *editRunner) selectSplit(detail *service.TransactionDetail, promptMsg string) (int, error) {
 	var splitOptions []string
 	for i, split := range detail.Splits {
 		amount := utils.FormatFromCents(split.Amount)

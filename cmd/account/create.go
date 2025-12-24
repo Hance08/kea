@@ -29,8 +29,8 @@ type createFlags struct {
 	Description string
 }
 
-// CreateCommandRunner manages the state and svc for creating an account
-type CreateCommandRunner struct {
+// createRunner manages the state and svc for creating an account
+type createRunner struct {
 	name        string
 	fullName    string
 	parentID    *int64
@@ -57,9 +57,8 @@ four basic accounts, e.g. create an Asset account called Bank.
 Advanced users can also create Equity (C) accounts.
 
 Example: kea account create -t A -n Bank -b 100000`,
-		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &CreateCommandRunner{
+			runner := &createRunner{
 				svc:       svc,
 				validator: validator,
 			}
@@ -77,7 +76,7 @@ Example: kea account create -t A -n Bank -b 100000`,
 	return cmd
 }
 
-func (r *CreateCommandRunner) Run(flags *createFlags, cmd *cobra.Command) error {
+func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 	hasFlags := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("type") ||
 		cmd.Flags().Changed("parent")
@@ -102,7 +101,7 @@ func (r *CreateCommandRunner) Run(flags *createFlags, cmd *cobra.Command) error 
 }
 
 // FlagsMode builds an account from command-line flags
-func (r *CreateCommandRunner) flagsMode(flags *createFlags) error {
+func (r *createRunner) flagsMode(flags *createFlags) error {
 	// Validate flag combinations
 	if flags.Parent == "" && flags.Type == "" {
 		return fmt.Errorf("must enter at least one of --type or --parent flag")
@@ -165,7 +164,7 @@ func (r *CreateCommandRunner) flagsMode(flags *createFlags) error {
 }
 
 // InteractiveMode builds an account through interactive prompts
-func (r *CreateCommandRunner) interactiveMode() error {
+func (r *createRunner) interactiveMode() error {
 	// Step 1: Check if is subaccount
 	isSubAccount, err := prompts.PromptIsSubAccount()
 	if err != nil {
@@ -266,7 +265,7 @@ func (r *CreateCommandRunner) interactiveMode() error {
 }
 
 // buildFromParent sets up account details based on parent account
-func (r *CreateCommandRunner) buildFromParent(parentName, currency string) error {
+func (r *createRunner) buildFromParent(parentName, currency string) error {
 	parentAccount, err := r.svc.Account.GetAccountByName(parentName)
 	if err != nil {
 		return err
@@ -286,7 +285,7 @@ func (r *CreateCommandRunner) buildFromParent(parentName, currency string) error
 }
 
 // buildFromType sets up account details based on account type
-func (r *CreateCommandRunner) buildFromType(accType, currency string) error {
+func (r *createRunner) buildFromType(accType, currency string) error {
 	rootName, err := r.svc.Account.GetRootNameByType(accType)
 	if err != nil {
 		return fmt.Errorf("get root name: %w", err)
@@ -340,7 +339,7 @@ func (r *createRunner) Save() (*model.Account, error) {
 	return newAccount, nil
 }
 
-func (r *CreateCommandRunner) runBalanceStep() (int64, error) {
+func (r *createRunner) runBalanceStep() (int64, error) {
 	balanceInput, err := prompts.PromptInitialBalance(r.validator.ValidateInitialBalance)
 	if err != nil {
 		return 0, err
@@ -361,7 +360,7 @@ func (r *CreateCommandRunner) runBalanceStep() (int64, error) {
 }
 
 // Helper functions for interactive mode
-func (r *CreateCommandRunner) runSelectParentStep() (*store.Account, error) {
+func (r *createRunner) runSelectParentStep() (*model.Account, error) {
 	allAccounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
@@ -384,7 +383,7 @@ func (r *CreateCommandRunner) runSelectParentStep() (*store.Account, error) {
 	return parentAccount, nil
 }
 
-func (r *CreateCommandRunner) runNameStep(prefix string) (string, error) {
+func (r *createRunner) runNameStep(prefix string) (string, error) {
 	surveyValidator := func(val interface{}) error {
 		inputStr, ok := val.(string)
 		if !ok {
@@ -409,7 +408,7 @@ func (r *CreateCommandRunner) runNameStep(prefix string) (string, error) {
 	return prompts.PromptAccountName(surveyValidator)
 }
 
-func (r *CreateCommandRunner) runCurrencyStep() (string, error) {
+func (r *createRunner) runCurrencyStep() (string, error) {
 	defaultCurrency := r.currency
 
 	if defaultCurrency == "" {

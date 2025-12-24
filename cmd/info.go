@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type InfoCommandRunner struct {
+type infoRunner struct {
 	svc *service.Service
 }
 
@@ -18,7 +18,7 @@ func NewInfoCmd(svc *service.Service) *cobra.Command {
 		Short: "Display application information",
 		Long:  `Display current configuration, database path, and system details.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &InfoCommandRunner{
+			runner := &infoRunner{
 				svc: svc,
 			}
 
@@ -27,7 +27,7 @@ func NewInfoCmd(svc *service.Service) *cobra.Command {
 	}
 }
 
-func (r *InfoCommandRunner) Run() error {
+func (r *infoRunner) Run() error {
 	configPath := r.svc.Config.ConfigPath
 	if configPath == "" {
 		configPath = "(None, using defaults)"

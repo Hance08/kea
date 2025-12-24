@@ -11,6 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type deleteRunner struct {
+	svc *service.Service
+}
+
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <transaction-id>",
@@ -18,19 +22,20 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Long:  `Delete a transaction and all its associated splits. This action cannot be undone.`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTransactionDelete(svc, args)
+			runner := &deleteRunner{svc: svc}
+			return runner.Run(args)
 		},
 	}
 }
 
-func runTransactionDelete(svc *service.Service, args []string) error {
+func (r *deleteRunner) Run(args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
 	// Get transaction details first to show what will be deleted
-	detail, err := svc.Transaction.GetTransactionByID(txID)
+	detail, err := r.svc.Transaction.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
@@ -64,7 +69,7 @@ func runTransactionDelete(svc *service.Service, args []string) error {
 	}
 
 	// Delete transaction
-	if err := svc.Transaction.DeleteTransaction(txID); err != nil {
+	if err := r.svc.Transaction.DeleteTransaction(txID); err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
 	}

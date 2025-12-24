@@ -1,7 +1,11 @@
 package views
 
 import (
+	"fmt"
+
 	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/utils"
+	"github.com/pterm/pterm"
 )
 
 func GetSplitRoleLabels(splits []service.SplitDetail, txType service.TransactionType) []string {
@@ -55,4 +59,21 @@ func GetSplitRoleLabels(splits []service.SplitDetail, txType service.Transaction
 	}
 
 	return labels
+}
+
+func RenderSimpleSplitList(splits []service.SplitDetail, txType service.TransactionType) {
+	roleLabels := GetSplitRoleLabels(splits, txType)
+
+	for i, split := range splits {
+		amount := utils.FormatFromCents(split.Amount)
+		
+		sign := "+"
+		if split.Amount < 0 {
+			sign = ""
+		}
+
+		pterm.Printf("  %d. %s (%s): %s%s %s\n",
+			i+1, split.AccountName, roleLabels[i], sign, amount, split.Currency)
+	}
+	fmt.Println()
 }

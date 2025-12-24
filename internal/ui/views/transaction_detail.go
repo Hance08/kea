@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/utils"
 	"github.com/pterm/pterm"
 )
@@ -16,7 +17,8 @@ func RenderTransactionDetail(detail *service.TransactionDetail) error {
 		status = "Cleared"
 	}
 
-	pterm.DefaultSection.Println("Transaction Info")
+	pterm.Println()
+	ui.PrintL2Title("Transaction Info")
 	infoData := pterm.TableData{
 		{"Field", "Value"},
 		{"ID", fmt.Sprintf("%d", detail.ID)},
@@ -24,11 +26,16 @@ func RenderTransactionDetail(detail *service.TransactionDetail) error {
 		{"Description", detail.Description},
 		{"Status", status},
 	}
-	if err := pterm.DefaultTable.WithHasHeader().WithData(infoData).Render(); err != nil {
+	if err := pterm.DefaultTable.
+		WithHasHeader().
+		WithHeaderStyle(pterm.NewStyle(pterm.FgGray)).
+		WithData(infoData).
+		Render(); err != nil {
 		return err
 	}
 
-	pterm.DefaultSection.Println("Splits (Double-Entry)")
+	pterm.Println()
+	ui.PrintL2Title("Splits")
 	splitsData := pterm.TableData{
 		{"Account", "Amount", "Type", "Memo"},
 	}
@@ -63,8 +70,13 @@ func RenderTransactionDetail(detail *service.TransactionDetail) error {
 		})
 	}
 
-	if err := pterm.DefaultTable.WithHasHeader().WithData(splitsData).Render(); err != nil {
+	if err := pterm.DefaultTable.
+		WithHasHeader().
+		WithHeaderStyle(pterm.NewStyle(pterm.FgGray)).
+		WithData(splitsData).
+		Render(); err != nil {
 		return err
 	}
+
 	return nil
 }

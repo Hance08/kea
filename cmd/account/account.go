@@ -8,7 +8,7 @@ import (
 func NewAccountCmd(svc *service.Service) *cobra.Command {
 	accountCmd := &cobra.Command{
 		Use:     "account",
-		Aliases: []string{"acc", "a"},
+		Aliases: []string{"ac"},
 		Short:   "It can create, edit, delete account and show the list of all accounts.",
 		Long:    `It can create, edit, delete account and show the list of all accounts.`,
 	}

@@ -24,12 +24,7 @@ func NewAccountValidator() *AccountValidator {
 }
 
 // ValidateAccountName validates a basic account name (without checking existence)
-func (v *AccountValidator) ValidateAccountName(val any) error {
-	name, ok := val.(string)
-	if !ok {
-		return fmt.Errorf("account name must be a string")
-	}
-
+func (v *AccountValidator) ValidateAccountName(name string) error {
 	name = strings.TrimSpace(name)
 
 	if name == "" {
@@ -51,11 +46,8 @@ func (v *AccountValidator) ValidateAccountName(val any) error {
 }
 
 // ValidateAccountNameWithPrefix returns a validator that checks both name format and existence
-func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(any) error {
-	return func(val any) error {
-		// When creating subaccount, the partial name is the user entering name
-		partialName := val.(string)
-
+func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(string) error {
+	return func(partialName string) error {
 		if err := v.ValidateAccountName(partialName); err != nil {
 			return err
 		}
@@ -64,7 +56,6 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(any
 		if len(fullName) > constants.MaxNameLen {
 			return fmt.Errorf("full account name too long")
 		}
-
 		return nil
 	}
 }
@@ -80,17 +71,7 @@ func (v *AccountValidator) ValidateFullAccountName(fullName string) error {
 
 // ValidateCurrency validates a currency code format
 // Accepts both string and any (for survey compatibility)
-func (v *AccountValidator) ValidateCurrency(val any) error {
-	var currency string
-
-	// Handle both string and any types
-	switch v := val.(type) {
-	case string:
-		currency = v
-	default:
-		return fmt.Errorf("currency code must be a string")
-	}
-
+func (v *AccountValidator) ValidateCurrency(currency string) error {
 	currency = strings.TrimSpace(strings.ToUpper(currency))
 
 	if currency == "" {
@@ -111,11 +92,7 @@ func (v *AccountValidator) ValidateCurrency(val any) error {
 }
 
 // ValidateInitialBalance validates initial balance input
-func (v *AccountValidator) ValidateInitialBalance(val any) error {
-	input, ok := val.(string)
-	if !ok {
-		return fmt.Errorf("balance must be a string")
-	}
+func (v *AccountValidator) ValidateInitialBalance(input string) error {
 
 	input = strings.TrimSpace(input)
 	if input == "" || input == "0" {

@@ -331,12 +331,7 @@ func (r *createRunner) promptParent() (*model.Account, error) {
 }
 
 func (r *createRunner) promptName(prefix string) (string, error) {
-	surveyValidator := func(val interface{}) error {
-		inputStr, ok := val.(string)
-		if !ok {
-			return fmt.Errorf("invalid type")
-		}
-
+	surveyValidator := func(inputStr string) error {
 		if err := r.validator.ValidateAccountName(inputStr); err != nil {
 			return err
 		}

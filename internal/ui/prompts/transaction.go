@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/huh"
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/ui"
 )
 
 // PromptTransactionType prompts for transaction type selection
@@ -91,11 +90,10 @@ func PromptAccountSelection(
 		return "", fmt.Errorf("no available accounts (Type: %v)", allowedTypes)
 	}
 
-	// Build display options
-	options := make([]string, len(filteredAccounts))
+	var opts []huh.Option[string]
 	accountMap := make(map[string]string) // display -> actual name
 
-	for i, acc := range filteredAccounts {
+	for _, acc := range filteredAccounts {
 		displayName := acc.Name
 
 		if showBalance && balanceGetter != nil {
@@ -105,19 +103,24 @@ func PromptAccountSelection(
 			}
 		}
 
-		options[i] = displayName
+		// key: displayName, value: displayName (we map back later)
+		opts = append(opts, huh.NewOption(displayName, displayName))
 		accountMap[displayName] = acc.Name
 	}
 
 	// Show selection prompt
-	var selected string
-	prompt := &survey.Select{
-		Message: message,
-		Options: options,
-	}
-	if err := survey.AskOne(prompt, &selected, ui.IconOption()); err != nil {
+	var selectedDisplay string
+
+	err := huh.NewSelect[string]().
+		Title(message).
+		Options(opts...).
+		Value(&selectedDisplay).
+		Height(15). // Give it plenty of height for transactions
+		Run()
+
+	if err != nil {
 		return "", err
 	}
 
-	return accountMap[selected], nil
+	return accountMap[selectedDisplay], nil
 }

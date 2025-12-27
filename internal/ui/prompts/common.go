@@ -1,103 +1,151 @@
 package prompts
 
 import (
-	"github.com/AlecAivazis/survey/v2"
-	"github.com/hance08/kea/internal/ui"
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/huh"
 )
 
 // PromptDescription prompts for a description text
 // Can be used for transactions, accounts, or any other entity
 func PromptDescription(message string, required bool) (string, error) {
 	var desc string
-	prompt := &survey.Input{
-		Message: message,
-	}
 
-	opts := []survey.AskOpt{ui.IconOption()}
+	input := huh.NewInput().
+		Title(message).
+		Value(&desc)
+
 	if required {
-		opts = append(opts, survey.WithValidator(survey.Required))
+		input.Validate(func(s string) error {
+			if strings.TrimSpace(s) == "" {
+				return fmt.Errorf("description is required")
+			}
+			return nil
+		})
 	}
 
-	err := survey.AskOne(prompt, &desc, opts...)
+	err := input.Run()
 	return desc, err
 }
 
 // PromptAmount prompts for an amount with custom validation
-func PromptAmount(message string, helpText string, validator func(any) error) (string, error) {
+func PromptAmount(message string, helpText string, validator func(string) error) (string, error) {
 	var amount string
-	prompt := &survey.Input{
-		Message: message,
-		Help:    helpText,
-	}
 
-	opts := []survey.AskOpt{ui.IconOption()}
+	input := huh.NewInput().
+		Title(message).
+		Description(helpText).
+		Value(&amount)
+
 	if validator != nil {
-		opts = append(opts, survey.WithValidator(validator))
+		input.Validate(validator)
 	}
 
-	err := survey.AskOne(prompt, &amount, opts...)
+	err := input.Run()
 	return amount, err
 }
 
 // PromptConfirm prompts for yes/no confirmation
 func PromptConfirm(message string, defaultValue bool) (bool, error) {
-	var confirm bool
-	prompt := &survey.Confirm{
-		Message: message,
-		Default: defaultValue,
-	}
+	confirm := defaultValue
 
-	err := survey.AskOne(prompt, &confirm, ui.IconOption())
+	err := huh.NewConfirm().
+		Title(message).
+		Value(&confirm).
+		Affirmative("Yes").
+		Negative("No").
+		Value(&confirm).
+		Run()
+
 	return confirm, err
 }
 
 // PromptDate prompts for a date in YYYY-MM-DD format
 func PromptDate(message string, defaultDate string, helpText string) (string, error) {
 	var date string
-	prompt := &survey.Input{
-		Message: message,
-		Default: defaultDate,
-		Help:    helpText,
+
+	// Use Input for date for now (huh has no specialized date picker yet, simpler to stick to input)
+	err := huh.NewInput().
+		Title(message).
+		Description(helpText).
+		Placeholder(defaultDate). // Placeholder shows the default hint
+		Value(&date).
+		Run()
+
+	if err != nil {
+		return "", err
 	}
 
-	err := survey.AskOne(prompt, &date, ui.IconOption())
-	return date, err
+	// If user pressed enter without typing, use the placeholder/default
+	if date == "" {
+		return defaultDate, nil
+	}
+	return date, nil
 }
 
 // PromptInput prompts for a generic text input with optional default and validator
-func PromptInput(message string, defaultValue string, validator func(any) error) (string, error) {
-	var input string
-	prompt := &survey.Input{
-		Message: message,
-		Default: defaultValue,
+func PromptInput(message string, defaultValue string, validator func(string) error) (string, error) {
+	var inputVal string
+
+	input := huh.NewInput().
+		Title(message).
+		Value(&inputVal)
+
+	if defaultValue != "" {
+		input.Placeholder(defaultValue)
 	}
 
-	opts := []survey.AskOpt{ui.IconOption()}
 	if validator != nil {
-		opts = append(opts, survey.WithValidator(validator))
+		input.Validate(validator)
 	}
 
-	err := survey.AskOne(prompt, &input, opts...)
-	return input, err
+	err := input.Run()
+	if err != nil {
+		return "", err
+	}
+
+	if inputVal == "" && defaultValue != "" {
+		return defaultValue, nil
+	}
+
+	return inputVal, nil
 }
 
 // PromptSelect prompts for a selection from a list of options
 func PromptSelect(message string, options []string, defaultOption string) (string, error) {
-	var selected string
-	prompt := &survey.Select{
-		Message: message,
-		Options: options,
+	realDefault := defaultOption
+	matchFound := false
+
+	for _, o := range options {
+		if o == defaultOption {
+			realDefault = o
+			matchFound = true
+			break
+		}
 	}
 
-	if defaultOption != "" {
-		for _, opt := range options {
-			if opt == defaultOption {
-				prompt.Default = defaultOption
+	if !matchFound && defaultOption != "" {
+		for _, o := range options {
+			if strings.HasPrefix(o, defaultOption+" ") {
+				realDefault = o
 				break
 			}
 		}
 	}
+	selected := realDefault
 
-	err := survey.AskOne(prompt, &selected, ui.GetSurveyStyle())
+	// Create options for huh
+	var opts []huh.Option[string]
+	for _, o := range options {
+		opts = append(opts, huh.NewOption(o, o))
+	}
+
+	selectField := huh.NewSelect[string]().
+		Title(message).
+		Options(opts...).
+		Value(&selected)
+
+	err := selectField.Run()
 	return selected, err
 }

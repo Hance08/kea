@@ -3,9 +3,8 @@ package transaction
 import (
 	"fmt"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/ui"
+	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/ui/views"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -50,12 +49,8 @@ func (r *deleteRunner) Run(args []string) error {
 		return err
 	}
 
-	var confirmation bool
-	confirmPrompt := &survey.Confirm{
-		Message: "Do you want to delete this transaction?",
-		Default: false,
-	}
-	if err := survey.AskOne(confirmPrompt, &confirmation, ui.IconOption()); err != nil {
+	confirmation, err := prompts.PromptConfirm("Do you want to delete this transaction?", false)
+	if err != nil {
 		return err
 	}
 

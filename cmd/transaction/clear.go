@@ -38,7 +38,6 @@ func (r *clearRunner) Run(args []string) error {
 		return nil
 	}
 
-	pterm.Success.Printf("Transaction #%d marked as cleared\n", txID)
-	ui.Separator()
+	pterm.Success.Printf("Transaction (ID: %d) marked as cleared\n", txID)
 	return nil
 }

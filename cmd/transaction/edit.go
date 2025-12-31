@@ -52,9 +52,7 @@ func (r *editRunner) Run(args []string) error {
 		return nil
 	}
 
-	ui.PrintL1Title("Editing Transaction #%d", txID)
-
-	if err := views.RenderTransactionDetail(detail); err != nil {
+	if err := views.RenderTransactionDetail(detail, false); err != nil {
 		return err
 	}
 
@@ -270,7 +268,7 @@ func (r *editRunner) actionQuickChangeAmount(detail *service.TransactionDetail) 
 
 func (r *editRunner) runSplitsMenu(detail *service.TransactionDetail) error {
 	for {
-		if err := views.RenderTransactionDetail(detail); err != nil {
+		if err := views.RenderTransactionDetail(detail, false); err != nil {
 			return err
 		}
 
@@ -405,7 +403,7 @@ func (r *editRunner) actionSave(txID int64, detail *service.TransactionDetail) e
 		return err
 	}
 
-	pterm.Success.Printf("Transaction #%d saved successfully\n", txID)
+	pterm.Success.Printf("Transaction (ID: %d) saved successfully\n", txID)
 	return nil
 }
 

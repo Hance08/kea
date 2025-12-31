@@ -39,7 +39,7 @@ func (r *showRunner) Run(args []string) error {
 		return nil
 	}
 
-	if err := views.RenderTransactionDetail(detail); err != nil {
+	if err := views.RenderTransactionDetail(detail, false); err != nil {
 		return err
 	}
 	return nil

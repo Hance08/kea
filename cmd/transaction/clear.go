@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/ui"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

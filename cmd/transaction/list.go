@@ -57,7 +57,6 @@ func (r *listRunner) Run() error {
 		if err != nil {
 			return fmt.Errorf("failed to get transactions: %w", err)
 		}
-		pterm.Info.Printf("Showing transactions for account: %s\n\n", r.flags.Account)
 	} else {
 		// List all recent transactions
 		transactions, err = r.svc.Transaction.GetRecentTransactions(r.flags.Limit)
@@ -89,7 +88,7 @@ func (r *listRunner) Run() error {
 		amountCents, currency := r.svc.Transaction.GetDisplayAmount(detail.Splits)
 
 		amountFloat := float64(amountCents) / 100.0
-		amountStr := fmt.Sprintf("%.2f %s", amountFloat, currency)
+		amountStr := fmt.Sprintf("%.2f", amountFloat)
 
 		date := time.Unix(tx.Timestamp, 0).Format("2006-01-02")
 		status := "Cleared"
@@ -104,6 +103,7 @@ func (r *listRunner) Run() error {
 			Account:     accountName,
 			Description: tx.Description,
 			Amount:      amountStr,
+			Currency:    currency,
 			Status:      status,
 		})
 	}

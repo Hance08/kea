@@ -23,24 +23,6 @@ const (
 	TxTypeOther      TransactionType = "Other"
 )
 
-// TransactionSplitInput represents a split entry with account name instead of ID
-type TransactionSplitInput struct {
-	ID          int64
-	AccountName string
-	AccountID   int64
-	Amount      int64
-	Currency    string
-	Memo        string
-}
-
-// TransactionInput represents user input for creating a transaction
-type TransactionInput struct {
-	Timestamp   int64
-	Description string
-	Splits      []TransactionSplitInput
-	Status      int
-}
-
 // TransactionDetail represents a transaction with full split details
 type TransactionDetail struct {
 	ID          int64
@@ -59,10 +41,10 @@ type SplitDetail struct {
 	Memo        string
 }
 
-func (d *TransactionDetail) ToSplitInputs() []TransactionSplitInput {
-	var inputs []TransactionSplitInput
+func (d *TransactionDetail) ToSplitInputs() []SplitDetail {
+	var inputs []SplitDetail
 	for _, split := range d.Splits {
-		inputs = append(inputs, TransactionSplitInput{
+		inputs = append(inputs, SplitDetail{
 			ID:          split.ID,
 			AccountName: split.AccountName,
 			AccountID:   split.AccountID,

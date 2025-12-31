@@ -71,7 +71,7 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 // 3. Resolving account names to IDs and determining the appropriate currency.
 // 4. Verifying that the total amount of all splits balances to zero.
 // 5. executing the write operation within an atomic database transaction.
-func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, error) {
+func (ts *TransactionService) CreateTransaction(input TransactionDetail) (int64, error) {
 	defaultCurrency := ts.config.Defaults.Currency
 
 	// Validate: According to double-entry bookkeeping principles,
@@ -151,17 +151,17 @@ func (ts *TransactionService) CreateTransaction(input TransactionInput) (int64, 
 //   - A Credit (negative) to the fromAccount (Source).
 //   - A Debit (positive) to the toAccount (Destination).
 //
-// Returns the new TransactionID and the constructed TransactionInput (useful for UI rendering).
-func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status int) (int64, TransactionInput, error) {
+// Returns the new TransactionID and the constructed TransactionDetail (useful for UI rendering).
+func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status int) (TransactionDetail, error) {
 	if fromAccount == toAccount {
-		return 0, TransactionInput{}, fmt.Errorf("source and destination accounts cannot be the same")
+		return TransactionDetail{}, fmt.Errorf("source and destination accounts cannot be the same")
 	}
 
 	if amount <= 0 {
-		return 0, TransactionInput{}, fmt.Errorf("amount must be positive")
+		return TransactionDetail{}, fmt.Errorf("amount must be positive")
 	}
 
-	splits := []TransactionSplitInput{
+	splits := []SplitDetail{
 		{
 			AccountName: toAccount,
 			Amount:      amount,
@@ -174,7 +174,7 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 		},
 	}
 
-	input := TransactionInput{
+	input := TransactionDetail{
 		Timestamp:   timestamp,
 		Description: desc,
 		Status:      status,
@@ -183,10 +183,12 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 
 	id, err := ts.CreateTransaction(input)
 	if err != nil {
-		return 0, TransactionInput{}, err
+		return TransactionDetail{}, err
 	}
 
-	return id, input, nil
+	input.ID = id
+
+	return input, nil
 }
 
 // DeleteTransaction deletes a transaction
@@ -219,7 +221,7 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status int) er
 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
-func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []TransactionSplitInput) error {
+func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []SplitDetail) error {
 	// Validate status
 	if status != model.StatusPending && status != model.StatusCleared && status != model.StatusReconciled {
 		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")

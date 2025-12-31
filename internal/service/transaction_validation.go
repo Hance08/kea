@@ -26,7 +26,7 @@ func (ts *TransactionService) ValidateSplitsBalance(splits []model.Split) error 
 }
 
 // ValidateTransactionEdit validates a transaction edit without saving
-func (ts *TransactionService) ValidateTransactionEdit(splits []TransactionSplitInput) error {
+func (ts *TransactionService) ValidateTransactionEdit(splits []SplitDetail) error {
 	// Check minimum splits
 	if len(splits) < constants.MinSplitsCount {
 		return fmt.Errorf("transaction must have at least 2 splits")

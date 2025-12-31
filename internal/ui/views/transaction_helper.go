@@ -2,9 +2,12 @@ package views
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/utils"
+	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )
 
@@ -61,19 +64,43 @@ func GetSplitRoleLabels(splits []service.SplitDetail, txType service.Transaction
 	return labels
 }
 
-func RenderSimpleSplitList(splits []service.SplitDetail, txType service.TransactionType) {
-	roleLabels := GetSplitRoleLabels(splits, txType)
+func RenderSimpleSplitList(splits []service.SplitDetail) {
 
-	for i, split := range splits {
-		amount := utils.FormatFromCents(split.Amount)
-		
-		sign := "+"
+	table := tablewriter.NewWriter(os.Stdout)
+
+	table.SetColumnAlignment([]int{
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_RIGHT,
+		tablewriter.ALIGN_LEFT,
+	})
+
+	table.SetHeader([]string{})
+	table.SetBorder(false)
+	table.SetColumnSeparator("|")
+	table.SetAutoWrapText(false)
+
+	for _, split := range splits {
+		amountVal := float64(split.Amount) / 100.0
+		rawStr := humanize.Commaf(amountVal)
+		amountStr := strings.TrimPrefix(rawStr, "-")
+
+		var displayAccount string
+		var displayAmount string
+
 		if split.Amount < 0 {
-			sign = ""
+			displayAccount = fmt.Sprintf("    %s", split.AccountName)
+			displayAmount = fmt.Sprintf("%s", amountStr)
+		} else {
+			displayAccount = split.AccountName
+			displayAmount = fmt.Sprintf("%s", amountStr)
 		}
 
-		pterm.Printf("  %d. %s (%s): %s%s %s\n",
-			i+1, split.AccountName, roleLabels[i], sign, amount, split.Currency)
+		table.Append([]string{
+			displayAccount,
+			displayAmount,
+		})
 	}
-	fmt.Println()
+
+	table.Render()
+	pterm.Println()
 }

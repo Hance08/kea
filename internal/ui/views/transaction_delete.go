@@ -2,9 +2,10 @@ package views
 
 import (
 	"fmt"
+	"os"
 	"time"
 
-	"github.com/hance08/kea/internal/ui"
+	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )
 
@@ -18,22 +19,35 @@ type TransactionDeletePreviewItem struct {
 func RenderTransactionDeletePreview(data TransactionDeletePreviewItem) error {
 	date := time.Unix(data.Timestamp, 0).Format("2006-01-02")
 
-	pterm.Warning.Printf("About to delete transaction #%d:\n", data.ID)
+	pterm.Warning.Printf("About to delete transaction (ID: %d)\n", data.ID)
 
-	deletionInfo := pterm.TableData{
-		{"Date", date},
-		{"Description", data.Description},
-		{"Splits", fmt.Sprint(data.SplitCount)},
+	table := tablewriter.NewWriter(os.Stdout)
+
+	table.SetHeader([]string{})
+	table.SetBorder(false)
+	table.SetColumnSeparator(":")
+	table.SetAutoWrapText(false)
+
+	table.SetColumnAlignment([]int{
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_LEFT,
+	})
+
+	headerStyle := pterm.NewStyle(pterm.FgCyan, pterm.Bold)
+	rows := [][]string{
+		{headerStyle.Sprint("Date"), date},
+		{headerStyle.Sprint("Description"), data.Description},
+		{headerStyle.Sprint("Splits"), fmt.Sprint(data.SplitCount)},
 	}
 
-	if err := pterm.DefaultTable.WithData(deletionInfo).Render(); err != nil {
-		return err
-	}
+	table.AppendBulk(rows)
+	table.Render()
+	pterm.Println()
 	pterm.Warning.Println("This action cannot be undone!")
+
 	return nil
 }
 
 func RenderTransactionDeleteSuccess(id int64) {
-	pterm.Success.Printf("Transaction #%d deleted successfully\n", id)
-	ui.Separator()
+	pterm.Success.Printf("Transaction (ID: %d) deleted successfully\n", id)
 }

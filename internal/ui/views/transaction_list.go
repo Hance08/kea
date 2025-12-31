@@ -2,7 +2,12 @@ package views
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 
+	"github.com/dustin/go-humanize"
+	"github.com/hance08/kea/internal/ui"
+	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )
 
@@ -13,6 +18,7 @@ type TransactionListItem struct {
 	Account     string
 	Description string
 	Amount      string
+	Currency    string
 	Status      string
 }
 
@@ -28,48 +34,68 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 		return nil
 	}
 
-	pterm.DefaultSection.Printf("Showing recent transactions (limit: %d)", limit)
+	ui.PrintL1Title("Showing recent transactions (limit: %d)", limit)
+	pterm.Println()
 
-	tableData := pterm.TableData{
-		{"ID", "Date", "Type", "Account", "Description", "Amount", "Status"},
-	}
+	table := tablewriter.NewWriter(os.Stdout)
+
+	table.SetHeader([]string{"ID", "Date", "Type", "Account", "Description", "Amount", "Status"})
+
+	table.SetColumnAlignment([]int{
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_RIGHT,
+		tablewriter.ALIGN_LEFT,
+	})
+
+	table.SetBorder(false)
+	table.SetHeaderLine(true)
+	table.SetAutoWrapText(false)
 
 	for _, item := range items {
-		var coloredType, coloredAccount, coloredAmount string
+		var coloredType, coloredAccount, coloredAmount, coloredDescription string
+
+		amountFloat, _ := strconv.ParseFloat(item.Amount, 64)
+		amountStr := humanize.Commaf(amountFloat)
 
 		switch item.Type {
 		case "Expense":
 			coloredType = pterm.Red(item.Type)
 			coloredAccount = pterm.Red(item.Account)
-			coloredAmount = pterm.Red(item.Amount)
+			coloredAmount = pterm.Red(amountStr)
+			coloredDescription = item.Description
 		case "Income":
 			coloredType = pterm.Green(item.Type)
 			coloredAccount = pterm.Green(item.Account)
-			coloredAmount = pterm.Green(item.Amount)
+			coloredAmount = pterm.Green(amountStr)
+			coloredDescription = item.Description
 		case "Transfer":
 			coloredType = pterm.Blue(item.Type)
 			coloredAccount = pterm.Blue(item.Account)
-			coloredAmount = pterm.Blue(item.Amount)
+			coloredAmount = pterm.Blue(amountStr)
+			coloredDescription = item.Description
 		default: // Other or Opening
-			coloredType = item.Type
-			coloredAccount = item.Account
-			coloredAmount = item.Amount
+			coloredType = pterm.Gray(item.Type)
+			coloredAccount = pterm.Gray(item.Account)
+			coloredAmount = pterm.Gray(amountStr)
+			coloredDescription = pterm.Gray(item.Description)
 		}
 
-		tableData = append(tableData, []string{
+		table.Append([]string{
 			fmt.Sprintf("%d", item.ID),
 			item.Date,
 			coloredType,
 			coloredAccount,
-			item.Description,
+			coloredDescription,
 			coloredAmount,
 			item.Status,
 		})
 	}
 
-	if err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render(); err != nil {
-		return err
-	}
-	pterm.Info.Printf("Total: %d transactions\n", len(items))
+	table.Render()
+
 	return nil
 }

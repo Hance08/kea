@@ -142,10 +142,12 @@ func (r *editRunner) actionEditBasicInfo(detail *service.TransactionDetail) erro
 
 	// Date
 	currentDate := time.Unix(detail.Timestamp, 0).Format("2006-01-02")
-	dateStr, err := prompts.PromptDate("Date (YYYY-MM-DD):", currentDate, "")
+
+	dateStr, err := prompts.PromptDate("Date (YYYY-MM-DD):", currentDate, "", prompts.ValidateDateFormat(true))
 	if err != nil {
 		return err
 	}
+
 	t, err := time.Parse("2006-01-02", dateStr) // PromptDate validates format
 	if err != nil {
 		return fmt.Errorf("unexpected date format error: %w", err)
@@ -241,7 +243,7 @@ func (r *editRunner) actionQuickChangeAmount(detail *service.TransactionDetail) 
 	currentAbsAmount := utils.AbsInt64(detail.Splits[0].Amount)
 
 	// UI: Prompt
-	newAmountStr, err := prompts.PromptInput("Enter new amount:", utils.FormatFromCents(currentAbsAmount), nil)
+	newAmountStr, err := prompts.PromptInput("Enter new amount:", utils.FormatFromCents(currentAbsAmount), prompts.ValidateAmountFormat(true))
 	if err != nil {
 		return err
 	}
@@ -308,7 +310,7 @@ func (r *editRunner) actionAddSplit(detail *service.TransactionDetail) error {
 	acc, _ := r.svc.Account.GetAccountByName(accName)
 
 	// 2. Input Amount
-	amount, err := r.promptAmount("Amount (negative for credit):", 0)
+	amount, err := r.promptAmount("Amount (negative for credit):", 0, false)
 	if err != nil {
 		return err
 	}
@@ -343,7 +345,7 @@ func (r *editRunner) actionEditSplit(detail *service.TransactionDetail) error {
 	acc, _ := r.svc.Account.GetAccountByName(newAccName)
 
 	// Edit Amount
-	newAmount, err := r.promptAmount("Amount:", split.Amount)
+	newAmount, err := r.promptAmount("Amount:", split.Amount, true)
 	if err != nil {
 		return err
 	}
@@ -441,16 +443,16 @@ func (r *editRunner) promptAccountSelectionFromList(accounts []*model.Account, d
 	return prompts.PromptSelect("Select Account:", names, defaultName)
 }
 
-func (r *editRunner) promptAmount(label string, defaultCents int64) (int64, error) {
+func (r *editRunner) promptAmount(label string, defaultCents int64, allowEmpty bool) (int64, error) {
 	defaultStr := ""
 	if defaultCents != 0 {
 		defaultStr = utils.FormatFromCents(defaultCents)
 	}
-	valStr, err := prompts.PromptInput(label, defaultStr, nil)
+	amountStr, err := prompts.PromptAmount(label, defaultStr, prompts.ValidateAmountFormat(allowEmpty))
 	if err != nil {
 		return 0, err
 	}
-	return utils.ParseToCents(valStr)
+	return utils.ParseToCents(amountStr)
 }
 
 func (r *editRunner) promptSplitSelection(detail *service.TransactionDetail) (int, error) {

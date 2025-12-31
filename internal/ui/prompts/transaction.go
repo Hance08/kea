@@ -43,10 +43,12 @@ func PromptTransactionStatus(defaultStatus string) (string, error) {
 // PromptTransactionDate prompts for transaction date
 func PromptTransactionDate() (string, error) {
 	defaultDate := time.Now().Format("2006-01-02")
+
 	date, err := PromptDate(
 		"Transaction Date (YYYY-MM-DD):",
 		defaultDate,
 		"Press Enter for today",
+		ValidateDateFormat(true),
 	)
 	if err != nil {
 		return "", err

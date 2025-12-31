@@ -62,17 +62,21 @@ func PromptConfirm(message string, defaultValue bool) (bool, error) {
 }
 
 // PromptDate prompts for a date in YYYY-MM-DD format
-func PromptDate(message string, defaultDate string, helpText string) (string, error) {
+func PromptDate(message string, defaultDate string, helpText string, validator func(string) error) (string, error) {
 	var date string
 
 	// Use Input for date for now (huh has no specialized date picker yet, simpler to stick to input)
-	err := huh.NewInput().
+	input := huh.NewInput().
 		Title(message).
 		Description(helpText).
 		Placeholder(defaultDate). // Placeholder shows the default hint
-		Value(&date).
-		Run()
+		Value(&date)
 
+	if validator != nil {
+		input.Validate(validator)
+	}
+
+	err := input.Run()
 	if err != nil {
 		return "", err
 	}

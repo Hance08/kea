@@ -16,10 +16,11 @@ type deleteRunner struct {
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <transaction-id>",
-		Short: "Delete a transaction",
-		Long:  `Delete a transaction and all its associated splits. This action cannot be undone.`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "delete <transaction-id>",
+		Short:   "Delete a transaction",
+		Long:    `Delete a transaction and all its associated splits. This action cannot be undone.`,
+		Aliases: []string{"d"},
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &deleteRunner{svc: svc}
 			return runner.Run(args)

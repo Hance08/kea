@@ -161,7 +161,6 @@ func (r *editRunner) actionEditBasicInfo(detail *service.TransactionDetail) erro
 	detail.Status = r.getStatusValue(statusStr)
 
 	pterm.Success.Println("Basic info updated")
-	ui.Separator()
 	return nil
 }
 
@@ -180,10 +179,6 @@ func (r *editRunner) actionQuickChangeAccount(detail *service.TransactionDetail)
 		pterm.Warning.Println("Cannot quick-edit Opening Balance transaction")
 		return nil
 	}
-
-	// Show current state
-	pterm.DefaultSection.Printf("Current splits (%s):", txType)
-	views.RenderSimpleSplitList(detail.Splits, txType)
 
 	// Select which split to change
 	splitIndex, err := r.promptSplitSelection(detail)
@@ -227,8 +222,11 @@ func (r *editRunner) actionQuickChangeAccount(detail *service.TransactionDetail)
 	targetSplit.AccountName = newAcc.Name
 	targetSplit.Currency = newAcc.Currency
 
+	// Show current state
+	ui.PrintL1Title("Current splits")
+	views.RenderSimpleSplitList(detail.Splits)
+
 	pterm.Success.Printf("Account changed to: %s\n", newAcc.Name)
-	ui.Separator()
 	return nil
 }
 
@@ -257,8 +255,11 @@ func (r *editRunner) actionQuickChangeAmount(detail *service.TransactionDetail) 
 		return err
 	}
 
+	// Show current state
+	ui.PrintL1Title("Current splits")
+	views.RenderSimpleSplitList(detail.Splits)
+
 	pterm.Success.Println("Amount updated")
-	ui.Separator()
 	return nil
 }
 

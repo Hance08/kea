@@ -8,12 +8,14 @@ import (
 )
 
 type TransactionService struct {
-	repo   Repository
-	config *config.Config
+	txRepo  TransactionRepository
+	accRepo AccountRepository
+	tm      TransactionManager
+	config  *config.Config
 }
 
-func NewTransactionService(repo Repository, cfg *config.Config) *TransactionService {
-	return &TransactionService{repo: repo, config: cfg}
+func NewTransactionService(txRepo TransactionRepository, accRepo AccountRepository, tm TransactionManager, cfg *config.Config) *TransactionService {
+	return &TransactionService{txRepo: txRepo, accRepo: accRepo, tm: tm, config: cfg}
 }
 
 func (ts *TransactionService) GetTransactionRule(mode string) (TransactionRule, error) {

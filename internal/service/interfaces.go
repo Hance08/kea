@@ -28,10 +28,12 @@ type TransactionRepository interface {
 	DeleteSplit(splitID int64) error
 	GetSplitsByTransaction(txID int64) ([]*model.Split, error)
 }
+
 type Repository interface {
 	AccountRepository
 	TransactionRepository
+}
 
+type TransactionManager interface {
 	ExecTx(fn func(Repository) error) error
-	Close() error
 }

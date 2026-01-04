@@ -171,7 +171,7 @@ func (s *Store) GetAllTransactions(limit int) ([]*model.Transaction, error) {
 	return s.scanTransactions(rows)
 }
 
-func (s *Store) UpdateTransactionStatus(txID int64, status int) error {
+func (s *Store) UpdateTransactionStatus(txID int64, status model.TransactionStatus) error {
 	result, err := s.db.Exec(`
         UPDATE transactions
         SET status = ?
@@ -214,7 +214,7 @@ func (s *Store) DeleteTransaction(txID int64) error {
 	return nil
 }
 
-func (s *Store) UpdateTransactionBasic(txID int64, description string, timestamp int64, status int) error {
+func (s *Store) UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus) error {
 	result, err := s.db.Exec(`
         UPDATE transactions
         SET description = ?, timestamp = ?, status = ?

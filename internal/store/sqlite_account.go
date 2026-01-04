@@ -9,7 +9,7 @@ import (
 	sqlite "github.com/mattn/go-sqlite3"
 )
 
-func (s *Store) CreateAccount(name, accType, currency, description string, parentID *int64) (int64, error) {
+func (s *Store) CreateAccount(name string, accType model.AccountType, currency string, description string, parentID *int64) (int64, error) {
 	stmt, err := s.db.Prepare(`
         INSERT INTO accounts (name, type, currency, description, parent_id)
         VALUES (?, ?, ?, ?, ?)
@@ -24,7 +24,7 @@ func (s *Store) CreateAccount(name, accType, currency, description string, paren
 
 	var newID int64
 
-	err = stmt.QueryRow(name, accType, currency, description, parentID).Scan(&newID)
+	err = stmt.QueryRow(name, string(accType), currency, description, parentID).Scan(&newID)
 
 	if err != nil {
 		var sqliteErr sqlite.Error
@@ -116,13 +116,14 @@ func (s *Store) AccountExists(name string) (bool, error) {
 	return exists, nil
 }
 
-func (s *Store) GetAccountsByType(accType string) ([]*model.Account, error) {
+func (s *Store) GetAccountsByType(accType model.AccountType) ([]*model.Account, error) {
 	rows, err := s.db.Query(`
         SELECT id, name, type, parent_id, currency, description, is_hidden
         FROM accounts
         WHERE type = ?
         ORDER BY name
-    `, accType)
+    `, string(accType))
+	
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
 	}

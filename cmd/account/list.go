@@ -49,7 +49,7 @@ func (r *listRunner) Run() error {
 	var err error
 
 	if r.flags.Type != "" {
-		accounts, err = r.svc.Account.GetAccountsByType(r.flags.Type)
+		accounts, err = r.svc.Account.GetAccountsByType(model.AccountType(r.flags.Type))
 	} else {
 		accounts, err = r.svc.Account.GetAllAccounts()
 	}

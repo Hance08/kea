@@ -31,7 +31,7 @@ type createRunner struct {
 	name        string
 	fullName    string
 	parentID    *int64
-	accountType string
+	accountType model.AccountType
 	currency    string
 	balance     int64
 	description string
@@ -264,7 +264,7 @@ func (r *createRunner) createAccount() (*model.Account, error) {
 
 func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride string) error {
 	r.fullName = r.svc.Account.FormatAccountName(rootName, r.name)
-	r.accountType = accType
+	r.accountType = model.AccountType(accType)
 
 	if currencyOverride != "" {
 		if err := r.validator.ValidateCurrency(currencyOverride); err != nil {

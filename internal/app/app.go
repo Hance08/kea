@@ -13,7 +13,7 @@ import (
 
 type App struct {
 	Service *service.Service
-	Store   store.Repository
+	Store   *store.Store
 }
 
 // NewApp initialize config, database and core logic, then return App entity

@@ -55,7 +55,7 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 		},
 	}
 
-	return ts.repo.ExecTx(func(repo store.Repository) error {
+	return ts.repo.ExecTx(func(repo Repository) error {
 		_, err = ts.repo.CreateTransactionWithSplits(tx, splits)
 		return err
 	})
@@ -126,7 +126,7 @@ func (ts *TransactionService) CreateTransaction(input TransactionDetail) (int64,
 
 	// Execute Database Transaction:
 	// Ensure atomicity when writing the transaction and its splits.
-	err := ts.repo.ExecTx(func(repo store.Repository) error {
+	err := ts.repo.ExecTx(func(repo Repository) error {
 		var err error
 
 		newTxID, err = repo.CreateTransactionWithSplits(tx, splits)
@@ -265,7 +265,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("transaction not found: %w", err)
 	}
 
-	return ts.repo.ExecTx(func(repo store.Repository) error {
+	return ts.repo.ExecTx(func(repo Repository) error {
 		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
 			return err
 		}

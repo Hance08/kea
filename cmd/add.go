@@ -14,19 +14,34 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var modeUIConfigs = map[string]struct{ Src, Dst string }{
+	constant.ModeExpense:  {"Payment Source:", "Expense Type:"},
+	constant.ModeIncome:   {"Revenue Type:", "Deposit To:"},
+	constant.ModeTransfer: {"From Account:", "To Account:"},
+}
+
 type addFlags struct {
-	Desc      string
-	Amount    string
-	From      string
-	To        string
-	Status    string
-	Timestamp string
+	Description string
+	Amount      string
+	From        string
+	To          string
+	Status      string
+	Timestamp   string
 }
 
 type addRunner struct {
 	svc   *service.Service
 	flags *addFlags
 	cmd   *cobra.Command
+}
+
+type addTransactionInput struct {
+	FromAccountID string
+	ToAccountID   string
+	AmountCents   int64
+	Description   string
+	Timestamp     int64
+	Status        model.TransactionStatus
 }
 
 func NewAddCmd(svc *service.Service) *cobra.Command {
@@ -45,10 +60,10 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 	kea add
 
 	# Quick mode with flags
-	kea add --desc "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"
+	kea add --description "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"
 	
 	# With pending status (default is cleared)
-	kea add --desc "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
+	kea add --description "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &addRunner{
 				svc:   svc,
@@ -58,7 +73,7 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 			return runner.Run()
 		},
 	}
-	cmd.Flags().StringVarP(&flags.Desc, "desc", "d", "", "Transaction description")
+	cmd.Flags().StringVarP(&flags.Description, "desc", "d", "", "Transaction description")
 	cmd.Flags().StringVarP(&flags.Amount, "amount", "a", "", "Transaction amount (e.g., 150 or 150.50)")
 	cmd.Flags().StringVarP(&flags.From, "from", "f", "", "Source account (where money comes from)")
 	cmd.Flags().StringVarP(&flags.To, "to", "t", "", "Destination account (where money goes to)")
@@ -69,7 +84,7 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 }
 
 func (r *addRunner) Run() error {
-	var input service.TransactionDetail
+	var input addTransactionInput
 	var err error
 
 	// Check if using flag mode or interactive mode
@@ -78,85 +93,86 @@ func (r *addRunner) Run() error {
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		input, err = r.flagsMode()
+		input, err = r.runFromFlags()
 	} else {
 		// Interactive mode
-		input, err = r.interactiveMode()
+		input, err = r.runInteractive()
 	}
 	if err != nil {
 		return err
 	}
 
+	result, err := r.svc.Transaction.CreateSimpleTransaction(
+		input.FromAccountID,
+		input.ToAccountID,
+		input.AmountCents,
+		input.Description,
+		input.Timestamp,
+		input.Status,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction: %w", err)
+	}
+
 	// Display transaction summary
-	if err := views.RenderTransactionDetail(&input, true); err != nil {
+	if err := views.RenderTransactionDetail(&result, true); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *addRunner) flagsMode() (service.TransactionDetail, error) {
+func (r *addRunner) runFromFlags() (addTransactionInput, error) {
 
 	// Flag mode: validate all required flags
 	if r.flags.Amount == "" || r.flags.From == "" || r.flags.To == "" {
-		return service.TransactionDetail{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
+		return addTransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
 	}
 
-	if r.flags.Desc == "" {
-		r.flags.Desc = "-"
+	description := r.flags.Description
+	if description == "" {
+		description = "-"
 	}
 
 	// Parse amount
 	amountCents, err := utils.ParseToCents(r.flags.Amount)
 	if err != nil {
-		return service.TransactionDetail{}, fmt.Errorf("invalid amount: %w", err)
+		return addTransactionInput{}, fmt.Errorf("invalid amount: %w", err)
 	}
 
 	// Parse status
-	status := 1 // Default: cleared
+	status := model.StatusCleared
 	if strings.ToLower(r.flags.Status) == "pending" {
-		status = 0
+		status = model.StatusPending
 	}
 
 	// Parse timestamp
-	var timestamp int64
-	if r.flags.Timestamp != "" {
-		t, err := time.Parse("2006-01-02", r.flags.Timestamp)
-		if err != nil {
-			return service.TransactionDetail{}, fmt.Errorf("invalid date format, use YYYY-MM-DD: %w", err)
-		}
-		timestamp = t.Unix()
-	} else {
-		timestamp = time.Now().Unix()
-	}
-
-	input, err := r.svc.Transaction.CreateSimpleTransaction(
-		r.flags.From,
-		r.flags.To,
-		amountCents,
-		r.flags.Desc,
-		timestamp,
-		status,
-	)
-
+	timestamp, err := r.parseDate(r.flags.Timestamp)
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
-	return input, nil
+	return addTransactionInput{
+		FromAccountID: r.flags.From,
+		ToAccountID:   r.flags.To,
+		AmountCents:   amountCents,
+		Description:   description,
+		Timestamp:     timestamp,
+		Status:        status,
+	}, nil
 }
 
-func (r *addRunner) interactiveMode() (service.TransactionDetail, error) {
+func (r *addRunner) runInteractive() (addTransactionInput, error) {
 	// Get all accounts
 	accounts, err := r.svc.Account.GetAllAccounts()
 	if err != nil {
-		return service.TransactionDetail{}, fmt.Errorf("failed to load accounts: %w", err)
+		return addTransactionInput{}, fmt.Errorf("failed to load accounts: %w", err)
 	}
 
 	// Step 1: Select transaction type
 	rawType, err := prompts.PromptTransactionType()
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
 	mode := r.determineMode(rawType)
@@ -164,7 +180,7 @@ func (r *addRunner) interactiveMode() (service.TransactionDetail, error) {
 	// Step 2: Get description (optional)
 	description, err := prompts.PromptDescription("Transaction description (optional):", false)
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 	if description == "" {
 		description = "-"
@@ -177,78 +193,67 @@ func (r *addRunner) interactiveMode() (service.TransactionDetail, error) {
 		prompts.ValidateAmountFormat(false),
 	)
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
-	amountCents, _ := utils.ParseToCents(amountStr)
-
-	uiConfigs := map[string]struct{ Src, Dst string }{
-		constants.ModeExpense:  {"Payment Source:", "Expense Type:"},
-		constants.ModeIncome:   {"Revenue Type:", "Deposit To:"},
-		constants.ModeTransfer: {"From Account:", "To Account:"},
+	amountCents, err := utils.ParseToCents(amountStr)
+	if err != nil {
+		return addTransactionInput{}, fmt.Errorf("invalid amount: %w", err)
 	}
 
 	// Step 4 & 5: Select accounts based on mode
 	rule, err := r.svc.Transaction.GetTransactionRule(mode)
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
-	uiConf, ok := uiConfigs[mode]
+	uiConf, ok := modeUIConfigs[mode]
 	if !ok {
-		return service.TransactionDetail{}, fmt.Errorf("UI config missing for mode: %s", mode)
+		return addTransactionInput{}, fmt.Errorf("UI config missing for mode: %s", mode)
 	}
 
 	fromAccount, err := r.selectAccount(accounts, rule.SourceTypes, uiConf.Src, true)
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
-	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Src, mode != "expense")
+	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Dst, mode != constant.ModeExpense)
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
 	// Step 6: Transaction status
 	statusStr, err := prompts.PromptTransactionStatus("Cleared")
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
-	status := 1
+	status := model.StatusCleared
 	if statusStr == "Pending" {
-		status = 0
+		status = model.StatusPending
 	}
 
 	// Step 7: Transaction date
 	dateStr, err := prompts.PromptTransactionDate()
 	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
-	t, err := time.Parse("2006-01-02", dateStr)
+	timestamp, err := r.parseDate(dateStr)
 	if err != nil {
-		return service.TransactionDetail{}, fmt.Errorf("invalid date format: %w", err)
-	}
-	timestamp := t.Unix()
-
-	input, err := r.svc.Transaction.CreateSimpleTransaction(
-		fromAccount,
-		toAccount,
-		amountCents,
-		description,
-		timestamp,
-		status,
-	)
-
-	if err != nil {
-		return service.TransactionDetail{}, err
+		return addTransactionInput{}, err
 	}
 
-	return input, nil
+	return addTransactionInput{
+		FromAccountID: fromAccount,
+		ToAccountID:   toAccount,
+		AmountCents:   amountCents,
+		Description:   description,
+		Timestamp:     timestamp,
+		Status:        status,
+	}, nil
 }
 
-// r.selectAccount filters accounts by type and displays them with optional balance
 func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
@@ -260,10 +265,21 @@ func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []stri
 
 func (r *addRunner) determineMode(rawInput string) string {
 	if strings.Contains(rawInput, "Expense") {
-		return constants.ModeExpense
+		return constant.ModeExpense
 	}
 	if strings.Contains(rawInput, "Income") {
-		return constants.ModeIncome
+		return constant.ModeIncome
 	}
-	return constants.ModeTransfer
+	return constant.ModeTransfer
+}
+
+func (r *addRunner) parseDate(dateStr string) (int64, error) {
+	if dateStr == "" {
+		return time.Now().Unix(), nil
+	}
+	t, err := time.Parse(constant.DateFormat, dateStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid date format, use %s: %w", constant.DateFormat, err)
+	}
+	return t.Unix(), nil
 }

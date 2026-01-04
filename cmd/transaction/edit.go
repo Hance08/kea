@@ -366,8 +366,8 @@ func (r *editRunner) actionEditSplit(detail *service.TransactionDetail) error {
 }
 
 func (r *editRunner) actionDeleteSplit(detail *service.TransactionDetail) error {
-	if len(detail.Splits) <= constants.MinSplitsCount {
-		pterm.Warning.Printf("Transaction must have at least %d splits\n", constants.MinSplitsCount)
+	if len(detail.Splits) <= constant.MinSplitsCount {
+		pterm.Warning.Printf("Transaction must have at least %d splits\n", constant.MinSplitsCount)
 		return nil
 	}
 
@@ -412,18 +412,18 @@ func (r *editRunner) actionSave(txID int64, detail *service.TransactionDetail) e
 // Helpers (UI & Logic)
 // ==========================================
 
-func (r *editRunner) getStatusString(status int) string {
-	if status == 0 {
+func (r *editRunner) getStatusString(status model.TransactionStatus) string {
+	if status == model.StatusPending {
 		return "Pending"
 	}
 	return "Cleared"
 }
 
-func (r *editRunner) getStatusValue(s string) int {
+func (r *editRunner) getStatusValue(s string) model.TransactionStatus {
 	if s == "Pending" {
-		return 0
+		return model.StatusPending
 	}
-	return 1
+	return model.StatusCleared
 }
 
 func (r *editRunner) promptAccountSelection(defaultName string) (string, error) {

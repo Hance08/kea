@@ -30,7 +30,7 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 		return nil, nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	svc := service.NewService(dbStore, cfg)
+	svc := service.NewService(dbStore, dbStore, dbStore, cfg)
 
 	cleanup := func() {
 		if err := dbStore.Close(); err != nil {

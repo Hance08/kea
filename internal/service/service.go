@@ -10,10 +10,10 @@ type Service struct {
 	Config      *config.Config
 }
 
-func NewService(repo Repository, cfg *config.Config) *Service {
+func NewService(accRepo AccountRepository, txRepo TransactionRepository, tm TransactionManager, cfg *config.Config) *Service {
 	return &Service{
-		Account:     NewAccountService(repo, cfg),
-		Transaction: NewTransactionService(repo, cfg),
+		Account:     NewAccountService(accRepo, cfg),
+		Transaction: NewTransactionService(txRepo, accRepo, tm, cfg),
 		Config:      cfg,
 	}
 }

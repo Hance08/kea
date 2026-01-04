@@ -61,7 +61,7 @@ func (v *AccountListView) Render(accounts []*model.Account, balanceGetter func(i
 			coloredBalance = pterm.Gray(balanceStr)
 			coloredAccount = pterm.Gray(acc.Name)
 		default:
-			coloredType = acc.Type
+			coloredType = string(acc.Type)
 			coloredBalance = balanceStr
 			coloredAccount = acc.Name
 		}

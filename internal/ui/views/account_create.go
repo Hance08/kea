@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hance08/kea/internal/model"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )
 
 type AccountSummaryItem struct {
 	FullName    string
-	Type        string
+	Type        model.AccountType
 	Currency    string
 	Balance     int64
 	Description string
@@ -39,7 +40,7 @@ func RenderAccountSummary(data AccountSummaryItem) error {
 	headerStyle := pterm.NewStyle(pterm.FgCyan, pterm.Bold)
 	rows := [][]string{
 		{headerStyle.Sprint("Full Name"), data.FullName},
-		{headerStyle.Sprint("Type"), data.Type},
+		{headerStyle.Sprint("Type"), string(data.Type)},
 		{headerStyle.Sprint("Currency"), data.Currency},
 		{headerStyle.Sprint("Balance"), balanceStr},
 		{headerStyle.Sprint("Description"), descStr},

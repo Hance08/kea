@@ -83,7 +83,7 @@ func PromptAccountSelection(
 	for _, acc := range accounts {
 		isContainer := parentIDs[acc.ID]
 
-		if typeMap[acc.Type] && !acc.IsHidden && !isContainer {
+		if typeMap[string(acc.Type)] && !acc.IsHidden && !isContainer {
 			filteredAccounts = append(filteredAccounts, acc)
 		}
 	}

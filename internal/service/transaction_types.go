@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+
+	"github.com/hance08/kea/internal/model"
 )
 
 type TransactionType string
@@ -28,7 +30,7 @@ type TransactionDetail struct {
 	ID          int64
 	Timestamp   int64
 	Description string
-	Status      int
+	Status      model.TransactionStatus
 	Splits      []SplitDetail
 }
 

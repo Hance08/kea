@@ -5,15 +5,14 @@ import (
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/store"
 )
 
 type TransactionService struct {
-	repo   store.Repository
+	repo   Repository
 	config *config.Config
 }
 
-func NewTransactionService(repo store.Repository, cfg *config.Config) *TransactionService {
+func NewTransactionService(repo Repository, cfg *config.Config) *TransactionService {
 	return &TransactionService{repo: repo, config: cfg}
 }
 

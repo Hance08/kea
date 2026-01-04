@@ -151,7 +151,7 @@ func (ts *TransactionService) CreateTransaction(input TransactionDetail) (int64,
 //   - A Debit (positive) to the toAccount (Destination).
 //
 // Returns the new TransactionID and the constructed TransactionDetail (useful for UI rendering).
-func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status int) (TransactionDetail, error) {
+func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus) (TransactionDetail, error) {
 	if fromAccount == toAccount {
 		return TransactionDetail{}, fmt.Errorf("source and destination accounts cannot be the same")
 	}
@@ -209,9 +209,9 @@ func (ts *TransactionService) DeleteTransaction(txID int64) error {
 
 // UpdateTransactionStatus updates the lifecycle state of a transaction identified by its ID.
 // It validates that the provided status is a legal value (Pending or Cleared) before persisting.
-func (ts *TransactionService) UpdateTransactionStatus(txID int64, status int) error {
+func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.TransactionStatus) error {
 
-	// Business Rule: Restrict status updates to valid enum constants to ensure data integrity.
+	// Business Rule: Restrict status updates to valid enum constant to ensure data integrity.
 	if status != model.StatusPending && status != model.StatusCleared {
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
@@ -220,7 +220,7 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status int) er
 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
-func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status int, splits []SplitDetail) error {
+func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, splits []SplitDetail) error {
 	// Validate status
 	if status != model.StatusPending && status != model.StatusCleared && status != model.StatusReconciled {
 		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")

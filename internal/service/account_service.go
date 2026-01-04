@@ -6,15 +6,14 @@ import (
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/store"
 )
 
 type AccountService struct {
-	repo   store.AccountRepository
+	repo   AccountRepository
 	config *config.Config
 }
 
-func NewAccountService(repo store.AccountRepository, cfg *config.Config) *AccountService {
+func NewAccountService(repo AccountRepository, cfg *config.Config) *AccountService {
 	return &AccountService{repo: repo, config: cfg}
 }
 
@@ -26,7 +25,7 @@ func (as *AccountService) GetAccountByName(name string) (*model.Account, error) 
 	return as.repo.GetAccountByName(name)
 }
 
-func (as *AccountService) GetAccountsByType(accType string) ([]*model.Account, error) {
+func (as *AccountService) GetAccountsByType(accType model.AccountType) ([]*model.Account, error) {
 	return as.repo.GetAccountsByType(accType)
 }
 

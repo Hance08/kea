@@ -2,7 +2,6 @@ package service
 
 import (
 	"github.com/hance08/kea/internal/config"
-	"github.com/hance08/kea/internal/store"
 )
 
 type Service struct {
@@ -11,7 +10,7 @@ type Service struct {
 	Config      *config.Config
 }
 
-func NewService(repo store.Repository, cfg *config.Config) *Service {
+func NewService(repo Repository, cfg *config.Config) *Service {
 	return &Service{
 		Account:     NewAccountService(repo, cfg),
 		Transaction: NewTransactionService(repo, cfg),

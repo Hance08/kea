@@ -168,7 +168,7 @@ func (ts *TransactionService) GetDisplayAmount(splits []SplitDetail) (int64, str
 	return maxAmount, currency
 }
 
-func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, currentAccountType string, allAccounts []*model.Account) []*model.Account {
+func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account {
 	switch txType {
 	case TxTypeExpense:
 		if currentAccountType == "E" {
@@ -199,7 +199,7 @@ func (ts *TransactionService) filterAccountsByTypes(accounts []*model.Account, a
 	}
 
 	for _, acc := range accounts {
-		if typeMap[acc.Type] {
+		if typeMap[string(acc.Type)] {
 			filtered = append(filtered, acc)
 		}
 	}

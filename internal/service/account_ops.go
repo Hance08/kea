@@ -6,7 +6,7 @@ import (
 	"github.com/hance08/kea/internal/model"
 )
 
-func (as *AccountService) CreateAccount(name, accType, currency, description string, parentID *int64) (*model.Account, error) {
+func (as *AccountService) CreateAccount(name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
 	newID, err := as.repo.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func (as *AccountService) CreateAccount(name, accType, currency, description str
 	}, nil
 }
 
-func (s *Service) CreateAccountWithBalance(name, accType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
+func (s *Service) CreateAccountWithBalance(name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
 	account, err := s.Account.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
 		return nil, err

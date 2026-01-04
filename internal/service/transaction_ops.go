@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/constant"
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/store"
 )
 
 func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amountInCents int64) error {
@@ -324,7 +323,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 }
 
 func (ts *TransactionService) IsEditable(detail *TransactionDetail) bool {
-	if detail.ID == constants.OpeningBalanceTransactionID {
+	if detail.ID == constant.OpeningBalanceTransactionID {
 		return false
 	}
 

@@ -1,4 +1,4 @@
-package constants
+package constant
 
 const (
 	MaxSafeBalanceFloat = 9223372036854775.0

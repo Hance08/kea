@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/constant"
 )
 
 func FormatFromCents(cents int64) string {
-	return fmt.Sprintf("%.2f", float64(cents)/float64(constants.CentsPerUnit))
+	return fmt.Sprintf("%.2f", float64(cents)/float64(constant.CentsPerUnit))
 }
 
 func ParseToCents(amountStr string) (int64, error) {
@@ -45,6 +45,6 @@ func ParseToCents(amountStr string) (int64, error) {
 		}
 	}
 
-	total := dollars*int64(constants.CentsPerUnit) + cents
+	total := dollars*int64(constant.CentsPerUnit) + cents
 	return total, nil
 }

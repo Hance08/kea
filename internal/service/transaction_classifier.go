@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/constant"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
@@ -30,7 +30,7 @@ func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionTy
 			return TxTypeOther, err
 		}
 
-		if split.Memo == constants.OpeningAccountMemo {
+		if split.Memo == constant.OpeningAccountMemo {
 			isOpening = true
 		}
 

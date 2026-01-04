@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/constant"
 )
 
 // AccountStore defines the interface for account storage operations
@@ -35,12 +35,12 @@ func (v *AccountValidator) ValidateAccountName(name string) error {
 		return fmt.Errorf("account name cannot contain ':' character")
 	}
 
-	if constants.ReservedNames[strings.ToLower(name)] {
+	if constant.ReservedNames[strings.ToLower(name)] {
 		return fmt.Errorf("'%s' is a reserved root account name", name)
 	}
 
-	if len(name) > constants.MaxNameLen {
-		return fmt.Errorf("account name too long (max %d characters)", constants.MaxNameLen)
+	if len(name) > constant.MaxNameLen {
+		return fmt.Errorf("account name too long (max %d characters)", constant.MaxNameLen)
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(str
 		}
 
 		fullName := prefix + ":" + partialName
-		if len(fullName) > constants.MaxNameLen {
+		if len(fullName) > constant.MaxNameLen {
 			return fmt.Errorf("full account name too long")
 		}
 		return nil
@@ -62,8 +62,8 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(str
 
 // ValidateFullAccountName validates a full account name and checks if it exists
 func (v *AccountValidator) ValidateFullAccountName(fullName string) error {
-	if len(fullName) > constants.MaxNameLen {
-		return fmt.Errorf("account name too long (max %d characters)", constants.MaxNameLen)
+	if len(fullName) > constant.MaxNameLen {
+		return fmt.Errorf("account name too long (max %d characters)", constant.MaxNameLen)
 	}
 
 	return nil
@@ -107,7 +107,7 @@ func (v *AccountValidator) ValidateInitialBalance(input string) error {
 	if balanceFloat < 0 {
 		return fmt.Errorf("initial balance can't be negative")
 	}
-	if balanceFloat > constants.MaxSafeBalanceFloat {
+	if balanceFloat > constant.MaxSafeBalanceFloat {
 		return fmt.Errorf("balance amount too large")
 	}
 

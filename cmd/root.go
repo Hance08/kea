@@ -13,7 +13,7 @@ import (
 	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/config"
-	"github.com/hance08/kea/internal/constants"
+	"github.com/hance08/kea/internal/constant"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/pterm/pterm"
@@ -77,7 +77,7 @@ func Execute(migrations fs.FS) {
 }
 
 func initSysAcc(svc *service.Service) error {
-	sysAccName := constants.SystemAccountOpeningBalance
+	sysAccName := constant.SystemAccountOpeningBalance
 
 	_, err := svc.Account.GetAccountByName(sysAccName)
 	if err == nil {
@@ -96,7 +96,7 @@ func initSysAcc(svc *service.Service) error {
 
 	_, err = svc.Account.CreateAccount(
 		sysAccName,
-		constants.TypeEquity,
+		constant.TypeEquity,
 		currency,
 		"Opening Balances (System Account)",
 		nil,

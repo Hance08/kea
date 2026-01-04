@@ -1,16 +1,10 @@
 package model
 
-const (
-	StatusPending    = 0
-	StatusCleared    = 1
-	StatusReconciled = 2
-)
-
 type Transaction struct {
 	ID          int64
 	Timestamp   int64
 	Description string
-	Status      int
+	Status      TransactionStatus
 	ExternalID  *string
 }
 

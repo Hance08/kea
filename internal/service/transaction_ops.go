@@ -15,7 +15,7 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 		return nil
 	}
 
-	openingBalanceAccount, err := ts.repo.GetAccountByName("Equity:OpeningBalances")
+	openingBalanceAccount, err := ts.accRepo.GetAccountByName("Equity:OpeningBalances")
 	if err != nil {
 		return fmt.Errorf("error : can not find 'Equity:OpeningBalances' account, failed to set initial balance")
 	}
@@ -55,8 +55,8 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 		},
 	}
 
-	return ts.repo.ExecTx(func(repo Repository) error {
-		_, err = ts.repo.CreateTransactionWithSplits(tx, splits)
+	return ts.tm.ExecTx(func(repo Repository) error {
+		_, err = ts.txRepo.CreateTransactionWithSplits(tx, splits)
 		return err
 	})
 
@@ -90,7 +90,7 @@ func (ts *TransactionService) CreateTransaction(input TransactionDetail) (int64,
 
 	for i, splitInput := range input.Splits {
 		// Step 1: Validate account existence and retrieve account details.
-		account, err := ts.repo.GetAccountByName(splitInput.AccountName)
+		account, err := ts.accRepo.GetAccountByName(splitInput.AccountName)
 		if err != nil {
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
@@ -126,7 +126,7 @@ func (ts *TransactionService) CreateTransaction(input TransactionDetail) (int64,
 
 	// Execute Database Transaction:
 	// Ensure atomicity when writing the transaction and its splits.
-	err := ts.repo.ExecTx(func(repo Repository) error {
+	err := ts.tm.ExecTx(func(repo Repository) error {
 		var err error
 
 		newTxID, err = repo.CreateTransactionWithSplits(tx, splits)
@@ -196,7 +196,7 @@ func (ts *TransactionService) DeleteTransaction(txID int64) error {
 		return fmt.Errorf("operation denied: cannot delete the initial opening transaction")
 	}
 
-	tx, _, err := ts.repo.GetTransactionByID(txID)
+	tx, _, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}
@@ -204,7 +204,7 @@ func (ts *TransactionService) DeleteTransaction(txID int64) error {
 	if tx.Status == model.StatusReconciled {
 		return fmt.Errorf("operation Denied: Transaction #%d has been reconciled and cannot be deleted", tx.ID)
 	}
-	return ts.repo.DeleteTransaction(txID)
+	return ts.txRepo.DeleteTransaction(txID)
 }
 
 // UpdateTransactionStatus updates the lifecycle state of a transaction identified by its ID.
@@ -215,7 +215,7 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 	if status != model.StatusPending && status != model.StatusCleared {
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
-	return ts.repo.UpdateTransactionStatus(txID, status)
+	return ts.txRepo.UpdateTransactionStatus(txID, status)
 }
 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
@@ -226,7 +226,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
 	}
 
-	oldTx, _, err := ts.repo.GetTransactionByID(txID)
+	oldTx, _, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
@@ -253,19 +253,19 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 
 	// Validate all accounts exist
 	for _, split := range splits {
-		_, err := ts.repo.GetAccountByID(split.AccountID)
+		_, err := ts.accRepo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return fmt.Errorf("account ID %d not found", split.AccountID)
 		}
 	}
 
 	// Check transaction exists
-	_, _, err = ts.repo.GetTransactionByID(txID)
+	_, _, err = ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
 
-	return ts.repo.ExecTx(func(repo Repository) error {
+	return ts.tm.ExecTx(func(repo Repository) error {
 		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
 			return err
 		}

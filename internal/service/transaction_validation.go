@@ -43,7 +43,7 @@ func (ts *TransactionService) ValidateTransactionEdit(splits []SplitDetail) erro
 
 	// Validate accounts exist
 	for i, split := range splits {
-		_, err := ts.repo.GetAccountByID(split.AccountID)
+		_, err := ts.accRepo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return fmt.Errorf("split #%d: account ID %d not found", i+1, split.AccountID)
 		}

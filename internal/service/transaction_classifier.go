@@ -25,7 +25,7 @@ func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionTy
 	)
 
 	for _, split := range splits {
-		acc, err := ts.repo.GetAccountByID(split.AccountID)
+		acc, err := ts.accRepo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return TxTypeOther, err
 		}
@@ -95,7 +95,7 @@ func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType str
 	case "Expense":
 		// Find and return the Expense account (E type)
 		for _, split := range splits {
-			account, err := ts.repo.GetAccountByName(split.AccountName)
+			account, err := ts.accRepo.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "E" {
 				return split.AccountName, nil
 			}
@@ -104,7 +104,7 @@ func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType str
 	case "Income":
 		// Find and return the Revenue account (R type)
 		for _, split := range splits {
-			account, err := ts.repo.GetAccountByName(split.AccountName)
+			account, err := ts.accRepo.GetAccountByName(split.AccountName)
 			if err == nil && account.Type == "R" {
 				return split.AccountName, nil
 			}
@@ -114,7 +114,7 @@ func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType str
 		// Find and return the Asset account with positive amount (receiving account)
 		for _, split := range splits {
 			if split.Amount > 0 {
-				account, err := ts.repo.GetAccountByName(split.AccountName)
+				account, err := ts.accRepo.GetAccountByName(split.AccountName)
 				if err == nil && (account.Type == "A" || account.Type == "L") {
 					return split.AccountName, nil
 				}
@@ -124,7 +124,7 @@ func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType str
 	case "Opening":
 		// For opening transactions, return the non-equity account
 		for _, split := range splits {
-			account, err := ts.repo.GetAccountByName(split.AccountName)
+			account, err := ts.accRepo.GetAccountByName(split.AccountName)
 			if err == nil && account.Type != "C" {
 				return split.AccountName, nil
 			}

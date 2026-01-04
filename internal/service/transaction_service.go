@@ -45,7 +45,7 @@ func (ts *TransactionService) GetTransactionRule(mode string) (TransactionRule, 
 
 // GetTransactionByID retrieves a transaction with all split details
 func (ts *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail, error) {
-	tx, splits, err := ts.repo.GetTransactionByID(txID)
+	tx, splits, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (ts *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail
 
 	for _, split := range splits {
 		// Get account name by ID
-		account, err := ts.repo.GetAccountByID(split.AccountID)
+		account, err := ts.accRepo.GetAccountByID(split.AccountID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get account for split: %w", err)
 		}
@@ -82,7 +82,7 @@ func (ts *TransactionService) GetTransactionByID(txID int64) (*TransactionDetail
 
 // GetRecentTransactions retrieves recent transactions across all accounts
 func (ts *TransactionService) GetRecentTransactions(limit int) ([]*model.Transaction, error) {
-	transactions, err := ts.repo.GetAllTransactions(limit)
+	transactions, err := ts.txRepo.GetAllTransactions(limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
 	}
@@ -92,13 +92,13 @@ func (ts *TransactionService) GetRecentTransactions(limit int) ([]*model.Transac
 // GetTransactionHistory retrieves transaction history for a specific account
 func (ts *TransactionService) GetTransactionHistory(accountName string, limit int) ([]*model.Transaction, error) {
 	// Get account by name
-	account, err := ts.repo.GetAccountByName(accountName)
+	account, err := ts.accRepo.GetAccountByName(accountName)
 	if err != nil {
 		return nil, fmt.Errorf("account not found: %w", err)
 	}
 
 	// Get transactions for this account
-	transactions, err := ts.repo.GetTransactionsByAccount(account.ID, limit)
+	transactions, err := ts.txRepo.GetTransactionsByAccount(account.ID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction history: %w", err)
 	}

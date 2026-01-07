@@ -16,7 +16,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Command-line flags
+type CreateView interface {
+	RenderSummary(data views.AccountSummaryItem) error
+	ShowSuccess(id int64, fullName string) error
+}
+
+type CreateProvider interface {
+	GetAllAccounts() ([]*model.Account, error)
+	GetAccountByName(name string) (*model.Account, error)
+	GetRootNameByType(accType string) (string, error)
+	CheckAccountExists(name string) (bool, error)
+	FormatAccountName(prefix string, name string) string
+	CreateAccountWithBalance(name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error)
+}
+
 type createFlags struct {
 	Name        string
 	Type        string
@@ -26,17 +39,18 @@ type createFlags struct {
 	Description string
 }
 
-// createRunner manages the state and svc for creating an account
 type createRunner struct {
-	name        string
-	fullName    string
-	parentID    *int64
-	accountType model.AccountType
-	currency    string
-	balance     int64
-	description string
+	name            string
+	fullName        string
+	parentID        *int64
+	accountType     model.AccountType
+	currency        string
+	balanceCents    int64
+	description     string
+	defaultCurrency string
 
-	svc       *service.Service
+	accSvc    CreateProvider
+	view      CreateView
 	validator *validation.AccountValidator
 }
 
@@ -57,8 +71,10 @@ Advanced users can also create Equity (C) accounts.
 Example: kea account create -t A -n Bank -b 100000`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &createRunner{
-				svc:       svc,
-				validator: validator,
+				defaultCurrency: svc.Config.Defaults.Currency,
+				accSvc:          svc.Account,
+				view:            views.NewAccountCreateView(),
+				validator:       validator,
 			}
 
 			return runner.Run(flags, cmd)

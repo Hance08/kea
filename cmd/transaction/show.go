@@ -9,8 +9,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type ShowView interface {
+	Render(input *service.TransactionDetail, isCreate bool) error
+}
+
+type ShowProvider interface {
+	GetTransactionByID(txID int64) (*service.TransactionDetail, error)
+}
+
 type showRunner struct {
-	svc *service.Service
+	svc  ShowProvider
+	view ShowView
 }
 
 func NewShowCmd(svc *service.Service) *cobra.Command {
@@ -20,7 +29,8 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &showRunner{
-				svc: svc,
+				svc:  svc.Transaction,
+				view: views.NewTransactionDetailView(),
 			}
 			return runner.Run(args)
 		},
@@ -33,13 +43,13 @@ func (r *showRunner) Run(args []string) error {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	detail, err := r.svc.Transaction.GetTransactionByID(txID)
+	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil
 	}
 
-	if err := views.RenderTransactionDetail(detail, false); err != nil {
+	if err := r.view.Render(detail, false); err != nil {
 		return err
 	}
 	return nil

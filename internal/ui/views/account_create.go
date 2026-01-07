@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )
@@ -17,8 +18,14 @@ type AccountSummaryItem struct {
 	Description string
 }
 
-func RenderAccountSummary(data AccountSummaryItem) error {
-	balanceStr := fmt.Sprintf("%.2f", float64(data.Balance)/100)
+type AccountCreateView struct{}
+
+func NewAccountCreateView() *AccountCreateView {
+	return &AccountCreateView{}
+}
+
+func (v *AccountCreateView) RenderSummary(data AccountSummaryItem) error {
+	balanceStr := utils.FormatAmount(data.Balance)
 
 	descStr := data.Description
 	if descStr == "" {
@@ -54,7 +61,7 @@ func RenderAccountSummary(data AccountSummaryItem) error {
 	return nil
 }
 
-func RenderAccountSuccess(id int64, fullName string) error {
+func (v *AccountCreateView) ShowSuccess(id int64, fullName string) error {
 	table := tablewriter.NewWriter(os.Stdout)
 
 	table.SetHeader([]string{})

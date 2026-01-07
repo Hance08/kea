@@ -161,7 +161,7 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 		return err
 	}
 
-	if err := views.RenderAccountSuccess(newAccount.ID, r.fullName); err != nil {
+	if err := r.view.ShowSuccess(newAccount.ID, r.fullName); err != nil {
 		return err
 	}
 	return nil
@@ -198,7 +198,7 @@ func (r *createRunner) runInteractive() error {
 			return err
 		}
 
-		rootName, err := r.svc.Account.GetRootNameByType(accType)
+		rootName, err := r.accSvc.GetRootNameByType(accType)
 		if err != nil {
 			return err
 		}
@@ -239,11 +239,11 @@ func (r *createRunner) runInteractive() error {
 	}
 
 	r.description = desc
-	if err := views.RenderAccountSummary(views.AccountSummaryItem{
+	if err := r.view.RenderSummary(views.AccountSummaryItem{
 		FullName:    r.fullName,
 		Type:        r.accountType,
 		Currency:    r.currency,
-		Balance:     r.balance,
+		Balance:     r.balanceCents,
 		Description: r.description}); err != nil {
 		return err
 	}
@@ -259,7 +259,7 @@ func (r *createRunner) runInteractive() error {
 		return err
 	}
 
-	if err := views.RenderAccountSuccess(newAccount.ID, r.fullName); err != nil {
+	if err := r.view.ShowSuccess(newAccount.ID, r.fullName); err != nil {
 		return err
 	}
 	return nil
@@ -267,19 +267,19 @@ func (r *createRunner) runInteractive() error {
 
 func (r *createRunner) createAccount() (*model.Account, error) {
 
-	return r.svc.CreateAccountWithBalance(
+	return r.accSvc.CreateAccountWithBalance(
 		r.fullName,
 		r.accountType,
 		r.currency,
 		r.description,
 		r.parentID,
-		r.balance,
+		r.balanceCents,
 	)
 
 }
 
 func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride string) error {
-	r.fullName = r.svc.Account.FormatAccountName(rootName, r.name)
+	r.fullName = r.accSvc.FormatAccountName(rootName, r.name)
 	r.accountType = model.AccountType(accType)
 
 	if currencyOverride != "" {
@@ -288,13 +288,13 @@ func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride str
 		}
 		r.currency = strings.ToUpper(strings.TrimSpace(currencyOverride))
 	} else {
-		r.currency = r.svc.Config.Defaults.Currency
+		r.currency = r.defaultCurrency
 	}
 	return nil
 }
 
 func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverride string) {
-	r.fullName = r.svc.Account.FormatAccountName(parent.Name, r.name)
+	r.fullName = r.accSvc.FormatAccountName(parent.Name, r.name)
 	r.accountType = parent.Type
 	r.parentID = &parent.ID
 
@@ -306,7 +306,7 @@ func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverri
 }
 
 func (r *createRunner) buildFromParentName(parentName, currency string) error {
-	parentAccount, err := r.svc.Account.GetAccountByName(parentName)
+	parentAccount, err := r.accSvc.GetAccountByName(parentName)
 	if err != nil {
 		return err
 	}
@@ -316,7 +316,7 @@ func (r *createRunner) buildFromParentName(parentName, currency string) error {
 }
 
 func (r *createRunner) buildFromTypeFlag(accType, currency string) error {
-	rootName, err := r.svc.Account.GetRootNameByType(accType)
+	rootName, err := r.accSvc.GetRootNameByType(accType)
 	if err != nil {
 		return fmt.Errorf("get root name: %w", err)
 	}
@@ -329,7 +329,7 @@ func (r *createRunner) promptType() (string, error) {
 }
 
 func (r *createRunner) promptParent() (*model.Account, error) {
-	allAccounts, err := r.svc.Account.GetAllAccounts()
+	allAccounts, err := r.accSvc.GetAllAccounts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
 	}
@@ -352,9 +352,9 @@ func (r *createRunner) promptName(prefix string) (string, error) {
 			return err
 		}
 
-		fullName := r.svc.Account.FormatAccountName(prefix, inputStr)
+		fullName := r.accSvc.FormatAccountName(prefix, inputStr)
 
-		exists, err := r.svc.Account.CheckAccountExists(fullName)
+		exists, err := r.accSvc.CheckAccountExists(fullName)
 		if err != nil {
 			return fmt.Errorf("failed to validate: %w", err)
 		}
@@ -371,7 +371,7 @@ func (r *createRunner) promptCurrency() (string, error) {
 
 	if defaultCurrency == "" {
 		//TODO: Validate the string in the config file
-		defaultCurrency = r.svc.Config.Defaults.Currency
+		defaultCurrency = r.defaultCurrency
 	}
 
 	isInherited := r.parentID != nil

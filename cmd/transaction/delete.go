@@ -10,8 +10,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type TransactionDeleteView interface {
+	RenderPreview(data views.TransactionDeletePreview) error
+	ShowSuccess(id int64)
+}
+
 type deleteRunner struct {
-	svc *service.Service
+	svc  *service.Service
+	view TransactionDeleteView
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
@@ -22,7 +28,10 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Aliases: []string{"d"},
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &deleteRunner{svc: svc}
+			runner := &deleteRunner{
+				svc:  svc,
+				view: views.NewTransactionDeleteView(),
+			}
 			return runner.Run(args)
 		},
 	}
@@ -41,7 +50,7 @@ func (r *deleteRunner) Run(args []string) error {
 		return nil
 	}
 
-	if err := views.RenderTransactionDeletePreview(views.TransactionDeletePreviewItem{
+	if err := r.view.RenderPreview(views.TransactionDeletePreview{
 		ID:          detail.ID,
 		Timestamp:   detail.Timestamp,
 		Description: detail.Description,
@@ -66,6 +75,6 @@ func (r *deleteRunner) Run(args []string) error {
 		return nil
 	}
 
-	views.RenderTransactionDeleteSuccess(txID)
+	r.view.ShowSuccess(txID)
 	return nil
 }

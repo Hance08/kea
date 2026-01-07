@@ -9,14 +9,20 @@ import (
 	"github.com/pterm/pterm"
 )
 
-type TransactionDeletePreviewItem struct {
+type TransactionDeletePreview struct {
 	ID          int64
 	Timestamp   int64
 	Description string
 	SplitCount  int
 }
 
-func RenderTransactionDeletePreview(data TransactionDeletePreviewItem) error {
+type TransactionDeleteView struct{}
+
+func NewTransactionDeleteView() *TransactionDeleteView {
+	return &TransactionDeleteView{}
+}
+
+func (v *TransactionDeleteView) RenderPreview(data TransactionDeletePreview) error {
 	date := time.Unix(data.Timestamp, 0).Format("2006-01-02")
 
 	pterm.Warning.Printf("About to delete transaction (ID: %d)\n", data.ID)
@@ -48,6 +54,6 @@ func RenderTransactionDeletePreview(data TransactionDeletePreviewItem) error {
 	return nil
 }
 
-func RenderTransactionDeleteSuccess(id int64) {
+func (v *TransactionDeleteView) ShowSuccess(id int64) {
 	pterm.Success.Printf("Transaction (ID: %d) deleted successfully\n", id)
 }

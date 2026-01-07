@@ -131,13 +131,13 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 		return fmt.Errorf("validate account name: %w", err)
 	}
 
-	// Handle balance
-	balance, err := utils.ParseToCents(flags.BalanceStr)
+	// Handle balance (Parse the balance into cent format, e.g. "150" -> "15000")
+	balanceCents, err := utils.ParseAmount(flags.BalanceStr)
 	if err != nil {
 		return fmt.Errorf("invalid balance format '%s': please enter a number (e.g. 100 or 100.50)", flags.BalanceStr)
 	}
 
-	r.balance = balance
+	r.balanceCents = balanceCents
 
 	// createAccount account
 	newAccount, err := r.createAccount()
@@ -209,11 +209,11 @@ func (r *createRunner) runInteractive() error {
 
 	// Step 5: Initial balance setting
 	if r.accountType == "A" || r.accountType == "L" {
-		balance, err := r.promptBalance()
+		balanceCents, err := r.promptBalance()
 		if err != nil {
 			return err
 		}
-		r.balance = balance
+		r.balanceCents = balanceCents
 	}
 
 	// Step 6: Description setting
@@ -365,12 +365,12 @@ func (r *createRunner) promptCurrency() (string, error) {
 }
 
 func (r *createRunner) promptBalance() (int64, error) {
-	balanceInput, err := prompts.PromptInitialBalance(r.validator.ValidateInitialBalance)
+	balanceStr, err := prompts.PromptInitialBalance(r.validator.ValidateInitialBalance)
 	if err != nil {
 		return 0, err
 	}
 
-	return utils.ParseToCents(balanceInput)
+	return utils.ParseAmount(balanceStr)
 }
 
 func (r *createRunner) promptDescription() (string, error) {

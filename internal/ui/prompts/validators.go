@@ -16,7 +16,7 @@ func ValidateAmountFormat(allowEmpty bool) func(string) error {
 			}
 			return fmt.Errorf("amount is required")
 		}
-		_, err := utils.ParseToCents(input)
+		_, err := utils.ParseAmount(input)
 		if err != nil {
 			return fmt.Errorf("%v", err)
 		}

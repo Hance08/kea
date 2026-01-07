@@ -38,7 +38,7 @@ func (ts *TransactionService) ValidateTransactionEdit(splits []SplitDetail) erro
 		total += split.Amount
 	}
 	if total != 0 {
-		return fmt.Errorf("splits do not balance (sum: %s)", utils.FormatFromCents(total))
+		return fmt.Errorf("splits do not balance (sum: %s)", utils.FormatAmount(total))
 	}
 
 	// Validate accounts exist

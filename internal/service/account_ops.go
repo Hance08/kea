@@ -23,14 +23,14 @@ func (as *AccountService) CreateAccount(name string, accType model.AccountType, 
 	}, nil
 }
 
-func (s *Service) CreateAccountWithBalance(name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
-	account, err := s.Account.CreateAccount(name, accType, currency, description, parentID)
+func (as *AccountService) CreateAccountWithBalance(name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
+	account, err := as.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
 		return nil, err
 	}
 
 	if balance != 0 {
-		if err := s.Transaction.CreateOpeningBalance(account, balance); err != nil {
+		if err := as.txSvc.CreateOpeningBalance(account, balance); err != nil {
 			return account, fmt.Errorf("account created but failed to set opening balance: %w", err)
 		}
 	}

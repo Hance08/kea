@@ -2,7 +2,7 @@ package views
 
 import "github.com/pterm/pterm"
 
-type SystemInfoItem struct {
+type SystemInfo struct {
 	ConfigPath      string
 	DBPath          string
 	DBExists        bool // true = Found, false = Not Found
@@ -10,18 +10,24 @@ type SystemInfoItem struct {
 	AppDataDir      string
 }
 
-func RenderSystemInfo(data SystemInfoItem) error {
+type SystemInfoView struct{}
+
+func NewSystemInfoView() *SystemInfoView {
+	return &SystemInfoView{}
+}
+
+func (v *SystemInfoView) Render(info SystemInfo) error {
 	dbStatus := pterm.Green("Found")
-	if !data.DBExists {
+	if !info.DBExists {
 		dbStatus = pterm.Red("Not Found (Will be created)")
 	}
 
 	tableData := pterm.TableData{
-		{"Configuration File", data.ConfigPath},
-		{"Database Path", data.DBPath},
+		{"Configuration File", info.ConfigPath},
+		{"Database Path", info.DBPath},
 		{"Database Status", dbStatus},
-		{"Default Currency", data.DefaultCurrency},
-		{"AppData Directory", data.AppDataDir},
+		{"Default Currency", info.DefaultCurrency},
+		{"AppData Directory", info.AppDataDir},
 	}
 
 	return pterm.DefaultTable.WithData(tableData).Render()

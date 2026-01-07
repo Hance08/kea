@@ -8,8 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type SystemInfoView interface {
+	Render(data views.SystemInfo) error
+}
+
 type infoRunner struct {
-	svc *service.Service
+	svc  *service.Service
+	view SystemInfoView
 }
 
 func NewInfoCmd(svc *service.Service) *cobra.Command {
@@ -19,7 +24,8 @@ func NewInfoCmd(svc *service.Service) *cobra.Command {
 		Long:  `Display current configuration, database path, and system details.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &infoRunner{
-				svc: svc,
+				svc:  svc,
+				view: views.NewSystemInfoView(),
 			}
 
 			return runner.Run()
@@ -41,7 +47,7 @@ func (r *infoRunner) Run() error {
 		dbExists = true
 	}
 
-	items := views.SystemInfoItem{
+	info := views.SystemInfo{
 		ConfigPath:      configPath,
 		DBPath:          expandedDBPath,
 		DBExists:        dbExists,
@@ -49,7 +55,7 @@ func (r *infoRunner) Run() error {
 		AppDataDir:      getAppDataDirOrPanic(),
 	}
 
-	if err := views.RenderSystemInfo(items); err != nil {
+	if err := r.view.Render(info); err != nil {
 		return err
 	}
 	return nil

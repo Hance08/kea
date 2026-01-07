@@ -3,10 +3,9 @@ package views
 import (
 	"fmt"
 	"os"
-	"strconv"
 
-	"github.com/dustin/go-humanize"
 	"github.com/hance08/kea/internal/ui"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )
@@ -58,8 +57,11 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 	for _, item := range items {
 		var coloredType, coloredAccount, coloredAmount, coloredDescription string
 
-		amountFloat, _ := strconv.ParseFloat(item.Amount, 64)
-		amountStr := humanize.Commaf(amountFloat)
+		amountVal, err := utils.ParseAmount(item.Amount)
+		if err != nil {
+			return err
+		}
+		amountStr := utils.FormatAmount(amountVal)
 
 		switch item.Type {
 		case "Expense":
@@ -98,4 +100,8 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 	table.Render()
 
 	return nil
+}
+
+func (v *TransactionListView) ShowWarning(format string, a ...interface{}) {
+	pterm.Warning.Printf(format+"\n", a...)
 }

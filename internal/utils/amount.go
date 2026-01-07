@@ -4,17 +4,23 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dustin/go-humanize"
 	"github.com/hance08/kea/internal/constant"
 )
 
-func FormatFromCents(cents int64) string {
-	return fmt.Sprintf("%.2f", float64(cents)/float64(constant.CentsPerUnit))
+func FormatAmount(cents int64) string {
+	amountVal := float64(cents) / float64(constant.CentsPerUnit)
+	return humanize.CommafWithDigits(amountVal, 2)
 }
 
-func ParseToCents(amountStr string) (int64, error) {
-	var dollars, cents int64
+func ParseAmount(amountStr string) (int64, error) {
+	isNegative := false
+	if strings.HasPrefix(amountStr, "-") {
+		isNegative = true
+		amountStr = strings.TrimPrefix(amountStr, "-")
+	}
 
-	// Handle formats: "150", "150.5", "150.50"
+	var dollars, cents int64
 	parts := strings.Split(amountStr, ".")
 
 	if len(parts) > 2 {
@@ -46,5 +52,10 @@ func ParseToCents(amountStr string) (int64, error) {
 	}
 
 	total := dollars*int64(constant.CentsPerUnit) + cents
+
+	if isNegative {
+		total = -total
+	}
+
 	return total, nil
 }

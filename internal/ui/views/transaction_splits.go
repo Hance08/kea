@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
@@ -21,7 +21,7 @@ func NewTransactionSplitsView() *TransactionSplitsView {
 	}
 }
 
-func (v *TransactionSplitsView) Render(splits []service.SplitDetail) {
+func (v *TransactionSplitsView) Render(splits []model.SplitDetail) {
 	table := tablewriter.NewWriter(v.out)
 
 	table.SetColumnAlignment([]int{

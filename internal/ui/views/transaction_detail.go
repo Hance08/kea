@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
@@ -20,7 +20,7 @@ func NewTransactionDetailView() *TransactionDetailView {
 	}
 }
 
-func (v *TransactionDetailView) Render(input *service.TransactionDetail, isCreate bool) error {
+func (v *TransactionDetailView) Render(input *model.TransactionDetail, isCreate bool) error {
 	ui.PrintL1Title("Transaction Summary (ID: %d)", input.ID)
 
 	date := time.Unix(input.Timestamp, 0).Format("2006-01-02")

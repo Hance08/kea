@@ -51,11 +51,11 @@ func (v *TransactionEditView) ShowInfo(msg string) {
 // Date Rendering
 // ==========================================
 
-func (v *TransactionEditView) RenderDetail(detail *service.TransactionDetail) error {
+func (v *TransactionEditView) RenderDetail(detail *model.TransactionDetail) error {
 	return v.detailView.Render(detail, false)
 }
 
-func (v *TransactionEditView) RenderSplitsPreview(splits []service.SplitDetail) {
+func (v *TransactionEditView) RenderSplitsPreview(splits []model.SplitDetail) {
 	ui.PrintL1Title("Current splitsView")
 	v.splitsView.Render(splits)
 }
@@ -139,7 +139,7 @@ func (v *TransactionEditView) AskAmount(label string, currentCents int64, allowE
 	return utils.ParseAmount(amountStr)
 }
 
-func (v *TransactionEditView) AskSplitSelection(splits []service.SplitDetail) (int, error) {
+func (v *TransactionEditView) AskSplitSelection(splits []model.SplitDetail) (int, error) {
 	var options []string
 	for i, s := range splits {
 		options = append(options, fmt.Sprintf("#%d %s (%s)", i+1, s.AccountName, utils.FormatAmount(s.Amount)))

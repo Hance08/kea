@@ -1,5 +1,9 @@
 package model
 
+const (
+	CentsPerUnit = 100
+)
+
 type AccountType string
 
 const (
@@ -9,6 +13,22 @@ const (
 	AccountTypeRevenue   AccountType = "R"
 	AccountTypeExpense   AccountType = "E"
 )
+
+const (
+	AccountNameMaxLength        = 100
+	MaxSafeBalanceFloat         = 9223372036854775.0
+	SystemAccountOpeningBalance = "Equity:OpeningBalances"
+	OpeningAccountMemo          = "Opening Balance"
+	TypeEquity                  = "C"
+)
+
+var ReservedNames = map[string]bool{
+	"assets":      true,
+	"liabilities": true,
+	"equity":      true,
+	"revenue":     true,
+	"expenses":    true,
+}
 
 func (at AccountType) String() string {
 	return string(at)
@@ -23,6 +43,7 @@ func (at AccountType) IsValid() bool {
 }
 
 type TransactionStatus int
+type TransactionType string
 
 const (
 	StatusPending    TransactionStatus = 0
@@ -42,3 +63,23 @@ func (s TransactionStatus) String() string {
 		return "Unknown"
 	}
 }
+
+const (
+	TxTypeExpense    TransactionType = "expense"
+	TxTypeIncome     TransactionType = "income"
+	TxTypeTransfer   TransactionType = "transfer"
+	TxTypeOpening    TransactionType = "opening"
+	TxTypeDeposit    TransactionType = "deposit"
+	TxTypeWithdrawal TransactionType = "withdrawal"
+	TxTypeOther      TransactionType = "other"
+)
+
+const (
+	ModeExpense  = "expense"
+	ModeIncome   = "income"
+	ModeTransfer = "transfer"
+
+	DateFormat                        = "2006-01-02"
+	OpeningBalanceTransactionID int64 = 1
+	MinSplitsCount                    = 2
+)

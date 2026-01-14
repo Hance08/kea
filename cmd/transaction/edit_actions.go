@@ -3,12 +3,11 @@ package transaction
 import (
 	"fmt"
 
-	"github.com/hance08/kea/internal/constant"
-	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
 
-func (r *editRunner) actionEditBasicInfo(detail *service.TransactionDetail) error {
+func (r *editRunner) actionEditBasicInfo(detail *model.TransactionDetail) error {
 	// Description
 	desc, err := r.view.AskDescription(detail.Description)
 	if err != nil {

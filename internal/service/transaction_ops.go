@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hance08/kea/internal/constant"
 	"github.com/hance08/kea/internal/model"
 )
 

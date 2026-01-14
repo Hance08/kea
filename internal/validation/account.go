@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hance08/kea/internal/constant"
+	"github.com/hance08/kea/internal/model"
 )
 
 // AccountStore defines the interface for account storage operations

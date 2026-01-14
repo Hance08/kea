@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 
-	"github.com/hance08/kea/internal/constant"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )

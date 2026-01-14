@@ -13,7 +13,7 @@ import (
 	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/config"
-	"github.com/hance08/kea/internal/constant"
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/pterm/pterm"

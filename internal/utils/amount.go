@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"github.com/dustin/go-humanize"
-	"github.com/hance08/kea/internal/constant"
+	"github.com/hance08/kea/internal/model"
 )
 
 func FormatAmount(cents int64) string {
-	amountVal := float64(cents) / float64(constant.CentsPerUnit)
+	amountVal := float64(cents) / float64(model.CentsPerUnit)
 	return humanize.CommafWithDigits(amountVal, 2)
 }
 

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/utils"

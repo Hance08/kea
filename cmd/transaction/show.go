@@ -3,6 +3,7 @@ package transaction
 import (
 	"fmt"
 
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/ui/views"
 	"github.com/pterm/pterm"

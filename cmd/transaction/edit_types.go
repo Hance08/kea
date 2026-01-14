@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/service"
 )
 
 type EditView interface {

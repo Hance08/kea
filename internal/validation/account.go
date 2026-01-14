@@ -35,12 +35,12 @@ func (v *AccountValidator) ValidateAccountName(name string) error {
 		return fmt.Errorf("account name cannot contain ':' character")
 	}
 
-	if constant.ReservedNames[strings.ToLower(name)] {
+	if model.ReservedNames[strings.ToLower(name)] {
 		return fmt.Errorf("'%s' is a reserved root account name", name)
 	}
 
-	if len(name) > constant.MaxNameLen {
-		return fmt.Errorf("account name too long (max %d characters)", constant.MaxNameLen)
+	if len(name) > model.AccountNameMaxLength {
+		return fmt.Errorf("account name too long (max %d characters)", model.AccountNameMaxLength)
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(str
 		}
 
 		fullName := prefix + ":" + partialName
-		if len(fullName) > constant.MaxNameLen {
+		if len(fullName) > model.AccountNameMaxLength {
 			return fmt.Errorf("full account name too long")
 		}
 		return nil
@@ -62,8 +62,8 @@ func (v *AccountValidator) ValidateAccountNameWithPrefix(prefix string) func(str
 
 // ValidateFullAccountName validates a full account name and checks if it exists
 func (v *AccountValidator) ValidateFullAccountName(fullName string) error {
-	if len(fullName) > constant.MaxNameLen {
-		return fmt.Errorf("account name too long (max %d characters)", constant.MaxNameLen)
+	if len(fullName) > model.AccountNameMaxLength {
+		return fmt.Errorf("account name too long (max %d characters)", model.AccountNameMaxLength)
 	}
 
 	return nil
@@ -107,7 +107,7 @@ func (v *AccountValidator) ValidateInitialBalance(input string) error {
 	if balanceFloat < 0 {
 		return fmt.Errorf("initial balance can't be negative")
 	}
-	if balanceFloat > constant.MaxSafeBalanceFloat {
+	if balanceFloat > model.MaxSafeBalanceFloat {
 		return fmt.Errorf("balance amount too large")
 	}
 

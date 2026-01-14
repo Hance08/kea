@@ -51,7 +51,7 @@ func ParseAmount(amountStr string) (int64, error) {
 		}
 	}
 
-	total := dollars*int64(constant.CentsPerUnit) + cents
+	total := dollars*int64(model.CentsPerUnit) + cents
 
 	if isNegative {
 		total = -total

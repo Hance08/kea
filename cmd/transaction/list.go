@@ -20,10 +20,10 @@ type ListView interface {
 type ListProvider interface {
 	GetTransactionHistory(accountName string, limit int) ([]*model.Transaction, error)
 	GetRecentTransactions(limit int) ([]*model.Transaction, error)
-	GetTransactionByID(txID int64) (*service.TransactionDetail, error)
-	DetermineType(splits []service.SplitDetail) (service.TransactionType, error)
-	GetDisplayAccount(splits []service.SplitDetail, txType string) (string, error)
-	GetDisplayAmount(splits []service.SplitDetail) (int64, string)
+	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
+	DetermineType(splits []model.SplitDetail) (model.TransactionType, error)
+	GetDisplayAccount(splits []model.SplitDetail, txType string) (string, error)
+	GetDisplayAmount(splits []model.SplitDetail) (int64, string)
 }
 
 type listFlags struct {
@@ -100,7 +100,7 @@ func (r *listRunner) buildViewItems(transactions []*model.Transaction) []views.T
 	return viewItems
 }
 
-func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *service.TransactionDetail) views.TransactionListItem {
+func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *model.TransactionDetail) views.TransactionListItem {
 	// 1. Determine Type
 	txTypeEnum, err := r.svc.DetermineType(detail.Splits)
 	txType := string(txTypeEnum)

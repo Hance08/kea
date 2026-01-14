@@ -12,8 +12,8 @@ type EditView interface {
 	ShowSuccess(msg string)
 	ShowInfo(msg string)
 
-	RenderDetail(detail *service.TransactionDetail) error
-	RenderSplitsPreview(splits []service.SplitDetail)
+	RenderDetail(detail *model.TransactionDetail) error
+	RenderSplitsPreview(splits []model.SplitDetail)
 
 	AskSelection(label string, options []string) (string, error)
 	AskInput(label, defaultVal string) (string, error)
@@ -24,16 +24,16 @@ type EditView interface {
 	AskStatus(current model.TransactionStatus) (model.TransactionStatus, error)
 	AskAccountFromList(accounts []*model.Account, defaultName string) (string, error)
 	AskAmount(label string, currentCents int64, allowEmpty bool) (int64, error)
-	AskSplitSelection(splits []service.SplitDetail) (int, error)
+	AskSplitSelection(splits []model.SplitDetail) (int, error)
 }
 
 type EditProvider interface {
-	GetTransactionByID(txID int64) (*service.TransactionDetail, error)
-	IsEditable(detail *service.TransactionDetail) bool
-	DetermineType(splits []service.SplitDetail) (service.TransactionType, error)
-	GetAllowedAccounts(txType service.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account
-	ValidateTransactionEdit(splits []service.SplitDetail) error
-	UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, splits []service.SplitDetail) error
+	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
+	IsEditable(detail *model.TransactionDetail) bool
+	DetermineType(splits []model.SplitDetail) (model.TransactionType, error)
+	GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account
+	ValidateTransactionEdit(splits []model.SplitDetail) error
+	UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, splits []model.SplitDetail) error
 }
 
 type AccountProvider interface {
@@ -54,6 +54,6 @@ var errExitLoop = errors.New("exit loop")
 
 type menuItem struct {
 	Label     string
-	Condition func(d *service.TransactionDetail) bool
-	Action    func(d *service.TransactionDetail) error
+	Condition func(d *model.TransactionDetail) bool
+	Action    func(d *model.TransactionDetail) error
 }

@@ -33,7 +33,7 @@ func (r *editRunner) actionEditBasicInfo(detail *model.TransactionDetail) error 
 	return nil
 }
 
-func (r *editRunner) actionQuickChangeAccount(detail *service.TransactionDetail) error {
+func (r *editRunner) actionQuickChangeAccount(detail *model.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		return fmt.Errorf("quick edit supports only 2 splits")
 	}
@@ -44,7 +44,7 @@ func (r *editRunner) actionQuickChangeAccount(detail *service.TransactionDetail)
 		return err
 	}
 
-	if txType == service.TxTypeOpening {
+	if txType == model.TxTypeOpening {
 		r.view.ShowWarning("Cannot quick-edit Opening Balance transaction")
 		return nil
 	}
@@ -98,7 +98,7 @@ func (r *editRunner) actionQuickChangeAccount(detail *service.TransactionDetail)
 	return nil
 }
 
-func (r *editRunner) actionQuickChangeAmount(detail *service.TransactionDetail) error {
+func (r *editRunner) actionQuickChangeAmount(detail *model.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		return fmt.Errorf("quick edit supports only 2 splits")
 	}
@@ -121,7 +121,7 @@ func (r *editRunner) actionQuickChangeAmount(detail *service.TransactionDetail) 
 	return nil
 }
 
-func (r *editRunner) runSplitsMenu(detail *service.TransactionDetail) error {
+func (r *editRunner) runSplitsMenu(detail *model.TransactionDetail) error {
 	for {
 		if err := r.view.RenderDetail(detail); err != nil {
 			return err
@@ -153,7 +153,7 @@ func (r *editRunner) runSplitsMenu(detail *service.TransactionDetail) error {
 	}
 }
 
-func (r *editRunner) actionAddSplit(detail *service.TransactionDetail) error {
+func (r *editRunner) actionAddSplit(detail *model.TransactionDetail) error {
 	// Prepare Data
 	accounts, err := r.accSvc.GetAllAccounts()
 	if err != nil {
@@ -178,14 +178,14 @@ func (r *editRunner) actionAddSplit(detail *service.TransactionDetail) error {
 
 	// Update Model
 	acc, _ := r.accSvc.GetAccountByName(accName)
-	detail.Splits = append(detail.Splits, service.SplitDetail{
+	detail.Splits = append(detail.Splits, model.SplitDetail{
 		AccountID: acc.ID, AccountName: acc.Name, Currency: acc.Currency,
 		Amount: amount, Memo: memo,
 	})
 	return nil
 }
 
-func (r *editRunner) actionEditSplit(detail *service.TransactionDetail) error {
+func (r *editRunner) actionEditSplit(detail *model.TransactionDetail) error {
 	// Select Split
 	idx, err := r.view.AskSplitSelection(detail.Splits)
 	if err != nil || idx == -1 {
@@ -226,9 +226,9 @@ func (r *editRunner) actionEditSplit(detail *service.TransactionDetail) error {
 	return nil
 }
 
-func (r *editRunner) actionDeleteSplit(detail *service.TransactionDetail) error {
-	if len(detail.Splits) <= constant.MinSplitsCount {
-		r.view.ShowWarning(fmt.Sprintf("Transaction must have at least %d splits", constant.MinSplitsCount))
+func (r *editRunner) actionDeleteSplit(detail *model.TransactionDetail) error {
+	if len(detail.Splits) <= model.MinSplitsCount {
+		r.view.ShowWarning(fmt.Sprintf("Transaction must have at least %d splits", model.MinSplitsCount))
 		return nil
 	}
 
@@ -244,7 +244,7 @@ func (r *editRunner) actionDeleteSplit(detail *service.TransactionDetail) error 
 	return nil
 }
 
-func (r *editRunner) actionSave(detail *service.TransactionDetail) error {
+func (r *editRunner) actionSave(detail *model.TransactionDetail) error {
 	// Validate via Service
 	splits := detail.ToSplitInputs()
 	if err := r.txSvc.ValidateTransactionEdit(splits); err != nil {

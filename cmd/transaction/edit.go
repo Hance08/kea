@@ -62,7 +62,7 @@ func (r *editRunner) Run(args []string) error {
 	return r.runEditMenu(detail)
 }
 
-func (r *editRunner) runEditMenu(detail *service.TransactionDetail) error {
+func (r *editRunner) runEditMenu(detail *model.TransactionDetail) error {
 	for {
 		items := r.getAvailableMenuItems(detail)
 
@@ -89,7 +89,7 @@ func (r *editRunner) runEditMenu(detail *service.TransactionDetail) error {
 	}
 }
 
-func (r *editRunner) getAvailableMenuItems(detail *service.TransactionDetail) []menuItem {
+func (r *editRunner) getAvailableMenuItems(detail *model.TransactionDetail) []menuItem {
 	allActions := []menuItem{
 		{
 			Label:  OptBasicInfo,
@@ -97,12 +97,12 @@ func (r *editRunner) getAvailableMenuItems(detail *service.TransactionDetail) []
 		},
 		{
 			Label:     OptQuickAccount,
-			Condition: func(d *service.TransactionDetail) bool { return len(d.Splits) == 2 },
+			Condition: func(d *model.TransactionDetail) bool { return len(d.Splits) == 2 },
 			Action:    r.actionQuickChangeAccount,
 		},
 		{
 			Label:     OptQuickAmount,
-			Condition: func(d *service.TransactionDetail) bool { return len(d.Splits) == 2 },
+			Condition: func(d *model.TransactionDetail) bool { return len(d.Splits) == 2 },
 			Action:    r.actionQuickChangeAmount,
 		},
 		{
@@ -111,7 +111,7 @@ func (r *editRunner) getAvailableMenuItems(detail *service.TransactionDetail) []
 		},
 		{
 			Label: OptSave,
-			Action: func(d *service.TransactionDetail) error {
+			Action: func(d *model.TransactionDetail) error {
 				if err := r.actionSave(d); err != nil {
 					r.view.ShowError("Cannot save", err)
 					r.view.ShowWarning("Please fix the errors before saving")
@@ -122,7 +122,7 @@ func (r *editRunner) getAvailableMenuItems(detail *service.TransactionDetail) []
 		},
 		{
 			Label: OptCancel,
-			Action: func(d *service.TransactionDetail) error {
+			Action: func(d *model.TransactionDetail) error {
 				r.view.ShowInfo("Changes discarded")
 				return errExitLoop
 			},

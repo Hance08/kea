@@ -11,11 +11,11 @@ import (
 )
 
 type ShowView interface {
-	Render(input *service.TransactionDetail, isCreate bool) error
+	Render(input *model.TransactionDetail, isCreate bool) error
 }
 
 type ShowProvider interface {
-	GetTransactionByID(txID int64) (*service.TransactionDetail, error)
+	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
 }
 
 type showRunner struct {

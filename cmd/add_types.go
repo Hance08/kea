@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"github.com/hance08/kea/internal/constant"
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/service"
 )
 
 type AddView interface {
-	Render(input *service.TransactionDetail, isCreate bool) error
+	Render(input *model.TransactionDetail, isCreate bool) error
 }
 
 type AddProvider interface {
@@ -16,14 +14,14 @@ type AddProvider interface {
 }
 
 type TransactionProvider interface {
-	GetTransactionRule(mode string) (service.TransactionRule, error)
-	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus) (service.TransactionDetail, error)
+	GetTransactionRule(mode model.TransactionType) (model.TransactionRule, error)
+	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus) (model.TransactionDetail, error)
 }
 
-var modeUIConfigs = map[string]struct{ Src, Dst string }{
-	constant.ModeExpense:  {"Payment Source:", "Expense Type:"},
-	constant.ModeIncome:   {"Revenue Type:", "Deposit To:"},
-	constant.ModeTransfer: {"From Account:", "To Account:"},
+var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
+	model.ModeExpense:  {"Payment Source:", "Expense Type:"},
+	model.ModeIncome:   {"Revenue Type:", "Deposit To:"},
+	model.ModeTransfer: {"From Account:", "To Account:"},
 }
 
 type addFlags struct {

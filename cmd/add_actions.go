@@ -104,7 +104,7 @@ func (r *addRunner) runInteractive() (addTransactionInput, error) {
 		return addTransactionInput{}, err
 	}
 
-	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Dst, mode != constant.ModeExpense)
+	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Dst, mode != model.TxTypeExpense)
 	if err != nil {
 		return addTransactionInput{}, err
 	}
@@ -150,23 +150,23 @@ func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []stri
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
 }
 
-func (r *addRunner) determineMode(rawInput string) string {
+func (r *addRunner) determineMode(rawInput string) model.TransactionType {
 	if strings.Contains(rawInput, "Expense") {
-		return constant.ModeExpense
+		return model.TxTypeExpense
 	}
 	if strings.Contains(rawInput, "Income") {
-		return constant.ModeIncome
+		return model.TxTypeIncome
 	}
-	return constant.ModeTransfer
+	return model.TxTypeTransfer
 }
 
 func (r *addRunner) parseDate(dateStr string) (int64, error) {
 	if dateStr == "" {
 		return time.Now().Unix(), nil
 	}
-	t, err := time.Parse(constant.DateFormat, dateStr)
+	t, err := time.Parse(model.DateFormat, dateStr)
 	if err != nil {
-		return 0, fmt.Errorf("invalid date format, use %s: %w", constant.DateFormat, err)
+		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
 	}
 	return t.Unix(), nil
 }

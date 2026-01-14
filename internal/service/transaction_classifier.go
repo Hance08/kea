@@ -1,15 +1,14 @@
 package service
 
 import (
-	"github.com/hance08/kea/internal/constant"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
 
-func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionType, error) {
+func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.TransactionType, error) {
 	// Fallback for empty splits
 	if len(splits) == 0 {
-		return TxTypeOther, nil
+		return model.TxTypeOther, nil
 	}
 
 	var totalRevenueAmount int64
@@ -27,10 +26,10 @@ func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionTy
 	for _, split := range splits {
 		acc, err := ts.accRepo.GetAccountByID(split.AccountID)
 		if err != nil {
-			return TxTypeOther, err
+			return model.TxTypeOther, err
 		}
 
-		if split.Memo == constant.OpeningAccountMemo {
+		if split.Memo == model.OpeningAccountMemo {
 			isOpening = true
 		}
 
@@ -54,39 +53,39 @@ func (ts *TransactionService) DetermineType(splits []SplitDetail) (TransactionTy
 	}
 
 	if isOpening {
-		return TxTypeOpening, nil
+		return model.TxTypeOpening, nil
 	}
 
 	if hasExpense && hasRevenue {
 		if totalRevenueAmount >= totalExpenseAmount {
-			return TxTypeIncome, nil
+			return model.TxTypeIncome, nil
 		}
-		return TxTypeExpense, nil
+		return model.TxTypeExpense, nil
 	}
 
 	if hasExpense && assetOrLiabCnt >= 1 {
-		return TxTypeExpense, nil
+		return model.TxTypeExpense, nil
 	}
 
 	if hasRevenue && assetOrLiabCnt >= 1 {
-		return TxTypeIncome, nil
+		return model.TxTypeIncome, nil
 	}
 
 	if assetOrLiabCnt >= 2 {
-		return TxTypeTransfer, nil
+		return model.TxTypeTransfer, nil
 	}
 
 	if hasEquity && assetOrLiabCnt >= 1 {
 		if isAssetIncrease {
-			return TxTypeDeposit, nil
+			return model.TxTypeDeposit, nil
 		}
-		return TxTypeWithdrawal, nil
+		return model.TxTypeWithdrawal, nil
 	}
 
-	return TxTypeOther, nil
+	return model.TxTypeOther, nil
 }
 
-func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType string) (string, error) {
+func (ts *TransactionService) GetDisplayAccount(splits []model.SplitDetail, txType string) (string, error) {
 	if len(splits) == 0 {
 		return "-", nil
 	}
@@ -147,7 +146,7 @@ func (ts *TransactionService) GetDisplayAccount(splits []SplitDetail, txType str
 	return "-", nil
 }
 
-func (ts *TransactionService) GetDisplayAmount(splits []SplitDetail) (int64, string) {
+func (ts *TransactionService) GetDisplayAmount(splits []model.SplitDetail) (int64, string) {
 	if len(splits) == 0 {
 		return 0, ""
 	}
@@ -168,21 +167,21 @@ func (ts *TransactionService) GetDisplayAmount(splits []SplitDetail) (int64, str
 	return maxAmount, currency
 }
 
-func (ts *TransactionService) GetAllowedAccounts(txType TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account {
+func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account {
 	switch txType {
-	case TxTypeExpense:
+	case model.TxTypeExpense:
 		if currentAccountType == "E" {
 			return ts.filterAccountsByTypes(allAccounts, []string{"E"})
 		}
 		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
 
-	case TxTypeIncome:
+	case model.TxTypeIncome:
 		if currentAccountType == "R" {
 			return ts.filterAccountsByTypes(allAccounts, []string{"R"})
 		}
 		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
 
-	case TxTypeTransfer:
+	case model.TxTypeTransfer:
 		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
 
 	default:

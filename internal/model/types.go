@@ -65,19 +65,19 @@ func (s TransactionStatus) String() string {
 }
 
 const (
-	TxTypeExpense    TransactionType = "expense"
-	TxTypeIncome     TransactionType = "income"
-	TxTypeTransfer   TransactionType = "transfer"
-	TxTypeOpening    TransactionType = "opening"
-	TxTypeDeposit    TransactionType = "deposit"
-	TxTypeWithdrawal TransactionType = "withdrawal"
-	TxTypeOther      TransactionType = "other"
+	TxTypeExpense    TransactionType = "Expense"
+	TxTypeIncome     TransactionType = "Income"
+	TxTypeTransfer   TransactionType = "Transfer"
+	TxTypeOpening    TransactionType = "Opening"
+	TxTypeDeposit    TransactionType = "Deposit"
+	TxTypeWithdrawal TransactionType = "Withdrawal"
+	TxTypeOther      TransactionType = "Other"
 )
 
 const (
-	ModeExpense  = "expense"
-	ModeIncome   = "income"
-	ModeTransfer = "transfer"
+	ModeExpense  = "Expense"
+	ModeIncome   = "Income"
+	ModeTransfer = "Transfer"
 
 	DateFormat                        = "2006-01-02"
 	OpeningBalanceTransactionID int64 = 1

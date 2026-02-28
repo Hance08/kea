@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
@@ -18,11 +19,19 @@ type AccountSummaryItem struct {
 	Description string
 }
 
-type AccountCreateView struct{}
+type AccountCreateView struct {
+	*CommonView
+}
 
 func NewAccountCreateView() *AccountCreateView {
-	return &AccountCreateView{}
+	return &AccountCreateView{
+		CommonView: NewCommonView(),
+	}
 }
+
+// ==========================================
+// Data Rendering
+// ==========================================
 
 func (v *AccountCreateView) RenderSummary(data AccountSummaryItem) error {
 	balanceStr := utils.FormatAmount(data.Balance)
@@ -61,29 +70,31 @@ func (v *AccountCreateView) RenderSummary(data AccountSummaryItem) error {
 	return nil
 }
 
-func (v *AccountCreateView) ShowSuccess(id int64, fullName string) error {
-	table := tablewriter.NewWriter(os.Stdout)
+// ==========================================
+// Generic Prompts
+// ==========================================
 
-	table.SetHeader([]string{})
-	table.SetBorder(false)
-	table.SetColumnSeparator(":")
-	table.SetAutoWrapText(false)
+// ==========================================
+// Specific Domain Prompts
+// ==========================================
 
-	table.SetColumnAlignment([]int{
-		tablewriter.ALIGN_LEFT,
-		tablewriter.ALIGN_LEFT,
-	})
+func (v *AccountCreateView) AskAccountType() (string, error) {
+	return prompts.PromptAccountType()
+}
 
-	headerStyle := pterm.NewStyle(pterm.FgCyan, pterm.Bold)
-	rows := [][]string{
-		{headerStyle.Sprint("Account ID "), fmt.Sprintf("%d", id)},
-		{headerStyle.Sprint("Full Name"), fullName},
+func (v *AccountCreateView) AskIsSubAccount() (bool, error) {
+	return prompts.PromptIsSubAccount()
+}
+
+func (v *AccountCreateView) AskParentAccount(allAccounts []*model.Account) (*model.Account, error) {
+	_, selectedAccount, err := prompts.PromptParentAccount(allAccounts)
+	if err != nil {
+		return nil, err
 	}
 
-	table.AppendBulk(rows)
-	table.Render()
-	pterm.Println()
-	pterm.Success.Print("Account created successfully!\n")
+	if selectedAccount == nil {
+		return nil, fmt.Errorf("no account selected")
+	}
 
-	return nil
+	return selectedAccount, nil
 }

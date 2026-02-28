@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/ui"
+	"github.com/hance08/kea/ui"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )

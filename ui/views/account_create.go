@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/ui/prompts"
+	"github.com/hance08/kea/ui/prompts"
 	"github.com/hance08/kea/internal/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"

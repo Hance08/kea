@@ -15,7 +15,7 @@ import (
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/ui/prompts"
+	"github.com/hance08/kea/ui/prompts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

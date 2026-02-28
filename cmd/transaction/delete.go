@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/ui/prompts"
-	"github.com/hance08/kea/internal/ui/views"
+	"github.com/hance08/kea/ui/prompts"
+	"github.com/hance08/kea/ui/views"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )

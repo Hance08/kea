@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/ui/views"
+	"github.com/hance08/kea/ui/views"
 	"github.com/spf13/cobra"
 )
 

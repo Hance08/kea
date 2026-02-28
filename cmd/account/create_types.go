@@ -2,7 +2,7 @@ package account
 
 import (
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/ui/views"
+	"github.com/hance08/kea/ui/views"
 )
 
 type CreateView interface {

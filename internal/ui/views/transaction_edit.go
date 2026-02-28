@@ -8,47 +8,24 @@ import (
 	"github.com/hance08/kea/internal/ui"
 	"github.com/hance08/kea/internal/ui/prompts"
 	"github.com/hance08/kea/internal/utils"
-	"github.com/pterm/pterm"
 )
 
 type TransactionEditView struct {
 	splitsView *TransactionSplitsView
 	detailView *TransactionDetailView
+	*CommonView
 }
 
 func NewTransactionEditView() *TransactionEditView {
 	return &TransactionEditView{
 		splitsView: NewTransactionSplitsView(),
 		detailView: NewTransactionDetailView(),
+		CommonView: NewCommonView(),
 	}
 }
 
 // ==========================================
-// Message Output
-// ==========================================
-
-func (v *TransactionEditView) ShowError(msg string, err error) {
-	if err != nil {
-		pterm.Error.Printf("%s: %v\n", msg, err)
-	} else {
-		pterm.Error.Println(msg)
-	}
-}
-
-func (v *TransactionEditView) ShowWarning(msg string) {
-	pterm.Warning.Println(msg)
-}
-
-func (v *TransactionEditView) ShowSuccess(msg string) {
-	pterm.Success.Println(msg)
-}
-
-func (v *TransactionEditView) ShowInfo(msg string) {
-	pterm.Info.Println(msg)
-}
-
-// ==========================================
-// Date Rendering
+// Data Rendering
 // ==========================================
 
 func (v *TransactionEditView) RenderDetail(detail *model.TransactionDetail) error {

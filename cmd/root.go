@@ -64,7 +64,7 @@ func Execute(migrations fs.FS) {
 
 	rootCmd.AddCommand(NewAddCmd(application.Service))
 	rootCmd.AddCommand(NewInfoCmd(application.Service))
-	rootCmd.AddCommand(NewReportCmd())
+	rootCmd.AddCommand(NewReportCmd(application.Service))
 
 	rootCmd.SilenceErrors = true
 	if err := rootCmd.Execute(); err != nil {

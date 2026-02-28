@@ -8,13 +8,7 @@ import (
 	"github.com/hance08/kea/internal/model"
 )
 
-// AccountStore defines the interface for account storage operations
-// This prevents circular dependency with store package
-type AccountStore interface {
-	CheckAccountExists(name string) (bool, error)
-}
-
-// AccountValidator handles account validation store
+// AccountValidator handles account validation
 type AccountValidator struct {
 }
 

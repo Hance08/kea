@@ -4,9 +4,22 @@ import (
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/validation"
 )
 
 func (as *AccountService) CreateAccount(name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
+	v := validation.NewAccountValidator()
+
+	if err := v.ValidateFullAccountName(name); err != nil {
+		return nil, fmt.Errorf("invalid account name: %w", err)
+	}
+	if err := v.ValidateCurrency(currency); err != nil {
+		return nil, fmt.Errorf("invalid currency: %w", err)
+	}
+	if !accType.IsValid() {
+		return nil, fmt.Errorf("invalid account type: %s", accType)
+	}
+
 	newID, err := as.repo.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
 		return nil, err

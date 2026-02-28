@@ -3,7 +3,6 @@ package account
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"

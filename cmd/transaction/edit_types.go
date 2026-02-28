@@ -18,7 +18,6 @@ type EditView interface {
 	AskSelection(label string, options []string) (string, error)
 	AskInput(label, defaultVal string) (string, error)
 	AskConfirm(label string) bool
-
 	AskDescription(current string) (string, error)
 	AskDate(currentTimestamp int64) (int64, error)
 	AskStatus(current model.TransactionStatus) (model.TransactionStatus, error)

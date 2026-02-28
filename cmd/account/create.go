@@ -138,9 +138,7 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 		return err
 	}
 
-	if err := r.view.ShowSuccess(newAccount.ID, r.fullName); err != nil {
-		return err
-	}
+	r.view.ShowSuccess(fmt.Sprintf("Account create successfully ! (ID: %d)", newAccount.ID))
 	return nil
 }
 

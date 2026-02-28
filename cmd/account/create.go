@@ -7,10 +7,9 @@ import (
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/hance08/kea/ui/prompts"
 	"github.com/hance08/kea/ui/views"
-	"github.com/hance08/kea/internal/utils"
-	"github.com/hance08/kea/internal/validation"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -25,14 +24,12 @@ type createRunner struct {
 	description     string
 	defaultCurrency string
 
-	accSvc    CreateProvider
-	view      CreateView
-	validator *validation.AccountValidator
+	accSvc CreateProvider
+	view   CreateView
 }
 
 func NewCreateCmd(svc *service.Service) *cobra.Command {
 	flags := &createFlags{}
-	validator := validation.NewAccountValidator()
 
 	cmd := &cobra.Command{
 		Use:     "create",
@@ -50,7 +47,6 @@ Example: kea account create -t A -n Bank -b 100000`,
 				defaultCurrency: svc.Config.Defaults.Currency,
 				accSvc:          svc.Account,
 				view:            views.NewAccountCreateView(),
-				validator:       validator,
 			}
 
 			return runner.Run(flags, cmd)
@@ -100,7 +96,7 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 	}
 
 	// Validate account name (before combining with parent/root)
-	if err := r.validator.ValidateAccountName(flags.Name); err != nil {
+	if err := r.accSvc.ValidateAccountName(flags.Name); err != nil {
 		return fmt.Errorf("invalid account name: %w", err)
 	}
 
@@ -119,7 +115,7 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 	}
 
 	// Validate final name using validation package
-	if err := r.validator.ValidateFullAccountName(r.fullName); err != nil {
+	if err := r.accSvc.ValidateFullAccountName(r.fullName); err != nil {
 		return fmt.Errorf("validate account name: %w", err)
 	}
 

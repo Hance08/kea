@@ -27,7 +27,7 @@ func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride str
 	r.accountType = model.AccountType(accType)
 
 	if currencyOverride != "" {
-		if err := r.validator.ValidateCurrency(currencyOverride); err != nil {
+		if err := r.accSvc.ValidateCurrency(currencyOverride); err != nil {
 			return err
 		}
 		r.currency = strings.ToUpper(strings.TrimSpace(currencyOverride))
@@ -92,7 +92,7 @@ func (r *createRunner) promptParent() (*model.Account, error) {
 
 func (r *createRunner) promptName(prefix string) (string, error) {
 	surveyValidator := func(inputStr string) error {
-		if err := r.validator.ValidateAccountName(inputStr); err != nil {
+		if err := r.accSvc.ValidateAccountName(inputStr); err != nil {
 			return err
 		}
 
@@ -120,12 +120,12 @@ func (r *createRunner) promptCurrency() (string, error) {
 
 	isInherited := r.parentID != nil
 
-	return prompts.PromptCurrency(defaultCurrency, isInherited, r.validator.ValidateCurrency)
+	return prompts.PromptCurrency(defaultCurrency, isInherited, r.accSvc.ValidateCurrency)
 
 }
 
 func (r *createRunner) promptBalance() (int64, error) {
-	balanceStr, err := prompts.PromptInitialBalance(r.validator.ValidateInitialBalance)
+	balanceStr, err := prompts.PromptInitialBalance(prompts.ValidateInitialBalance)
 	if err != nil {
 		return 0, err
 	}

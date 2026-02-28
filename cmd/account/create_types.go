@@ -17,6 +17,9 @@ type CreateProvider interface {
 	CheckAccountExists(name string) (bool, error)
 	FormatAccountName(prefix string, name string) string
 	CreateAccountWithBalance(name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error)
+	ValidateAccountName(name string) error
+	ValidateFullAccountName(name string) error
+	ValidateCurrency(currency string) error
 }
 
 type createFlags struct {

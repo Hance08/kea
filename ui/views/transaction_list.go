@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/hance08/kea/ui"
 	"github.com/hance08/kea/internal/utils"
+	"github.com/hance08/kea/ui"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pterm/pterm"
 )

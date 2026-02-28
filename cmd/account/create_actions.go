@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/ui/prompts"
 	"github.com/hance08/kea/internal/utils"
+	"github.com/hance08/kea/ui/prompts"
 )
 
 func (r *createRunner) createAccount() (*model.Account, error) {

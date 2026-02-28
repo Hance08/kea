@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/utils"
 	"github.com/hance08/kea/ui"
 	"github.com/hance08/kea/ui/prompts"
-	"github.com/hance08/kea/internal/utils"
 )
 
 type TransactionEditView struct {

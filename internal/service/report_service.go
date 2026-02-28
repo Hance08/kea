@@ -161,6 +161,16 @@ func (ts *TransactionService) GenerateBalanceSheet() (*model.BalanceSheetResult,
 
 	result.NetWorth = result.TotalAssets - result.TotalLiabilities
 
+	sort.Slice(result.Assets, func(i, j int) bool {
+		return result.Assets[i].Amount > result.Assets[j].Amount
+	})
+	sort.Slice(result.Liabilities, func(i, j int) bool {
+		return result.Liabilities[i].Amount > result.Liabilities[j].Amount
+	})
+	sort.Slice(result.Equity, func(i, j int) bool {
+		return result.Equity[i].Amount > result.Equity[j].Amount
+	})
+
 	return result, nil
 }
 
@@ -172,14 +182,14 @@ func getOrCreateRow(m map[string]*model.ReportRow, name, currency string) *model
 	return m[name]
 }
 
-// rowsFromMap converts a map of ReportRows to a slice sorted by account name.
+// rowsFromMap converts a map of ReportRows to a slice sorted by amount descending.
 func rowsFromMap(m map[string]*model.ReportRow) []model.ReportRow {
 	rows := make([]model.ReportRow, 0, len(m))
 	for _, r := range m {
 		rows = append(rows, *r)
 	}
 	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].AccountName < rows[j].AccountName
+		return rows[i].Amount > rows[j].Amount
 	})
 	return rows
 }

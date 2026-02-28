@@ -33,8 +33,6 @@ func (r *reportRunner) runIncomeStatement() error {
 		return err
 	}
 
-	pterm.Info.Printf("Generating income statement for %s…\n", period)
-
 	result, err := r.provider.GenerateIncomeStatement(start, end)
 	if err != nil {
 		return fmt.Errorf("failed to generate income statement: %w", err)

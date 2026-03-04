@@ -53,6 +53,7 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 	cmd.Flags().StringVarP(&flags.To, "to", "t", "", "Destination account (where money goes to)")
 	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
 	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
+	cmd.Flags().StringVarP(&flags.Type, "type", "T", "", "Transaction type: expense, income, or transfer (validates account types when provided)")
 
 	return cmd
 }
@@ -63,7 +64,8 @@ func (r *addRunner) Run() error {
 
 	// Check if using flag mode or interactive mode
 	hasFlags := r.cmd.Flags().Changed("desc") || r.cmd.Flags().Changed("amount") ||
-		r.cmd.Flags().Changed("from") || r.cmd.Flags().Changed("to")
+		r.cmd.Flags().Changed("from") || r.cmd.Flags().Changed("to") ||
+		r.cmd.Flags().Changed("type")
 
 	if hasFlags {
 		// Flag mode: validate all required flags

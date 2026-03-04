@@ -11,6 +11,7 @@ type AddView interface {
 type AddProvider interface {
 	GetAllAccounts() ([]*model.Account, error)
 	GetAccountBalanceFormatted(accountID int64) (string, error)
+	GetAccountByName(name string) (*model.Account, error)
 }
 
 type TransactionProvider interface {
@@ -31,6 +32,7 @@ type addFlags struct {
 	To          string
 	Status      string
 	Timestamp   string
+	Type        string
 }
 
 type addTransactionInput struct {

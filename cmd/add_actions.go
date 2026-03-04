@@ -6,14 +6,32 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/ui/prompts"
 	"github.com/hance08/kea/internal/utils"
+	"github.com/hance08/kea/ui/prompts"
 )
 
 func (r *addRunner) runFromFlags() (addTransactionInput, error) {
 	// Flag mode: validate all required flags
 	if r.flags.Amount == "" || r.flags.From == "" || r.flags.To == "" {
 		return addTransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
+	}
+
+	// Validate account types if --type is provided
+	if r.flags.Type != "" {
+		mode := r.determineMode(r.flags.Type)
+		if mode != model.TxTypeExpense && mode != model.TxTypeIncome && mode != model.TxTypeTransfer {
+			return addTransactionInput{}, fmt.Errorf("invalid type %q: must be expense, income, or transfer", r.flags.Type)
+		}
+		rule, err := r.txSvc.GetTransactionRule(mode)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+		if err := r.validateAccountType(r.flags.From, rule.SourceTypes, "--from"); err != nil {
+			return addTransactionInput{}, err
+		}
+		if err := r.validateAccountType(r.flags.To, rule.DestTypes, "--to"); err != nil {
+			return addTransactionInput{}, err
+		}
 	}
 
 	description := r.flags.Description
@@ -150,11 +168,26 @@ func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []stri
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
 }
 
+func (r *addRunner) validateAccountType(accountName string, allowedTypes []string, flagName string) error {
+	account, err := r.accSvc.GetAccountByName(accountName)
+	if err != nil {
+		return fmt.Errorf("%s: account %q not found", flagName, accountName)
+	}
+	for _, t := range allowedTypes {
+		if string(account.Type) == t {
+			return nil
+		}
+	}
+	return fmt.Errorf("%s: account %q has type %q, not allowed for this transaction type (allowed: %v)",
+		flagName, accountName, account.Type, allowedTypes)
+}
+
 func (r *addRunner) determineMode(rawInput string) model.TransactionType {
-	if strings.Contains(rawInput, "Expense") {
+	lower := strings.ToLower(rawInput)
+	if strings.Contains(lower, "expense") {
 		return model.TxTypeExpense
 	}
-	if strings.Contains(rawInput, "Income") {
+	if strings.Contains(lower, "income") {
 		return model.TxTypeIncome
 	}
 	return model.TxTypeTransfer

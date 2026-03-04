@@ -68,7 +68,6 @@ func (r *reportRunner) runExpenseBreakdown() error {
 }
 
 func (r *reportRunner) runBalanceSheet() error {
-	pterm.Info.Println("Generating balance sheet…")
 
 	result, err := r.provider.GenerateBalanceSheet()
 	if err != nil {

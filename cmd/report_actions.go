@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/pterm/pterm"
 )
 
 // run is the main entry point called by the cobra command.
@@ -55,8 +54,6 @@ func (r *reportRunner) runExpenseBreakdown() error {
 	if err != nil {
 		return err
 	}
-
-	pterm.Info.Printf("Generating expense breakdown for %s…\n", period)
 
 	result, err := r.provider.GenerateExpenseBreakdown(start, end)
 	if err != nil {

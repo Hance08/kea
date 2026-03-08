@@ -45,10 +45,11 @@ func writeJSON(v any) error {
 // values without needing to know the internal storage format.
 
 type jsonReportRow struct {
-	AccountName string  `json:"account_name"`
-	Amount      float64 `json:"amount"`
-	Currency    string  `json:"currency"`
-	TxCount     int     `json:"tx_count"`
+	AccountName   string  `json:"account_name"`
+	OffsetAccount string  `json:"offset_account"`
+	Amount        float64 `json:"amount"`
+	Currency      string  `json:"currency"`
+	TxCount       int     `json:"tx_count"`
 }
 
 type jsonReportResult struct {
@@ -79,10 +80,11 @@ func centsToUnit(cents int64) float64 {
 
 func toJSONRow(r model.ReportRow) jsonReportRow {
 	return jsonReportRow{
-		AccountName: r.AccountName,
-		Amount:      centsToUnit(r.Amount),
-		Currency:    r.Currency,
-		TxCount:     r.TxCount,
+		AccountName:   r.AccountName,
+		OffsetAccount: r.OffsetAccount,
+		Amount:        centsToUnit(r.Amount),
+		Currency:      r.Currency,
+		TxCount:       r.TxCount,
 	}
 }
 

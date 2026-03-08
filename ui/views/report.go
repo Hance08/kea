@@ -28,8 +28,9 @@ func (v *ReportView) RenderIncomeStatement(result *model.ReportResult) error {
 		ui.PrintL2Title("Income")
 		pterm.Println()
 
-		t := newReportTable([]string{"Account", "Transactions", "Amount", "Currency"})
+		t := newReportTable([]string{"Account", "Offset Account", "Transactions", "Amount", "Currency"})
 		t.SetColumnAlignment([]int{
+			tablewriter.ALIGN_LEFT,
 			tablewriter.ALIGN_LEFT,
 			tablewriter.ALIGN_RIGHT,
 			tablewriter.ALIGN_RIGHT,
@@ -38,6 +39,7 @@ func (v *ReportView) RenderIncomeStatement(result *model.ReportResult) error {
 		for _, row := range result.IncomeRows {
 			t.Append([]string{
 				row.AccountName,
+				row.OffsetAccount,
 				fmt.Sprintf("%d", row.TxCount),
 				pterm.Green(utils.FormatAmount(row.Amount)),
 				row.Currency,
@@ -52,8 +54,9 @@ func (v *ReportView) RenderIncomeStatement(result *model.ReportResult) error {
 		ui.PrintL2Title("Expenses")
 		pterm.Println()
 
-		t := newReportTable([]string{"Account", "Transactions", "Amount", "Currency"})
+		t := newReportTable([]string{"Account", "Offset Account", "Transactions", "Amount", "Currency"})
 		t.SetColumnAlignment([]int{
+			tablewriter.ALIGN_LEFT,
 			tablewriter.ALIGN_LEFT,
 			tablewriter.ALIGN_RIGHT,
 			tablewriter.ALIGN_RIGHT,
@@ -62,6 +65,7 @@ func (v *ReportView) RenderIncomeStatement(result *model.ReportResult) error {
 		for _, row := range result.ExpenseRows {
 			t.Append([]string{
 				row.AccountName,
+				row.OffsetAccount,
 				fmt.Sprintf("%d", row.TxCount),
 				pterm.Red(utils.FormatAmount(row.Amount)),
 				row.Currency,
@@ -104,9 +108,10 @@ func (v *ReportView) RenderExpenseBreakdown(result *model.ReportResult) error {
 		return nil
 	}
 
-	t := newReportTable([]string{"Rank", "Account", "Transactions", "Amount", "Currency"})
+	t := newReportTable([]string{"Rank", "Account", "Offset Account", "Transactions", "Amount", "Currency"})
 	t.SetColumnAlignment([]int{
 		tablewriter.ALIGN_RIGHT,
+		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_RIGHT,
 		tablewriter.ALIGN_RIGHT,
@@ -117,6 +122,7 @@ func (v *ReportView) RenderExpenseBreakdown(result *model.ReportResult) error {
 		t.Append([]string{
 			fmt.Sprintf("%d", i+1),
 			row.AccountName,
+			row.OffsetAccount,
 			fmt.Sprintf("%d", row.TxCount),
 			pterm.Red(utils.FormatAmount(row.Amount)),
 			row.Currency,

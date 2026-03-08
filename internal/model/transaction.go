@@ -68,6 +68,7 @@ type SplitDetail struct {
 	ID          int64
 	AccountID   int64
 	AccountName string
+	AccountType AccountType
 	Amount      int64
 	Currency    string
 	Memo        string

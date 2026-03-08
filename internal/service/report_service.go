@@ -19,6 +19,7 @@ func (ts *TransactionService) splitsToDetails(splits []*model.Split) ([]model.Sp
 			ID:          s.ID,
 			AccountID:   s.AccountID,
 			AccountName: acc.Name,
+			AccountType: acc.Type,
 			Amount:      s.Amount,
 			Currency:    s.Currency,
 			Memo:        s.Memo,
@@ -27,8 +28,32 @@ func (ts *TransactionService) splitsToDetails(splits []*model.Split) ([]model.Sp
 	return details, nil
 }
 
+// offsetAccountName inspects the splits of a transaction and returns the name of the
+// "other side" account relative to the given primary account type filter.
+// If exactly one offset account exists it returns its name; if multiple exist it
+// returns "(multiple)"; if none exist it returns an empty string.
+func offsetAccountName(details []model.SplitDetail, primaryType model.AccountType) string {
+	seen := map[string]struct{}{}
+	for _, d := range details {
+		if d.AccountType != primaryType {
+			seen[d.AccountName] = struct{}{}
+		}
+	}
+	switch len(seen) {
+	case 0:
+		return ""
+	case 1:
+		for name := range seen {
+			return name
+		}
+	}
+	return "(multiple)"
+}
+
 // GenerateIncomeStatement produces an income/expense summary for the given Unix time range.
 // It walks every transaction in the period, classifies it, and groups amounts by account.
+// The aggregation key is "accountName|offsetAccount" so that the same expense account
+// funded from different offset accounts appears as separate rows.
 func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error) {
 	transactions, err := ts.txRepo.GetTransactionsByDateRange(startTime, endTime)
 	if err != nil {
@@ -63,13 +88,17 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 			switch txType {
 			case model.TxTypeIncome:
 				if acc.Type == model.AccountTypeRevenue {
-					row := getOrCreateRow(incomeByAccount, acc.Name, split.Currency)
+					offset := offsetAccountName(details, model.AccountTypeRevenue)
+					key := acc.Name + "|" + offset
+					row := getOrCreateRowWithOffset(incomeByAccount, key, acc.Name, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
 				}
 			case model.TxTypeExpense:
 				if acc.Type == model.AccountTypeExpense {
-					row := getOrCreateRow(expenseByAccount, acc.Name, split.Currency)
+					offset := offsetAccountName(details, model.AccountTypeExpense)
+					key := acc.Name + "|" + offset
+					row := getOrCreateRowWithOffset(expenseByAccount, key, acc.Name, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
 				}
@@ -180,6 +209,15 @@ func getOrCreateRow(m map[string]*model.ReportRow, name, currency string) *model
 		m[name] = &model.ReportRow{AccountName: name, Currency: currency}
 	}
 	return m[name]
+}
+
+// getOrCreateRowWithOffset is like getOrCreateRow but also sets OffsetAccount.
+// The map key is expected to already encode both dimensions (e.g. "accName|offsetName").
+func getOrCreateRowWithOffset(m map[string]*model.ReportRow, key, name, offset, currency string) *model.ReportRow {
+	if _, ok := m[key]; !ok {
+		m[key] = &model.ReportRow{AccountName: name, OffsetAccount: offset, Currency: currency}
+	}
+	return m[key]
 }
 
 // rowsFromMap converts a map of ReportRows to a slice sorted by amount descending.

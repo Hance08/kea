@@ -2,10 +2,11 @@ package model
 
 // ReportRow represents a single account line in a report.
 type ReportRow struct {
-	AccountName string `json:"account_name"`
-	Amount      int64  `json:"amount"`
-	Currency    string `json:"currency"`
-	TxCount     int    `json:"tx_count"`
+	AccountName   string `json:"account_name"`
+	OffsetAccount string `json:"offset_account"` // the counter-entry account (e.g. asset/liability that funds an expense)
+	Amount        int64  `json:"amount"`
+	Currency      string `json:"currency"`
+	TxCount       int    `json:"tx_count"`
 }
 
 // ReportResult holds the result of an income statement or expense breakdown report.

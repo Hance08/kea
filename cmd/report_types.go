@@ -8,6 +8,7 @@ type reportFlags struct {
 	Month string // YYYY-MM  (shorthand for a full calendar month)
 	From  string // YYYY-MM-DD  (explicit range start)
 	To    string // YYYY-MM-DD  (explicit range end)
+	JSON  bool   // output raw JSON instead of formatted tables
 }
 
 // ReportProvider is the service interface required by the report command.

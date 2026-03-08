@@ -7,6 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func newReportView(flags reportFlags) ReportView {
+	if flags.JSON {
+		return views.NewJSONReportView()
+	}
+	return views.NewReportView()
+}
+
 func NewReportCmd(svc *service.Service) *cobra.Command {
 	var flags reportFlags
 
@@ -29,7 +36,7 @@ Examples:
 			r := &reportRunner{
 				flags:    flags,
 				provider: svc.Transaction,
-				view:     views.NewReportView(),
+				view:     newReportView(flags),
 			}
 			if err := r.run(); err != nil {
 				pterm.Error.Println(err)
@@ -42,6 +49,7 @@ Examples:
 	cmd.Flags().StringVarP(&flags.Month, "month", "m", "", "calendar month to report on (YYYY-MM)")
 	cmd.Flags().StringVar(&flags.From, "from", "", "range start date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&flags.To, "to", "", "range end date (YYYY-MM-DD)")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output report as JSON (for scripting/automation)")
 
 	return cmd
 }

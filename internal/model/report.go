@@ -2,32 +2,32 @@ package model
 
 // ReportRow represents a single account line in a report.
 type ReportRow struct {
-	AccountName string
-	Amount      int64
-	Currency    string
-	TxCount     int
+	AccountName string `json:"account_name"`
+	Amount      int64  `json:"amount"`
+	Currency    string `json:"currency"`
+	TxCount     int    `json:"tx_count"`
 }
 
 // ReportResult holds the result of an income statement or expense breakdown report.
 type ReportResult struct {
-	Period       string
-	TotalIncome  int64
-	TotalExpense int64
-	NetAmount    int64
-	NetWorth     int64 // cumulative net worth (assets - liabilities) at report time
-	Currency     string
-	IncomeRows   []ReportRow
-	ExpenseRows  []ReportRow
+	Period       string      `json:"period"`
+	TotalIncome  int64       `json:"total_income"`
+	TotalExpense int64       `json:"total_expense"`
+	NetAmount    int64       `json:"net_amount"`
+	NetWorth     int64       `json:"net_worth"` // cumulative net worth (assets - liabilities) at report time
+	Currency     string      `json:"currency"`
+	IncomeRows   []ReportRow `json:"income_rows"`
+	ExpenseRows  []ReportRow `json:"expense_rows"`
 }
 
 // BalanceSheetResult holds the result of a balance sheet report.
 type BalanceSheetResult struct {
-	Assets           []ReportRow
-	Liabilities      []ReportRow
-	Equity           []ReportRow
-	TotalAssets      int64
-	TotalLiabilities int64
-	TotalEquity      int64
-	NetWorth         int64
-	Currency         string
+	Assets           []ReportRow `json:"assets"`
+	Liabilities      []ReportRow `json:"liabilities"`
+	Equity           []ReportRow `json:"equity"`
+	TotalAssets      int64       `json:"total_assets"`
+	TotalLiabilities int64       `json:"total_liabilities"`
+	TotalEquity      int64       `json:"total_equity"`
+	NetWorth         int64       `json:"net_worth"`
+	Currency         string      `json:"currency"`
 }

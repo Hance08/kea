@@ -35,7 +35,8 @@ database:
 
 defaults:
   # Default currency code (ISO 4217), e.g. USD, TWD, JPY, EUR
-  currency: USD
+  # Leave empty to be prompted on first run.
+  currency: ""
 `
 
 func Execute(migrations fs.FS) {

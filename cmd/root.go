@@ -32,6 +32,21 @@ func Execute(migrations fs.FS) {
 		Style: pterm.NewStyle(pterm.BgLightRed, pterm.FgBlack),
 	}
 
+	// rootCmd and the --config flag must be created before initConfig() so that
+	// ParseFlags() can populate cfgFile prior to reading the configuration file.
+	rootCmd := &cobra.Command{
+		Use:           "kea",
+		Short:         "kea is a CLI/TUI based personal accounting tool",
+		Long:          `kea is a CLI/TUI based personal accounting tool`,
+		SilenceErrors: true,
+	}
+
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
+
+	// Parse the persistent flags (--config / -c) before calling initConfig so
+	// that a user-supplied config path is respected.
+	_ = rootCmd.ParseFlags(os.Args[1:])
+
 	if err := initConfig(); err != nil {
 		pterm.Error.Println(err)
 		os.Exit(1)
@@ -49,15 +64,6 @@ func Execute(migrations fs.FS) {
 		pterm.Error.Println(err)
 		os.Exit(1)
 	}
-
-	rootCmd := &cobra.Command{
-		Use:           "kea",
-		Short:         "kea is a CLI/TUI based personal accounting tool",
-		Long:          `kea is a CLI/TUI based personal accounting tool`,
-		SilenceErrors: true,
-	}
-
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
 
 	rootCmd.AddCommand(account.NewAccountCmd(application.Service))
 	rootCmd.AddCommand(transaction.NewTransactionCmd(application.Service))
@@ -147,6 +153,16 @@ func initConfig() error {
 	}
 
 	cfg.ConfigPath = viper.ConfigFileUsed()
+
+	// Expand ~ in the database path so that paths like "~/mydata/kea.db"
+	// are resolved before being handed to the SQLite layer.
+	if cfg.Database.Path != "" {
+		expanded, err := expandPath(cfg.Database.Path)
+		if err != nil {
+			return fmt.Errorf("invalid database path: %w", err)
+		}
+		cfg.Database.Path = expanded
+	}
 
 	return nil
 }

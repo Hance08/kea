@@ -26,6 +26,18 @@ var (
 	cfg     *config.Config
 )
 
+const defaultConfigTemplate = `# kea configuration file
+
+database:
+  # Path to the SQLite database file.
+  # Leave empty to use the default: $AppDataDir/kea.db
+  path: ""
+
+defaults:
+  # Default currency code (ISO 4217), e.g. USD, TWD, JPY, EUR
+  currency: USD
+`
+
 func Execute(migrations fs.FS) {
 	pterm.Error.Prefix = pterm.Prefix{
 		Text:  " ERROR ",
@@ -234,7 +246,7 @@ func createDefaultConfig() error {
 		return nil
 	}
 
-	if err := viper.WriteConfigAs(configPath); err != nil {
+	if err := os.WriteFile(configPath, []byte(defaultConfigTemplate), 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 

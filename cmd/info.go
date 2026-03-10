@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/views"
@@ -40,6 +41,10 @@ func (r *infoRunner) Run() error {
 	}
 
 	rawDBPath := r.svc.Config.Database.Path
+	if rawDBPath == "" {
+		appDir := getAppDataDirOrPanic()
+		rawDBPath = filepath.Join(appDir, "kea.db")
+	}
 	expandedDBPath, _ := expandPath(rawDBPath)
 
 	dbExists := false

@@ -132,7 +132,7 @@ func (s *Store) GetAccountsByType(accType model.AccountType) ([]*model.Account, 
         WHERE type = ?
         ORDER BY name
     `, string(accType))
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to query accounts: %w", err)
 	}
@@ -188,4 +188,33 @@ func (s *Store) scanAccounts(rows *sql.Rows) ([]*model.Account, error) {
 	}
 
 	return accounts, nil
+}
+
+// AccountHasTransactions returns true when the account is referenced by any split.
+func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
+	var exists bool
+	row := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM splits WHERE account_id = ?)", accountID)
+	if err := row.Scan(&exists); err != nil {
+		return false, fmt.Errorf("failed to check account transactions: %w", err)
+	}
+	return exists, nil
+}
+
+// DeleteAccount removes an account record by ID.
+func (s *Store) DeleteAccount(accountID int64) error {
+	result, err := s.db.Exec("DELETE FROM accounts WHERE id = ?", accountID)
+	if err != nil {
+		return fmt.Errorf("failed to delete account: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("account with ID %d not found", accountID)
+	}
+
+	return nil
 }

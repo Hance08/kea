@@ -11,6 +11,8 @@ type AccountRepository interface {
 	GetAccountsByType(accType model.AccountType) ([]*model.Account, error)
 	GetAccountBalance(accountID int64) (int64, error)
 	HasChildAccounts(accountID int64) (bool, error)
+	AccountHasTransactions(accountID int64) (bool, error)
+	DeleteAccount(accountID int64) error
 }
 
 type TransactionRepository interface {

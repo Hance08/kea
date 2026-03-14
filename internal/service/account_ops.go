@@ -48,6 +48,35 @@ func (as *AccountService) CreateAccountWithBalance(name string, accType model.Ac
 	return account, nil
 }
 
+func (as *AccountService) DeleteAccountByName(name string) error {
+	acc, err := as.repo.GetAccountByName(name)
+	if err != nil {
+		return err
+	}
+
+	if acc.Name == model.SystemAccountOpeningBalance {
+		return fmt.Errorf("account %q is a system opening balance account and cannot be deleted", acc.Name)
+	}
+
+	hasChildren, err := as.repo.HasChildAccounts(acc.ID)
+	if err != nil {
+		return err
+	}
+	if hasChildren {
+		return fmt.Errorf("account %q has child accounts; delete or move them first", acc.Name)
+	}
+
+	hasTransactions, err := as.repo.AccountHasTransactions(acc.ID)
+	if err != nil {
+		return err
+	}
+	if hasTransactions {
+		return fmt.Errorf("account %q has transactions and cannot be deleted", acc.Name)
+	}
+
+	return as.repo.DeleteAccount(acc.ID)
+}
+
 func (as *AccountService) FormatAccountName(prefix, name string) string {
 	if prefix == "" {
 		return name

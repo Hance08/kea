@@ -16,6 +16,8 @@ func (r *addRunner) runFromFlags() (addTransactionInput, error) {
 		return addTransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
 	}
 
+	var srcAllowedTypes, dstAllowedTypes []string
+
 	// Validate account types if --type is provided
 	if r.flags.Type != "" {
 		mode := r.determineMode(r.flags.Type)
@@ -26,12 +28,8 @@ func (r *addRunner) runFromFlags() (addTransactionInput, error) {
 		if err != nil {
 			return addTransactionInput{}, err
 		}
-		if err := r.validateAccountType(r.flags.From, rule.SourceTypes, "--from"); err != nil {
-			return addTransactionInput{}, err
-		}
-		if err := r.validateAccountType(r.flags.To, rule.DestTypes, "--to"); err != nil {
-			return addTransactionInput{}, err
-		}
+		srcAllowedTypes = rule.SourceTypes
+		dstAllowedTypes = rule.DestTypes
 	}
 
 	description := r.flags.Description
@@ -54,6 +52,14 @@ func (r *addRunner) runFromFlags() (addTransactionInput, error) {
 	// Parse timestamp
 	timestamp, err := r.parseDate(r.flags.Timestamp)
 	if err != nil {
+		return addTransactionInput{}, err
+	}
+
+	if err := r.validateAccountSelectable(r.flags.From, srcAllowedTypes, "--from"); err != nil {
+		return addTransactionInput{}, err
+	}
+
+	if err := r.validateAccountSelectable(r.flags.To, dstAllowedTypes, "--to"); err != nil {
 		return addTransactionInput{}, err
 	}
 
@@ -168,18 +174,11 @@ func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []stri
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
 }
 
-func (r *addRunner) validateAccountType(accountName string, allowedTypes []string, flagName string) error {
-	account, err := r.accSvc.GetAccountByName(accountName)
-	if err != nil {
-		return fmt.Errorf("%s: account %q not found", flagName, accountName)
+func (r *addRunner) validateAccountSelectable(accountName string, allowedTypes []string, flagName string) error {
+	if err := r.accSvc.ValidateSelectableAccount(accountName, allowedTypes); err != nil {
+		return fmt.Errorf("%s: %w", flagName, err)
 	}
-	for _, t := range allowedTypes {
-		if string(account.Type) == t {
-			return nil
-		}
-	}
-	return fmt.Errorf("%s: account %q has type %q, not allowed for this transaction type (allowed: %v)",
-		flagName, accountName, account.Type, allowedTypes)
+	return nil
 }
 
 func (r *addRunner) determineMode(rawInput string) model.TransactionType {

@@ -10,6 +10,7 @@ type AccountRepository interface {
 	AccountExists(name string) (bool, error)
 	GetAccountsByType(accType model.AccountType) ([]*model.Account, error)
 	GetAccountBalance(accountID int64) (int64, error)
+	HasChildAccounts(accountID int64) (bool, error)
 }
 
 type TransactionRepository interface {

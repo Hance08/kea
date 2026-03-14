@@ -12,6 +12,7 @@ type AddProvider interface {
 	GetAllAccounts() ([]*model.Account, error)
 	GetAccountBalanceFormatted(accountID int64) (string, error)
 	GetAccountByName(name string) (*model.Account, error)
+	ValidateSelectableAccount(name string, allowedTypes []string) error
 }
 
 type TransactionProvider interface {

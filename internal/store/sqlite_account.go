@@ -116,6 +116,15 @@ func (s *Store) AccountExists(name string) (bool, error) {
 	return exists, nil
 }
 
+func (s *Store) HasChildAccounts(accountID int64) (bool, error) {
+	var exists bool
+	row := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM accounts WHERE parent_id = ?)", accountID)
+	if err := row.Scan(&exists); err != nil {
+		return false, fmt.Errorf("failed to check child accounts: %w", err)
+	}
+	return exists, nil
+}
+
 func (s *Store) GetAccountsByType(accType model.AccountType) ([]*model.Account, error) {
 	rows, err := s.db.Query(`
         SELECT id, name, type, parent_id, currency, description, is_hidden

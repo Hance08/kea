@@ -24,6 +24,7 @@ import (
 var (
 	cfgFile string
 	cfg     *config.Config
+	noColor bool
 )
 
 const defaultConfigTemplate = `# kea configuration file
@@ -52,13 +53,22 @@ func Execute(migrations fs.FS) {
 		Short:         "kea is a CLI/TUI based personal accounting tool",
 		Long:          `kea is a CLI/TUI based personal accounting tool`,
 		SilenceErrors: true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			flagValue, err := cmd.Flags().GetBool("no-color")
+			if err == nil {
+				configureOutput(flagValue)
+			}
+		},
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
+	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output (machine-friendly)")
 
 	// Parse the persistent flags (--config / -c) before calling initConfig so
 	// that a user-supplied config path is respected.
 	_ = rootCmd.ParseFlags(os.Args[1:])
+
+	configureOutput(hasNoColorInArgs(os.Args[1:]) || noColor)
 
 	if err := initConfig(); err != nil {
 		pterm.Error.Println(err)
@@ -261,4 +271,24 @@ func capitalize(s string) string {
 	r := []rune(s)
 	r[0] = unicode.ToUpper(r[0])
 	return string(r)
+}
+
+func configureOutput(noColorFlag bool) {
+	if noColorFlag || os.Getenv("NO_COLOR") != "" {
+		pterm.DisableStyling()
+		return
+	}
+
+	pterm.EnableStyling()
+}
+
+func hasNoColorInArgs(args []string) bool {
+	for _, arg := range args {
+		switch arg {
+		case "--no-color", "--no-color=true", "--no-color=1":
+			return true
+		}
+	}
+
+	return false
 }

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/dustin/go-humanize"
@@ -29,10 +30,11 @@ func ParseAmount(amountStr string) (int64, error) {
 
 	// Parse dollar part
 	if parts[0] != "" {
-		_, err := fmt.Sscanf(parts[0], "%d", &dollars)
+		parsed, err := parseDigitsStrict(parts[0])
 		if err != nil {
 			return 0, fmt.Errorf("invalid amount: %s", amountStr)
 		}
+		dollars = parsed
 	}
 
 	// Parse cents part if exists
@@ -45,10 +47,11 @@ func ParseAmount(amountStr string) (int64, error) {
 			centStr = centStr[:2] // Truncate extra digits
 		}
 
-		_, err := fmt.Sscanf(centStr, "%d", &cents)
+		parsed, err := parseDigitsStrict(centStr)
 		if err != nil {
 			return 0, fmt.Errorf("invalid cents: %s", amountStr)
 		}
+		cents = parsed
 	}
 
 	total := dollars*int64(model.CentsPerUnit) + cents
@@ -58,4 +61,23 @@ func ParseAmount(amountStr string) (int64, error) {
 	}
 
 	return total, nil
+}
+
+func parseDigitsStrict(value string) (int64, error) {
+	if value == "" {
+		return 0, fmt.Errorf("empty numeric value")
+	}
+
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			return 0, fmt.Errorf("non-digit character found")
+		}
+	}
+
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return parsed, nil
 }

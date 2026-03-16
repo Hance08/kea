@@ -9,6 +9,9 @@ import (
 
 // ValidateAccountName validates a basic account name segment (without path prefix)
 func (as *AccountService) ValidateAccountName(name string) error {
+	if name != strings.TrimSpace(name) {
+		return fmt.Errorf("account name cannot start or end with spaces")
+	}
 	name = strings.TrimSpace(name)
 
 	if name == "" {
@@ -28,9 +31,46 @@ func (as *AccountService) ValidateAccountName(name string) error {
 
 // ValidateFullAccountName validates the full hierarchical account name (e.g. "Assets:Bank:Checking")
 func (as *AccountService) ValidateFullAccountName(fullName string) error {
+	if fullName != strings.TrimSpace(fullName) {
+		return fmt.Errorf("account name cannot start or end with spaces")
+	}
+	fullName = strings.TrimSpace(fullName)
+	if fullName == "" {
+		return fmt.Errorf("account name can't be empty")
+	}
 	if len(fullName) > model.AccountNameMaxLength {
 		return fmt.Errorf("account name too long (max %d characters)", model.AccountNameMaxLength)
 	}
+
+	parts := strings.Split(fullName, ":")
+	if len(parts) == 0 {
+		return fmt.Errorf("invalid account name")
+	}
+
+	root := strings.ToLower(strings.TrimSpace(parts[0]))
+	if !model.ReservedNames[root] {
+		return fmt.Errorf("account root must be one of: Assets, Liabilities, Equity, Revenue, Expenses")
+	}
+
+	for i, part := range parts {
+		if part != strings.TrimSpace(part) {
+			return fmt.Errorf("account segment at level %d cannot start or end with spaces", i+1)
+		}
+		segment := strings.TrimSpace(part)
+		if segment == "" {
+			return fmt.Errorf("account name has empty segment at level %d", i+1)
+		}
+		if strings.Contains(segment, ":") {
+			return fmt.Errorf("account segment '%s' cannot contain ':'", segment)
+		}
+		if len(segment) > model.AccountNameMaxLength {
+			return fmt.Errorf("account segment too long (max %d characters)", model.AccountNameMaxLength)
+		}
+		if i > 0 && model.ReservedNames[strings.ToLower(segment)] {
+			return fmt.Errorf("account segment '%s' cannot use reserved root account name", segment)
+		}
+	}
+
 	return nil
 }
 

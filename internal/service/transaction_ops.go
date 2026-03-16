@@ -56,7 +56,7 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 	}
 
 	return ts.tm.ExecTx(func(repo repository.Repository) error {
-		_, err = ts.txRepo.CreateTransactionWithSplits(tx, splits)
+		_, err = repo.CreateTransactionWithSplits(tx, splits)
 		return err
 	})
 

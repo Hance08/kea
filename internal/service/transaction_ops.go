@@ -215,6 +215,16 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 	if status != model.StatusPending && status != model.StatusCleared {
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
+
+	oldTx, _, err := ts.txRepo.GetTransactionByID(txID)
+	if err != nil {
+		return fmt.Errorf("transaction not found: %w", err)
+	}
+
+	if oldTx.Status == model.StatusReconciled {
+		return fmt.Errorf("operation denied: transaction #%d has been reconciled and cannot be modified", txID)
+	}
+
 	return ts.txRepo.UpdateTransactionStatus(txID, status)
 }
 
@@ -232,9 +242,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 	}
 
 	if oldTx.Status == model.StatusReconciled {
-		if status == model.StatusReconciled {
-			return fmt.Errorf("operation denied: transaction #%d has been reconciled", txID)
-		}
+		return fmt.Errorf("operation denied: transaction #%d has been reconciled and cannot be modified", txID)
 	}
 
 	// Validate that we have at least 2 splits

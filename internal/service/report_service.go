@@ -203,14 +203,6 @@ func (ts *TransactionService) GenerateBalanceSheet() (*model.BalanceSheetResult,
 	return result, nil
 }
 
-// getOrCreateRow retrieves an existing ReportRow from the map or initialises a new one.
-func getOrCreateRow(m map[string]*model.ReportRow, name, currency string) *model.ReportRow {
-	if _, ok := m[name]; !ok {
-		m[name] = &model.ReportRow{AccountName: name, Currency: currency}
-	}
-	return m[name]
-}
-
 // getOrCreateRowWithOffset is like getOrCreateRow but also sets OffsetAccount.
 // The map key is expected to already encode both dimensions (e.g. "accName|offsetName").
 func getOrCreateRowWithOffset(m map[string]*model.ReportRow, key, name, offset, currency string) *model.ReportRow {

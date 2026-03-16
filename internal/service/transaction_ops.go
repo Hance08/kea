@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 )
 
 func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amountInCents int64) error {
@@ -54,7 +55,7 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 		},
 	}
 
-	return ts.tm.ExecTx(func(repo Repository) error {
+	return ts.tm.ExecTx(func(repo repository.Repository) error {
 		_, err = ts.txRepo.CreateTransactionWithSplits(tx, splits)
 		return err
 	})
@@ -125,7 +126,7 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 
 	// Execute Database Transaction:
 	// Ensure atomicity when writing the transaction and its splits.
-	err := ts.tm.ExecTx(func(repo Repository) error {
+	err := ts.tm.ExecTx(func(repo repository.Repository) error {
 		var err error
 
 		newTxID, err = repo.CreateTransactionWithSplits(tx, splits)
@@ -264,7 +265,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("transaction not found: %w", err)
 	}
 
-	return ts.tm.ExecTx(func(repo Repository) error {
+	return ts.tm.ExecTx(func(repo repository.Repository) error {
 		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
 			return err
 		}

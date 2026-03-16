@@ -11,7 +11,7 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/repository"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -54,7 +54,7 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-func (s *Store) ExecTx(fn func(service.Repository) error) error {
+func (s *Store) ExecTx(fn func(repository.Repository) error) error {
 	db, ok := s.db.(*sql.DB)
 	if !ok {
 		return fmt.Errorf("store is already in a transaction")

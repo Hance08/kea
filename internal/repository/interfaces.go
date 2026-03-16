@@ -1,4 +1,4 @@
-package service
+package repository
 
 import "github.com/hance08/kea/internal/model"
 

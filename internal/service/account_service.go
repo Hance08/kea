@@ -6,6 +6,7 @@ import (
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 )
 
 type TransactionCreator interface {
@@ -13,12 +14,12 @@ type TransactionCreator interface {
 }
 
 type AccountService struct {
-	repo   AccountRepository
+	repo   repository.AccountRepository
 	config *config.Config
 	txSvc  TransactionCreator
 }
 
-func NewAccountService(repo AccountRepository, cfg *config.Config) *AccountService {
+func NewAccountService(repo repository.AccountRepository, cfg *config.Config) *AccountService {
 	return &AccountService{
 		repo:   repo,
 		config: cfg,

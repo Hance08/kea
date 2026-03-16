@@ -38,23 +38,44 @@ func ParseAmount(amountStr string) (int64, error) {
 	}
 
 	// Parse cents part if exists
+	var dollarCarry int64
 	if len(parts) == 2 {
 		centStr := parts[1]
-		// Pad or truncate to 2 digits
+		// Pad or round to 2 digits
 		if len(centStr) == 1 {
 			centStr += "0" // "150.5" -> "50"
-		} else if len(centStr) > 2 {
-			centStr = centStr[:2] // Truncate extra digits
 		}
 
-		parsed, err := parseDigitsStrict(centStr)
-		if err != nil {
-			return 0, fmt.Errorf("invalid cents: %s", amountStr)
+		if len(centStr) > 2 {
+			for i := 0; i < len(centStr); i++ {
+				if centStr[i] < '0' || centStr[i] > '9' {
+					return 0, fmt.Errorf("invalid cents: %s", amountStr)
+				}
+			}
+
+			firstTwo, err := parseDigitsStrict(centStr[:2])
+			if err != nil {
+				return 0, fmt.Errorf("invalid cents: %s", amountStr)
+			}
+
+			cents = firstTwo
+			if centStr[2] >= '5' {
+				cents++
+				if cents == int64(model.CentsPerUnit) {
+					dollarCarry = 1
+					cents = 0
+				}
+			}
+		} else {
+			parsed, err := parseDigitsStrict(centStr)
+			if err != nil {
+				return 0, fmt.Errorf("invalid cents: %s", amountStr)
+			}
+			cents = parsed
 		}
-		cents = parsed
 	}
 
-	total := dollars*int64(model.CentsPerUnit) + cents
+	total := (dollars+dollarCarry)*int64(model.CentsPerUnit) + cents
 
 	if isNegative {
 		total = -total

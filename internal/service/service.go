@@ -12,9 +12,13 @@ type Service struct {
 }
 
 func NewService(accRepo repository.AccountRepository, txRepo repository.TransactionRepository, tm repository.TransactionManager, cfg *config.Config) *Service {
-	return &Service{
+	svc := &Service{
 		Account:     NewAccountService(accRepo, cfg),
 		Transaction: NewTransactionService(txRepo, accRepo, tm, cfg),
 		Config:      cfg,
 	}
+
+	svc.Account.SetTransactionService(svc.Transaction)
+
+	return svc
 }

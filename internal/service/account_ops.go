@@ -40,6 +40,10 @@ func (as *AccountService) CreateAccountWithBalance(name string, accType model.Ac
 	}
 
 	if balance != 0 {
+		if as.txSvc == nil {
+			return account, fmt.Errorf("transaction service is not configured")
+		}
+
 		if err := as.txSvc.CreateOpeningBalance(account, balance); err != nil {
 			return account, fmt.Errorf("account created but failed to set opening balance: %w", err)
 		}

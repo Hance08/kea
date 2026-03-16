@@ -8,12 +8,17 @@ import (
 )
 
 // splitsToDetails converts raw Split records to SplitDetail by resolving account names.
-func (ts *TransactionService) splitsToDetails(splits []*model.Split) ([]model.SplitDetail, error) {
+func (ts *TransactionService) splitsToDetails(splits []*model.Split, accountCache map[int64]*model.Account) ([]model.SplitDetail, error) {
 	details := make([]model.SplitDetail, 0, len(splits))
 	for _, s := range splits {
-		acc, err := ts.accRepo.GetAccountByID(s.AccountID)
-		if err != nil {
-			return nil, err
+		acc, ok := accountCache[s.AccountID]
+		if !ok {
+			var err error
+			acc, err = ts.accRepo.GetAccountByID(s.AccountID)
+			if err != nil {
+				return nil, err
+			}
+			accountCache[s.AccountID] = acc
 		}
 		details = append(details, model.SplitDetail{
 			ID:          s.ID,
@@ -62,6 +67,7 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 
 	incomeByAccount := map[string]*model.ReportRow{}
 	expenseByAccount := map[string]*model.ReportRow{}
+	accountCache := map[int64]*model.Account{}
 
 	for _, tx := range transactions {
 		splits, err := ts.txRepo.GetSplitsByTransaction(tx.ID)
@@ -69,7 +75,7 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 			return nil, err
 		}
 
-		details, err := ts.splitsToDetails(splits)
+		details, err := ts.splitsToDetails(splits, accountCache)
 		if err != nil {
 			return nil, err
 		}
@@ -79,26 +85,22 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 			return nil, err
 		}
 
-		for _, split := range details {
-			acc, err := ts.accRepo.GetAccountByID(split.AccountID)
-			if err != nil {
-				return nil, err
-			}
+		incomeOffset := offsetAccountName(details, model.AccountTypeRevenue)
+		expenseOffset := offsetAccountName(details, model.AccountTypeExpense)
 
+		for _, split := range details {
 			switch txType {
 			case model.TxTypeIncome:
-				if acc.Type == model.AccountTypeRevenue {
-					offset := offsetAccountName(details, model.AccountTypeRevenue)
-					key := acc.Name + "|" + offset
-					row := getOrCreateRowWithOffset(incomeByAccount, key, acc.Name, offset, split.Currency)
+				if split.AccountType == model.AccountTypeRevenue {
+					key := split.AccountName + "|" + incomeOffset
+					row := getOrCreateRowWithOffset(incomeByAccount, key, split.AccountName, incomeOffset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
 				}
 			case model.TxTypeExpense:
-				if acc.Type == model.AccountTypeExpense {
-					offset := offsetAccountName(details, model.AccountTypeExpense)
-					key := acc.Name + "|" + offset
-					row := getOrCreateRowWithOffset(expenseByAccount, key, acc.Name, offset, split.Currency)
+				if split.AccountType == model.AccountTypeExpense {
+					key := split.AccountName + "|" + expenseOffset
+					row := getOrCreateRowWithOffset(expenseByAccount, key, split.AccountName, expenseOffset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
 				}

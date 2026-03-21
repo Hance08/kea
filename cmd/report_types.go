@@ -4,7 +4,7 @@ import "github.com/hance08/kea/internal/model"
 
 // reportFlags holds the parsed CLI flags for the report command.
 type reportFlags struct {
-	Type  string // is | balance | expense
+	Type  string // is | ib | eb | bs
 	Month string // YYYY-MM  (shorthand for a full calendar month)
 	From  string // YYYY-MM-DD  (explicit range start)
 	To    string // YYYY-MM-DD  (explicit range end)
@@ -14,6 +14,7 @@ type reportFlags struct {
 // ReportProvider is the service interface required by the report command.
 type ReportProvider interface {
 	GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error)
+	GenerateIncomeBreakdown(startTime, endTime int64) (*model.ReportResult, error)
 	GenerateExpenseBreakdown(startTime, endTime int64) (*model.ReportResult, error)
 	GenerateBalanceSheet() (*model.BalanceSheetResult, error)
 	GetNetWorthAt(endTime int64) (int64, error)
@@ -22,6 +23,7 @@ type ReportProvider interface {
 // ReportView is the view interface used to render report output.
 type ReportView interface {
 	RenderIncomeStatement(result *model.ReportResult) error
+	RenderIncomeBreakdown(result *model.ReportResult) error
 	RenderExpenseBreakdown(result *model.ReportResult) error
 	RenderBalanceSheet(result *model.BalanceSheetResult) error
 }

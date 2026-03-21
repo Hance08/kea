@@ -164,6 +164,26 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 	return result, nil
 }
 
+// GenerateIncomeBreakdown produces a detailed income-only report for the given Unix time range.
+func (ts *TransactionService) GenerateIncomeBreakdown(startTime, endTime int64) (*model.ReportResult, error) {
+	result, err := ts.GenerateIncomeStatement(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort income rows by amount descending for readability.
+	sort.Slice(result.IncomeRows, func(i, j int) bool {
+		return result.IncomeRows[i].Amount > result.IncomeRows[j].Amount
+	})
+
+	// Keep only income information.
+	result.ExpenseRows = nil
+	result.TotalExpense = 0
+	result.NetAmount = 0
+
+	return result, nil
+}
+
 // GenerateExpenseBreakdown produces a detailed expense-only report for the given Unix time range.
 func (ts *TransactionService) GenerateExpenseBreakdown(startTime, endTime int64) (*model.ReportResult, error) {
 	result, err := ts.GenerateIncomeStatement(startTime, endTime)

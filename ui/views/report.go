@@ -151,6 +151,45 @@ func (v *ReportView) RenderExpenseBreakdown(result *model.ReportResult) error {
 	return nil
 }
 
+// RenderIncomeBreakdown prints a ranked income table.
+func (v *ReportView) RenderIncomeBreakdown(result *model.ReportResult) error {
+	ui.PrintL1Title("Income Breakdown  —  %s", result.Period)
+	pterm.Println()
+
+	if len(result.IncomeRows) == 0 {
+		pterm.Warning.Println("No income found in this period.")
+		return nil
+	}
+
+	t := newReportTable([]string{"Rank", "Account", "Offset Account", "Transactions", "Amount", "Currency"})
+	t.SetColumnAlignment([]int{
+		tablewriter.ALIGN_RIGHT,
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_RIGHT,
+		tablewriter.ALIGN_RIGHT,
+		tablewriter.ALIGN_LEFT,
+	})
+
+	for i, row := range result.IncomeRows {
+		t.Append([]string{
+			fmt.Sprintf("%d", i+1),
+			row.AccountName,
+			row.OffsetAccount,
+			fmt.Sprintf("%d", row.TxCount),
+			pterm.Green(utils.FormatAmount(row.Amount)),
+			row.Currency,
+		})
+	}
+	t.Render()
+	pterm.Println()
+
+	v.renderSummaryLine("Total Income", pterm.Green(utils.FormatAmount(result.TotalIncome)), result.Currency)
+	pterm.Println()
+
+	return nil
+}
+
 // RenderBalanceSheet prints asset, liability, and equity tables with a net-worth summary.
 func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error {
 	ui.PrintL1Title("Balance Sheet")

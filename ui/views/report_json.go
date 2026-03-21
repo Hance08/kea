@@ -21,6 +21,10 @@ func (v *JSONReportView) RenderIncomeStatement(result *model.ReportResult) error
 	return writeJSON(toJSONReportResult(result))
 }
 
+func (v *JSONReportView) RenderIncomeBreakdown(result *model.ReportResult) error {
+	return writeJSON(toJSONReportResult(result))
+}
+
 func (v *JSONReportView) RenderExpenseBreakdown(result *model.ReportResult) error {
 	return writeJSON(toJSONReportResult(result))
 }

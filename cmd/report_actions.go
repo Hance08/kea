@@ -18,12 +18,14 @@ func (r *reportRunner) run() error {
 	switch reportType {
 	case "is":
 		return r.runIncomeStatement()
+	case "ib":
+		return r.runIncomeBreakdown()
 	case "eb":
 		return r.runExpenseBreakdown()
 	case "bs":
 		return r.runBalanceSheet()
 	default:
-		return fmt.Errorf("unknown report type %q — use: is, eb, bs", reportType)
+		return fmt.Errorf("unknown report type %q — use: is, ib, eb, bs", reportType)
 	}
 }
 
@@ -70,6 +72,21 @@ func (r *reportRunner) runExpenseBreakdown() error {
 
 	result.Period = period
 	return r.view.RenderExpenseBreakdown(result)
+}
+
+func (r *reportRunner) runIncomeBreakdown() error {
+	start, end, period, err := r.resolveDateRange()
+	if err != nil {
+		return err
+	}
+
+	result, err := r.provider.GenerateIncomeBreakdown(start, end)
+	if err != nil {
+		return fmt.Errorf("failed to generate income breakdown: %w", err)
+	}
+
+	result.Period = period
+	return r.view.RenderIncomeBreakdown(result)
 }
 
 func (r *reportRunner) runBalanceSheet() error {

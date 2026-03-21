@@ -160,7 +160,7 @@ func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error 
 	ui.PrintL2Title("Assets")
 	pterm.Println()
 	if len(result.Assets) == 0 {
-		pterm.Info.Println("  (none)")
+		pterm.Println(pterm.Red("(none)"))
 	} else {
 		t := newReportTable([]string{"Account", "Balance", "Currency"})
 		t.SetColumnAlignment([]int{
@@ -183,7 +183,7 @@ func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error 
 	ui.PrintL2Title("Liabilities")
 	pterm.Println()
 	if len(result.Liabilities) == 0 {
-		pterm.Info.Println("  (none)")
+		pterm.Println(pterm.Red("(none)"))
 	} else {
 		t := newReportTable([]string{"Account", "Balance", "Currency"})
 		t.SetColumnAlignment([]int{
@@ -206,7 +206,7 @@ func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error 
 	ui.PrintL2Title("Equity")
 	pterm.Println()
 	if len(result.Equity) == 0 {
-		pterm.Info.Println("  (none)")
+		pterm.Println(pterm.Red("(none)"))
 	} else {
 		t := newReportTable([]string{"Account", "Balance", "Currency"})
 		t.SetColumnAlignment([]int{
@@ -234,6 +234,20 @@ func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error 
 		v.renderSummaryLine("Net Worth", pterm.Green(nwStr), result.Currency)
 	} else {
 		v.renderSummaryLine("Net Worth", pterm.Red("-"+nwStr), result.Currency)
+	}
+
+	if result.NetWorthGrowthPct == nil {
+		v.renderSummaryLineNoCurrency("Net Worth Growth", "N/A")
+	} else {
+		pctText := fmt.Sprintf("%+.2f%%", *result.NetWorthGrowthPct)
+		switch {
+		case *result.NetWorthGrowthPct > 0:
+			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Green(pctText))
+		case *result.NetWorthGrowthPct < 0:
+			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Red(pctText))
+		default:
+			v.renderSummaryLineNoCurrency("Net Worth Growth", pctText)
+		}
 	}
 
 	pterm.Println()

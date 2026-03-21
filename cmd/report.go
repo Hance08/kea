@@ -24,14 +24,14 @@ func NewReportCmd(svc *service.Service) *cobra.Command {
 
 Report types:
   is       — Income statement: income vs expenses for a period (default)
-  expense  — Expense breakdown: ranked by spending amount
-  balance  — Balance sheet: current snapshot of all account balances
+  eb       — Expense breakdown: ranked by spending amount
+  bs       — Balance sheet: current snapshot of all account balances
 
 Examples:
   kea report
   kea report --type is --month 2026-01
-  kea report --type expense --from 2026-01-01 --to 2026-01-31
-  kea report --type balance`,
+  kea report --type eb --from 2026-01-01 --to 2026-01-31
+  kea report --type bs`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := &reportRunner{
 				flags:    flags,
@@ -45,7 +45,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "report type: is | expense | balance (default: is)")
+	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "report type: is | eb | bs (default: is)")
 	cmd.Flags().StringVarP(&flags.Month, "month", "m", "", "calendar month to report on (YYYY-MM)")
 	cmd.Flags().StringVar(&flags.From, "from", "", "range start date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&flags.To, "to", "", "range end date (YYYY-MM-DD)")

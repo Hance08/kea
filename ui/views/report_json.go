@@ -66,14 +66,16 @@ type jsonReportResult struct {
 }
 
 type jsonBalanceSheetResult struct {
-	Assets           []jsonReportRow `json:"assets"`
-	Liabilities      []jsonReportRow `json:"liabilities"`
-	Equity           []jsonReportRow `json:"equity"`
-	TotalAssets      float64         `json:"total_assets"`
-	TotalLiabilities float64         `json:"total_liabilities"`
-	TotalEquity      float64         `json:"total_equity"`
-	NetWorth         float64         `json:"net_worth"`
-	Currency         string          `json:"currency"`
+	Assets            []jsonReportRow `json:"assets"`
+	Liabilities       []jsonReportRow `json:"liabilities"`
+	Equity            []jsonReportRow `json:"equity"`
+	TotalAssets       float64         `json:"total_assets"`
+	TotalLiabilities  float64         `json:"total_liabilities"`
+	TotalEquity       float64         `json:"total_equity"`
+	NetWorth          float64         `json:"net_worth"`
+	PreviousNetWorth  *float64        `json:"previous_net_worth"`
+	NetWorthGrowthPct *float64        `json:"net_worth_growth_pct"`
+	Currency          string          `json:"currency"`
 }
 
 func centsToUnit(cents int64) float64 {
@@ -120,14 +122,22 @@ func toJSONReportResult(r *model.ReportResult) jsonReportResult {
 }
 
 func toJSONBalanceSheetResult(r *model.BalanceSheetResult) jsonBalanceSheetResult {
+	var previousNetWorth *float64
+	if r.PreviousNetWorth != nil {
+		v := centsToUnit(*r.PreviousNetWorth)
+		previousNetWorth = &v
+	}
+
 	return jsonBalanceSheetResult{
-		Assets:           toJSONRows(r.Assets),
-		Liabilities:      toJSONRows(r.Liabilities),
-		Equity:           toJSONRows(r.Equity),
-		TotalAssets:      centsToUnit(r.TotalAssets),
-		TotalLiabilities: centsToUnit(r.TotalLiabilities),
-		TotalEquity:      centsToUnit(r.TotalEquity),
-		NetWorth:         centsToUnit(r.NetWorth),
-		Currency:         r.Currency,
+		Assets:            toJSONRows(r.Assets),
+		Liabilities:       toJSONRows(r.Liabilities),
+		Equity:            toJSONRows(r.Equity),
+		TotalAssets:       centsToUnit(r.TotalAssets),
+		TotalLiabilities:  centsToUnit(r.TotalLiabilities),
+		TotalEquity:       centsToUnit(r.TotalEquity),
+		NetWorth:          centsToUnit(r.NetWorth),
+		PreviousNetWorth:  previousNetWorth,
+		NetWorthGrowthPct: r.NetWorthGrowthPct,
+		Currency:          r.Currency,
 	}
 }

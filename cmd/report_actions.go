@@ -18,12 +18,12 @@ func (r *reportRunner) run() error {
 	switch reportType {
 	case "is":
 		return r.runIncomeStatement()
-	case "expense":
+	case "eb":
 		return r.runExpenseBreakdown()
-	case "balance":
+	case "bs":
 		return r.runBalanceSheet()
 	default:
-		return fmt.Errorf("unknown report type %q — use: is, expense, balance", reportType)
+		return fmt.Errorf("unknown report type %q — use: is, eb, bs", reportType)
 	}
 }
 
@@ -78,6 +78,25 @@ func (r *reportRunner) runBalanceSheet() error {
 	if err != nil {
 		return fmt.Errorf("failed to generate balance sheet: %w", err)
 	}
+
+	start, end, _, err := r.resolveDateRange()
+	if err != nil {
+		return err
+	}
+
+	currentNetWorth, err := r.provider.GetNetWorthAt(end)
+	if err != nil {
+		return fmt.Errorf("failed to fetch net worth for current period: %w", err)
+	}
+	result.NetWorth = currentNetWorth
+
+	_, prevEnd := previousPeriodRange(start, end)
+	previousNetWorth, err := r.provider.GetNetWorthAt(prevEnd)
+	if err != nil {
+		return fmt.Errorf("failed to fetch net worth for previous period: %w", err)
+	}
+	result.PreviousNetWorth = &previousNetWorth
+	result.NetWorthGrowthPct = computeNetWorthGrowthPct(currentNetWorth, previousNetWorth)
 
 	return r.view.RenderBalanceSheet(result)
 }

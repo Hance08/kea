@@ -23,6 +23,7 @@ type ListProvider interface {
 	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
 	DetermineType(splits []model.SplitDetail) (model.TransactionType, error)
 	GetDisplayAccount(splits []model.SplitDetail, txType string) (string, error)
+	GetDisplayOffsetAccount(splits []model.SplitDetail, txType string, primaryAccount string) (string, error)
 	GetDisplayAmount(splits []model.SplitDetail) (int64, string)
 }
 
@@ -113,6 +114,11 @@ func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *model.Tran
 		accountName = "-"
 	}
 
+	offsetAccount, err := r.svc.GetDisplayOffsetAccount(detail.Splits, txType, accountName)
+	if err != nil {
+		offsetAccount = "-"
+	}
+
 	amountCents, currency := r.svc.GetDisplayAmount(detail.Splits)
 	amountFloat := float64(amountCents) / 100.0
 	amountStr := fmt.Sprintf("%.2f", amountFloat)
@@ -129,6 +135,7 @@ func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *model.Tran
 		Date:        date,
 		Type:        txType,
 		Account:     accountName,
+		Offset:      offsetAccount,
 		Description: tx.Description,
 		Amount:      amountStr,
 		Currency:    currency,

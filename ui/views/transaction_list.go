@@ -15,6 +15,7 @@ type TransactionListItem struct {
 	Date        string
 	Type        string
 	Account     string
+	Offset      string
 	Description string
 	Amount      string
 	Currency    string
@@ -38,9 +39,10 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 
 	table := tablewriter.NewWriter(os.Stdout)
 
-	table.SetHeader([]string{"ID", "Date", "Type", "Account", "Description", "Amount", "Status"})
+	table.SetHeader([]string{"ID", "Date", "Type", "Account", "Offset Account", "Description", "Amount", "Status"})
 
 	table.SetColumnAlignment([]int{
+		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_LEFT,
@@ -55,7 +57,7 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 	table.SetAutoWrapText(false)
 
 	for _, item := range items {
-		var coloredType, coloredAccount, coloredAmount, coloredDescription string
+		var coloredType, coloredAccount, coloredOffset, coloredAmount, coloredDescription string
 
 		amountVal, err := utils.ParseAmount(item.Amount)
 		if err != nil {
@@ -67,21 +69,25 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 		case "Expense":
 			coloredType = pterm.Red(item.Type)
 			coloredAccount = pterm.Red(item.Account)
+			coloredOffset = pterm.Red(item.Offset)
 			coloredAmount = pterm.Red(amountStr)
 			coloredDescription = item.Description
 		case "Income":
 			coloredType = pterm.Green(item.Type)
 			coloredAccount = pterm.Green(item.Account)
+			coloredOffset = pterm.Green(item.Offset)
 			coloredAmount = pterm.Green(amountStr)
 			coloredDescription = item.Description
 		case "Transfer":
 			coloredType = pterm.Blue(item.Type)
 			coloredAccount = pterm.Blue(item.Account)
+			coloredOffset = pterm.Blue(item.Offset)
 			coloredAmount = pterm.Blue(amountStr)
 			coloredDescription = item.Description
 		default: // Other or Opening
 			coloredType = pterm.Gray(item.Type)
 			coloredAccount = pterm.Gray(item.Account)
+			coloredOffset = pterm.Gray(item.Offset)
 			coloredAmount = pterm.Gray(amountStr)
 			coloredDescription = pterm.Gray(item.Description)
 		}
@@ -91,6 +97,7 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 			item.Date,
 			coloredType,
 			coloredAccount,
+			coloredOffset,
 			coloredDescription,
 			coloredAmount,
 			item.Status,

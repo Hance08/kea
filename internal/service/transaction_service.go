@@ -71,6 +71,7 @@ func (ts *TransactionService) GetTransactionByID(txID int64) (*model.Transaction
 			ID:          split.ID,
 			AccountID:   split.AccountID,
 			AccountName: account.Name,
+			AccountType: account.Type,
 			Amount:      split.Amount,
 			Currency:    split.Currency,
 			Memo:        split.Memo,

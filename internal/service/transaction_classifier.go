@@ -167,6 +167,62 @@ func (ts *TransactionService) GetDisplayAmount(splits []model.SplitDetail) (int6
 	return maxAmount, currency
 }
 
+func (ts *TransactionService) GetDisplayOffsetAccount(splits []model.SplitDetail, txType string, primaryAccount string) (string, error) {
+	if len(splits) == 0 {
+		return "-", nil
+	}
+
+	resolveAccountType := func(split model.SplitDetail) (model.AccountType, error) {
+		if split.AccountType != "" {
+			return split.AccountType, nil
+		}
+		account, err := ts.accRepo.GetAccountByName(split.AccountName)
+		if err != nil {
+			return "", err
+		}
+		return account.Type, nil
+	}
+
+	seen := map[string]struct{}{}
+
+	switch txType {
+	case string(model.TxTypeExpense), string(model.TxTypeIncome):
+		var primaryType model.AccountType
+		if txType == string(model.TxTypeExpense) {
+			primaryType = model.AccountTypeExpense
+		} else {
+			primaryType = model.AccountTypeRevenue
+		}
+
+		for _, split := range splits {
+			typeVal, err := resolveAccountType(split)
+			if err != nil {
+				return "", err
+			}
+			if typeVal != primaryType {
+				seen[split.AccountName] = struct{}{}
+			}
+		}
+	default:
+		for _, split := range splits {
+			if split.AccountName != primaryAccount {
+				seen[split.AccountName] = struct{}{}
+			}
+		}
+	}
+
+	switch len(seen) {
+	case 0:
+		return "-", nil
+	case 1:
+		for name := range seen {
+			return name, nil
+		}
+	}
+
+	return "(multiple)", nil
+}
+
 func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account {
 	switch txType {
 	case model.TxTypeExpense:

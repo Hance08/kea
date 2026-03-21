@@ -4,7 +4,7 @@ import "github.com/hance08/kea/internal/model"
 
 // reportFlags holds the parsed CLI flags for the report command.
 type reportFlags struct {
-	Type  string // income | balance | expense
+	Type  string // is | balance | expense
 	Month string // YYYY-MM  (shorthand for a full calendar month)
 	From  string // YYYY-MM-DD  (explicit range start)
 	To    string // YYYY-MM-DD  (explicit range end)

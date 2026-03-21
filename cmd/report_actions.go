@@ -11,18 +11,18 @@ import (
 func (r *reportRunner) run() error {
 	reportType := r.flags.Type
 	if reportType == "" {
-		reportType = "income"
+		reportType = "is"
 	}
 
 	switch reportType {
-	case "income":
+	case "is":
 		return r.runIncomeStatement()
 	case "expense":
 		return r.runExpenseBreakdown()
 	case "balance":
 		return r.runBalanceSheet()
 	default:
-		return fmt.Errorf("unknown report type %q — use: income, expense, balance", reportType)
+		return fmt.Errorf("unknown report type %q — use: is, expense, balance", reportType)
 	}
 }
 

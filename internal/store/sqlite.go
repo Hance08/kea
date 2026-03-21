@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -54,13 +55,13 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-func (s *Store) ExecTx(fn func(repository.Repository) error) error {
+func (s *Store) ExecTx(ctx context.Context, fn func(repository.Repository) error) error {
 	db, ok := s.db.(*sql.DB)
 	if !ok {
 		return fmt.Errorf("store is already in a transaction")
 	}
 
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -55,7 +56,7 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 		},
 	}
 
-	return ts.tm.ExecTx(func(repo repository.Repository) error {
+	return ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
 		_, err = repo.CreateTransactionWithSplits(tx, splits)
 		return err
 	})
@@ -126,7 +127,7 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 
 	// Execute Database Transaction:
 	// Ensure atomicity when writing the transaction and its splits.
-	err := ts.tm.ExecTx(func(repo repository.Repository) error {
+	err := ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
 		var err error
 
 		newTxID, err = repo.CreateTransactionWithSplits(tx, splits)
@@ -267,13 +268,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		}
 	}
 
-	// Check transaction exists
-	_, _, err = ts.txRepo.GetTransactionByID(txID)
-	if err != nil {
-		return fmt.Errorf("transaction not found: %w", err)
-	}
-
-	return ts.tm.ExecTx(func(repo repository.Repository) error {
+	return ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
 		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
 			return err
 		}

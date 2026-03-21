@@ -24,16 +24,20 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 	)
 
 	for _, split := range splits {
-		acc, err := ts.accRepo.GetAccountByID(split.AccountID)
-		if err != nil {
-			return model.TxTypeOther, err
+		accType := split.AccountType
+		if accType == "" {
+			acc, err := ts.accRepo.GetAccountByID(split.AccountID)
+			if err != nil {
+				return model.TxTypeOther, err
+			}
+			accType = acc.Type
 		}
 
 		if split.Memo == model.OpeningAccountMemo {
 			isOpening = true
 		}
 
-		switch acc.Type {
+		switch accType {
 		case "E":
 			hasExpense = true
 			totalExpenseAmount += split.Amount

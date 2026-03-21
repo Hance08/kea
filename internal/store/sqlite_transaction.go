@@ -330,6 +330,40 @@ func (s *Store) GetSplitsByTransaction(txID int64) ([]*model.Split, error) {
 	return splits, rows.Err()
 }
 
+func (s *Store) GetSplitsWithAccountsByDateRange(startTime, endTime int64) (map[int64][]model.SplitDetail, error) {
+	rows, err := s.db.Query(`
+        SELECT
+            s.id, s.transaction_id, s.account_id, s.amount, s.currency, s.memo,
+            a.name, a.type
+        FROM transactions t
+        JOIN splits s ON t.id = s.transaction_id
+        JOIN accounts a ON s.account_id = a.id
+        WHERE t.timestamp >= ? AND t.timestamp <= ?
+        ORDER BY t.id, s.id
+    `, startTime, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query splits with accounts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[int64][]model.SplitDetail)
+	for rows.Next() {
+		var d model.SplitDetail
+		var txID int64
+		if err := rows.Scan(
+			&d.ID, &txID, &d.AccountID, &d.Amount, &d.Currency, &d.Memo,
+			&d.AccountName, &d.AccountType,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan split with account: %w", err)
+		}
+		result[txID] = append(result[txID], d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+	return result, nil
+}
+
 func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
 	var transactions []*model.Transaction
 	for rows.Next() {

@@ -9,32 +9,15 @@ import (
 
 // GetNetWorthAt returns net worth (assets - liabilities) using all posted splits up to endTime.
 func (ts *TransactionService) GetNetWorthAt(endTime int64) (int64, error) {
-	transactions, err := ts.txRepo.GetTransactionsByDateRange(0, endTime)
+	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(0, endTime)
 	if err != nil {
 		return 0, err
 	}
 
-	accountCache := map[int64]*model.Account{}
-	var totalAssets int64
-	var totalLiabilities int64
-
-	for _, tx := range transactions {
-		splits, err := ts.txRepo.GetSplitsByTransaction(tx.ID)
-		if err != nil {
-			return 0, err
-		}
-
+	var totalAssets, totalLiabilities int64
+	for _, splits := range txSplitsMap {
 		for _, split := range splits {
-			acc, ok := accountCache[split.AccountID]
-			if !ok {
-				acc, err = ts.accRepo.GetAccountByID(split.AccountID)
-				if err != nil {
-					return 0, err
-				}
-				accountCache[split.AccountID] = acc
-			}
-
-			switch acc.Type {
+			switch split.AccountType {
 			case model.AccountTypeAsset:
 				totalAssets += split.Amount
 			case model.AccountTypeLiability:
@@ -44,32 +27,6 @@ func (ts *TransactionService) GetNetWorthAt(endTime int64) (int64, error) {
 	}
 
 	return totalAssets - totalLiabilities, nil
-}
-
-// splitsToDetails converts raw Split records to SplitDetail by resolving account names.
-func (ts *TransactionService) splitsToDetails(splits []*model.Split, accountCache map[int64]*model.Account) ([]model.SplitDetail, error) {
-	details := make([]model.SplitDetail, 0, len(splits))
-	for _, s := range splits {
-		acc, ok := accountCache[s.AccountID]
-		if !ok {
-			var err error
-			acc, err = ts.accRepo.GetAccountByID(s.AccountID)
-			if err != nil {
-				return nil, err
-			}
-			accountCache[s.AccountID] = acc
-		}
-		details = append(details, model.SplitDetail{
-			ID:          s.ID,
-			AccountID:   s.AccountID,
-			AccountName: acc.Name,
-			AccountType: acc.Type,
-			Amount:      s.Amount,
-			Currency:    s.Currency,
-			Memo:        s.Memo,
-		})
-	}
-	return details, nil
 }
 
 // offsetAccountName inspects the splits of a transaction and returns the name of the
@@ -99,26 +56,15 @@ func offsetAccountName(details []model.SplitDetail, primaryType model.AccountTyp
 // The aggregation key is "accountName|offsetAccount" so that the same expense account
 // funded from different offset accounts appears as separate rows.
 func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error) {
-	transactions, err := ts.txRepo.GetTransactionsByDateRange(startTime, endTime)
+	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
 
 	incomeByAccount := map[string]*model.ReportRow{}
 	expenseByAccount := map[string]*model.ReportRow{}
-	accountCache := map[int64]*model.Account{}
 
-	for _, tx := range transactions {
-		splits, err := ts.txRepo.GetSplitsByTransaction(tx.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		details, err := ts.splitsToDetails(splits, accountCache)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, details := range txSplitsMap {
 		txType, err := ts.DetermineType(details)
 		if err != nil {
 			return nil, err

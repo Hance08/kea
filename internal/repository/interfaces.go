@@ -1,6 +1,10 @@
 package repository
 
-import "github.com/hance08/kea/internal/model"
+import (
+	"context"
+
+	"github.com/hance08/kea/internal/model"
+)
 
 type AccountRepository interface {
 	CreateAccount(name string, accType model.AccountType, currency, description string, parentID *int64) (int64, error)
@@ -30,6 +34,11 @@ type TransactionRepository interface {
 	UpdateSplit(splitID int64, accountID int64, amount int64, currency string, memo string) error
 	DeleteSplit(splitID int64) error
 	GetSplitsByTransaction(txID int64) ([]*model.Split, error)
+
+	// GetSplitsWithAccountsByDateRange returns all splits (with account info) for
+	// transactions in the given Unix time range, keyed by transaction ID.
+	// Designed for bulk report queries to avoid N+1 patterns.
+	GetSplitsWithAccountsByDateRange(startTime, endTime int64) (map[int64][]model.SplitDetail, error)
 }
 
 type Repository interface {
@@ -38,5 +47,5 @@ type Repository interface {
 }
 
 type TransactionManager interface {
-	ExecTx(fn func(Repository) error) error
+	ExecTx(ctx context.Context, fn func(Repository) error) error
 }

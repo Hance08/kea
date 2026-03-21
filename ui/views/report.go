@@ -94,6 +94,20 @@ func (v *ReportView) RenderIncomeStatement(result *model.ReportResult) error {
 		v.renderSummaryLine("Net Worth", pterm.Red("-"+nwStr), result.Currency)
 	}
 
+	if result.NetWorthGrowthPct == nil {
+		v.renderSummaryLineNoCurrency("Net Worth Growth", "N/A")
+	} else {
+		pctText := fmt.Sprintf("%+.2f%%", *result.NetWorthGrowthPct)
+		switch {
+		case *result.NetWorthGrowthPct > 0:
+			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Green(pctText))
+		case *result.NetWorthGrowthPct < 0:
+			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Red(pctText))
+		default:
+			v.renderSummaryLineNoCurrency("Net Worth Growth", pctText)
+		}
+	}
+
 	pterm.Println()
 	return nil
 }
@@ -239,4 +253,8 @@ func newReportTable(headers []string) *tablewriter.Table {
 // renderSummaryLine prints a key–value summary row with aligned formatting.
 func (v *ReportView) renderSummaryLine(label, value, currency string) {
 	pterm.Printf("  %-20s  %s  %s\n", label, value, currency)
+}
+
+func (v *ReportView) renderSummaryLineNoCurrency(label, value string) {
+	pterm.Printf("  %-20s  %s\n", label, value)
 }

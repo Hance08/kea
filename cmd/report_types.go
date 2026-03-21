@@ -16,6 +16,7 @@ type ReportProvider interface {
 	GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error)
 	GenerateExpenseBreakdown(startTime, endTime int64) (*model.ReportResult, error)
 	GenerateBalanceSheet() (*model.BalanceSheetResult, error)
+	GetNetWorthAt(endTime int64) (int64, error)
 }
 
 // ReportView is the view interface used to render report output.

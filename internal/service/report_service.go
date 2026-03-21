@@ -7,6 +7,45 @@ import (
 	"github.com/hance08/kea/internal/utils"
 )
 
+// GetNetWorthAt returns net worth (assets - liabilities) using all posted splits up to endTime.
+func (ts *TransactionService) GetNetWorthAt(endTime int64) (int64, error) {
+	transactions, err := ts.txRepo.GetTransactionsByDateRange(0, endTime)
+	if err != nil {
+		return 0, err
+	}
+
+	accountCache := map[int64]*model.Account{}
+	var totalAssets int64
+	var totalLiabilities int64
+
+	for _, tx := range transactions {
+		splits, err := ts.txRepo.GetSplitsByTransaction(tx.ID)
+		if err != nil {
+			return 0, err
+		}
+
+		for _, split := range splits {
+			acc, ok := accountCache[split.AccountID]
+			if !ok {
+				acc, err = ts.accRepo.GetAccountByID(split.AccountID)
+				if err != nil {
+					return 0, err
+				}
+				accountCache[split.AccountID] = acc
+			}
+
+			switch acc.Type {
+			case model.AccountTypeAsset:
+				totalAssets += split.Amount
+			case model.AccountTypeLiability:
+				totalLiabilities += split.Amount
+			}
+		}
+	}
+
+	return totalAssets - totalLiabilities, nil
+}
+
 // splitsToDetails converts raw Split records to SplitDetail by resolving account names.
 func (ts *TransactionService) splitsToDetails(splits []*model.Split, accountCache map[int64]*model.Account) ([]model.SplitDetail, error) {
 	details := make([]model.SplitDetail, 0, len(splits))

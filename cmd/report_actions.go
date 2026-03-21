@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/utils"
 )
 
 // run is the main entry point called by the cobra command.
@@ -39,12 +40,19 @@ func (r *reportRunner) runIncomeStatement() error {
 
 	result.Period = period
 
-	// Fetch current net worth (assets - liabilities) to show as the bottom line.
-	bs, err := r.provider.GenerateBalanceSheet()
+	currentNetWorth, err := r.provider.GetNetWorthAt(end)
 	if err != nil {
-		return fmt.Errorf("failed to fetch net worth: %w", err)
+		return fmt.Errorf("failed to fetch net worth for current period: %w", err)
 	}
-	result.NetWorth = bs.NetWorth
+	result.NetWorth = currentNetWorth
+
+	_, prevEnd := previousPeriodRange(start, end)
+	previousNetWorth, err := r.provider.GetNetWorthAt(prevEnd)
+	if err != nil {
+		return fmt.Errorf("failed to fetch net worth for previous period: %w", err)
+	}
+	result.PreviousNetWorth = &previousNetWorth
+	result.NetWorthGrowthPct = computeNetWorthGrowthPct(currentNetWorth, previousNetWorth)
 
 	return r.view.RenderIncomeStatement(result)
 }
@@ -148,4 +156,22 @@ func parseDateRange(from, to string) (startTime, endTime int64, period string, e
 	endTime = endDate.Unix()
 	period = fmt.Sprintf("%s – %s", startDate.Format(model.DateFormat), endDate.Format(model.DateFormat))
 	return
+}
+
+// previousPeriodRange returns the immediate prior period with the same inclusive duration.
+func previousPeriodRange(startTime, endTime int64) (prevStart, prevEnd int64) {
+	duration := endTime - startTime + 1
+	prevEnd = startTime - 1
+	prevStart = prevEnd - duration + 1
+	return
+}
+
+// computeNetWorthGrowthPct returns growth percentage; nil means N/A (previous is zero).
+func computeNetWorthGrowthPct(current, previous int64) *float64 {
+	if previous == 0 {
+		return nil
+	}
+
+	growth := (float64(current-previous) / float64(utils.AbsInt64(previous))) * 100
+	return &growth
 }

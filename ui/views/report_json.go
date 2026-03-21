@@ -53,14 +53,16 @@ type jsonReportRow struct {
 }
 
 type jsonReportResult struct {
-	Period       string          `json:"period"`
-	TotalIncome  float64         `json:"total_income"`
-	TotalExpense float64         `json:"total_expense"`
-	NetAmount    float64         `json:"net_amount"`
-	NetWorth     float64         `json:"net_worth"`
-	Currency     string          `json:"currency"`
-	IncomeRows   []jsonReportRow `json:"income_rows"`
-	ExpenseRows  []jsonReportRow `json:"expense_rows"`
+	Period            string          `json:"period"`
+	TotalIncome       float64         `json:"total_income"`
+	TotalExpense      float64         `json:"total_expense"`
+	NetAmount         float64         `json:"net_amount"`
+	NetWorth          float64         `json:"net_worth"`
+	PreviousNetWorth  *float64        `json:"previous_net_worth"`
+	NetWorthGrowthPct *float64        `json:"net_worth_growth_pct"`
+	Currency          string          `json:"currency"`
+	IncomeRows        []jsonReportRow `json:"income_rows"`
+	ExpenseRows       []jsonReportRow `json:"expense_rows"`
 }
 
 type jsonBalanceSheetResult struct {
@@ -97,15 +99,23 @@ func toJSONRows(rows []model.ReportRow) []jsonReportRow {
 }
 
 func toJSONReportResult(r *model.ReportResult) jsonReportResult {
+	var previousNetWorth *float64
+	if r.PreviousNetWorth != nil {
+		v := centsToUnit(*r.PreviousNetWorth)
+		previousNetWorth = &v
+	}
+
 	return jsonReportResult{
-		Period:       r.Period,
-		TotalIncome:  centsToUnit(r.TotalIncome),
-		TotalExpense: centsToUnit(r.TotalExpense),
-		NetAmount:    centsToUnit(r.NetAmount),
-		NetWorth:     centsToUnit(r.NetWorth),
-		Currency:     r.Currency,
-		IncomeRows:   toJSONRows(r.IncomeRows),
-		ExpenseRows:  toJSONRows(r.ExpenseRows),
+		Period:            r.Period,
+		TotalIncome:       centsToUnit(r.TotalIncome),
+		TotalExpense:      centsToUnit(r.TotalExpense),
+		NetAmount:         centsToUnit(r.NetAmount),
+		NetWorth:          centsToUnit(r.NetWorth),
+		PreviousNetWorth:  previousNetWorth,
+		NetWorthGrowthPct: r.NetWorthGrowthPct,
+		Currency:          r.Currency,
+		IncomeRows:        toJSONRows(r.IncomeRows),
+		ExpenseRows:       toJSONRows(r.ExpenseRows),
 	}
 }
 

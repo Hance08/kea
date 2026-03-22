@@ -11,9 +11,9 @@ import (
 	"github.com/hance08/kea/internal/store"
 )
 
+
 type App struct {
 	Service *service.Service
-	Store   *store.Store
 }
 
 // NewApp initialize config, database and core logic, then return App entity
@@ -40,7 +40,6 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 
 	return &App{
 		Service: svc,
-		Store:   dbStore,
 	}, cleanup, nil
 }
 

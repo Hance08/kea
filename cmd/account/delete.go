@@ -33,7 +33,7 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 }
 
 func (r *deleteRunner) Run(name string) error {
-	acc, err := r.svc.Account.GetAccountByName(name)
+	acc, err := r.svc.Account().GetAccountByName(name)
 	if err != nil {
 		pterm.Error.Printf("Failed to delete account: %v\n", err)
 		return nil
@@ -53,7 +53,7 @@ func (r *deleteRunner) Run(name string) error {
 		}
 	}
 
-	if err := r.svc.Account.DeleteAccountByName(acc.Name); err != nil {
+	if err := r.svc.Account().DeleteAccountByName(acc.Name); err != nil {
 		pterm.Error.Printf("Failed to delete account: %v\n", err)
 		return nil
 	}

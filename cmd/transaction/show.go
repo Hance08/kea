@@ -30,7 +30,7 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &showRunner{
-				svc:  svc.Transaction,
+				svc:  svc.Transaction(),
 				view: views.NewTransactionDetailView(),
 			}
 			return runner.Run(args)

@@ -32,7 +32,7 @@ func (r *clearRunner) Run(args []string) error {
 	}
 
 	// Update status to cleared (1)
-	if err := r.svc.Transaction.UpdateTransactionStatus(txID, 1); err != nil {
+	if err := r.svc.Transaction().UpdateTransactionStatus(txID, 1); err != nil {
 		pterm.Error.Printf("Failed to update transaction status: %v\n", err)
 		return nil
 	}

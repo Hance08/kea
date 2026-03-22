@@ -51,7 +51,7 @@ This command displays a table of transactions with their details including
 date, type, account, description, amount, and status.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &listRunner{
-				svc:   svc.Transaction,
+				svc:   svc.Transaction(),
 				view:  views.NewTransactionListView(),
 				flags: flags,
 			}

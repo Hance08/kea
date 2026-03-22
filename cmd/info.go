@@ -35,12 +35,12 @@ func NewInfoCmd(svc *service.Service) *cobra.Command {
 }
 
 func (r *infoRunner) Run() error {
-	configPath := r.svc.Config.ConfigPath
+	configPath := r.svc.Config().ConfigPath
 	if configPath == "" {
 		configPath = "(None, using defaults)"
 	}
 
-	rawDBPath := r.svc.Config.Database.Path
+	rawDBPath := r.svc.Config().Database.Path
 	if rawDBPath == "" {
 		appDir := getAppDataDirOrPanic()
 		rawDBPath = filepath.Join(appDir, "kea.db")
@@ -56,7 +56,7 @@ func (r *infoRunner) Run() error {
 		ConfigPath:      configPath,
 		DBPath:          expandedDBPath,
 		DBExists:        dbExists,
-		DefaultCurrency: r.svc.Config.Defaults.Currency,
+		DefaultCurrency: r.svc.Config().Defaults.Currency,
 		AppDataDir:      getAppDataDirOrPanic(),
 	}
 

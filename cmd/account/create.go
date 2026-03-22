@@ -44,8 +44,8 @@ Advanced users can also create Equity (C) accounts.
 Example: kea account create -t A -n Bank -b 100000`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &createRunner{
-				defaultCurrency: svc.Config.Defaults.Currency,
-				accSvc:          svc.Account,
+				defaultCurrency: svc.Config().Defaults.Currency,
+				accSvc:          svc.Account(),
 				view:            views.NewAccountCreateView(),
 			}
 

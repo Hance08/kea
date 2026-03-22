@@ -49,9 +49,9 @@ func (r *listRunner) Run() error {
 	var err error
 
 	if r.flags.Type != "" {
-		accounts, err = r.svc.Account.GetAccountsByType(model.AccountType(r.flags.Type))
+		accounts, err = r.svc.Account().GetAccountsByType(model.AccountType(r.flags.Type))
 	} else {
-		accounts, err = r.svc.Account.GetAllAccounts()
+		accounts, err = r.svc.Account().GetAllAccounts()
 	}
 
 	if err != nil {
@@ -62,7 +62,7 @@ func (r *listRunner) Run() error {
 		accounts = r.filterHiddenAccounts(accounts)
 	}
 
-	if err := views.NewAccountListView().Render(accounts, r.svc.Account.GetAccountBalanceFormatted); err != nil {
+	if err := views.NewAccountListView().Render(accounts, r.svc.Account().GetAccountBalanceFormatted); err != nil {
 		return err
 	}
 

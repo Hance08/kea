@@ -38,8 +38,8 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 	kea add --description "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &addRunner{
-				accSvc:  svc.Account,
-				txSvc:   svc.Transaction,
+				accSvc:  svc.Account(),
+				txSvc:   svc.Transaction(),
 				addView: views.NewTransactionDetailView(),
 				flags:   flags,
 				cmd:     cmd,

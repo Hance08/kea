@@ -37,7 +37,7 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			r := &reportRunner{
 				flags:    flags,
-				provider: svc.Transaction,
+				provider: svc.Transaction(),
 				view:     newReportView(flags),
 			}
 			if err := r.run(); err != nil {

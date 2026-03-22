@@ -44,7 +44,7 @@ func (r *deleteRunner) Run(args []string) error {
 	}
 
 	// Get transaction details first to show what will be deleted
-	detail, err := r.svc.Transaction.GetTransactionByID(txID)
+	detail, err := r.svc.Transaction().GetTransactionByID(txID)
 	if err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
@@ -70,7 +70,7 @@ func (r *deleteRunner) Run(args []string) error {
 	}
 
 	// Delete transaction
-	if err := r.svc.Transaction.DeleteTransaction(txID); err != nil {
+	if err := r.svc.Transaction().DeleteTransaction(txID); err != nil {
 		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
 		return nil
 	}

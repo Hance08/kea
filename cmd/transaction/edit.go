@@ -27,8 +27,8 @@ func NewEditCmd(svc *service.Service) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &editRunner{
-				txSvc:  svc.Transaction,
-				accSvc: svc.Account,
+				txSvc:  svc.Transaction(),
+				accSvc: svc.Account(),
 				view:   views.NewTransactionEditView(),
 			}
 			return runner.Run(args)

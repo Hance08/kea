@@ -7,6 +7,7 @@ import (
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
+	"github.com/hance08/kea/internal/utils"
 )
 
 type TransactionCreator interface {
@@ -47,26 +48,16 @@ func (as *AccountService) GetAccountBalanceFormatted(accountID int64) (string, e
 	if err != nil {
 		return "", err
 	}
-
-	balanceFloat := float64(balance) / 100
-	return fmt.Sprintf("%.2f", balanceFloat), nil
+	return utils.FormatAmount(balance), nil
 }
 
 func (as *AccountService) GetRootNameByType(accType string) (string, error) {
-	switch strings.ToUpper(accType) {
-	case "A":
-		return "Assets", nil
-	case "L":
-		return "Liabilities", nil
-	case "E":
-		return "Expenses", nil
-	case "R":
-		return "Revenue", nil
-	case "C":
-		return "Equity", nil
-	default:
+	at := model.AccountType(strings.ToUpper(accType))
+	name, ok := at.RootName()
+	if !ok {
 		return "", fmt.Errorf("invalid account type '%s' (must be A, L, C, R, E)", accType)
 	}
+	return name, nil
 }
 
 func (as *AccountService) CheckAccountExists(name string) (bool, error) {

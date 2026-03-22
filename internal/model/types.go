@@ -34,6 +34,22 @@ func (at AccountType) String() string {
 	return string(at)
 }
 
+func (at AccountType) RootName() (string, bool) {
+	switch at {
+	case AccountTypeAsset:
+		return "Assets", true
+	case AccountTypeLiability:
+		return "Liabilities", true
+	case AccountTypeExpense:
+		return "Expenses", true
+	case AccountTypeRevenue:
+		return "Revenue", true
+	case AccountTypeEquity:
+		return "Equity", true
+	}
+	return "", false
+}
+
 func (at AccountType) IsValid() bool {
 	switch at {
 	case AccountTypeAsset, AccountTypeLiability, AccountTypeEquity, AccountTypeRevenue, AccountTypeExpense:

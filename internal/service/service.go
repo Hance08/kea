@@ -6,19 +6,23 @@ import (
 )
 
 type Service struct {
-	Account     *AccountService
-	Transaction *TransactionService
-	Config      *config.Config
+	account     *AccountService
+	transaction *TransactionService
+	config      *config.Config
 }
 
 func NewService(accRepo repository.AccountRepository, txRepo repository.TransactionRepository, tm repository.TransactionManager, cfg *config.Config) *Service {
 	svc := &Service{
-		Account:     NewAccountService(accRepo, cfg),
-		Transaction: NewTransactionService(txRepo, accRepo, tm, cfg),
-		Config:      cfg,
+		account:     NewAccountService(accRepo, cfg),
+		transaction: NewTransactionService(txRepo, accRepo, tm, cfg),
+		config:      cfg,
 	}
 
-	svc.Account.SetTransactionService(svc.Transaction)
+	svc.account.SetTransactionService(svc.transaction)
 
 	return svc
 }
+
+func (s *Service) Account() *AccountService     { return s.account }
+func (s *Service) Transaction() *TransactionService { return s.transaction }
+func (s *Service) Config() *config.Config        { return s.config }

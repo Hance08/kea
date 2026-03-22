@@ -51,41 +51,42 @@ func offsetAccountName(details []model.SplitDetail, primaryType model.AccountTyp
 	return "(multiple)"
 }
 
-// GenerateIncomeStatement produces an income/expense summary for the given Unix time range.
-// It walks every transaction in the period, classifies it, and groups amounts by account.
-// The aggregation key is "accountName|offsetAccount" so that the same expense account
-// funded from different offset accounts appears as separate rows.
-func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error) {
+// buildReportMaps fetches all splits in the date range and aggregates them into
+// income/expense row maps. Pass includeIncome=false to skip income classification
+// (and vice versa) to avoid unnecessary work for breakdown-only queries.
+func (ts *TransactionService) buildReportMaps(startTime, endTime int64, includeIncome, includeExpense bool) (incomeByAccount, expenseByAccount map[string]*model.ReportRow, err error) {
 	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(startTime, endTime)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	incomeByAccount := map[string]*model.ReportRow{}
-	expenseByAccount := map[string]*model.ReportRow{}
+	incomeByAccount = map[string]*model.ReportRow{}
+	expenseByAccount = map[string]*model.ReportRow{}
 
 	for _, details := range txSplitsMap {
 		txType, err := ts.DetermineType(details)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		incomeOffset := offsetAccountName(details, model.AccountTypeRevenue)
-		expenseOffset := offsetAccountName(details, model.AccountTypeExpense)
-
-		for _, split := range details {
-			switch txType {
-			case model.TxTypeIncome:
+		if includeIncome && txType == model.TxTypeIncome {
+			offset := offsetAccountName(details, model.AccountTypeRevenue)
+			for _, split := range details {
 				if split.AccountType == model.AccountTypeRevenue {
-					key := split.AccountName + "|" + incomeOffset
-					row := getOrCreateRowWithOffset(incomeByAccount, key, split.AccountName, incomeOffset, split.Currency)
+					key := split.AccountName + "|" + offset
+					row := getOrCreateRowWithOffset(incomeByAccount, key, split.AccountName, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
 				}
-			case model.TxTypeExpense:
+			}
+		}
+
+		if includeExpense && txType == model.TxTypeExpense {
+			offset := offsetAccountName(details, model.AccountTypeExpense)
+			for _, split := range details {
 				if split.AccountType == model.AccountTypeExpense {
-					key := split.AccountName + "|" + expenseOffset
-					row := getOrCreateRowWithOffset(expenseByAccount, key, split.AccountName, expenseOffset, split.Currency)
+					key := split.AccountName + "|" + offset
+					row := getOrCreateRowWithOffset(expenseByAccount, key, split.AccountName, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
 				}
@@ -93,12 +94,21 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 		}
 	}
 
+	return incomeByAccount, expenseByAccount, nil
+}
+
+// GenerateIncomeStatement produces an income/expense summary for the given Unix time range.
+func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error) {
+	incomeByAccount, expenseByAccount, err := ts.buildReportMaps(startTime, endTime, true, true)
+	if err != nil {
+		return nil, err
+	}
+
 	result := &model.ReportResult{
 		Currency:    ts.config.Defaults.Currency,
 		IncomeRows:  rowsFromMap(incomeByAccount),
 		ExpenseRows: rowsFromMap(expenseByAccount),
 	}
-
 	for _, r := range result.IncomeRows {
 		result.TotalIncome += r.Amount
 	}
@@ -112,42 +122,46 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 
 // GenerateIncomeBreakdown produces a detailed income-only report for the given Unix time range.
 func (ts *TransactionService) GenerateIncomeBreakdown(startTime, endTime int64) (*model.ReportResult, error) {
-	result, err := ts.GenerateIncomeStatement(startTime, endTime)
+	incomeByAccount, _, err := ts.buildReportMaps(startTime, endTime, true, false)
 	if err != nil {
 		return nil, err
 	}
 
-	// Sort income rows by amount descending for readability.
-	sort.Slice(result.IncomeRows, func(i, j int) bool {
-		return result.IncomeRows[i].Amount > result.IncomeRows[j].Amount
-	})
+	rows := rowsFromMap(incomeByAccount)
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Amount > rows[j].Amount })
 
-	// Keep only income information.
-	result.ExpenseRows = nil
-	result.TotalExpense = 0
-	result.NetAmount = 0
+	var total int64
+	for _, r := range rows {
+		total += r.Amount
+	}
 
-	return result, nil
+	return &model.ReportResult{
+		Currency:    ts.config.Defaults.Currency,
+		IncomeRows:  rows,
+		TotalIncome: total,
+	}, nil
 }
 
 // GenerateExpenseBreakdown produces a detailed expense-only report for the given Unix time range.
 func (ts *TransactionService) GenerateExpenseBreakdown(startTime, endTime int64) (*model.ReportResult, error) {
-	result, err := ts.GenerateIncomeStatement(startTime, endTime)
+	_, expenseByAccount, err := ts.buildReportMaps(startTime, endTime, false, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// Sort expense rows by amount descending for readability.
-	sort.Slice(result.ExpenseRows, func(i, j int) bool {
-		return result.ExpenseRows[i].Amount > result.ExpenseRows[j].Amount
-	})
+	rows := rowsFromMap(expenseByAccount)
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Amount > rows[j].Amount })
 
-	// Keep only expense information.
-	result.IncomeRows = nil
-	result.TotalIncome = 0
-	result.NetAmount = 0
+	var total int64
+	for _, r := range rows {
+		total += r.Amount
+	}
 
-	return result, nil
+	return &model.ReportResult{
+		Currency:     ts.config.Defaults.Currency,
+		ExpenseRows:  rows,
+		TotalExpense: total,
+	}, nil
 }
 
 // GenerateBalanceSheet produces a current snapshot of all asset, liability, and equity account balances.

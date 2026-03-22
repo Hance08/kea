@@ -10,25 +10,14 @@ import (
 	"github.com/hance08/kea/internal/utils"
 )
 
-type TransactionCreator interface {
-	CreateOpeningBalance(account *model.Account, amountCents int64) error
-}
-
 type AccountService struct {
 	repo   repository.AccountRepository
 	config *config.Config
-	txSvc  TransactionCreator
+	tm     repository.TransactionManager
 }
 
-func NewAccountService(repo repository.AccountRepository, cfg *config.Config) *AccountService {
-	return &AccountService{
-		repo:   repo,
-		config: cfg,
-	}
-}
-
-func (as *AccountService) SetTransactionService(txSvc TransactionCreator) {
-	as.txSvc = txSvc
+func NewAccountService(repo repository.AccountRepository, cfg *config.Config, tm repository.TransactionManager) *AccountService {
+	return &AccountService{repo: repo, config: cfg, tm: tm}
 }
 
 func (as *AccountService) GetAllAccounts() ([]*model.Account, error) {

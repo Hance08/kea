@@ -9,60 +9,6 @@ import (
 	"github.com/hance08/kea/internal/repository"
 )
 
-func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amountInCents int64) error {
-	currency := ts.config.Defaults.Currency
-
-	if amountInCents == 0 {
-		return nil
-	}
-
-	openingBalanceAccount, err := ts.accRepo.GetAccountByName(model.SystemAccountOpeningBalance)
-	if err != nil {
-		return fmt.Errorf("error : can not find %q account, failed to set initial balance", model.SystemAccountOpeningBalance)
-	}
-
-	var balanceAmount int64
-	var equityAmount int64
-
-	switch account.Type {
-	case "A":
-		balanceAmount = amountInCents
-		equityAmount = -amountInCents
-	case "L":
-		balanceAmount = -amountInCents
-		equityAmount = amountInCents
-	default:
-		return fmt.Errorf("only Assets(A) and Liabilities(L) account can set balance")
-	}
-
-	tx := model.Transaction{
-		Timestamp:   time.Now().Unix(),
-		Description: "Opening Balance",
-		Status:      1,
-	}
-
-	splits := []model.Split{
-		{
-			AccountID: account.ID,
-			Amount:    balanceAmount,
-			Currency:  currency,
-			Memo:      "Opening Balance",
-		},
-		{
-			AccountID: openingBalanceAccount.ID,
-			Amount:    equityAmount,
-			Currency:  currency,
-			Memo:      "Opening Balance",
-		},
-	}
-
-	return ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
-		_, err = repo.CreateTransactionWithSplits(tx, splits)
-		return err
-	})
-
-}
-
 // CreateTransaction validates and persists a new transaction along with its associated splits.
 //
 // The process includes:
@@ -194,7 +140,7 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 // DeleteTransaction deletes a transaction
 func (ts *TransactionService) DeleteTransaction(txID int64) error {
 	if txID == model.OpeningBalanceTransactionID {
-		return fmt.Errorf("operation denied: cannot delete the initial opening transaction")
+		return fmt.Errorf("cannot delete the initial opening transaction: %w", ErrNotEditable)
 	}
 
 	tx, _, err := ts.txRepo.GetTransactionByID(txID)
@@ -203,7 +149,7 @@ func (ts *TransactionService) DeleteTransaction(txID int64) error {
 	}
 
 	if tx.Status == model.StatusReconciled {
-		return fmt.Errorf("operation Denied: Transaction #%d has been reconciled and cannot be deleted", tx.ID)
+		return fmt.Errorf("transaction #%d cannot be deleted: %w", tx.ID, ErrReconciled)
 	}
 	return ts.txRepo.DeleteTransaction(txID)
 }
@@ -223,7 +169,7 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 	}
 
 	if oldTx.Status == model.StatusReconciled {
-		return fmt.Errorf("operation denied: transaction #%d has been reconciled and cannot be modified", txID)
+		return fmt.Errorf("transaction #%d cannot be modified: %w", txID, ErrReconciled)
 	}
 
 	return ts.txRepo.UpdateTransactionStatus(txID, status)
@@ -243,7 +189,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 	}
 
 	if oldTx.Status == model.StatusReconciled {
-		return fmt.Errorf("operation denied: transaction #%d has been reconciled and cannot be modified", txID)
+		return fmt.Errorf("transaction #%d cannot be modified: %w", txID, ErrReconciled)
 	}
 
 	// Validate that we have at least 2 splits

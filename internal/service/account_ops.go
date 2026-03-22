@@ -1,9 +1,12 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 )
 
 func (as *AccountService) CreateAccount(name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
@@ -40,16 +43,48 @@ func (as *AccountService) CreateAccountWithBalance(name string, accType model.Ac
 	}
 
 	if balance != 0 {
-		if as.txSvc == nil {
-			return account, fmt.Errorf("transaction service is not configured")
-		}
-
-		if err := as.txSvc.CreateOpeningBalance(account, balance); err != nil {
+		if err := as.createOpeningBalance(account, balance); err != nil {
 			return account, fmt.Errorf("account created but failed to set opening balance: %w", err)
 		}
 	}
 
 	return account, nil
+}
+
+func (as *AccountService) createOpeningBalance(account *model.Account, amountInCents int64) error {
+	currency := as.config.Defaults.Currency
+
+	openingBalanceAccount, err := as.repo.GetAccountByName(model.SystemAccountOpeningBalance)
+	if err != nil {
+		return fmt.Errorf("can not find %q account, failed to set initial balance", model.SystemAccountOpeningBalance)
+	}
+
+	var balanceAmount, equityAmount int64
+	switch account.Type {
+	case model.AccountTypeAsset:
+		balanceAmount = amountInCents
+		equityAmount = -amountInCents
+	case model.AccountTypeLiability:
+		balanceAmount = -amountInCents
+		equityAmount = amountInCents
+	default:
+		return fmt.Errorf("only Assets(A) and Liabilities(L) accounts can set a balance")
+	}
+
+	tx := model.Transaction{
+		Timestamp:   time.Now().Unix(),
+		Description: model.OpeningAccountMemo,
+		Status:      model.StatusCleared,
+	}
+	splits := []model.Split{
+		{AccountID: account.ID, Amount: balanceAmount, Currency: currency, Memo: model.OpeningAccountMemo},
+		{AccountID: openingBalanceAccount.ID, Amount: equityAmount, Currency: currency, Memo: model.OpeningAccountMemo},
+	}
+
+	return as.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
+		_, err := repo.CreateTransactionWithSplits(tx, splits)
+		return err
+	})
 }
 
 func (as *AccountService) DeleteAccountByName(name string) error {
@@ -59,7 +94,7 @@ func (as *AccountService) DeleteAccountByName(name string) error {
 	}
 
 	if acc.Name == model.SystemAccountOpeningBalance {
-		return fmt.Errorf("account %q is a system opening balance account and cannot be deleted", acc.Name)
+		return fmt.Errorf("account %q is a system account and cannot be deleted: %w", acc.Name, ErrNotEditable)
 	}
 
 	hasChildren, err := as.repo.HasChildAccounts(acc.ID)

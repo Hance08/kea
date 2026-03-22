@@ -16,9 +16,9 @@ func (ts *TransactionService) CreateOpeningBalance(account *model.Account, amoun
 		return nil
 	}
 
-	openingBalanceAccount, err := ts.accRepo.GetAccountByName("Equity:OpeningBalances")
+	openingBalanceAccount, err := ts.accRepo.GetAccountByName(model.SystemAccountOpeningBalance)
 	if err != nil {
-		return fmt.Errorf("error : can not find 'Equity:OpeningBalances' account, failed to set initial balance")
+		return fmt.Errorf("error : can not find %q account, failed to set initial balance", model.SystemAccountOpeningBalance)
 	}
 
 	var balanceAmount int64
@@ -193,7 +193,7 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 
 // DeleteTransaction deletes a transaction
 func (ts *TransactionService) DeleteTransaction(txID int64) error {
-	if txID == 1 {
+	if txID == model.OpeningBalanceTransactionID {
 		return fmt.Errorf("operation denied: cannot delete the initial opening transaction")
 	}
 

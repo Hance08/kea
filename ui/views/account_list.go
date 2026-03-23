@@ -2,10 +2,8 @@ package views
 
 import (
 	"os"
-	"strconv"
 	"strings"
 
-	"github.com/dustin/go-humanize"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/ui"
 	"github.com/olekukonko/tablewriter"
@@ -39,12 +37,7 @@ func (v *AccountListView) Render(accounts []*model.Account, balanceGetter func(i
 
 	for _, acc := range accounts {
 		balance, _ := balanceGetter(acc.ID)
-		balanceInt, err := strconv.ParseFloat(balance, 64)
-		if err != nil {
-			return err
-		}
-		rawStr := humanize.Commaf(balanceInt)
-		balanceStr := strings.TrimPrefix(rawStr, "-")
+		balanceStr := strings.TrimPrefix(balance, "-")
 
 		var coloredAccount, coloredType, coloredBalance string
 		switch acc.Type {

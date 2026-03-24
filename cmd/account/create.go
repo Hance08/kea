@@ -61,6 +61,7 @@ Example:
 	cmd.Flags().StringVarP(&flags.BalanceStr, "balance", "b", "0", "Initial balance")
 	cmd.Flags().StringVar(&flags.Currency, "currency", "", "Currency code")
 	cmd.Flags().StringVarP(&flags.Description, "desc", "d", "", "Account description")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created account as JSON")
 
 	return cmd
 }
@@ -69,6 +70,10 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 	hasFlags := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("type") ||
 		cmd.Flags().Changed("parent")
+
+	if flags.JSON && !hasFlags {
+		return fmt.Errorf("--json requires flags: --name and one of --type or --parent")
+	}
 
 	if hasFlags {
 		err := r.runFromFlags(flags)
@@ -136,6 +141,13 @@ func (r *createRunner) runFromFlags(flags *createFlags) error {
 		return err
 	}
 
+	if flags.JSON {
+		bal, err := r.accSvc.GetAccountBalance(newAccount.ID)
+		if err != nil {
+			return err
+		}
+		return views.WriteJSON(views.ToJSONAccount(newAccount, bal))
+	}
 	r.view.ShowSuccess(fmt.Sprintf("Account create successfully ! (ID: %d)", newAccount.ID))
 	return nil
 }

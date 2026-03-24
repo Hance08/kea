@@ -20,6 +20,7 @@ type CreateProvider interface {
 	ValidateAccountName(name string) error
 	ValidateFullAccountName(name string) error
 	ValidateCurrency(currency string) error
+	GetAccountBalance(id int64) (int64, error)
 }
 
 type createFlags struct {
@@ -29,4 +30,5 @@ type createFlags struct {
 	BalanceStr  string
 	Currency    string
 	Description string
+	JSON        bool
 }

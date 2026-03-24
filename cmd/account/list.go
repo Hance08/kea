@@ -12,6 +12,7 @@ import (
 type listFlags struct {
 	Type       string
 	ShowHidden bool
+	JSON       bool
 }
 
 type listRunner struct {
@@ -39,6 +40,7 @@ You can filter by account type or show hidden accounts.`,
 
 	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Filter accounts by type (A, L, C, R, E)")
 	cmd.Flags().BoolVar(&flags.ShowHidden, "show-hidden", false, "Show hidden accounts")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
 
 	return cmd
 }
@@ -62,11 +64,18 @@ func (r *listRunner) Run() error {
 		accounts = r.filterHiddenAccounts(accounts)
 	}
 
-	if err := views.NewAccountListView().Render(accounts, r.svc.Account().GetAccountBalanceFormatted); err != nil {
-		return err
+	if r.flags.JSON {
+		items := make([]views.JSONAccount, 0, len(accounts))
+		for _, acc := range accounts {
+			bal, err := r.svc.Account().GetAccountBalance(acc.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get balance for %s: %w", acc.Name, err)
+			}
+			items = append(items, views.ToJSONAccount(acc, bal))
+		}
+		return views.WriteJSON(items)
 	}
-
-	return nil
+	return views.NewAccountListView().Render(accounts, r.svc.Account().GetAccountBalanceFormatted)
 }
 
 func (r *listRunner) filterHiddenAccounts(accounts []*model.Account) []*model.Account {

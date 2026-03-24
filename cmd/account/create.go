@@ -79,10 +79,13 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 		err := r.runFromFlags(flags)
 		if err != nil {
 			if errors.Is(err, store.ErrAccountExists) {
+				if flags.JSON {
+					return err
+				}
 				pterm.Error.Println("Account already exists")
-			} else {
-				return err
+				return nil
 			}
+			return err
 		}
 		return nil
 	}

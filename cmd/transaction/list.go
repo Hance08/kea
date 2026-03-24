@@ -13,7 +13,7 @@ import (
 //TODO: Efficiency optimize
 
 type ListView interface {
-	ShowWarning(format string, a ...interface{})
+	ShowWarning(format string, a ...any)
 	Render(items []views.TransactionListItem, limit int) error
 }
 
@@ -101,7 +101,9 @@ func (r *listRunner) buildViewItems(transactions []*model.Transaction) []views.T
 	for _, tx := range transactions {
 		detail, err := r.svc.GetTransactionByID(tx.ID)
 		if err != nil {
-			r.view.ShowWarning("Skipping transaction %d: %v\n", tx.ID, err)
+			if !r.flags.JSON {
+				r.view.ShowWarning("Skipping transaction %d: %v\n", tx.ID, err)
+			}
 			continue
 		}
 

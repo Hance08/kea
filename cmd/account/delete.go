@@ -9,9 +9,9 @@ import (
 )
 
 type deleteRunner struct {
-	svc  *service.Service
-	yes  bool
-	json bool
+	svc     *service.Service
+	yes     bool
+	jsonOut bool
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
@@ -25,7 +25,7 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Long:    "Delete an account that has no transactions, no child accounts, and is not the system opening balance account.",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &deleteRunner{svc: svc, yes: yes || jsonOut, json: jsonOut}
+			runner := &deleteRunner{svc: svc, yes: yes || jsonOut, jsonOut: jsonOut}
 			return runner.Run(args[0])
 		},
 	}
@@ -43,7 +43,7 @@ func (r *deleteRunner) Run(name string) error {
 		return nil
 	}
 
-	if !r.json {
+	if !r.jsonOut {
 		pterm.Info.Printf("Account: %s | Type: %s | Currency: %s | Hidden: %t\n", acc.Name, acc.Type, acc.Currency, acc.IsHidden)
 	}
 
@@ -64,7 +64,7 @@ func (r *deleteRunner) Run(name string) error {
 		return nil
 	}
 
-	if r.json {
+	if r.jsonOut {
 		return views.WriteJSON(map[string]any{"name": acc.Name, "deleted": true})
 	}
 	pterm.Success.Printf("Account %q deleted\n", acc.Name)

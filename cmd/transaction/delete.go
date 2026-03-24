@@ -16,10 +16,10 @@ type TransactionDeleteView interface {
 }
 
 type deleteRunner struct {
-	svc  *service.Service
-	view TransactionDeleteView
-	yes  bool
-	json bool
+	svc     *service.Service
+	view    TransactionDeleteView
+	yes     bool
+	jsonOut bool
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
@@ -34,10 +34,10 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &deleteRunner{
-				svc:  svc,
-				view: views.NewTransactionDeleteView(),
-				yes:  yes || jsonOut,
-				json: jsonOut,
+				svc:     svc,
+				view:    views.NewTransactionDeleteView(),
+				yes:     yes || jsonOut,
+				jsonOut: jsonOut,
 			}
 			return runner.Run(args)
 		},
@@ -62,7 +62,7 @@ func (r *deleteRunner) Run(args []string) error {
 		return nil
 	}
 
-	if !r.json {
+	if !r.jsonOut {
 		if err := r.view.RenderPreview(views.TransactionDeletePreview{
 			ID:          detail.ID,
 			Timestamp:   detail.Timestamp,
@@ -91,7 +91,7 @@ func (r *deleteRunner) Run(args []string) error {
 		return nil
 	}
 
-	if r.json {
+	if r.jsonOut {
 		return views.WriteJSON(map[string]any{"id": txID, "deleted": true})
 	}
 	r.view.ShowSuccess(txID)

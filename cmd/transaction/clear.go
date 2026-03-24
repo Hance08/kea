@@ -11,8 +11,8 @@ import (
 )
 
 type clearRunner struct {
-	svc  *service.Service
-	json bool
+	svc     *service.Service
+	jsonOut bool
 }
 
 func NewClearCmd(svc *service.Service) *cobra.Command {
@@ -23,7 +23,7 @@ func NewClearCmd(svc *service.Service) *cobra.Command {
 		Long:  `Mark a pending transaction as cleared (confirmed).`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &clearRunner{svc: svc, json: jsonOut}
+			runner := &clearRunner{svc: svc, jsonOut: jsonOut}
 			return runner.Run(args)
 		},
 	}
@@ -39,11 +39,14 @@ func (r *clearRunner) Run(args []string) error {
 
 	// Update status to cleared (1)
 	if err := r.svc.Transaction().UpdateTransactionStatus(txID, 1); err != nil {
+		if r.jsonOut {
+			return err
+		}
 		pterm.Error.Printf("Failed to update transaction status: %v\n", err)
 		return nil
 	}
 
-	if r.json {
+	if r.jsonOut {
 		return views.WriteJSON(map[string]any{"id": txID, "status": model.StatusCleared.String()})
 	}
 	pterm.Success.Printf("Transaction (ID: %d) marked as cleared\n", txID)

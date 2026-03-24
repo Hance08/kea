@@ -19,9 +19,9 @@ type ShowProvider interface {
 }
 
 type showRunner struct {
-	svc  ShowProvider
-	view ShowView
-	json bool
+	svc     ShowProvider
+	view    ShowView
+	jsonOut bool
 }
 
 func NewShowCmd(svc *service.Service) *cobra.Command {
@@ -32,9 +32,9 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &showRunner{
-				svc:  svc.Transaction(),
-				view: views.NewTransactionDetailView(),
-				json: jsonOut,
+				svc:     svc.Transaction(),
+				view:    views.NewTransactionDetailView(),
+				jsonOut: jsonOut,
 			}
 			return runner.Run(args)
 		},
@@ -51,11 +51,14 @@ func (r *showRunner) Run(args []string) error {
 
 	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
+		if r.jsonOut {
+			return err
+		}
 		pterm.Error.Printf("Failed to get transaction: %v\n", err)
 		return nil
 	}
 
-	if r.json {
+	if r.jsonOut {
 		return views.WriteJSON(views.ToJSONTxDetail(detail))
 	}
 	return r.view.Render(detail, false)

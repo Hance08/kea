@@ -84,9 +84,6 @@ func TestParseAmount_Valid(t *testing.T) {
 // ParseAmount — invalid inputs
 // ──────────────────────────────────────────────
 
-// Confirmed edge-case behavior (production code, not test bugs):
-// - ParseAmount("") → (0, nil): empty string treated as 0, potential bug
-// - ParseAmount("-") → (0, nil): bare minus treated as -0 = 0, potential bug
 func TestParseAmount_Invalid(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -98,6 +95,8 @@ func TestParseAmount_Invalid(t *testing.T) {
 		{"letters only", "abc"},
 		{"minus sign with letters", "-abc"},
 		{"whitespace", " "},
+		{"empty string", ""},
+		{"just -", "-"},
 	}
 
 	for _, tt := range tests {

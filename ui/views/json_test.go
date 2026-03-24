@@ -64,12 +64,13 @@ func TestToJSONTxListItem(t *testing.T) {
 	item := TransactionListItem{
 		ID: 7, Date: "2024-03-24", Type: "Expense",
 		Account: "Assets:Cash", Offset: "Expenses:Food",
-		Description: "lunch", Amount: "5.00", Currency: "TWD", Status: "Cleared",
+		Description: "lunch", Amount: "5.50", Currency: "TWD", Status: "Cleared",
 	}
 	got := ToJSONTxListItem(item)
 	assert.Equal(t, int64(7), got.ID)
-	assert.Equal(t, 5.0, got.Amount)
+	assert.Equal(t, 5.5, got.Amount)
 	assert.Equal(t, "TWD", got.Currency)
+	assert.Equal(t, "Cleared", got.Status)
 }
 
 func TestWriteJSON_validOutput(t *testing.T) {

@@ -1,7 +1,7 @@
 package views
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/hance08/kea/internal/model"
@@ -103,8 +103,7 @@ func ToJSONTxDetail(d *model.TransactionDetail) JSONTxDetail {
 }
 
 func ToJSONTxListItem(item TransactionListItem) JSONTxListItem {
-	var amount float64
-	fmt.Sscanf(item.Amount, "%f", &amount)
+	amount, _ := strconv.ParseFloat(item.Amount, 64)
 	return JSONTxListItem{
 		ID:          item.ID,
 		Date:        item.Date,

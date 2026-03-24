@@ -24,18 +24,13 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 		Short: "Add a new transaction",
 		Long: `Add a new transaction to your accounting system.
 
-	This command allows you to record financial transactions using double-entry bookkeeping.
-	You can use flags for quick entry or interactive mode for guided input.
+This command allows you to record financial transactions using double-entry bookkeeping.
+You can use flags for quick entry or interactive mode for guided input.
 
-	Examples:
-	# Interactive mode (recommended for beginners)
-	kea add
+Examples:
+  kea add (recommended for beginners)
 
-	# Quick mode with flags
-	kea add --description "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"
-	
-	# With pending status (default is cleared)
-	kea add --description "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
+  kea add --desc "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &addRunner{
 				accSvc:  svc.Account(),

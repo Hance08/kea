@@ -41,7 +41,10 @@ four basic accounts, e.g. create an Asset account called Bank.
 
 Advanced users can also create Equity (C) accounts.
 
-Example: kea account create -t A -n Bank -b 100000`,
+Example:
+  kea account create --type A --name Bank --balance 100000
+  
+  kea account create --parent Assets:Bank --name Bank1 --balance 100000`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &createRunner{
 				defaultCurrency: svc.Config().Defaults.Currency,
@@ -53,11 +56,11 @@ Example: kea account create -t A -n Bank -b 100000`,
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Name, "name", "n", "", "Account name")
-	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Account type: A, L, R, E, C")
+	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Account type: A, L, R, E, C (no need when creating subaccount)")
 	cmd.Flags().StringVarP(&flags.Parent, "parent", "p", "", "Parent account full name")
 	cmd.Flags().StringVarP(&flags.BalanceStr, "balance", "b", "0", "Initial balance")
 	cmd.Flags().StringVar(&flags.Currency, "currency", "", "Currency code")
-	cmd.Flags().StringVarP(&flags.Description, "description", "d", "", "Account description")
+	cmd.Flags().StringVarP(&flags.Description, "desc", "d", "", "Account description")
 
 	return cmd
 }

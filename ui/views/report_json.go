@@ -1,10 +1,6 @@
 package views
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-
 	"github.com/hance08/kea/internal/model"
 )
 
@@ -18,29 +14,19 @@ func NewJSONReportView() *JSONReportView {
 }
 
 func (v *JSONReportView) RenderIncomeStatement(result *model.ReportResult) error {
-	return writeJSON(toJSONReportResult(result))
+	return WriteJSON(toJSONReportResult(result))
 }
 
 func (v *JSONReportView) RenderIncomeBreakdown(result *model.ReportResult) error {
-	return writeJSON(toJSONReportResult(result))
+	return WriteJSON(toJSONReportResult(result))
 }
 
 func (v *JSONReportView) RenderExpenseBreakdown(result *model.ReportResult) error {
-	return writeJSON(toJSONReportResult(result))
+	return WriteJSON(toJSONReportResult(result))
 }
 
 func (v *JSONReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error {
-	return writeJSON(toJSONBalanceSheetResult(result))
-}
-
-// writeJSON marshals v to indented JSON and writes it to stdout followed by a newline.
-func writeJSON(v any) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(v); err != nil {
-		return fmt.Errorf("failed to encode JSON: %w", err)
-	}
-	return nil
+	return WriteJSON(toJSONBalanceSheetResult(result))
 }
 
 // ── JSON-specific DTOs ────────────────────────────────────────────────────────
@@ -82,15 +68,11 @@ type jsonBalanceSheetResult struct {
 	Currency          string          `json:"currency"`
 }
 
-func centsToUnit(cents int64) float64 {
-	return float64(cents) / float64(model.CentsPerUnit)
-}
-
 func toJSONRow(r model.ReportRow) jsonReportRow {
 	return jsonReportRow{
 		AccountName:   r.AccountName,
 		OffsetAccount: r.OffsetAccount,
-		Amount:        centsToUnit(r.Amount),
+		Amount:        CentsToUnit(r.Amount),
 		Currency:      r.Currency,
 		TxCount:       r.TxCount,
 	}
@@ -107,16 +89,16 @@ func toJSONRows(rows []model.ReportRow) []jsonReportRow {
 func toJSONReportResult(r *model.ReportResult) jsonReportResult {
 	var previousNetWorth *float64
 	if r.PreviousNetWorth != nil {
-		v := centsToUnit(*r.PreviousNetWorth)
+		v := CentsToUnit(*r.PreviousNetWorth)
 		previousNetWorth = &v
 	}
 
 	return jsonReportResult{
 		Period:            r.Period,
-		TotalIncome:       centsToUnit(r.TotalIncome),
-		TotalExpense:      centsToUnit(r.TotalExpense),
-		NetAmount:         centsToUnit(r.NetAmount),
-		NetWorth:          centsToUnit(r.NetWorth),
+		TotalIncome:       CentsToUnit(r.TotalIncome),
+		TotalExpense:      CentsToUnit(r.TotalExpense),
+		NetAmount:         CentsToUnit(r.NetAmount),
+		NetWorth:          CentsToUnit(r.NetWorth),
 		PreviousNetWorth:  previousNetWorth,
 		NetWorthGrowthPct: r.NetWorthGrowthPct,
 		Currency:          r.Currency,
@@ -128,7 +110,7 @@ func toJSONReportResult(r *model.ReportResult) jsonReportResult {
 func toJSONBalanceSheetResult(r *model.BalanceSheetResult) jsonBalanceSheetResult {
 	var previousNetWorth *float64
 	if r.PreviousNetWorth != nil {
-		v := centsToUnit(*r.PreviousNetWorth)
+		v := CentsToUnit(*r.PreviousNetWorth)
 		previousNetWorth = &v
 	}
 
@@ -136,10 +118,10 @@ func toJSONBalanceSheetResult(r *model.BalanceSheetResult) jsonBalanceSheetResul
 		Assets:            toJSONRows(r.Assets),
 		Liabilities:       toJSONRows(r.Liabilities),
 		Equity:            toJSONRows(r.Equity),
-		TotalAssets:       centsToUnit(r.TotalAssets),
-		TotalLiabilities:  centsToUnit(r.TotalLiabilities),
-		TotalEquity:       centsToUnit(r.TotalEquity),
-		NetWorth:          centsToUnit(r.NetWorth),
+		TotalAssets:       CentsToUnit(r.TotalAssets),
+		TotalLiabilities:  CentsToUnit(r.TotalLiabilities),
+		TotalEquity:       CentsToUnit(r.TotalEquity),
+		NetWorth:          CentsToUnit(r.NetWorth),
 		PreviousNetWorth:  previousNetWorth,
 		NetWorthGrowthPct: r.NetWorthGrowthPct,
 		Currency:          r.Currency,

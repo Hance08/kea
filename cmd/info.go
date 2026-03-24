@@ -16,22 +16,22 @@ type SystemInfoView interface {
 type infoRunner struct {
 	svc  *service.Service
 	view SystemInfoView
+	json bool
 }
 
 func NewInfoCmd(svc *service.Service) *cobra.Command {
-	return &cobra.Command{
+	var jsonOut bool
+	cmd := &cobra.Command{
 		Use:   "info",
 		Short: "Display application information",
 		Long:  `Display current configuration, database path, and system details.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &infoRunner{
-				svc:  svc,
-				view: views.NewSystemInfoView(),
-			}
-
+			runner := &infoRunner{svc: svc, view: views.NewSystemInfoView(), json: jsonOut}
 			return runner.Run()
 		},
 	}
+	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "output as JSON")
+	return cmd
 }
 
 func (r *infoRunner) Run() error {
@@ -60,10 +60,10 @@ func (r *infoRunner) Run() error {
 		AppDataDir:      getAppDataDirOrPanic(),
 	}
 
-	if err := r.view.Render(info); err != nil {
-		return err
+	if r.json {
+		return views.WriteJSON(views.ToJSONSystemInfo(info))
 	}
-	return nil
+	return r.view.Render(info)
 }
 
 func getAppDataDirOrPanic() string {

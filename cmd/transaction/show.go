@@ -21,10 +21,12 @@ type ShowProvider interface {
 type showRunner struct {
 	svc  ShowProvider
 	view ShowView
+	json bool
 }
 
 func NewShowCmd(svc *service.Service) *cobra.Command {
-	return &cobra.Command{
+	var jsonOut bool
+	cmd := &cobra.Command{
 		Use:   "show <transaction-id>",
 		Short: "Show transaction details",
 		Args:  cobra.ExactArgs(1),
@@ -32,10 +34,13 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 			runner := &showRunner{
 				svc:  svc.Transaction(),
 				view: views.NewTransactionDetailView(),
+				json: jsonOut,
 			}
 			return runner.Run(args)
 		},
 	}
+	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "output as JSON")
+	return cmd
 }
 
 func (r *showRunner) Run(args []string) error {
@@ -50,8 +55,8 @@ func (r *showRunner) Run(args []string) error {
 		return nil
 	}
 
-	if err := r.view.Render(detail, false); err != nil {
-		return err
+	if r.json {
+		return views.WriteJSON(views.ToJSONTxDetail(detail))
 	}
-	return nil
+	return r.view.Render(detail, false)
 }

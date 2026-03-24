@@ -30,6 +30,7 @@ type ListProvider interface {
 type listFlags struct {
 	Account string
 	Limit   int
+	JSON    bool
 }
 
 type listRunner struct {
@@ -61,6 +62,7 @@ date, type, account, description, amount, and status.`,
 
 	cmd.Flags().StringVarP(&flags.Account, "account", "a", "", "Filter transactions by account name")
 	cmd.Flags().IntVarP(&flags.Limit, "limit", "l", 20, "Maximum number of transactions to display")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
 
 	return cmd
 }
@@ -76,6 +78,13 @@ func (r *listRunner) Run() error {
 	viewItems := r.buildViewItems(transactions)
 
 	// 3. Render
+	if r.flags.JSON {
+		jsonItems := make([]views.JSONTxListItem, len(viewItems))
+		for i, item := range viewItems {
+			jsonItems[i] = views.ToJSONTxListItem(item)
+		}
+		return views.WriteJSON(jsonItems)
+	}
 	return r.view.Render(viewItems, r.flags.Limit)
 }
 

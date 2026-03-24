@@ -3,17 +3,20 @@ package account
 import (
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/prompts"
+	"github.com/hance08/kea/ui/views"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
 type deleteRunner struct {
-	svc *service.Service
-	yes bool
+	svc  *service.Service
+	yes  bool
+	json bool
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
 	var yes bool
+	var jsonOut bool
 
 	cmd := &cobra.Command{
 		Use:     "delete <account-name>",
@@ -22,12 +25,13 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Long:    "Delete an account that has no transactions, no child accounts, and is not the system opening balance account.",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &deleteRunner{svc: svc, yes: yes}
+			runner := &deleteRunner{svc: svc, yes: yes || jsonOut, json: jsonOut}
 			return runner.Run(args[0])
 		},
 	}
 
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm deletion without interactive prompt")
+	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "output result as JSON")
 
 	return cmd
 }
@@ -39,7 +43,9 @@ func (r *deleteRunner) Run(name string) error {
 		return nil
 	}
 
-	pterm.Info.Printf("Account: %s | Type: %s | Currency: %s | Hidden: %t\n", acc.Name, acc.Type, acc.Currency, acc.IsHidden)
+	if !r.json {
+		pterm.Info.Printf("Account: %s | Type: %s | Currency: %s | Hidden: %t\n", acc.Name, acc.Type, acc.Currency, acc.IsHidden)
+	}
 
 	if !r.yes {
 		confirm, err := prompts.PromptConfirm("This will permanently delete the account. Continue?", false)
@@ -58,6 +64,9 @@ func (r *deleteRunner) Run(name string) error {
 		return nil
 	}
 
+	if r.json {
+		return views.WriteJSON(map[string]any{"name": acc.Name, "deleted": true})
+	}
 	pterm.Success.Printf("Account %q deleted\n", acc.Name)
 	return nil
 }

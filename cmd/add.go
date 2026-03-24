@@ -49,6 +49,7 @@ Examples:
 	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
 	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
 	cmd.Flags().StringVarP(&flags.Type, "type", "T", "", "Transaction type: expense, income, or transfer (validates account types when provided)")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created transaction as JSON")
 
 	return cmd
 }
@@ -61,6 +62,10 @@ func (r *addRunner) Run() error {
 	hasFlags := r.cmd.Flags().Changed("desc") || r.cmd.Flags().Changed("amount") ||
 		r.cmd.Flags().Changed("from") || r.cmd.Flags().Changed("to") ||
 		r.cmd.Flags().Changed("type")
+
+	if r.flags.JSON && !hasFlags {
+		return fmt.Errorf("--json requires flags: --desc, --amount, --from, --to")
+	}
 
 	if hasFlags {
 		// Flag mode: validate all required flags
@@ -86,9 +91,8 @@ func (r *addRunner) Run() error {
 	}
 
 	// Display transaction summary
-	if err := r.addView.Render(&result, true); err != nil {
-		return err
+	if r.flags.JSON {
+		return views.WriteJSON(views.ToJSONTxDetail(&result))
 	}
-
-	return nil
+	return r.addView.Render(&result, true)
 }

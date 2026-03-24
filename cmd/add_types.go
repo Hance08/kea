@@ -34,6 +34,7 @@ type addFlags struct {
 	Status      string
 	Timestamp   string
 	Type        string
+	JSON        bool
 }
 
 type addTransactionInput struct {

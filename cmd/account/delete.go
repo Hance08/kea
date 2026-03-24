@@ -17,7 +17,7 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "delete <account-name>",
-		Aliases: []string{"d", "del"},
+		Aliases: []string{"del", "d"},
 		Short:   "Delete an account with no transactions",
 		Long:    "Delete an account that has no transactions, no child accounts, and is not the system opening balance account.",
 		Args:    cobra.ExactArgs(1),

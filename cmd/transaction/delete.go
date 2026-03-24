@@ -18,23 +18,31 @@ type TransactionDeleteView interface {
 type deleteRunner struct {
 	svc  *service.Service
 	view TransactionDeleteView
+	yes  bool
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
-	return &cobra.Command{
+	var yes bool
+
+	cmd := &cobra.Command{
 		Use:     "delete <transaction-id>",
 		Short:   "Delete a transaction",
 		Long:    `Delete a transaction and all its associated splits. This action cannot be undone.`,
-		Aliases: []string{"d"},
+		Aliases: []string{"del", "d"},
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &deleteRunner{
 				svc:  svc,
 				view: views.NewTransactionDeleteView(),
+				yes:  yes,
 			}
 			return runner.Run(args)
 		},
 	}
+
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm deletion without interactive prompt")
+
+	return cmd
 }
 
 func (r *deleteRunner) Run(args []string) error {
@@ -59,14 +67,16 @@ func (r *deleteRunner) Run(args []string) error {
 		return err
 	}
 
-	confirmation, err := prompts.PromptConfirm("Do you want to delete this transaction?", false)
-	if err != nil {
-		return err
-	}
+	if !r.yes {
+		confirmation, err := prompts.PromptConfirm("Do you want to delete this transaction?", false)
+		if err != nil {
+			return err
+		}
 
-	if !confirmation {
-		pterm.Info.Println("Deletion cancelled")
-		return nil
+		if !confirmation {
+			pterm.Info.Println("Deletion cancelled")
+			return nil
+		}
 	}
 
 	// Delete transaction

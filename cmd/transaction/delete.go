@@ -19,10 +19,12 @@ type deleteRunner struct {
 	svc  *service.Service
 	view TransactionDeleteView
 	yes  bool
+	json bool
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
 	var yes bool
+	var jsonOut bool
 
 	cmd := &cobra.Command{
 		Use:     "delete <transaction-id>",
@@ -34,13 +36,15 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 			runner := &deleteRunner{
 				svc:  svc,
 				view: views.NewTransactionDeleteView(),
-				yes:  yes,
+				yes:  yes || jsonOut,
+				json: jsonOut,
 			}
 			return runner.Run(args)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm deletion without interactive prompt")
+	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "output result as JSON")
 
 	return cmd
 }
@@ -58,13 +62,15 @@ func (r *deleteRunner) Run(args []string) error {
 		return nil
 	}
 
-	if err := r.view.RenderPreview(views.TransactionDeletePreview{
-		ID:          detail.ID,
-		Timestamp:   detail.Timestamp,
-		Description: detail.Description,
-		SplitCount:  len(detail.Splits),
-	}); err != nil {
-		return err
+	if !r.json {
+		if err := r.view.RenderPreview(views.TransactionDeletePreview{
+			ID:          detail.ID,
+			Timestamp:   detail.Timestamp,
+			Description: detail.Description,
+			SplitCount:  len(detail.Splits),
+		}); err != nil {
+			return err
+		}
 	}
 
 	if !r.yes {
@@ -85,6 +91,9 @@ func (r *deleteRunner) Run(args []string) error {
 		return nil
 	}
 
+	if r.json {
+		return views.WriteJSON(map[string]any{"id": txID, "deleted": true})
+	}
 	r.view.ShowSuccess(txID)
 	return nil
 }

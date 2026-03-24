@@ -309,6 +309,21 @@ func (m *mockTransactionRepo) GetSplitsWithAccountsByDateRange(startTime, endTim
 	return m.splitsWithAccts, nil
 }
 
+func (m *mockTransactionRepo) GetSplitsWithAccountsByTransaction(txID int64) ([]model.SplitDetail, error) {
+	splits := m.splits[txID]
+	result := make([]model.SplitDetail, 0, len(splits))
+	for _, s := range splits {
+		result = append(result, model.SplitDetail{
+			ID:        s.ID,
+			AccountID: s.AccountID,
+			Amount:    s.Amount,
+			Currency:  s.Currency,
+			Memo:      s.Memo,
+		})
+	}
+	return result, nil
+}
+
 // ──────────────────────────────────────────────
 // mockCombinedRepo (implements repository.Repository)
 // ──────────────────────────────────────────────

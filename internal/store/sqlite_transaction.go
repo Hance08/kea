@@ -364,6 +364,38 @@ func (s *Store) GetSplitsWithAccountsByDateRange(startTime, endTime int64) (map[
 	return result, nil
 }
 
+func (s *Store) GetSplitsWithAccountsByTransaction(txID int64) ([]model.SplitDetail, error) {
+	rows, err := s.db.Query(`
+        SELECT
+            s.id, s.account_id, s.amount, s.currency, s.memo,
+            a.name, a.type
+        FROM splits s
+        JOIN accounts a ON s.account_id = a.id
+        WHERE s.transaction_id = ?
+        ORDER BY s.id
+    `, txID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query splits with accounts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var result []model.SplitDetail
+	for rows.Next() {
+		var d model.SplitDetail
+		if err := rows.Scan(
+			&d.ID, &d.AccountID, &d.Amount, &d.Currency, &d.Memo,
+			&d.AccountName, &d.AccountType,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan split with account: %w", err)
+		}
+		result = append(result, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+	return result, nil
+}
+
 func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
 	var transactions []*model.Transaction
 	for rows.Next() {

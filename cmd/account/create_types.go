@@ -24,11 +24,11 @@ type CreateProvider interface {
 }
 
 type createInput struct {
-	fullName    string
-	accountType model.AccountType
-	currency    string
-	description string
-	parentID    *int64
+	fullName     string
+	accountType  model.AccountType
+	currency     string
+	description  string
+	parentID     *int64
 	balanceCents int64
 }
 

@@ -3,7 +3,6 @@ package cmd
 import (
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/views"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -35,15 +34,12 @@ Examples:
   kea report --type eb --from 2026-01-01 --to 2026-01-31
   kea report --type bs`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r := &reportRunner{
+			runner := &reportRunner{
 				flags:    flags,
 				provider: svc.Transaction(),
 				view:     newReportView(flags),
 			}
-			if err := r.run(); err != nil {
-				pterm.Error.Println(err)
-			}
-			return nil
+			return runner.run()
 		},
 	}
 

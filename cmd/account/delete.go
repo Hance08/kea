@@ -1,6 +1,9 @@
 package account
 
 import (
+	"fmt"
+
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/prompts"
 	"github.com/hance08/kea/ui/views"
@@ -8,15 +11,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type AccountDeleteProvider interface {
+	GetAccountByName(name string) (*model.Account, error)
+	DeleteAccountByName(name string) error
+}
+
+type deleteFlags struct {
+	Yes     bool
+	JSONOut bool
+}
+
 type deleteRunner struct {
-	svc     *service.Service
-	yes     bool
-	jsonOut bool
+	svc  AccountDeleteProvider
+	yes  bool
+	json bool
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
-	var yes bool
-	var jsonOut bool
+	flags := &deleteFlags{}
 
 	cmd := &cobra.Command{
 		Use:     "delete <account-name>",
@@ -25,28 +37,24 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Long:    "Delete an account that has no transactions, no child accounts, and is not the system opening balance account.",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &deleteRunner{svc: svc, yes: yes || jsonOut, jsonOut: jsonOut}
+			runner := &deleteRunner{svc: svc.Account(), yes: flags.Yes || flags.JSONOut, json: flags.JSONOut}
 			return runner.Run(args[0])
 		},
 	}
 
-	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm deletion without interactive prompt")
-	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "output result as JSON")
+	cmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "confirm deletion without interactive prompt")
+	cmd.Flags().BoolVarP(&flags.JSONOut, "json", "j", false, "output result as JSON")
 
 	return cmd
 }
 
 func (r *deleteRunner) Run(name string) error {
-	acc, err := r.svc.Account().GetAccountByName(name)
+	acc, err := r.svc.GetAccountByName(name)
 	if err != nil {
-		if r.jsonOut {
-			return err
-		}
-		pterm.Error.Printf("Failed to delete account: %v\n", err)
-		return nil
+		return fmt.Errorf("failed to find account: %w", err)
 	}
 
-	if !r.jsonOut {
+	if !r.json {
 		pterm.Info.Printf("Account: %s | Type: %s | Currency: %s | Hidden: %t\n", acc.Name, acc.Type, acc.Currency, acc.IsHidden)
 	}
 
@@ -55,22 +63,17 @@ func (r *deleteRunner) Run(name string) error {
 		if err != nil {
 			return err
 		}
-
 		if !confirm {
 			pterm.Info.Println("Deletion cancelled")
 			return nil
 		}
 	}
 
-	if err := r.svc.Account().DeleteAccountByName(acc.Name); err != nil {
-		if r.jsonOut {
-			return err
-		}
-		pterm.Error.Printf("Failed to delete account: %v\n", err)
-		return nil
+	if err := r.svc.DeleteAccountByName(acc.Name); err != nil {
+		return fmt.Errorf("failed to delete account: %w", err)
 	}
 
-	if r.jsonOut {
+	if r.json {
 		return views.WriteJSON(map[string]any{"name": acc.Name, "deleted": true})
 	}
 	pterm.Success.Printf("Account %q deleted\n", acc.Name)

@@ -15,7 +15,7 @@ type ClearProvider interface {
 }
 
 type clearFlags struct {
-	JSONOut bool
+	JSON    bool
 }
 
 type clearRunner struct {
@@ -31,11 +31,11 @@ func NewClearCmd(svc *service.Service) *cobra.Command {
 		Long:  `Mark a pending transaction as cleared (confirmed).`,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &clearRunner{svc: svc.Transaction(), json: flags.JSONOut}
+			runner := &clearRunner{svc: svc.Transaction(), json: flags.JSON}
 			return runner.Run(args)
 		},
 	}
-	cmd.Flags().BoolVarP(&flags.JSONOut, "json", "j", false, "output result as JSON")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output result as JSON")
 	return cmd
 }
 

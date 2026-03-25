@@ -18,7 +18,7 @@ type ShowProvider interface {
 }
 
 type showFlags struct {
-	JSONOut bool
+	JSON    bool
 }
 
 type showRunner struct {
@@ -37,12 +37,12 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 			runner := &showRunner{
 				svc:  svc.Transaction(),
 				view: views.NewTransactionDetailView(),
-				json: flags.JSONOut,
+				json: flags.JSON,
 			}
 			return runner.Run(args)
 		},
 	}
-	cmd.Flags().BoolVarP(&flags.JSONOut, "json", "j", false, "output as JSON")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
 	return cmd
 }
 

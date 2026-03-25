@@ -18,7 +18,7 @@ type AccountDeleteProvider interface {
 
 type deleteFlags struct {
 	Yes     bool
-	JSONOut bool
+	JSON    bool
 }
 
 type deleteRunner struct {
@@ -37,13 +37,13 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Long:    "Delete an account that has no transactions, no child accounts, and is not the system opening balance account.",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &deleteRunner{svc: svc.Account(), yes: flags.Yes || flags.JSONOut, json: flags.JSONOut}
+			runner := &deleteRunner{svc: svc.Account(), yes: flags.Yes || flags.JSON, json: flags.JSON}
 			return runner.Run(args[0])
 		},
 	}
 
 	cmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "confirm deletion without interactive prompt")
-	cmd.Flags().BoolVarP(&flags.JSONOut, "json", "j", false, "output result as JSON")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output result as JSON")
 
 	return cmd
 }

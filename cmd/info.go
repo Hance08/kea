@@ -19,7 +19,7 @@ type SystemInfoView interface {
 }
 
 type infoFlags struct {
-	JSONOut bool
+	JSON    bool
 }
 
 type infoRunner struct {
@@ -35,11 +35,11 @@ func NewInfoCmd(svc *service.Service) *cobra.Command {
 		Short: "Display application information",
 		Long:  `Display current configuration, database path, and system details.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &infoRunner{svc: svc, view: views.NewSystemInfoView(), json: flags.JSONOut}
+			runner := &infoRunner{svc: svc, view: views.NewSystemInfoView(), json: flags.JSON}
 			return runner.Run()
 		},
 	}
-	cmd.Flags().BoolVarP(&flags.JSONOut, "json", "j", false, "output as JSON")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
 	return cmd
 }
 

@@ -23,7 +23,7 @@ type TxDeleteProvider interface {
 
 type deleteFlags struct {
 	Yes     bool
-	JSONOut bool
+	JSON    bool
 }
 
 type deleteRunner struct {
@@ -46,15 +46,15 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 			runner := &deleteRunner{
 				svc:  svc.Transaction(),
 				view: views.NewTransactionDeleteView(),
-				yes:  flags.Yes || flags.JSONOut,
-				json: flags.JSONOut,
+				yes:  flags.Yes || flags.JSON,
+				json: flags.JSON,
 			}
 			return runner.Run(args)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "confirm deletion without interactive prompt")
-	cmd.Flags().BoolVarP(&flags.JSONOut, "json", "j", false, "output result as JSON")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output result as JSON")
 
 	return cmd
 }

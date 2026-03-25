@@ -9,63 +9,60 @@ import (
 	"github.com/hance08/kea/ui/prompts"
 )
 
-func (r *createRunner) createAccount() (*model.Account, error) {
-
+func (r *createRunner) createAccount(input createInput) (*model.Account, error) {
 	return r.accSvc.CreateAccountWithBalance(
-		r.fullName,
-		r.accountType,
-		r.currency,
-		r.description,
-		r.parentID,
-		r.balanceCents,
+		input.fullName,
+		input.accountType,
+		input.currency,
+		input.description,
+		input.parentID,
+		input.balanceCents,
 	)
-
 }
 
-func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride string) error {
-	r.fullName = r.accSvc.FormatAccountName(rootName, r.name)
-	r.accountType = model.AccountType(accType)
-
+func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride string, input *createInput) error {
+	input.accountType = model.AccountType(accType)
 	if currencyOverride != "" {
 		if err := r.accSvc.ValidateCurrency(currencyOverride); err != nil {
 			return err
 		}
-		r.currency = strings.ToUpper(strings.TrimSpace(currencyOverride))
+		input.currency = strings.ToUpper(strings.TrimSpace(currencyOverride))
 	} else {
-		r.currency = r.defaultCurrency
+		input.currency = r.defaultCurrency
 	}
 	return nil
 }
 
-func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverride string) {
-	r.fullName = r.accSvc.FormatAccountName(parent.Name, r.name)
-	r.accountType = parent.Type
-	r.parentID = &parent.ID
-
+func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverride string, input *createInput) {
+	input.accountType = parent.Type
+	input.parentID = &parent.ID
 	if currencyOverride != "" {
-		r.currency = currencyOverride
+		input.currency = currencyOverride
 	} else {
-		r.currency = parent.Currency
+		input.currency = parent.Currency
 	}
 }
 
-func (r *createRunner) buildFromParentName(parentName, currency string) error {
+func (r *createRunner) buildFromParentName(parentName, currency string, input *createInput) error {
 	parentAccount, err := r.accSvc.GetAccountByName(parentName)
 	if err != nil {
 		return err
 	}
-
-	r.applyParentSettings(parentAccount, currency)
+	r.applyParentSettings(parentAccount, currency, input)
+	input.fullName = parentAccount.Name // prefix for FormatAccountName in runFromFlags
 	return nil
 }
 
-func (r *createRunner) buildFromTypeFlag(accType, currency string) error {
+func (r *createRunner) buildFromTypeFlag(accType, currency string, input *createInput) error {
 	rootName, err := r.accSvc.GetRootNameByType(accType)
 	if err != nil {
 		return fmt.Errorf("get root name: %w", err)
 	}
-
-	return r.applyTypeSettings(rootName, accType, currency)
+	if err := r.applyTypeSettings(rootName, accType, currency, input); err != nil {
+		return err
+	}
+	input.fullName = rootName // prefix for FormatAccountName in runFromFlags
+	return nil
 }
 
 func (r *createRunner) promptType() (string, error) {
@@ -110,18 +107,13 @@ func (r *createRunner) promptName(prefix string) (string, error) {
 	return prompts.PromptAccountName(surveyValidator)
 }
 
-func (r *createRunner) promptCurrency() (string, error) {
-	defaultCurrency := r.currency
-
+func (r *createRunner) promptCurrency(input createInput) (string, error) {
+	defaultCurrency := input.currency
 	if defaultCurrency == "" {
-		//TODO: Validate the string in the config file
 		defaultCurrency = r.defaultCurrency
 	}
-
-	isInherited := r.parentID != nil
-
+	isInherited := input.parentID != nil
 	return prompts.PromptCurrency(defaultCurrency, isInherited, r.accSvc.ValidateCurrency)
-
 }
 
 func (r *createRunner) promptBalance() (int64, error) {

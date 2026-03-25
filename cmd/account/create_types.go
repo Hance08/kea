@@ -23,6 +23,15 @@ type CreateProvider interface {
 	GetAccountBalance(id int64) (int64, error)
 }
 
+type createInput struct {
+	fullName    string
+	accountType model.AccountType
+	currency    string
+	description string
+	parentID    *int64
+	balanceCents int64
+}
+
 type createFlags struct {
 	Name        string
 	Type        string

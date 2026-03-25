@@ -426,12 +426,10 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		assert.GreaterOrEqual(t, result.Assets[0].Amount, result.Assets[1].Amount)
 	})
 
-	t.Run("GetAccountBalance failure returns error", func(t *testing.T) {
-		// mockAccountRepo.GetAllAccounts does not support injecting an error;
-		// this test verifies the GetAccountBalance failure path instead.
+	t.Run("GetAllAccountBalances failure returns error", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
-		accRepo.getBalanceErr[1] = assert.AnError
+		accRepo.getAllBalancesErr = assert.AnError
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		_, err := svc.GenerateBalanceSheet()

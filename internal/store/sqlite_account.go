@@ -116,6 +116,34 @@ func (s *Store) AccountExists(name string) (bool, error) {
 	return exists, nil
 }
 
+func (s *Store) GetAllAccountBalances() (map[int64]int64, error) {
+	rows, err := s.db.Query(`
+        SELECT account_id, SUM(amount)
+        FROM splits
+        GROUP BY account_id
+    `)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query account balances: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[int64]int64)
+	for rows.Next() {
+		var accountID int64
+		var balance sql.NullInt64
+		if err := rows.Scan(&accountID, &balance); err != nil {
+			return nil, fmt.Errorf("failed to scan account balance: %w", err)
+		}
+		if balance.Valid {
+			result[accountID] = balance.Int64
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+	return result, nil
+}
+
 func (s *Store) HasChildAccounts(accountID int64) (bool, error) {
 	var exists bool
 	row := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM accounts WHERE parent_id = ?)", accountID)

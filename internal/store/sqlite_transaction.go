@@ -110,6 +110,22 @@ func (s *Store) GetTransactionByID(txID int64) (*model.Transaction, []*model.Spl
 	return &tx, splits, nil
 }
 
+func (s *Store) GetTransactionHeader(txID int64) (*model.Transaction, error) {
+	var tx model.Transaction
+	err := s.db.QueryRow(`
+        SELECT id, timestamp, description, status, external_id
+        FROM transactions
+        WHERE id = ?
+    `, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("transaction with ID %d not found", txID)
+		}
+		return nil, fmt.Errorf("failed to query transaction: %w", err)
+	}
+	return &tx, nil
+}
+
 func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error) {
 	if limit <= 0 {
 		limit = 100

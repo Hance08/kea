@@ -26,11 +26,12 @@ type mockAccountRepo struct {
 	nextID         int64
 
 	// injectable errors
-	createErr     error
-	deleteErr     error
-	getByNameErr  map[string]error
-	getByIDErr    map[int64]error
-	getBalanceErr map[int64]error
+	createErr          error
+	deleteErr          error
+	getByNameErr       map[string]error
+	getByIDErr         map[int64]error
+	getBalanceErr      map[int64]error
+	getAllBalancesErr   error
 }
 
 func newMockAccountRepo() *mockAccountRepo {
@@ -127,6 +128,17 @@ func (m *mockAccountRepo) GetAccountBalance(accountID int64) (int64, error) {
 	return m.balances[accountID], nil
 }
 
+func (m *mockAccountRepo) GetAllAccountBalances() (map[int64]int64, error) {
+	if m.getAllBalancesErr != nil {
+		return nil, m.getAllBalancesErr
+	}
+	result := make(map[int64]int64, len(m.balances))
+	for id, bal := range m.balances {
+		result[id] = bal
+	}
+	return result, nil
+}
+
 func (m *mockAccountRepo) HasChildAccounts(accountID int64) (bool, error) {
 	return m.childMap[accountID], nil
 }
@@ -221,6 +233,17 @@ func (m *mockTransactionRepo) GetTransactionByID(txID int64) (*model.Transaction
 		return nil, nil, fmt.Errorf("transaction ID %d not found", txID)
 	}
 	return tx, m.splits[txID], nil
+}
+
+func (m *mockTransactionRepo) GetTransactionHeader(txID int64) (*model.Transaction, error) {
+	if err, ok := m.getByIDErr[txID]; ok {
+		return nil, err
+	}
+	tx, ok := m.transactions[txID]
+	if !ok {
+		return nil, fmt.Errorf("transaction ID %d not found", txID)
+	}
+	return tx, nil
 }
 
 func (m *mockTransactionRepo) GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error) {

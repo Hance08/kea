@@ -94,12 +94,23 @@ func (ts *TransactionService) GetDisplayAccount(splits []model.SplitDetail, txTy
 		return "-", nil
 	}
 
+	resolveType := func(split model.SplitDetail) (model.AccountType, error) {
+		if split.AccountType != "" {
+			return split.AccountType, nil
+		}
+		account, err := ts.accRepo.GetAccountByName(split.AccountName)
+		if err != nil {
+			return "", err
+		}
+		return account.Type, nil
+	}
+
 	switch txType {
 	case "Expense":
 		// Find and return the Expense account (E type)
 		for _, split := range splits {
-			account, err := ts.accRepo.GetAccountByName(split.AccountName)
-			if err == nil && account.Type == "E" {
+			accType, err := resolveType(split)
+			if err == nil && accType == model.AccountTypeExpense {
 				return split.AccountName, nil
 			}
 		}
@@ -107,18 +118,18 @@ func (ts *TransactionService) GetDisplayAccount(splits []model.SplitDetail, txTy
 	case "Income":
 		// Find and return the Revenue account (R type)
 		for _, split := range splits {
-			account, err := ts.accRepo.GetAccountByName(split.AccountName)
-			if err == nil && account.Type == "R" {
+			accType, err := resolveType(split)
+			if err == nil && accType == model.AccountTypeRevenue {
 				return split.AccountName, nil
 			}
 		}
 
 	case "Transfer":
-		// Find and return the Asset account with positive amount (receiving account)
+		// Find and return the Asset/Liability account with positive amount (receiving account)
 		for _, split := range splits {
 			if split.Amount > 0 {
-				account, err := ts.accRepo.GetAccountByName(split.AccountName)
-				if err == nil && (account.Type == "A" || account.Type == "L") {
+				accType, err := resolveType(split)
+				if err == nil && (accType == model.AccountTypeAsset || accType == model.AccountTypeLiability) {
 					return split.AccountName, nil
 				}
 			}
@@ -127,8 +138,8 @@ func (ts *TransactionService) GetDisplayAccount(splits []model.SplitDetail, txTy
 	case "Opening":
 		// For opening transactions, return the non-equity account
 		for _, split := range splits {
-			account, err := ts.accRepo.GetAccountByName(split.AccountName)
-			if err == nil && account.Type != "C" {
+			accType, err := resolveType(split)
+			if err == nil && accType != model.AccountTypeEquity {
 				return split.AccountName, nil
 			}
 		}

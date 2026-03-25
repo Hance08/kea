@@ -14,6 +14,7 @@ type AccountRepository interface {
 	AccountExists(name string) (bool, error)
 	GetAccountsByType(accType model.AccountType) ([]*model.Account, error)
 	GetAccountBalance(accountID int64) (int64, error)
+	GetAllAccountBalances() (map[int64]int64, error)
 	HasChildAccounts(accountID int64) (bool, error)
 	AccountHasTransactions(accountID int64) (bool, error)
 	DeleteAccount(accountID int64) error
@@ -22,6 +23,7 @@ type AccountRepository interface {
 type TransactionRepository interface {
 	CreateTransactionWithSplits(tx model.Transaction, splits []model.Split) (int64, error)
 	GetTransactionByID(txID int64) (*model.Transaction, []*model.Split, error)
+	GetTransactionHeader(txID int64) (*model.Transaction, error)
 	GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error)
 	GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error)
 	GetAllTransactions(limit int) ([]*model.Transaction, error)

@@ -171,16 +171,17 @@ func (ts *TransactionService) GenerateBalanceSheet() (*model.BalanceSheetResult,
 		return nil, err
 	}
 
+	balances, err := ts.accRepo.GetAllAccountBalances()
+	if err != nil {
+		return nil, err
+	}
+
 	result := &model.BalanceSheetResult{
 		Currency: ts.config.Defaults.Currency,
 	}
 
 	for _, acc := range allAccounts {
-		balance, err := ts.accRepo.GetAccountBalance(acc.ID)
-		if err != nil {
-			return nil, err
-		}
-
+		balance := balances[acc.ID]
 		if balance == 0 {
 			continue
 		}

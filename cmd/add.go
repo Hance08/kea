@@ -9,11 +9,9 @@ import (
 )
 
 type addRunner struct {
-	accSvc  AddProvider
-	txSvc   TransactionProvider
-	addView AddView
-	flags   *addFlags
-	cmd     *cobra.Command
+	accSvc AddProvider
+	txSvc  TransactionProvider
+	view   AddView
 }
 
 func NewAddCmd(svc *service.Service) *cobra.Command {
@@ -33,13 +31,12 @@ Examples:
   kea add --desc "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &addRunner{
-				accSvc:  svc.Account(),
-				txSvc:   svc.Transaction(),
-				addView: views.NewTransactionDetailView(),
-				flags:   flags,
-				cmd:     cmd,
+				accSvc: svc.Account(),
+				txSvc:  svc.Transaction(),
+				view:   views.NewTransactionDetailView(),
 			}
-			return runner.Run()
+
+			return runner.Run(flags, cmd)
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Description, "desc", "d", "", "Transaction description")
@@ -54,22 +51,22 @@ Examples:
 	return cmd
 }
 
-func (r *addRunner) Run() error {
+func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 	var input addTransactionInput
 	var err error
 
 	// Check if using flag mode or interactive mode
-	hasFlags := r.cmd.Flags().Changed("desc") || r.cmd.Flags().Changed("amount") ||
-		r.cmd.Flags().Changed("from") || r.cmd.Flags().Changed("to") ||
-		r.cmd.Flags().Changed("type")
+	hasFlags := cmd.Flags().Changed("desc") || cmd.Flags().Changed("amount") ||
+		cmd.Flags().Changed("from") || cmd.Flags().Changed("to") ||
+		cmd.Flags().Changed("type")
 
-	if r.flags.JSON && !hasFlags {
-		return fmt.Errorf("--json requires flags: --desc, --amount, --from, --to")
+	if flags.JSON && !hasFlags {
+		return fmt.Errorf("--json requires flags: --type, --amount, --from, --to")
 	}
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		input, err = r.runFromFlags()
+		input, err = r.runFromFlags(flags)
 	} else {
 		// Interactive mode
 		input, err = r.runInteractive()
@@ -91,8 +88,8 @@ func (r *addRunner) Run() error {
 	}
 
 	// Display transaction summary
-	if r.flags.JSON {
+	if flags.JSON {
 		return views.WriteJSON(views.ToJSONTxDetail(&result))
 	}
-	return r.addView.Render(&result, true)
+	return r.view.Render(&result, true)
 }

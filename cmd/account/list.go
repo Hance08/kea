@@ -15,8 +15,15 @@ type listFlags struct {
 	JSON       bool
 }
 
+type AccountListProvider interface {
+	GetAccountsByType(accType model.AccountType) ([]*model.Account, error)
+	GetAllAccounts() ([]*model.Account, error)
+	GetAccountBalance(id int64) (int64, error)
+	GetAccountBalanceFormatted(id int64) (string, error)
+}
+
 type listRunner struct {
-	svc   *service.Service
+	svc   AccountListProvider
 	flags *listFlags
 }
 
@@ -31,7 +38,7 @@ func NewListCmd(svc *service.Service) *cobra.Command {
 You can filter by account type or show hidden accounts.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &listRunner{
-				svc:   svc,
+				svc:   svc.Account(),
 				flags: flags,
 			}
 			return runner.Run()
@@ -51,9 +58,9 @@ func (r *listRunner) Run() error {
 	var err error
 
 	if r.flags.Type != "" {
-		accounts, err = r.svc.Account().GetAccountsByType(model.AccountType(r.flags.Type))
+		accounts, err = r.svc.GetAccountsByType(model.AccountType(r.flags.Type))
 	} else {
-		accounts, err = r.svc.Account().GetAllAccounts()
+		accounts, err = r.svc.GetAllAccounts()
 	}
 
 	if err != nil {
@@ -67,7 +74,7 @@ func (r *listRunner) Run() error {
 	if r.flags.JSON {
 		items := make([]views.JSONAccount, 0, len(accounts))
 		for _, acc := range accounts {
-			bal, err := r.svc.Account().GetAccountBalance(acc.ID)
+			bal, err := r.svc.GetAccountBalance(acc.ID)
 			if err != nil {
 				return fmt.Errorf("failed to get balance for %s: %w", acc.Name, err)
 			}
@@ -75,7 +82,7 @@ func (r *listRunner) Run() error {
 		}
 		return views.WriteJSON(items)
 	}
-	return views.NewAccountListView().Render(accounts, r.svc.Account().GetAccountBalanceFormatted)
+	return views.NewAccountListView().Render(accounts, r.svc.GetAccountBalanceFormatted)
 }
 
 func (r *listRunner) filterHiddenAccounts(accounts []*model.Account) []*model.Account {

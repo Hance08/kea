@@ -46,7 +46,7 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 
 // GetTransactionByID retrieves a transaction with all split details
 func (ts *TransactionService) GetTransactionByID(txID int64) (*model.TransactionDetail, error) {
-	tx, err := ts.txRepo.GetTransactionHeader(txID)
+	tx, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return nil, err
 	}

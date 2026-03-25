@@ -22,8 +22,7 @@ type AccountRepository interface {
 
 type TransactionRepository interface {
 	CreateTransactionWithSplits(tx model.Transaction, splits []model.Split) (int64, error)
-	GetTransactionByID(txID int64) (*model.Transaction, []*model.Split, error)
-	GetTransactionHeader(txID int64) (*model.Transaction, error)
+	GetTransactionByID(txID int64) (*model.Transaction, error)
 	GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error)
 	GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error)
 	GetAllTransactions(limit int) ([]*model.Transaction, error)

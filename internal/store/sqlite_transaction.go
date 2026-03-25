@@ -58,59 +58,7 @@ func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model
 	return newTxID, nil
 }
 
-func (s *Store) GetTransactionByID(txID int64) (*model.Transaction, []*model.Split, error) {
-	var tx model.Transaction
-	err := s.db.QueryRow(`
-        SELECT id, timestamp, description, status, external_id
-        FROM transactions
-        WHERE id = ?
-    `, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, fmt.Errorf("transaction with ID %d not found", txID)
-		}
-		return nil, nil, fmt.Errorf("failed to query transaction: %w", err)
-	}
-
-	rows, err := s.db.Query(`
-        SELECT id, transaction_id, account_id, amount, currency, memo
-        FROM splits
-        WHERE transaction_id = ?
-        ORDER BY id
-    `, txID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to query splits: %w", err)
-	}
-	defer func() {
-		_ = rows.Close()
-	}()
-
-	var splits []*model.Split
-	for rows.Next() {
-		split := &model.Split{}
-		err := rows.Scan(
-			&split.ID,
-			&split.TransactionID,
-			&split.AccountID,
-			&split.Amount,
-			&split.Currency,
-			&split.Memo,
-		)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to scan split: %w", err)
-		}
-		splits = append(splits, split)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, nil, fmt.Errorf("error iterating splits: %w", err)
-	}
-
-	return &tx, splits, nil
-}
-
-func (s *Store) GetTransactionHeader(txID int64) (*model.Transaction, error) {
+func (s *Store) GetTransactionByID(txID int64) (*model.Transaction, error) {
 	var tx model.Transaction
 	err := s.db.QueryRow(`
         SELECT id, timestamp, description, status, external_id

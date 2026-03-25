@@ -143,7 +143,7 @@ func (ts *TransactionService) DeleteTransaction(txID int64) error {
 		return fmt.Errorf("cannot delete the initial opening transaction: %w", ErrNotEditable)
 	}
 
-	tx, err := ts.txRepo.GetTransactionHeader(txID)
+	tx, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}
@@ -163,7 +163,7 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
 
-	oldTx, err := ts.txRepo.GetTransactionHeader(txID)
+	oldTx, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
@@ -187,7 +187,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("cannot modify the initial opening transaction: %w", ErrNotEditable)
 	}
 
-	oldTx, err := ts.txRepo.GetTransactionHeader(txID)
+	oldTx, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}

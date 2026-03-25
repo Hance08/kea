@@ -224,18 +224,7 @@ func (m *mockTransactionRepo) CreateTransactionWithSplits(tx model.Transaction, 
 	return id, nil
 }
 
-func (m *mockTransactionRepo) GetTransactionByID(txID int64) (*model.Transaction, []*model.Split, error) {
-	if err, ok := m.getByIDErr[txID]; ok {
-		return nil, nil, err
-	}
-	tx, ok := m.transactions[txID]
-	if !ok {
-		return nil, nil, fmt.Errorf("transaction ID %d not found", txID)
-	}
-	return tx, m.splits[txID], nil
-}
-
-func (m *mockTransactionRepo) GetTransactionHeader(txID int64) (*model.Transaction, error) {
+func (m *mockTransactionRepo) GetTransactionByID(txID int64) (*model.Transaction, error) {
 	if err, ok := m.getByIDErr[txID]; ok {
 		return nil, err
 	}

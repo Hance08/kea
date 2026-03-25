@@ -3,6 +3,7 @@ package transaction
 import (
 	"fmt"
 
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/prompts"
 	"github.com/hance08/kea/ui/views"
@@ -15,16 +16,25 @@ type TransactionDeleteView interface {
 	ShowSuccess(id int64)
 }
 
+type TxDeleteProvider interface {
+	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
+	DeleteTransaction(txID int64) error
+}
+
+type deleteFlags struct {
+	Yes     bool
+	JSONOut bool
+}
+
 type deleteRunner struct {
-	svc     *service.Service
-	view    TransactionDeleteView
-	yes     bool
-	jsonOut bool
+	svc  TxDeleteProvider
+	view TransactionDeleteView
+	yes  bool
+	json bool
 }
 
 func NewDeleteCmd(svc *service.Service) *cobra.Command {
-	var yes bool
-	var jsonOut bool
+	flags := &deleteFlags{}
 
 	cmd := &cobra.Command{
 		Use:     "delete <transaction-id>",
@@ -34,17 +44,17 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &deleteRunner{
-				svc:     svc,
-				view:    views.NewTransactionDeleteView(),
-				yes:     yes || jsonOut,
-				jsonOut: jsonOut,
+				svc:  svc.Transaction(),
+				view: views.NewTransactionDeleteView(),
+				yes:  flags.Yes || flags.JSONOut,
+				json: flags.JSONOut,
 			}
 			return runner.Run(args)
 		},
 	}
 
-	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm deletion without interactive prompt")
-	cmd.Flags().BoolVarP(&jsonOut, "json", "j", false, "output result as JSON")
+	cmd.Flags().BoolVarP(&flags.Yes, "yes", "y", false, "confirm deletion without interactive prompt")
+	cmd.Flags().BoolVarP(&flags.JSONOut, "json", "j", false, "output result as JSON")
 
 	return cmd
 }
@@ -55,17 +65,12 @@ func (r *deleteRunner) Run(args []string) error {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	// Get transaction details first to show what will be deleted
-	detail, err := r.svc.Transaction().GetTransactionByID(txID)
+	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
-		if r.jsonOut {
-			return err
-		}
-		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
-		return nil
+		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 
-	if !r.jsonOut {
+	if !r.json {
 		if err := r.view.RenderPreview(views.TransactionDeletePreview{
 			ID:          detail.ID,
 			Timestamp:   detail.Timestamp,
@@ -81,23 +86,17 @@ func (r *deleteRunner) Run(args []string) error {
 		if err != nil {
 			return err
 		}
-
 		if !confirmation {
 			pterm.Info.Println("Deletion cancelled")
 			return nil
 		}
 	}
 
-	// Delete transaction
-	if err := r.svc.Transaction().DeleteTransaction(txID); err != nil {
-		if r.jsonOut {
-			return err
-		}
-		pterm.Error.Printf("Failed to delete transaction: %v\n", err)
-		return nil
+	if err := r.svc.DeleteTransaction(txID); err != nil {
+		return fmt.Errorf("failed to delete transaction: %w", err)
 	}
 
-	if r.jsonOut {
+	if r.json {
 		return views.WriteJSON(map[string]any{"id": txID, "deleted": true})
 	}
 	r.view.ShowSuccess(txID)

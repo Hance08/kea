@@ -20,12 +20,6 @@ type TransactionProvider interface {
 	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus) (model.TransactionDetail, error)
 }
 
-var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
-	model.ModeExpense:  {"Payment Source:", "Expense Type:"},
-	model.ModeIncome:   {"Revenue Type:", "Deposit To:"},
-	model.ModeTransfer: {"From Account:", "To Account:"},
-}
-
 type addFlags struct {
 	Description string
 	Amount      string
@@ -34,6 +28,7 @@ type addFlags struct {
 	Status      string
 	Timestamp   string
 	Type        string
+	JSON        bool
 }
 
 type addTransactionInput struct {

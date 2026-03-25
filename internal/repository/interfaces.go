@@ -39,6 +39,10 @@ type TransactionRepository interface {
 	// transactions in the given Unix time range, keyed by transaction ID.
 	// Designed for bulk report queries to avoid N+1 patterns.
 	GetSplitsWithAccountsByDateRange(startTime, endTime int64) (map[int64][]model.SplitDetail, error)
+
+	// GetSplitsWithAccountsByTransaction returns all splits (with account info) for
+	// a single transaction in one JOIN query.
+	GetSplitsWithAccountsByTransaction(txID int64) ([]model.SplitDetail, error)
 }
 
 type Repository interface {

@@ -6,7 +6,6 @@ import (
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/views"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
@@ -18,13 +17,19 @@ type ShowProvider interface {
 	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
 }
 
+type showFlags struct {
+	JSON    bool
+}
+
 type showRunner struct {
 	svc  ShowProvider
 	view ShowView
+	json bool
 }
 
 func NewShowCmd(svc *service.Service) *cobra.Command {
-	return &cobra.Command{
+	flags := &showFlags{}
+	cmd := &cobra.Command{
 		Use:   "show <transaction-id>",
 		Short: "Show transaction details",
 		Args:  cobra.ExactArgs(1),
@@ -32,10 +37,13 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 			runner := &showRunner{
 				svc:  svc.Transaction(),
 				view: views.NewTransactionDetailView(),
+				json: flags.JSON,
 			}
 			return runner.Run(args)
 		},
 	}
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
+	return cmd
 }
 
 func (r *showRunner) Run(args []string) error {
@@ -46,12 +54,11 @@ func (r *showRunner) Run(args []string) error {
 
 	detail, err := r.svc.GetTransactionByID(txID)
 	if err != nil {
-		pterm.Error.Printf("Failed to get transaction: %v\n", err)
-		return nil
+		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 
-	if err := r.view.Render(detail, false); err != nil {
-		return err
+	if r.json {
+		return views.WriteJSON(views.ToJSONTxDetail(detail))
 	}
-	return nil
+	return r.view.Render(detail, false)
 }

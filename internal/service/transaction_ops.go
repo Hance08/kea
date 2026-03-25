@@ -276,10 +276,9 @@ func (ts *TransactionService) IsEditable(detail *model.TransactionDetail) bool {
 		return false
 	}
 
-	// (Future feature)
-	// if detail.Status == model.StatusReconciled {
-	//     return false
-	// }
+	if detail.Status == model.StatusReconciled {
+		return false
+	}
 
 	return true
 }

@@ -9,11 +9,9 @@ import (
 )
 
 type addRunner struct {
-	accSvc  AddProvider
-	txSvc   TransactionProvider
-	addView AddView
-	flags   *addFlags
-	cmd     *cobra.Command
+	accSvc AddProvider
+	txSvc  TransactionProvider
+	view   AddView
 }
 
 func NewAddCmd(svc *service.Service) *cobra.Command {
@@ -24,27 +22,21 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 		Short: "Add a new transaction",
 		Long: `Add a new transaction to your accounting system.
 
-	This command allows you to record financial transactions using double-entry bookkeeping.
-	You can use flags for quick entry or interactive mode for guided input.
+This command allows you to record financial transactions using double-entry bookkeeping.
+You can use flags for quick entry or interactive mode for guided input.
 
-	Examples:
-	# Interactive mode (recommended for beginners)
-	kea add
+Examples:
+  kea add (recommended for beginners)
 
-	# Quick mode with flags
-	kea add --description "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"
-	
-	# With pending status (default is cleared)
-	kea add --description "Pending cost" --amount 500 --from "Assets:Bank" --to "Expenses:Shopping" --status pending`,
+  kea add --desc "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &addRunner{
-				accSvc:  svc.Account(),
-				txSvc:   svc.Transaction(),
-				addView: views.NewTransactionDetailView(),
-				flags:   flags,
-				cmd:     cmd,
+				accSvc: svc.Account(),
+				txSvc:  svc.Transaction(),
+				view:   views.NewTransactionDetailView(),
 			}
-			return runner.Run()
+
+			return runner.Run(flags, cmd)
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Description, "desc", "d", "", "Transaction description")
@@ -54,22 +46,27 @@ func NewAddCmd(svc *service.Service) *cobra.Command {
 	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
 	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
 	cmd.Flags().StringVarP(&flags.Type, "type", "T", "", "Transaction type: expense, income, or transfer (validates account types when provided)")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created transaction as JSON")
 
 	return cmd
 }
 
-func (r *addRunner) Run() error {
+func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 	var input addTransactionInput
 	var err error
 
 	// Check if using flag mode or interactive mode
-	hasFlags := r.cmd.Flags().Changed("desc") || r.cmd.Flags().Changed("amount") ||
-		r.cmd.Flags().Changed("from") || r.cmd.Flags().Changed("to") ||
-		r.cmd.Flags().Changed("type")
+	hasFlags := cmd.Flags().Changed("desc") || cmd.Flags().Changed("amount") ||
+		cmd.Flags().Changed("from") || cmd.Flags().Changed("to") ||
+		cmd.Flags().Changed("type")
+
+	if flags.JSON && !hasFlags {
+		return fmt.Errorf("--json requires flags: --type, --amount, --from, --to")
+	}
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		input, err = r.runFromFlags()
+		input, err = r.runFromFlags(flags)
 	} else {
 		// Interactive mode
 		input, err = r.runInteractive()
@@ -91,9 +88,8 @@ func (r *addRunner) Run() error {
 	}
 
 	// Display transaction summary
-	if err := r.addView.Render(&result, true); err != nil {
-		return err
+	if flags.JSON {
+		return views.WriteJSON(views.ToJSONTxDetail(&result))
 	}
-
-	return nil
+	return r.view.Render(&result, true)
 }

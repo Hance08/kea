@@ -109,6 +109,6 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 	return nil
 }
 
-func (v *TransactionListView) ShowWarning(format string, a ...interface{}) {
+func (v *TransactionListView) ShowWarning(format string, a ...any) {
 	pterm.Warning.Printf(format+"\n", a...)
 }

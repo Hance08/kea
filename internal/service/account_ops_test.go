@@ -388,3 +388,27 @@ func TestFormatAccountName(t *testing.T) {
 		})
 	}
 }
+
+// ──────────────────────────────────────────────
+// GetAccountBalance
+// ──────────────────────────────────────────────
+
+func TestGetAccountBalance(t *testing.T) {
+	repo := newMockAccountRepo()
+	svc := newTestAccountService(repo, newMockTransactionRepo())
+
+	repo.addAccount(&model.Account{ID: 1, Name: "Assets:Cash", Type: model.AccountTypeAsset})
+	repo.balances[1] = 5000 // 50.00 in cents
+
+	t.Run("returns raw cents", func(t *testing.T) {
+		got, err := svc.GetAccountBalance(1)
+		require.NoError(t, err)
+		assert.Equal(t, int64(5000), got)
+	})
+
+	t.Run("propagates repo error", func(t *testing.T) {
+		repo.getBalanceErr[99] = errors.New("not found")
+		_, err := svc.GetAccountBalance(99)
+		assert.Error(t, err)
+	})
+}

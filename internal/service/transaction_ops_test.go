@@ -569,4 +569,9 @@ func TestIsEditable(t *testing.T) {
 		detail := &model.TransactionDetail{ID: 2}
 		assert.True(t, svc.IsEditable(detail))
 	})
+
+	t.Run("reconciled transaction is not editable", func(t *testing.T) {
+		detail := &model.TransactionDetail{ID: 5, Status: model.StatusReconciled}
+		assert.False(t, svc.IsEditable(detail))
+	})
 }

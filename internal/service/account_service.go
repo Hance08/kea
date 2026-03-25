@@ -32,6 +32,10 @@ func (as *AccountService) GetAccountsByType(accType model.AccountType) ([]*model
 	return as.repo.GetAccountsByType(accType)
 }
 
+func (as *AccountService) GetAccountBalance(accountID int64) (int64, error) {
+	return as.repo.GetAccountBalance(accountID)
+}
+
 func (as *AccountService) GetAccountBalanceFormatted(accountID int64) (string, error) {
 	balance, err := as.repo.GetAccountBalance(accountID)
 	if err != nil {

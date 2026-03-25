@@ -20,6 +20,16 @@ type CreateProvider interface {
 	ValidateAccountName(name string) error
 	ValidateFullAccountName(name string) error
 	ValidateCurrency(currency string) error
+	GetAccountBalance(id int64) (int64, error)
+}
+
+type createInput struct {
+	fullName     string
+	accountType  model.AccountType
+	currency     string
+	description  string
+	parentID     *int64
+	balanceCents int64
 }
 
 type createFlags struct {
@@ -29,4 +39,5 @@ type createFlags struct {
 	BalanceStr  string
 	Currency    string
 	Description string
+	JSON        bool
 }

@@ -10,19 +10,19 @@ import (
 	"github.com/hance08/kea/ui/prompts"
 )
 
-func (r *addRunner) runFromFlags() (addTransactionInput, error) {
+func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 	// Flag mode: validate all required flags
-	if r.flags.Amount == "" || r.flags.From == "" || r.flags.To == "" {
+	if flags.Amount == "" || flags.From == "" || flags.To == "" {
 		return addTransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
 	}
 
 	var srcAllowedTypes, dstAllowedTypes []string
 
 	// Validate account types if --type is provided
-	if r.flags.Type != "" {
-		mode := r.determineMode(r.flags.Type)
+	if flags.Type != "" {
+		mode := r.determineMode(flags.Type)
 		if mode != model.TxTypeExpense && mode != model.TxTypeIncome && mode != model.TxTypeTransfer {
-			return addTransactionInput{}, fmt.Errorf("invalid type %q: must be expense, income, or transfer", r.flags.Type)
+			return addTransactionInput{}, fmt.Errorf("invalid type %q: must be expense, income, or transfer", flags.Type)
 		}
 		rule, err := r.txSvc.GetTransactionRule(mode)
 		if err != nil {
@@ -32,40 +32,40 @@ func (r *addRunner) runFromFlags() (addTransactionInput, error) {
 		dstAllowedTypes = rule.DestTypes
 	}
 
-	description := r.flags.Description
+	description := flags.Description
 	if description == "" {
 		description = "-"
 	}
 
 	// Parse amount
-	amountCents, err := utils.ParseAmount(r.flags.Amount)
+	amountCents, err := utils.ParseAmount(flags.Amount)
 	if err != nil {
 		return addTransactionInput{}, fmt.Errorf("invalid amount: %w", err)
 	}
 
 	// Parse status
 	status := model.StatusCleared
-	if strings.ToLower(r.flags.Status) == "pending" {
+	if strings.ToLower(flags.Status) == "pending" {
 		status = model.StatusPending
 	}
 
 	// Parse timestamp
-	timestamp, err := r.parseDate(r.flags.Timestamp)
+	timestamp, err := r.parseDate(flags.Timestamp)
 	if err != nil {
 		return addTransactionInput{}, err
 	}
 
-	if err := r.validateAccountSelectable(r.flags.From, srcAllowedTypes, "--from"); err != nil {
+	if err := r.validateAccountSelectable(flags.From, srcAllowedTypes, "--from"); err != nil {
 		return addTransactionInput{}, err
 	}
 
-	if err := r.validateAccountSelectable(r.flags.To, dstAllowedTypes, "--to"); err != nil {
+	if err := r.validateAccountSelectable(flags.To, dstAllowedTypes, "--to"); err != nil {
 		return addTransactionInput{}, err
 	}
 
 	return addTransactionInput{
-		FromAccountID: r.flags.From,
-		ToAccountID:   r.flags.To,
+		FromAccountID: flags.From,
+		ToAccountID:   flags.To,
 		AmountCents:   amountCents,
 		Description:   description,
 		Timestamp:     timestamp,
@@ -201,4 +201,10 @@ func (r *addRunner) parseDate(dateStr string) (int64, error) {
 		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
 	}
 	return t.Unix(), nil
+}
+
+var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
+	model.ModeExpense:  {"Payment Source:", "Expense Type:"},
+	model.ModeIncome:   {"Revenue Type:", "Deposit To:"},
+	model.ModeTransfer: {"From Account:", "To Account:"},
 }

@@ -16,6 +16,9 @@ func FormatAmount(cents int64) string {
 
 func ParseAmount(amountStr string) (int64, error) {
 	isNegative := false
+	if amountStr == "" || amountStr == "-" {
+		return 0, fmt.Errorf("%q", amountStr)
+	}
 	if strings.HasPrefix(amountStr, "-") {
 		isNegative = true
 		amountStr = strings.TrimPrefix(amountStr, "-")
@@ -25,14 +28,14 @@ func ParseAmount(amountStr string) (int64, error) {
 	parts := strings.Split(amountStr, ".")
 
 	if len(parts) > 2 {
-		return 0, fmt.Errorf("invalid amount format: %s", amountStr)
+		return 0, fmt.Errorf("invalid format: %s", amountStr)
 	}
 
 	// Parse dollar part
 	if parts[0] != "" {
 		parsed, err := parseDigitsStrict(parts[0])
 		if err != nil {
-			return 0, fmt.Errorf("invalid amount: %s", amountStr)
+			return 0, fmt.Errorf("%w: %s", err, amountStr)
 		}
 		dollars = parsed
 	}
@@ -85,10 +88,6 @@ func ParseAmount(amountStr string) (int64, error) {
 }
 
 func parseDigitsStrict(value string) (int64, error) {
-	if value == "" {
-		return 0, fmt.Errorf("empty numeric value")
-	}
-
 	for i := 0; i < len(value); i++ {
 		if value[i] < '0' || value[i] > '9' {
 			return 0, fmt.Errorf("non-digit character found")

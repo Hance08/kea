@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/utils"
@@ -15,17 +14,9 @@ import (
 )
 
 type createRunner struct {
-	name            string
-	fullName        string
-	parentID        *int64
-	accountType     model.AccountType
-	currency        string
-	balanceCents    int64
-	description     string
 	defaultCurrency string
-
-	accSvc CreateProvider
-	view   CreateView
+	accSvc          CreateProvider
+	view            CreateView
 }
 
 func NewCreateCmd(svc *service.Service) *cobra.Command {
@@ -41,7 +32,10 @@ four basic accounts, e.g. create an Asset account called Bank.
 
 Advanced users can also create Equity (C) accounts.
 
-Example: kea account create -t A -n Bank -b 100000`,
+Example:
+  kea account create --type A --name Bank --balance 100000
+
+  kea account create --parent Assets:Bank --name Bank1 --balance 100000`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &createRunner{
 				defaultCurrency: svc.Config().Defaults.Currency,
@@ -53,11 +47,12 @@ Example: kea account create -t A -n Bank -b 100000`,
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Name, "name", "n", "", "Account name")
-	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Account type: A, L, R, E, C")
+	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Account type: A, L, R, E, C (no need when creating subaccount)")
 	cmd.Flags().StringVarP(&flags.Parent, "parent", "p", "", "Parent account full name")
 	cmd.Flags().StringVarP(&flags.BalanceStr, "balance", "b", "0", "Initial balance")
 	cmd.Flags().StringVar(&flags.Currency, "currency", "", "Currency code")
-	cmd.Flags().StringVarP(&flags.Description, "description", "d", "", "Account description")
+	cmd.Flags().StringVarP(&flags.Description, "desc", "d", "", "Account description")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created account as JSON")
 
 	return cmd
 }
@@ -65,170 +60,160 @@ Example: kea account create -t A -n Bank -b 100000`,
 func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 	hasFlags := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("type") ||
-		cmd.Flags().Changed("parent")
+		cmd.Flags().Changed("parent") || cmd.Flags().Changed("balance") ||
+		cmd.Flags().Changed("currency") || cmd.Flags().Changed("desc")
+
+	if flags.JSON && !hasFlags {
+		return fmt.Errorf("--json requires flags: --name and one of --type or --parent")
+	}
+
+	var input createInput
+	var err error
 
 	if hasFlags {
-		err := r.runFromFlags(flags)
-		if err != nil {
-			if errors.Is(err, store.ErrAccountExists) {
-				pterm.Error.Println("Account already exists")
-			} else {
+		input, err = r.runFromFlags(flags)
+	} else {
+		input, err = r.runInteractive()
+	}
+	if err != nil {
+		if errors.Is(err, store.ErrAccountExists) {
+			if flags.JSON {
 				return err
 			}
+			pterm.Error.Println("Account already exists")
+			return nil
 		}
-		return nil
+		return err
 	}
 
-	err := r.runInteractive()
+	newAccount, err := r.createAccount(input)
 	if err != nil {
 		return err
 	}
+
+	if flags.JSON {
+		bal, err := r.accSvc.GetAccountBalance(newAccount.ID)
+		if err != nil {
+			return err
+		}
+		return views.WriteJSON(views.ToJSONAccount(newAccount, bal))
+	}
+	r.view.ShowSuccess(fmt.Sprintf("Account created successfully (ID: %d)", newAccount.ID))
 	return nil
 }
 
-func (r *createRunner) runFromFlags(flags *createFlags) error {
-	// Validate flag combinations
+func (r *createRunner) runFromFlags(flags *createFlags) (createInput, error) {
 	if flags.Parent == "" && flags.Type == "" {
-		return fmt.Errorf("must enter at least one of --type or --parent flag")
+		return createInput{}, fmt.Errorf("must enter at least one of --type or --parent flag")
 	}
 	if flags.Parent != "" && flags.Type != "" {
-		return fmt.Errorf("--type and --parent flags cannot be used at the same time")
+		return createInput{}, fmt.Errorf("--type and --parent flags cannot be used at the same time")
 	}
 
-	// Validate account name (before combining with parent/root)
 	if err := r.accSvc.ValidateAccountName(flags.Name); err != nil {
-		return fmt.Errorf("invalid account name: %w", err)
+		return createInput{}, fmt.Errorf("invalid account name: %w", err)
 	}
 
-	r.name = flags.Name
-	r.description = flags.Description
+	var input createInput
+	input.description = flags.Description
 
-	// Build account based on parent or type
 	if flags.Parent != "" {
-		if err := r.buildFromParentName(flags.Parent, flags.Currency); err != nil {
-			return err
+		if err := r.buildFromParentName(flags.Parent, flags.Currency, &input); err != nil {
+			return createInput{}, err
 		}
 	} else {
-		if err := r.buildFromTypeFlag(flags.Type, flags.Currency); err != nil {
-			return err
+		if err := r.buildFromTypeFlag(flags.Type, flags.Currency, &input); err != nil {
+			return createInput{}, err
 		}
 	}
 
-	// Validate final name using validation package
-	if err := r.accSvc.ValidateFullAccountName(r.fullName); err != nil {
-		return fmt.Errorf("validate account name: %w", err)
+	// input.fullName is now the prefix (parentAccount.Name or rootName)
+	// FormatAccountName combines prefix + flags.Name to get the full path
+	input.fullName = r.accSvc.FormatAccountName(input.fullName, flags.Name)
+	if err := r.accSvc.ValidateFullAccountName(input.fullName); err != nil {
+		return createInput{}, fmt.Errorf("validate account name: %w", err)
 	}
 
-	// Handle balance (Parse the balance into cent format, e.g. "150" -> "15000")
 	balanceCents, err := utils.ParseAmount(flags.BalanceStr)
 	if err != nil {
-		return fmt.Errorf("invalid balance format '%s': please enter a number (e.g. 100 or 100.50)", flags.BalanceStr)
+		return createInput{}, fmt.Errorf("invalid balance format '%s': please enter a number (e.g. 100 or 100.50)", flags.BalanceStr)
 	}
+	input.balanceCents = balanceCents
 
-	r.balanceCents = balanceCents
-
-	// createAccount account
-	newAccount, err := r.createAccount()
-	if err != nil {
-		return err
-	}
-
-	r.view.ShowSuccess(fmt.Sprintf("Account create successfully ! (ID: %d)", newAccount.ID))
-	return nil
+	return input, nil
 }
 
-func (r *createRunner) runInteractive() error {
-	// Step 1: Check if is subaccount
+func (r *createRunner) runInteractive() (createInput, error) {
+	var input createInput
+
 	isSubAccount, err := prompts.PromptIsSubAccount()
 	if err != nil {
-		return err
+		return createInput{}, err
 	}
 
 	if isSubAccount {
-		// Step 2: Select parent account
 		parentAccount, err := r.promptParent()
 		if err != nil {
-			return err
+			return createInput{}, err
 		}
-
-		// Step 3: Enter account name
 		nameInput, err := r.promptName(parentAccount.Name)
 		if err != nil {
-			return err
+			return createInput{}, err
 		}
-
-		r.name = nameInput
-
-		r.applyParentSettings(parentAccount, parentAccount.Currency)
-
+		r.applyParentSettings(parentAccount, parentAccount.Currency, &input)
+		input.fullName = r.accSvc.FormatAccountName(parentAccount.Name, nameInput)
 	} else {
-		// Step 2: Select account type
 		accType, err := r.promptType()
 		if err != nil {
-			return err
+			return createInput{}, err
 		}
-
 		rootName, err := r.accSvc.GetRootNameByType(accType)
 		if err != nil {
-			return err
+			return createInput{}, err
 		}
-
-		// Step 3: Enter account name
 		nameInput, err := r.promptName(rootName)
 		if err != nil {
-			return err
+			return createInput{}, err
 		}
-
-		r.name = nameInput
-
-		if err := r.applyTypeSettings(rootName, accType, ""); err != nil {
-			return err
+		if err := r.applyTypeSettings(rootName, accType, "", &input); err != nil {
+			return createInput{}, err
 		}
+		input.fullName = r.accSvc.FormatAccountName(rootName, nameInput)
 	}
 
-	// Step 4: Currency setting
-	currency, err := r.promptCurrency()
+	currency, err := r.promptCurrency(input)
 	if err != nil {
-		return err
+		return createInput{}, err
 	}
-	r.currency = currency
+	input.currency = currency
 
-	// Step 5: Initial balance setting
-	if r.accountType == "A" || r.accountType == "L" {
+	if input.accountType == "A" || input.accountType == "L" {
 		balanceCents, err := r.promptBalance()
 		if err != nil {
-			return err
+			return createInput{}, err
 		}
-		r.balanceCents = balanceCents
+		input.balanceCents = balanceCents
 	}
 
-	// Step 6: Description setting
 	desc, err := r.promptDescription()
 	if err != nil {
-		return err
+		return createInput{}, err
 	}
+	input.description = desc
 
-	r.description = desc
 	if err := r.view.RenderSummary(views.AccountSummaryItem{
-		FullName:    r.fullName,
-		Type:        r.accountType,
-		Currency:    r.currency,
-		Balance:     r.balanceCents,
-		Description: r.description}); err != nil {
-		return err
+		FullName:    input.fullName,
+		Type:        input.accountType,
+		Currency:    input.currency,
+		Balance:     input.balanceCents,
+		Description: input.description,
+	}); err != nil {
+		return createInput{}, err
 	}
 
-	// Confirm proceed with creation
 	if err := r.confirm(); err != nil {
-		return err
+		return createInput{}, err
 	}
 
-	// createAccount account
-	newAccount, err := r.createAccount()
-	if err != nil {
-		return err
-	}
-
-	r.view.ShowSuccess(fmt.Sprintf("Account create successfully ! (ID: %d)", newAccount.ID))
-	return nil
+	return input, nil
 }

@@ -46,40 +46,23 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 
 // GetTransactionByID retrieves a transaction with all split details
 func (ts *TransactionService) GetTransactionByID(txID int64) (*model.TransactionDetail, error) {
-	tx, splits, err := ts.txRepo.GetTransactionByID(txID)
+	tx, _, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convert to detail format with account names
-	detail := &model.TransactionDetail{
+	splits, err := ts.txRepo.GetSplitsWithAccountsByTransaction(txID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get splits for transaction: %w", err)
+	}
+
+	return &model.TransactionDetail{
 		ID:          tx.ID,
 		Timestamp:   tx.Timestamp,
 		Description: tx.Description,
 		Status:      tx.Status,
-		Splits:      make([]model.SplitDetail, 0, len(splits)),
-	}
-
-	for _, split := range splits {
-		// Get account name by ID
-		account, err := ts.accRepo.GetAccountByID(split.AccountID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get account for split: %w", err)
-		}
-
-		splitDetail := model.SplitDetail{
-			ID:          split.ID,
-			AccountID:   split.AccountID,
-			AccountName: account.Name,
-			AccountType: account.Type,
-			Amount:      split.Amount,
-			Currency:    split.Currency,
-			Memo:        split.Memo,
-		}
-		detail.Splits = append(detail.Splits, splitDetail)
-	}
-
-	return detail, nil
+		Splits:      splits,
+	}, nil
 }
 
 // GetRecentTransactions retrieves recent transactions across all accounts

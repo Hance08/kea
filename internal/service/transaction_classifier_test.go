@@ -75,7 +75,7 @@ func TestDetermineType(t *testing.T) {
 			name: "opening: memo = Opening Balance",
 			splits: []model.SplitDetail{
 				splitWithMemo("Assets:Bank", model.AccountTypeAsset, 5000, model.OpeningAccountMemo),
-				splitWithMemo("Equity:OpeningBalances", model.AccountTypeEquity, -5000, model.OpeningAccountMemo),
+				splitWithMemo(model.OpeningBalancesAccountName("USD"), model.AccountTypeEquity, -5000, model.OpeningAccountMemo),
 			},
 			want: model.TxTypeOpening,
 		},
@@ -271,12 +271,12 @@ func TestGetDisplayAccount(t *testing.T) {
 	t.Run("Opening → returns the non-equity account", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Cash", Type: model.AccountTypeAsset})
-		accRepo.addAccount(&model.Account{ID: 2, Name: "Equity:OpeningBalances", Type: model.AccountTypeEquity})
+		accRepo.addAccount(&model.Account{ID: 2, Name: model.OpeningBalancesAccountName("USD"), Type: model.AccountTypeEquity})
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		splits := []model.SplitDetail{
 			{AccountName: "Assets:Cash", Amount: 5000},
-			{AccountName: "Equity:OpeningBalances", Amount: -5000},
+			{AccountName: model.OpeningBalancesAccountName("USD"), Amount: -5000},
 		}
 		got, err := svc.GetDisplayAccount(splits, "Opening")
 		require.NoError(t, err)

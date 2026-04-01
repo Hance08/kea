@@ -141,7 +141,7 @@ func initConfig() error {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		appDir, err := getAppDataDir()
+		appDir, err := app.GetAppDataDir()
 		if err != nil {
 			return fmt.Errorf("error getting app dir: %w", err)
 		}
@@ -212,18 +212,6 @@ func initWizard() (string, error) {
 	return currency, nil
 }
 
-func getAppDataDir() (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("unable to determine user home directory: %w", err)
-		}
-		return filepath.Join(home, ".kea"), nil
-	}
-
-	return filepath.Join(configDir, "kea"), nil
-}
 
 func expandPath(path string) (string, error) {
 	if strings.HasPrefix(path, "~") {
@@ -242,7 +230,7 @@ func expandPath(path string) (string, error) {
 }
 
 func createDefaultConfig() error {
-	appDir, err := getAppDataDir()
+	appDir, err := app.GetAppDataDir()
 	if err != nil {
 		return err
 	}

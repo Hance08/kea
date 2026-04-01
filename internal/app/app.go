@@ -19,7 +19,7 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 	dbPathRaw := cfg.Database.Path
 
 	if dbPathRaw == "" {
-		appDir, err := getAppDataDir()
+		appDir, err := GetAppDataDir()
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to determine data directory: %w", err)
 		}
@@ -44,7 +44,7 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 	}, cleanup, nil
 }
 
-func getAppDataDir() (string, error) {
+func GetAppDataDir() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		home, err := os.UserHomeDir()

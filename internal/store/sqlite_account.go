@@ -230,6 +230,22 @@ func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
 	return exists, nil
 }
 
+// RenameAccount updates the name of an account identified by its current name.
+func (s *Store) RenameAccount(oldName, newName string) error {
+	res, err := s.db.Exec(
+		`UPDATE accounts SET name = ? WHERE name = ?`,
+		newName, oldName,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to rename account %q to %q: %w", oldName, newName, err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("account %q not found", oldName)
+	}
+	return nil
+}
+
 // DeleteAccount removes an account record by ID.
 func (s *Store) DeleteAccount(accountID int64) error {
 	result, err := s.db.Exec("DELETE FROM accounts WHERE id = ?", accountID)

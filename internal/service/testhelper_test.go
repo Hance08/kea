@@ -160,6 +160,17 @@ func (m *mockAccountRepo) DeleteAccount(accountID int64) error {
 	return nil
 }
 
+func (m *mockAccountRepo) RenameAccount(oldName, newName string) error {
+	acc, ok := m.accountsByName[oldName]
+	if !ok {
+		return fmt.Errorf("account %q not found", oldName)
+	}
+	delete(m.accountsByName, oldName)
+	acc.Name = newName
+	m.accountsByName[newName] = acc
+	return nil
+}
+
 // ──────────────────────────────────────────────
 // mockTransactionRepo
 // ──────────────────────────────────────────────

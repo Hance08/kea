@@ -18,6 +18,7 @@ type AccountRepository interface {
 	HasChildAccounts(accountID int64) (bool, error)
 	AccountHasTransactions(accountID int64) (bool, error)
 	DeleteAccount(accountID int64) error
+	RenameAccount(oldName, newName string) error
 }
 
 type TransactionRepository interface {

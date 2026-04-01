@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
+	"github.com/hance08/kea/internal/store"
 )
 
 func (as *AccountService) CreateAccount(name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
@@ -80,15 +82,19 @@ func (as *AccountService) createOpeningBalance(account *model.Account, amountInC
 	return as.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
 		equityAcc, err := repo.GetAccountByName(equityAccountName)
 		if err != nil {
-			newID, err := repo.CreateAccount(
+			if !errors.Is(err, store.ErrRecordNotFound) {
+				return fmt.Errorf("failed to look up %q: %w", equityAccountName, err)
+			}
+			// not found — create it
+			newID, createErr := repo.CreateAccount(
 				equityAccountName,
 				model.AccountTypeEquity,
 				currency,
 				"Opening Balances (System Account)",
 				nil,
 			)
-			if err != nil {
-				return fmt.Errorf("failed to create %q: %w", equityAccountName, err)
+			if createErr != nil {
+				return fmt.Errorf("failed to create %q: %w", equityAccountName, createErr)
 			}
 			equityAcc = &model.Account{ID: newID}
 		}

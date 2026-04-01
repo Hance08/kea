@@ -24,8 +24,10 @@ func addOpeningBalanceAccount(accRepo *mockAccountRepo) {
 }
 
 func addOpeningBalancesForCurrency(accRepo *mockAccountRepo, currency string) {
+	id := accRepo.nextID
+	accRepo.nextID++
 	accRepo.addAccount(&model.Account{
-		ID:       99,
+		ID:       id,
 		Name:     model.OpeningBalancesAccountName(currency),
 		Type:     model.AccountTypeEquity,
 		Currency: currency,
@@ -324,6 +326,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		equityAcc, err := accRepo.GetAccountByName(equityName)
 		require.NoError(t, err)
 		assert.Equal(t, model.AccountTypeEquity, equityAcc.Type)
+		assert.Equal(t, "USD", equityAcc.Currency)
 	})
 }
 
@@ -360,7 +363,7 @@ func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {
 		addOpeningBalancesForCurrency(accRepo, "USD")
 		svc := newTestAccountService(accRepo, txRepo)
 
-		acc, err := svc.CreateAccountWithBalance("Assets:Bank", model.AccountTypeAsset, "", "", nil, 5000)
+		_, err := svc.CreateAccountWithBalance("Assets:Bank", model.AccountTypeAsset, "", "", nil, 5000)
 		require.NoError(t, err)
 
 		splits := txRepo.splits[1]
@@ -368,7 +371,6 @@ func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {
 		for _, s := range splits {
 			assert.Equal(t, "USD", s.Currency)
 		}
-		_ = acc
 	})
 
 	t.Run("auto-creates Equity:OpeningBalances_TWD when missing", func(t *testing.T) {

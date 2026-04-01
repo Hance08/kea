@@ -11,6 +11,7 @@ import (
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
+	"github.com/hance08/kea/internal/store"
 )
 
 // ──────────────────────────────────────────────
@@ -90,7 +91,7 @@ func (m *mockAccountRepo) GetAccountByName(name string) (*model.Account, error) 
 	}
 	acc, ok := m.accountsByName[name]
 	if !ok {
-		return nil, fmt.Errorf("account %q not found", name)
+		return nil, fmt.Errorf("account %q not found: %w", name, store.ErrRecordNotFound)
 	}
 	return acc, nil
 }

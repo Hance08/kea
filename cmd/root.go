@@ -101,7 +101,7 @@ func Execute(migrations fs.FS) {
 }
 
 func initSysAcc(svc *service.Service, cfg *config.Config) error {
-	_, err := svc.Account().GetAccountByName(model.SystemAccountOpeningBalance)
+	_, err := svc.Account().GetAccountByName("Equity:OpeningBalances")
 	if err == nil {
 		return nil
 	}
@@ -110,7 +110,7 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	}
 
 	_, err = svc.Account().CreateAccount(
-		model.SystemAccountOpeningBalance,
+		"Equity:OpeningBalances",
 		model.TypeEquity,
 		cfg.Defaults.Currency,
 		"Opening Balances (System Account)",

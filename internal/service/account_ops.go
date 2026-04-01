@@ -54,9 +54,9 @@ func (as *AccountService) CreateAccountWithBalance(name string, accType model.Ac
 func (as *AccountService) createOpeningBalance(account *model.Account, amountInCents int64) error {
 	currency := as.config.Defaults.Currency
 
-	openingBalanceAccount, err := as.repo.GetAccountByName(model.SystemAccountOpeningBalance)
+	openingBalanceAccount, err := as.repo.GetAccountByName("Equity:OpeningBalances")
 	if err != nil {
-		return fmt.Errorf("can not find %q account, failed to set initial balance", model.SystemAccountOpeningBalance)
+		return fmt.Errorf("can not find %q account, failed to set initial balance", "Equity:OpeningBalances")
 	}
 
 	var balanceAmount, equityAmount int64
@@ -93,7 +93,7 @@ func (as *AccountService) DeleteAccountByName(name string) error {
 		return err
 	}
 
-	if acc.Name == model.SystemAccountOpeningBalance {
+	if acc.Name == "Equity:OpeningBalances" {
 		return fmt.Errorf("account %q is a system account and cannot be deleted: %w", acc.Name, ErrNotEditable)
 	}
 

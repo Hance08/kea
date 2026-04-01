@@ -17,7 +17,7 @@ import (
 func addOpeningBalanceAccount(accRepo *mockAccountRepo) {
 	accRepo.addAccount(&model.Account{
 		ID:   99,
-		Name: model.SystemAccountOpeningBalance,
+		Name: "Equity:OpeningBalances",
 		Type: model.AccountTypeEquity,
 	})
 }
@@ -334,7 +334,7 @@ func TestDeleteAccountByName(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.DeleteAccountByName(model.SystemAccountOpeningBalance)
+		err := svc.DeleteAccountByName("Equity:OpeningBalances")
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrNotEditable))
 	})

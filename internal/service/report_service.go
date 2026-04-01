@@ -164,20 +164,22 @@ func (ts *TransactionService) GenerateExpenseBreakdown(startTime, endTime int64)
 	}, nil
 }
 
-// GenerateBalanceSheet produces a current snapshot of all asset, liability, and equity account balances.
-func (ts *TransactionService) GenerateBalanceSheet() (*model.BalanceSheetResult, error) {
+// GenerateBalanceSheet produces a snapshot of all asset, liability, and equity account balances
+// as of the given Unix timestamp.
+func (ts *TransactionService) GenerateBalanceSheet(asOf int64) (*model.BalanceSheetResult, error) {
 	allAccounts, err := ts.accRepo.GetAllAccounts()
 	if err != nil {
 		return nil, err
 	}
 
-	balances, err := ts.accRepo.GetAllAccountBalances()
+	balances, err := ts.accRepo.GetAllAccountBalances(asOf)
 	if err != nil {
 		return nil, err
 	}
 
 	result := &model.BalanceSheetResult{
 		Currency: ts.config.Defaults.Currency,
+		AsOf:     asOf,
 	}
 
 	for _, acc := range allAccounts {

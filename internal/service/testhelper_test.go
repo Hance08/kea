@@ -128,7 +128,7 @@ func (m *mockAccountRepo) GetAccountBalance(accountID int64) (int64, error) {
 	return m.balances[accountID], nil
 }
 
-func (m *mockAccountRepo) GetAllAccountBalances() (map[int64]int64, error) {
+func (m *mockAccountRepo) GetAllAccountBalances(_ int64) (map[int64]int64, error) {
 	if m.getAllBalancesErr != nil {
 		return nil, m.getAllBalancesErr
 	}

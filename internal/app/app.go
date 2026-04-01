@@ -10,8 +10,6 @@ import (
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 )
-
-
 type App struct {
 	Service *service.Service
 }
@@ -21,7 +19,10 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 	dbPathRaw := cfg.Database.Path
 
 	if dbPathRaw == "" {
-		appDir, _ := getAppDataDir()
+		appDir, err := getAppDataDir()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to determine data directory: %w", err)
+		}
 		dbPathRaw = filepath.Join(appDir, "kea.db")
 	}
 
@@ -34,7 +35,7 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 
 	cleanup := func() {
 		if err := dbStore.Close(); err != nil {
-			fmt.Printf("Error closing DB: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error closing DB: %v\n", err)
 		}
 	}
 

@@ -14,7 +14,7 @@ type AccountRepository interface {
 	AccountExists(name string) (bool, error)
 	GetAccountsByType(accType model.AccountType) ([]*model.Account, error)
 	GetAccountBalance(accountID int64) (int64, error)
-	GetAllAccountBalances() (map[int64]int64, error)
+	GetAllAccountBalances(asOf int64) (map[int64]int64, error)
 	HasChildAccounts(accountID int64) (bool, error)
 	AccountHasTransactions(accountID int64) (bool, error)
 	DeleteAccount(accountID int64) error

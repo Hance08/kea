@@ -275,20 +275,6 @@ func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error 
 		v.renderSummaryLine("Net Worth", pterm.Red("-"+nwStr), result.Currency)
 	}
 
-	if result.NetWorthGrowthPct == nil {
-		v.renderSummaryLineNoCurrency("Net Worth Growth", "N/A")
-	} else {
-		pctText := fmt.Sprintf("%+.2f%%", *result.NetWorthGrowthPct)
-		switch {
-		case *result.NetWorthGrowthPct > 0:
-			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Green(pctText))
-		case *result.NetWorthGrowthPct < 0:
-			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Red(pctText))
-		default:
-			v.renderSummaryLineNoCurrency("Net Worth Growth", pctText)
-		}
-	}
-
 	pterm.Println()
 	return nil
 }

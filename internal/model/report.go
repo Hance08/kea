@@ -25,14 +25,13 @@ type ReportResult struct {
 
 // BalanceSheetResult holds the result of a balance sheet report.
 type BalanceSheetResult struct {
-	Assets            []ReportRow `json:"assets"`
-	Liabilities       []ReportRow `json:"liabilities"`
-	Equity            []ReportRow `json:"equity"`
-	TotalAssets       int64       `json:"total_assets"`
-	TotalLiabilities  int64       `json:"total_liabilities"`
-	TotalEquity       int64       `json:"total_equity"`
-	PreviousNetWorth  *int64      `json:"previous_net_worth"`
-	NetWorthGrowthPct *float64    `json:"net_worth_growth_pct"`
-	NetWorth          int64       `json:"net_worth"`
-	Currency          string      `json:"currency"`
+	Assets           []ReportRow `json:"assets"`
+	Liabilities      []ReportRow `json:"liabilities"`
+	Equity           []ReportRow `json:"equity"`
+	TotalAssets      int64       `json:"total_assets"`
+	TotalLiabilities int64       `json:"total_liabilities"`
+	TotalEquity      int64       `json:"total_equity"`
+	NetWorth         int64       `json:"net_worth"`
+	Currency         string      `json:"currency"`
+	AsOf             int64       `json:"as_of"` // Unix timestamp of the snapshot
 }

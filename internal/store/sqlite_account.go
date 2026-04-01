@@ -116,12 +116,14 @@ func (s *Store) AccountExists(name string) (bool, error) {
 	return exists, nil
 }
 
-func (s *Store) GetAllAccountBalances() (map[int64]int64, error) {
+func (s *Store) GetAllAccountBalances(asOf int64) (map[int64]int64, error) {
 	rows, err := s.db.Query(`
-        SELECT account_id, SUM(amount)
-        FROM splits
-        GROUP BY account_id
-    `)
+        SELECT s.account_id, SUM(s.amount)
+        FROM splits s
+        JOIN transactions t ON s.transaction_id = t.id
+        WHERE t.timestamp <= ?
+        GROUP BY s.account_id
+    `, asOf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query account balances: %w", err)
 	}

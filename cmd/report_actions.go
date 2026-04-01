@@ -90,30 +90,15 @@ func (r *reportRunner) runIncomeBreakdown() error {
 }
 
 func (r *reportRunner) runBalanceSheet() error {
-
-	result, err := r.provider.GenerateBalanceSheet()
-	if err != nil {
-		return fmt.Errorf("failed to generate balance sheet: %w", err)
-	}
-
-	start, end, _, err := r.resolveDateRange()
+	_, end, _, err := r.resolveDateRange()
 	if err != nil {
 		return err
 	}
 
-	currentNetWorth, err := r.provider.GetNetWorthAt(end)
+	result, err := r.provider.GenerateBalanceSheet(end)
 	if err != nil {
-		return fmt.Errorf("failed to fetch net worth for current period: %w", err)
+		return fmt.Errorf("failed to generate balance sheet: %w", err)
 	}
-	result.NetWorth = currentNetWorth
-
-	_, prevEnd := previousPeriodRange(start, end)
-	previousNetWorth, err := r.provider.GetNetWorthAt(prevEnd)
-	if err != nil {
-		return fmt.Errorf("failed to fetch net worth for previous period: %w", err)
-	}
-	result.PreviousNetWorth = &previousNetWorth
-	result.NetWorthGrowthPct = computeNetWorthGrowthPct(currentNetWorth, previousNetWorth)
 
 	return r.view.RenderBalanceSheet(result)
 }

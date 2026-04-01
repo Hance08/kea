@@ -239,8 +239,11 @@ func (s *Store) RenameAccount(oldName, newName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to rename account %q to %q: %w", oldName, newName, err)
 	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
 		return fmt.Errorf("account %q not found", oldName)
 	}
 	return nil

@@ -123,12 +123,19 @@ func (r *addRunner) runInteractive() (addTransactionInput, error) {
 		return addTransactionInput{}, fmt.Errorf("UI config missing for mode: %s", mode)
 	}
 
-	fromAccount, err := r.selectAccount(accounts, rule.SourceTypes, uiConf.Src, true)
+	fromAccount, err := r.selectAccount(accounts, rule.SourceTypes, uiConf.Src, true, "")
 	if err != nil {
 		return addTransactionInput{}, err
 	}
 
-	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Dst, mode != model.TxTypeExpense)
+	// Resolve the selected account's currency so the offset account list
+	// is filtered to the same currency, preventing mixed-currency splits.
+	fromAcc, err := r.accSvc.GetAccountByName(fromAccount)
+	if err != nil {
+		return addTransactionInput{}, fmt.Errorf("failed to load account %q: %w", fromAccount, err)
+	}
+
+	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Dst, mode != model.TxTypeExpense, fromAcc.Currency)
 	if err != nil {
 		return addTransactionInput{}, err
 	}
@@ -165,13 +172,13 @@ func (r *addRunner) runInteractive() (addTransactionInput, error) {
 	}, nil
 }
 
-func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []string, message string, showBalance bool) (string, error) {
+func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []string, message string, showBalance bool, allowedCurrency string) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
 		balanceGetter = r.accSvc.GetAccountBalanceFormatted
 	}
 
-	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter)
+	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter, allowedCurrency)
 }
 
 func (r *addRunner) validateAccountSelectable(accountName string, allowedTypes []string, flagName string) error {

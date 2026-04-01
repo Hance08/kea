@@ -52,12 +52,12 @@ func (as *AccountService) CreateAccountWithBalance(name string, accType model.Ac
 }
 
 func (as *AccountService) createOpeningBalance(account *model.Account, amountInCents int64) error {
-	currency := as.config.Defaults.Currency
-
-	openingBalanceAccount, err := as.repo.GetAccountByName("Equity:OpeningBalances")
-	if err != nil {
-		return fmt.Errorf("can not find %q account, failed to set initial balance", "Equity:OpeningBalances")
+	currency := account.Currency
+	if currency == "" {
+		currency = as.config.Defaults.Currency
 	}
+
+	equityAccountName := model.OpeningBalancesAccountName(currency)
 
 	var balanceAmount, equityAmount int64
 	switch account.Type {
@@ -76,13 +76,28 @@ func (as *AccountService) createOpeningBalance(account *model.Account, amountInC
 		Description: model.OpeningAccountMemo,
 		Status:      model.StatusCleared,
 	}
-	splits := []model.Split{
-		{AccountID: account.ID, Amount: balanceAmount, Currency: currency, Memo: model.OpeningAccountMemo},
-		{AccountID: openingBalanceAccount.ID, Amount: equityAmount, Currency: currency, Memo: model.OpeningAccountMemo},
-	}
 
 	return as.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
-		_, err := repo.CreateTransactionWithSplits(tx, splits)
+		equityAcc, err := repo.GetAccountByName(equityAccountName)
+		if err != nil {
+			newID, err := repo.CreateAccount(
+				equityAccountName,
+				model.AccountTypeEquity,
+				currency,
+				"Opening Balances (System Account)",
+				nil,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to create %q: %w", equityAccountName, err)
+			}
+			equityAcc = &model.Account{ID: newID}
+		}
+
+		splits := []model.Split{
+			{AccountID: account.ID, Amount: balanceAmount, Currency: currency, Memo: model.OpeningAccountMemo},
+			{AccountID: equityAcc.ID, Amount: equityAmount, Currency: currency, Memo: model.OpeningAccountMemo},
+		}
+		_, err = repo.CreateTransactionWithSplits(tx, splits)
 		return err
 	})
 }
@@ -93,7 +108,7 @@ func (as *AccountService) DeleteAccountByName(name string) error {
 		return err
 	}
 
-	if acc.Name == "Equity:OpeningBalances" {
+	if model.IsOpeningBalancesAccount(acc.Name) {
 		return fmt.Errorf("account %q is a system account and cannot be deleted: %w", acc.Name, ErrNotEditable)
 	}
 

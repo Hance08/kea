@@ -16,9 +16,19 @@ import (
 
 func addOpeningBalanceAccount(accRepo *mockAccountRepo) {
 	accRepo.addAccount(&model.Account{
-		ID:   99,
-		Name: "Equity:OpeningBalances",
-		Type: model.AccountTypeEquity,
+		ID:       99,
+		Name:     model.OpeningBalancesAccountName("USD"),
+		Type:     model.AccountTypeEquity,
+		Currency: "USD",
+	})
+}
+
+func addOpeningBalancesForCurrency(accRepo *mockAccountRepo, currency string) {
+	accRepo.addAccount(&model.Account{
+		ID:       99,
+		Name:     model.OpeningBalancesAccountName(currency),
+		Type:     model.AccountTypeEquity,
+		Currency: currency,
 	})
 }
 
@@ -302,14 +312,80 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		assert.Contains(t, err.Error(), "opening balance")
 	})
 
-	t.Run("missing Equity:OpeningBalances account returns error", func(t *testing.T) {
+	t.Run("missing Equity:OpeningBalances_USD account is auto-created", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		// intentionally omit the opening balance account
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
 		_, err := svc.CreateAccountWithBalance("Assets:Bank", model.AccountTypeAsset, "USD", "", nil, 1000)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "opening balance")
+		require.NoError(t, err)
+
+		equityName := model.OpeningBalancesAccountName("USD")
+		equityAcc, err := accRepo.GetAccountByName(equityName)
+		require.NoError(t, err)
+		assert.Equal(t, model.AccountTypeEquity, equityAcc.Type)
+	})
+}
+
+func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {
+	t.Run("account currency TWD uses Equity:OpeningBalances_TWD", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		addOpeningBalancesForCurrency(accRepo, "TWD")
+		svc := newTestAccountService(accRepo, txRepo)
+
+		acc, err := svc.CreateAccountWithBalance("Assets:TWDBank", model.AccountTypeAsset, "TWD", "", nil, 30000)
+		require.NoError(t, err)
+
+		splits := txRepo.splits[1]
+		require.Len(t, splits, 2)
+
+		for _, s := range splits {
+			assert.Equal(t, "TWD", s.Currency, "all splits must use TWD")
+		}
+
+		var assetSplit *model.Split
+		for _, s := range splits {
+			if s.AccountID == acc.ID {
+				assetSplit = s
+			}
+		}
+		require.NotNil(t, assetSplit)
+		assert.Equal(t, int64(30000), assetSplit.Amount)
+	})
+
+	t.Run("account with empty currency falls back to system default (USD)", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		addOpeningBalancesForCurrency(accRepo, "USD")
+		svc := newTestAccountService(accRepo, txRepo)
+
+		acc, err := svc.CreateAccountWithBalance("Assets:Bank", model.AccountTypeAsset, "", "", nil, 5000)
+		require.NoError(t, err)
+
+		splits := txRepo.splits[1]
+		require.Len(t, splits, 2)
+		for _, s := range splits {
+			assert.Equal(t, "USD", s.Currency)
+		}
+		_ = acc
+	})
+
+	t.Run("auto-creates Equity:OpeningBalances_TWD when missing", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		// no TWD equity account pre-seeded
+		svc := newTestAccountService(accRepo, txRepo)
+
+		_, err := svc.CreateAccountWithBalance("Assets:TWDBank", model.AccountTypeAsset, "TWD", "", nil, 30000)
+		require.NoError(t, err)
+
+		// equity account should now exist
+		equityName := model.OpeningBalancesAccountName("TWD")
+		equityAcc, err := accRepo.GetAccountByName(equityName)
+		require.NoError(t, err)
+		assert.Equal(t, model.AccountTypeEquity, equityAcc.Type)
+		assert.Equal(t, "TWD", equityAcc.Currency)
 	})
 }
 
@@ -329,12 +405,12 @@ func TestDeleteAccountByName(t *testing.T) {
 		assert.Error(t, err, "account should not exist after deletion")
 	})
 
-	t.Run("system account Equity:OpeningBalances rejected", func(t *testing.T) {
+	t.Run("system account Equity:OpeningBalances_USD rejected", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.DeleteAccountByName("Equity:OpeningBalances")
+		err := svc.DeleteAccountByName(model.OpeningBalancesAccountName("USD"))
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrNotEditable))
 	})

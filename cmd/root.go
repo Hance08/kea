@@ -101,7 +101,12 @@ func Execute(migrations fs.FS) {
 }
 
 func initSysAcc(svc *service.Service, cfg *config.Config) error {
-	_, err := svc.Account().GetAccountByName("Equity:OpeningBalances")
+	if err := migrateLegacySysAcc(svc, cfg); err != nil {
+		return err
+	}
+
+	targetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
+	_, err := svc.Account().GetAccountByName(targetName)
 	if err == nil {
 		return nil
 	}
@@ -110,14 +115,46 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	}
 
 	_, err = svc.Account().CreateAccount(
-		"Equity:OpeningBalances",
-		model.TypeEquity,
+		targetName,
+		model.AccountTypeEquity,
 		cfg.Defaults.Currency,
 		"Opening Balances (System Account)",
 		nil,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create system account: %w", err)
+	}
+
+	return nil
+}
+
+// migrateLegacySysAcc renames the legacy "Equity:OpeningBalances" account to
+// "Equity:OpeningBalances_<currency>" the first time a user upgrades.
+// It is a no-op when the legacy account does not exist.
+func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
+	const legacyName = "Equity:OpeningBalances"
+	targetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
+
+	// Nothing to migrate if legacy account is already gone.
+	_, err := svc.Account().GetAccountByName(legacyName)
+	if errors.Is(err, store.ErrRecordNotFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check legacy system account: %w", err)
+	}
+
+	// Target already exists — already migrated.
+	_, err = svc.Account().GetAccountByName(targetName)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, store.ErrRecordNotFound) {
+		return fmt.Errorf("failed to check target system account: %w", err)
+	}
+
+	if err := svc.Account().RenameAccount(legacyName, targetName); err != nil {
+		return fmt.Errorf("failed to migrate legacy system account: %w", err)
 	}
 
 	return nil

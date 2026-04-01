@@ -17,6 +17,6 @@ type DefaultsConfig struct {
 func NewDefault() *Config {
 	return &Config{
 		Database: DatabaseConfig{Path: ""},
-		Defaults: DefaultsConfig{Currency: "USD"},
+		Defaults: DefaultsConfig{},
 	}
 }

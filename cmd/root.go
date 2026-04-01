@@ -15,28 +15,23 @@ import (
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
+	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/ui/prompts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var (
-	cfgFile string
-	cfg     *config.Config
-	noColor bool
-)
+var cfgFile string
 
 const defaultConfigTemplate = `# kea configuration file
 
 database:
   # Path to the SQLite database file.
-  # Leave empty to use the default: $AppDataDir/kea.db
   path: ""
 
 defaults:
   # Default currency code (ISO 4217), e.g. USD, TWD, JPY, EUR
-  # Leave empty to be prompted on first run.
   currency: ""
 `
 
@@ -53,106 +48,107 @@ func Execute(migrations fs.FS) {
 		Short:         "kea is a CLI/TUI based personal accounting tool",
 		Long:          `kea is a CLI/TUI based personal accounting tool`,
 		SilenceErrors: true,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			flagValue, err := cmd.Flags().GetBool("no-color")
-			if err == nil {
-				configureOutput(flagValue)
-			}
-		},
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
-	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output (machine-friendly)")
+	rootCmd.PersistentFlags().BoolVar(new(bool), "no-color", false, "disable colored output (machine-friendly)")
 
 	// Parse the persistent flags (--config / -c) before calling initConfig so
 	// that a user-supplied config path is respected.
 	_ = rootCmd.ParseFlags(os.Args[1:])
 
-	configureOutput(hasNoColorInArgs(os.Args[1:]) || noColor)
+	noColor, _ := rootCmd.PersistentFlags().GetBool("no-color")
+	configureOutput(noColor)
 
-	if err := initConfig(); err != nil {
-		pterm.Error.Println(err)
-		os.Exit(1)
-	}
-
-	application, cleanup, err := app.NewApp(cfg, migrations)
+	cfg, err := initConfig(cfgFile)
 	if err != nil {
 		pterm.Error.Println(err)
 		os.Exit(1)
 	}
 
-	defer cleanup()
+	exitCode := func() int {
+		application, cleanup, err := app.NewApp(cfg, migrations)
+		if err != nil {
+			pterm.Error.Println(err)
+			return 1
+		}
+		defer cleanup()
 
-	if err := initSysAcc(application.Service); err != nil {
-		pterm.Error.Println(err)
-		os.Exit(1)
-	}
+		if err := ensureCurrency(cfg); err != nil {
+			pterm.Error.Println(err)
+			return 1
+		}
 
-	rootCmd.AddCommand(account.NewAccountCmd(application.Service))
-	rootCmd.AddCommand(transaction.NewTransactionCmd(application.Service))
+		if err := initSysAcc(application.Service, cfg); err != nil {
+			pterm.Error.Println(err)
+			return 1
+		}
 
-	rootCmd.AddCommand(NewAddCmd(application.Service))
-	rootCmd.AddCommand(NewInfoCmd(application.Service))
-	rootCmd.AddCommand(NewReportCmd(application.Service))
+		rootCmd.AddCommand(account.NewAccountCmd(application.Service))
+		rootCmd.AddCommand(transaction.NewTransactionCmd(application.Service))
 
-	rootCmd.SilenceErrors = true
-	if err := rootCmd.Execute(); err != nil {
-		errMsg := err.Error()
-		displayMsg := capitalize(errMsg)
+		rootCmd.AddCommand(NewAddCmd(application.Service))
+		rootCmd.AddCommand(NewInfoCmd(application.Service))
+		rootCmd.AddCommand(NewReportCmd(application.Service))
 
-		pterm.Error.Println(displayMsg)
-		os.Exit(1)
-	}
+		if err := rootCmd.Execute(); err != nil {
+			pterm.Error.Println(capitalize(err.Error()))
+			return 1
+		}
+		return 0
+	}()
+	os.Exit(exitCode)
 }
 
-func initSysAcc(svc *service.Service) error {
-	sysAccName := model.SystemAccountOpeningBalance
-
-	_, err := svc.Account().GetAccountByName(sysAccName)
+func initSysAcc(svc *service.Service, cfg *config.Config) error {
+	_, err := svc.Account().GetAccountByName(model.SystemAccountOpeningBalance)
 	if err == nil {
 		return nil
 	}
-
-	currency := viper.GetString("defaults.currency")
-
-	if currency == "" {
-		currency, err = initWizard()
-		if err != nil {
-			return err
-		}
-		cfg.Defaults.Currency = currency
+	if !errors.Is(err, store.ErrRecordNotFound) {
+		return fmt.Errorf("failed to check system account: %w", err)
 	}
 
 	_, err = svc.Account().CreateAccount(
-		sysAccName,
+		model.SystemAccountOpeningBalance,
 		model.TypeEquity,
-		currency,
+		cfg.Defaults.Currency,
 		"Opening Balances (System Account)",
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("failed create system account: %w", err)
+		return fmt.Errorf("failed to create system account: %w", err)
 	}
 
 	return nil
 }
 
-func initConfig() error {
+func ensureCurrency(cfg *config.Config) error {
+	if cfg.Defaults.Currency != "" {
+		return nil
+	}
+
+	return initWizard(cfg)
+}
+
+func initConfig(cfgFile string) (*config.Config, error) {
+	var appDir string
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		appDir, err := app.GetAppDataDir()
+		var err error
+		appDir, err = app.GetAppDataDir()
 		if err != nil {
-			return fmt.Errorf("error getting app dir: %w", err)
+			return nil, fmt.Errorf("error getting app dir: %w", err)
 		}
 
 		viper.AddConfigPath(appDir)
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
-	}
 
-	if err := createDefaultConfig(); err != nil {
-		return fmt.Errorf("failed to ensure config file: %w", err)
+		if err := createDefaultConfig(appDir); err != nil {
+			return nil, fmt.Errorf("failed to ensure config file: %w", err)
+		}
 	}
 
 	viper.SetEnvPrefix("KEA")
@@ -160,19 +156,12 @@ func initConfig() error {
 	viper.AutomaticEnv() // allow using environment variables to override
 
 	if err := viper.ReadInConfig(); err != nil {
-
-		if cfgFile != "" {
-			return fmt.Errorf("failed to read config file: %w", err)
-		}
-
-		if !errors.As(err, &viper.ConfigFileNotFoundError{}) {
-			return fmt.Errorf("config file error: %w", err)
-		}
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	cfg = config.NewDefault()
+	cfg := config.NewDefault()
 	if err := viper.Unmarshal(cfg); err != nil {
-		return fmt.Errorf("unable to decode into struct, %v", err)
+		return nil, fmt.Errorf("unable to decode config into struct: %w", err)
 	}
 
 	cfg.ConfigPath = viper.ConfigFileUsed()
@@ -182,36 +171,31 @@ func initConfig() error {
 	if cfg.Database.Path != "" {
 		expanded, err := expandPath(cfg.Database.Path)
 		if err != nil {
-			return fmt.Errorf("invalid database path: %w", err)
+			return nil, fmt.Errorf("invalid database path: %w", err)
 		}
 		cfg.Database.Path = expanded
 	}
 
-	return nil
+	return cfg, nil
 }
 
-func initWizard() (string, error) {
-	currentDefault := viper.GetString("defaults.currency")
-	if currentDefault == "" {
-		currentDefault = "USD"
-	}
-
-	currency, err := prompts.PromptInitCurrency(currentDefault)
+func initWizard(cfg *config.Config) error {
+	currency, err := prompts.PromptInitCurrency("USD")
 	if err != nil {
-		return "", err
+		return err
 	}
 
+	cfg.Defaults.Currency = currency
 	viper.Set("defaults.currency", currency)
 
 	if err := viper.WriteConfig(); err != nil {
-		return "", fmt.Errorf("failed to save config to file: %w", err)
+		return fmt.Errorf("failed to save config to file: %w", err)
 	}
 
 	pterm.Success.Printf("Configuration saved. Default currency set to: %s\n", currency)
 
-	return currency, nil
+	return nil
 }
-
 
 func expandPath(path string) (string, error) {
 	if strings.HasPrefix(path, "~") {
@@ -225,16 +209,13 @@ func expandPath(path string) (string, error) {
 		if strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~\\") {
 			return filepath.Join(home, path[2:]), nil
 		}
+		// ~username/... syntax is not supported
+		return "", fmt.Errorf("unsupported path format %q: ~username syntax is not supported, use an absolute path or ~/", path)
 	}
 	return path, nil
 }
 
-func createDefaultConfig() error {
-	appDir, err := app.GetAppDataDir()
-	if err != nil {
-		return err
-	}
-
+func createDefaultConfig(appDir string) error {
 	if err := os.MkdirAll(appDir, 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
@@ -243,6 +224,8 @@ func createDefaultConfig() error {
 
 	if _, err := os.Stat(configPath); err == nil {
 		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to check config file: %w", err)
 	}
 
 	if err := os.WriteFile(configPath, []byte(defaultConfigTemplate), 0644); err != nil {
@@ -268,15 +251,4 @@ func configureOutput(noColorFlag bool) {
 	}
 
 	pterm.EnableStyling()
-}
-
-func hasNoColorInArgs(args []string) bool {
-	for _, arg := range args {
-		switch arg {
-		case "--no-color", "--no-color=true", "--no-color=1":
-			return true
-		}
-	}
-
-	return false
 }

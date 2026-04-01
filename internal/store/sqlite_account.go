@@ -69,9 +69,9 @@ func (s *Store) GetAccountByName(name string) (*model.Account, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("account '%s' doesn't exist", name)
+			return nil, fmt.Errorf("account '%s' not found: %w", name, ErrRecordNotFound)
 		}
-		return nil, fmt.Errorf("failed to query account '%s' : %w", name, ErrRecordNotFound)
+		return nil, fmt.Errorf("failed to query account '%s': %w", name, err)
 	}
 
 	if parentID.Valid {
@@ -95,9 +95,9 @@ func (s *Store) GetAccountByID(id int64) (*model.Account, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("account with ID %d not found", id)
+			return nil, fmt.Errorf("account with ID %d not found: %w", id, ErrRecordNotFound)
 		}
-		return nil, fmt.Errorf("failed to query account with ID %d: %w", id, ErrRecordNotFound)
+		return nil, fmt.Errorf("failed to query account with ID %d: %w", id, err)
 	}
 
 	if parentID.Valid {

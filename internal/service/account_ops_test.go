@@ -417,6 +417,16 @@ func TestDeleteAccountByName(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrNotEditable))
 	})
 
+	t.Run("any Equity:OpeningBalances_* account is rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Equity:OpeningBalances_TWD", Type: model.AccountTypeEquity})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.DeleteAccountByName("Equity:OpeningBalances_TWD")
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotEditable))
+	})
+
 	t.Run("account with child accounts rejected", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 5, Name: "Assets:Bank"})

@@ -8,10 +8,17 @@ import (
 )
 
 // ValidateSplitsBalance validates that all splits sum to zero (double-entry principle)
+// and that all splits use the same currency.
 func (ts *TransactionService) ValidateSplitsBalance(splits []model.Split) error {
 	var total int64 = 0
+	var firstCurrency string
 
 	for _, split := range splits {
+		if firstCurrency == "" {
+			firstCurrency = split.Currency
+		} else if split.Currency != firstCurrency {
+			return fmt.Errorf("splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
+		}
 		total += split.Amount
 	}
 

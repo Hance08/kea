@@ -74,6 +74,25 @@ func TestValidateSplitsBalance(t *testing.T) {
 		err := svc.ValidateSplitsBalance(makeSplits(big, -big))
 		require.NoError(t, err)
 	})
+
+	t.Run("mixed currencies rejected", func(t *testing.T) {
+		splits := []model.Split{
+			{Amount: 1000, Currency: "TWD"},
+			{Amount: -1000, Currency: "USD"},
+		}
+		err := svc.ValidateSplitsBalance(splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "currency")
+	})
+
+	t.Run("all same currency passes", func(t *testing.T) {
+		splits := []model.Split{
+			{Amount: 1000, Currency: "TWD"},
+			{Amount: -1000, Currency: "TWD"},
+		}
+		err := svc.ValidateSplitsBalance(splits)
+		require.NoError(t, err)
+	})
 }
 
 // ──────────────────────────────────────────────

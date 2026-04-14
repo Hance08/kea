@@ -16,7 +16,7 @@ type ReportProvider interface {
 	GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error)
 	GenerateIncomeBreakdown(startTime, endTime int64) (*model.ReportResult, error)
 	GenerateExpenseBreakdown(startTime, endTime int64) (*model.ReportResult, error)
-	GenerateBalanceSheet() (*model.BalanceSheetResult, error)
+	GenerateBalanceSheet(asOf int64) (*model.BalanceSheetResult, error)
 	GetNetWorthAt(endTime int64) (int64, error)
 }
 

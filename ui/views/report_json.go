@@ -56,16 +56,15 @@ type jsonReportResult struct {
 }
 
 type jsonBalanceSheetResult struct {
-	Assets            []jsonReportRow `json:"assets"`
-	Liabilities       []jsonReportRow `json:"liabilities"`
-	Equity            []jsonReportRow `json:"equity"`
-	TotalAssets       float64         `json:"total_assets"`
-	TotalLiabilities  float64         `json:"total_liabilities"`
-	TotalEquity       float64         `json:"total_equity"`
-	NetWorth          float64         `json:"net_worth"`
-	PreviousNetWorth  *float64        `json:"previous_net_worth"`
-	NetWorthGrowthPct *float64        `json:"net_worth_growth_pct"`
-	Currency          string          `json:"currency"`
+	Assets           []jsonReportRow `json:"assets"`
+	Liabilities      []jsonReportRow `json:"liabilities"`
+	Equity           []jsonReportRow `json:"equity"`
+	TotalAssets      float64         `json:"total_assets"`
+	TotalLiabilities float64         `json:"total_liabilities"`
+	TotalEquity      float64         `json:"total_equity"`
+	NetWorth         float64         `json:"net_worth"`
+	Currency         string          `json:"currency"`
+	AsOf             int64           `json:"as_of"`
 }
 
 func toJSONRow(r model.ReportRow) jsonReportRow {
@@ -108,22 +107,15 @@ func toJSONReportResult(r *model.ReportResult) jsonReportResult {
 }
 
 func toJSONBalanceSheetResult(r *model.BalanceSheetResult) jsonBalanceSheetResult {
-	var previousNetWorth *float64
-	if r.PreviousNetWorth != nil {
-		v := CentsToUnit(*r.PreviousNetWorth)
-		previousNetWorth = &v
-	}
-
 	return jsonBalanceSheetResult{
-		Assets:            toJSONRows(r.Assets),
-		Liabilities:       toJSONRows(r.Liabilities),
-		Equity:            toJSONRows(r.Equity),
-		TotalAssets:       CentsToUnit(r.TotalAssets),
-		TotalLiabilities:  CentsToUnit(r.TotalLiabilities),
-		TotalEquity:       CentsToUnit(r.TotalEquity),
-		NetWorth:          CentsToUnit(r.NetWorth),
-		PreviousNetWorth:  previousNetWorth,
-		NetWorthGrowthPct: r.NetWorthGrowthPct,
-		Currency:          r.Currency,
+		Assets:           toJSONRows(r.Assets),
+		Liabilities:      toJSONRows(r.Liabilities),
+		Equity:           toJSONRows(r.Equity),
+		TotalAssets:      CentsToUnit(r.TotalAssets),
+		TotalLiabilities: CentsToUnit(r.TotalLiabilities),
+		TotalEquity:      CentsToUnit(r.TotalEquity),
+		NetWorth:         CentsToUnit(r.NetWorth),
+		Currency:         r.Currency,
+		AsOf:             r.AsOf,
 	}
 }

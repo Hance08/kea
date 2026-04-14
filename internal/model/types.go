@@ -1,5 +1,7 @@
 package model
 
+import "strings"
+
 const (
 	CentsPerUnit = 100
 )
@@ -15,11 +17,10 @@ const (
 )
 
 const (
-	AccountNameMaxLength        = 100
-	MaxSafeBalanceFloat         = 9223372036854775.0
-	SystemAccountOpeningBalance = "Equity:OpeningBalances"
-	OpeningAccountMemo          = "Opening Balance"
-	TypeEquity                  = "C"
+	AccountNameMaxLength = 100
+	MaxSafeBalanceFloat  = 9223372036854775.0
+	OpeningAccountMemo   = "Opening Balance"
+	TypeEquity           = "C"
 )
 
 var ReservedNames = map[string]bool{
@@ -99,3 +100,11 @@ const (
 	OpeningBalanceTransactionID int64 = 1
 	MinSplitsCount                    = 2
 )
+
+func OpeningBalancesAccountName(currency string) string {
+	return "Equity:OpeningBalances_" + strings.ToUpper(currency)
+}
+
+func IsOpeningBalancesAccount(name string) bool {
+	return strings.HasPrefix(name, "Equity:OpeningBalances_")
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
+	"github.com/hance08/kea/internal/store"
 )
 
 // ──────────────────────────────────────────────
@@ -26,11 +27,12 @@ type mockAccountRepo struct {
 	nextID         int64
 
 	// injectable errors
-	createErr     error
-	deleteErr     error
-	getByNameErr  map[string]error
-	getByIDErr    map[int64]error
-	getBalanceErr map[int64]error
+	createErr          error
+	deleteErr          error
+	getByNameErr       map[string]error
+	getByIDErr         map[int64]error
+	getBalanceErr      map[int64]error
+	getAllBalancesErr   error
 }
 
 func newMockAccountRepo() *mockAccountRepo {
@@ -89,7 +91,7 @@ func (m *mockAccountRepo) GetAccountByName(name string) (*model.Account, error) 
 	}
 	acc, ok := m.accountsByName[name]
 	if !ok {
-		return nil, fmt.Errorf("account %q not found", name)
+		return nil, fmt.Errorf("account %q not found: %w", name, store.ErrRecordNotFound)
 	}
 	return acc, nil
 }
@@ -127,6 +129,17 @@ func (m *mockAccountRepo) GetAccountBalance(accountID int64) (int64, error) {
 	return m.balances[accountID], nil
 }
 
+func (m *mockAccountRepo) GetAllAccountBalances(_ int64) (map[int64]int64, error) {
+	if m.getAllBalancesErr != nil {
+		return nil, m.getAllBalancesErr
+	}
+	result := make(map[int64]int64, len(m.balances))
+	for id, bal := range m.balances {
+		result[id] = bal
+	}
+	return result, nil
+}
+
 func (m *mockAccountRepo) HasChildAccounts(accountID int64) (bool, error) {
 	return m.childMap[accountID], nil
 }
@@ -145,6 +158,17 @@ func (m *mockAccountRepo) DeleteAccount(accountID int64) error {
 	}
 	delete(m.accountsByName, acc.Name)
 	delete(m.accountsByID, accountID)
+	return nil
+}
+
+func (m *mockAccountRepo) RenameAccount(oldName, newName string) error {
+	acc, ok := m.accountsByName[oldName]
+	if !ok {
+		return fmt.Errorf("account %q not found", oldName)
+	}
+	delete(m.accountsByName, oldName)
+	acc.Name = newName
+	m.accountsByName[newName] = acc
 	return nil
 }
 
@@ -212,15 +236,15 @@ func (m *mockTransactionRepo) CreateTransactionWithSplits(tx model.Transaction, 
 	return id, nil
 }
 
-func (m *mockTransactionRepo) GetTransactionByID(txID int64) (*model.Transaction, []*model.Split, error) {
+func (m *mockTransactionRepo) GetTransactionByID(txID int64) (*model.Transaction, error) {
 	if err, ok := m.getByIDErr[txID]; ok {
-		return nil, nil, err
+		return nil, err
 	}
 	tx, ok := m.transactions[txID]
 	if !ok {
-		return nil, nil, fmt.Errorf("transaction ID %d not found", txID)
+		return nil, fmt.Errorf("transaction ID %d not found", txID)
 	}
-	return tx, m.splits[txID], nil
+	return tx, nil
 }
 
 func (m *mockTransactionRepo) GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error) {

@@ -69,9 +69,9 @@ func (s *Store) GetAccountByName(name string) (*model.Account, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("account '%s' doesn't exist", name)
+			return nil, fmt.Errorf("account '%s' not found: %w", name, ErrRecordNotFound)
 		}
-		return nil, fmt.Errorf("failed to query account '%s' : %w", name, ErrRecordNotFound)
+		return nil, fmt.Errorf("failed to query account '%s': %w", name, err)
 	}
 
 	if parentID.Valid {
@@ -95,9 +95,9 @@ func (s *Store) GetAccountByID(id int64) (*model.Account, error) {
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("account with ID %d not found", id)
+			return nil, fmt.Errorf("account with ID %d not found: %w", id, ErrRecordNotFound)
 		}
-		return nil, fmt.Errorf("failed to query account with ID %d: %w", id, ErrRecordNotFound)
+		return nil, fmt.Errorf("failed to query account with ID %d: %w", id, err)
 	}
 
 	if parentID.Valid {
@@ -114,6 +114,36 @@ func (s *Store) AccountExists(name string) (bool, error) {
 		return false, fmt.Errorf("failed to check account existence: %w", err)
 	}
 	return exists, nil
+}
+
+func (s *Store) GetAllAccountBalances(asOf int64) (map[int64]int64, error) {
+	rows, err := s.db.Query(`
+        SELECT s.account_id, SUM(s.amount)
+        FROM splits s
+        JOIN transactions t ON s.transaction_id = t.id
+        WHERE t.timestamp <= ?
+        GROUP BY s.account_id
+    `, asOf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query account balances: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	result := make(map[int64]int64)
+	for rows.Next() {
+		var accountID int64
+		var balance sql.NullInt64
+		if err := rows.Scan(&accountID, &balance); err != nil {
+			return nil, fmt.Errorf("failed to scan account balance: %w", err)
+		}
+		if balance.Valid {
+			result[accountID] = balance.Int64
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+	return result, nil
 }
 
 func (s *Store) HasChildAccounts(accountID int64) (bool, error) {
@@ -198,6 +228,25 @@ func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
 		return false, fmt.Errorf("failed to check account transactions: %w", err)
 	}
 	return exists, nil
+}
+
+// RenameAccount updates the name of an account identified by its current name.
+func (s *Store) RenameAccount(oldName, newName string) error {
+	res, err := s.db.Exec(
+		`UPDATE accounts SET name = ? WHERE name = ?`,
+		newName, oldName,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to rename account %q to %q: %w", oldName, newName, err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("account %q not found", oldName)
+	}
+	return nil
 }
 
 // DeleteAccount removes an account record by ID.

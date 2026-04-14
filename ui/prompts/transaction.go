@@ -57,15 +57,10 @@ func PromptTransactionDate() (string, error) {
 	return date, nil
 }
 
-// PromptAccountSelection prompts for account selection with optional balance display
-func PromptAccountSelection(
-	accounts []*model.Account,
-	allowedTypes []string,
-	message string,
-	showBalance bool,
-	balanceGetter func(int64) (string, error),
-) (string, error) {
-	// find all the father account(container)
+// filterAccounts returns accounts matching the given types and currency.
+// allowedCurrency="" means no currency filter (all currencies pass).
+// A non-empty allowedCurrency filters to exact-match only.
+func filterAccounts(accounts []*model.Account, allowedTypes []string, allowedCurrency string) []*model.Account {
 	parentIDs := make(map[int64]bool)
 	for _, acc := range accounts {
 		if acc.ParentID != nil {
@@ -73,20 +68,35 @@ func PromptAccountSelection(
 		}
 	}
 
-	// filter accounts by type
-	var filteredAccounts []*model.Account
 	typeMap := make(map[string]bool)
 	for _, t := range allowedTypes {
 		typeMap[t] = true
 	}
 
+	var result []*model.Account
 	for _, acc := range accounts {
-		isContainer := parentIDs[acc.ID]
-
-		if typeMap[string(acc.Type)] && !acc.IsHidden && !isContainer {
-			filteredAccounts = append(filteredAccounts, acc)
+		if !typeMap[string(acc.Type)] || acc.IsHidden || parentIDs[acc.ID] {
+			continue
 		}
+		if allowedCurrency != "" && acc.Currency != allowedCurrency {
+			continue
+		}
+		result = append(result, acc)
 	}
+	return result
+}
+
+// PromptAccountSelection prompts for account selection with optional balance display.
+// allowedCurrency filters to accounts with that exact currency ("" means system-default accounts).
+func PromptAccountSelection(
+	accounts []*model.Account,
+	allowedTypes []string,
+	message string,
+	showBalance bool,
+	balanceGetter func(int64) (string, error),
+	allowedCurrency string,
+) (string, error) {
+	filteredAccounts := filterAccounts(accounts, allowedTypes, allowedCurrency)
 
 	if len(filteredAccounts) == 0 {
 		return "", fmt.Errorf("no available accounts (Type: %v)", allowedTypes)

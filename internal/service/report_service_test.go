@@ -353,7 +353,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[2] = 3000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet()
+		result, err := svc.GenerateBalanceSheet(9999999999)
 		require.NoError(t, err)
 		assert.Equal(t, int64(10000), result.TotalAssets)
 		assert.Equal(t, int64(3000), result.TotalLiabilities)
@@ -370,7 +370,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[2] = 0 // zero balance
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet()
+		result, err := svc.GenerateBalanceSheet(9999999999)
 		require.NoError(t, err)
 		assert.Len(t, result.Assets, 1)
 		assert.Equal(t, "Assets:Bank", result.Assets[0].AccountName)
@@ -382,7 +382,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[1] = 5000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet()
+		result, err := svc.GenerateBalanceSheet(9999999999)
 		require.NoError(t, err)
 		assert.Equal(t, int64(5000), result.TotalEquity)
 		require.Len(t, result.Equity, 1)
@@ -394,7 +394,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[1] = 10000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet()
+		result, err := svc.GenerateBalanceSheet(9999999999)
 		require.NoError(t, err)
 		require.Len(t, result.Assets, 1)
 		assert.Equal(t, "TWD", result.Assets[0].Currency)
@@ -406,7 +406,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[1] = 10000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet()
+		result, err := svc.GenerateBalanceSheet(9999999999)
 		require.NoError(t, err)
 		require.Len(t, result.Assets, 1)
 		assert.Equal(t, "USD", result.Assets[0].Currency)
@@ -420,21 +420,19 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[2] = 9000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet()
+		result, err := svc.GenerateBalanceSheet(9999999999)
 		require.NoError(t, err)
 		require.Len(t, result.Assets, 2)
 		assert.GreaterOrEqual(t, result.Assets[0].Amount, result.Assets[1].Amount)
 	})
 
-	t.Run("GetAccountBalance failure returns error", func(t *testing.T) {
-		// mockAccountRepo.GetAllAccounts does not support injecting an error;
-		// this test verifies the GetAccountBalance failure path instead.
+	t.Run("GetAllAccountBalances failure returns error", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
-		accRepo.getBalanceErr[1] = assert.AnError
+		accRepo.getAllBalancesErr = assert.AnError
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		_, err := svc.GenerateBalanceSheet()
+		_, err := svc.GenerateBalanceSheet(9999999999)
 		assert.Error(t, err)
 	})
 }

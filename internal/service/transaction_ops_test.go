@@ -122,13 +122,15 @@ func TestCreateTransaction(t *testing.T) {
 	t.Run("account currency overrides system default", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		txRepo := newMockTransactionRepo()
-		setupStandardAccounts(accRepo)
+		// Both accounts use TWD so splits are same-currency
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:TWDBank", Type: model.AccountTypeAsset, Currency: "TWD"})
+		accRepo.addAccount(&model.Account{ID: 11, Name: "Expenses:TWDFood", Type: model.AccountTypeExpense, Currency: "TWD"})
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		input := model.TransactionDetail{
 			Splits: []model.SplitDetail{
-				{AccountName: "Expenses:Food", Amount: 500},
-				{AccountName: "Assets:Cash", Amount: -500}, // Currency: TWD
+				{AccountName: "Expenses:TWDFood", Amount: 500},
+				{AccountName: "Assets:TWDBank", Amount: -500},
 			},
 		}
 		id, err := svc.CreateTransaction(input)
@@ -136,15 +138,27 @@ func TestCreateTransaction(t *testing.T) {
 
 		splits := txRepo.splits[id]
 		require.Len(t, splits, 2)
-		// Assets:Cash (ID:4) has Currency="TWD"
-		var cashSplit *model.Split
 		for _, s := range splits {
-			if s.AccountID == 4 {
-				cashSplit = s
-			}
+			assert.Equal(t, "TWD", s.Currency)
 		}
-		require.NotNil(t, cashSplit)
-		assert.Equal(t, "TWD", cashSplit.Currency)
+	})
+
+	t.Run("mixed currency splits rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		// Assets:Cash is TWD, Expenses:Food has no currency (falls back to USD)
+		input := model.TransactionDetail{
+			Splits: []model.SplitDetail{
+				{AccountName: "Expenses:Food", Amount: 500},
+				{AccountName: "Assets:Cash", Amount: -500},
+			},
+		}
+		_, err := svc.CreateTransaction(input)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "currency")
 	})
 
 	t.Run("account without currency uses system default", func(t *testing.T) {

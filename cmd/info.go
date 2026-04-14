@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/views"
@@ -76,7 +77,7 @@ func (r *infoRunner) Run() error {
 }
 
 func getAppDataDirOrPanic() string {
-	dir, err := getAppDataDir()
+	dir, err := app.GetAppDataDir()
 	if err != nil {
 		return "Unknown"
 	}

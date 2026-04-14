@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,7 +26,7 @@ func Run(dbPath string) error {
 }
 
 func run(dbPath string, clk clock) error {
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 

@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,7 +35,7 @@ func TestRun_NoDBFile(t *testing.T) {
 
 	require.NoError(t, err)
 	_, statErr := os.Stat(filepath.Join(dir, "backups"))
-	assert.True(t, os.IsNotExist(statErr), "backups/ dir should not be created when DB is absent")
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "backups/ dir should not be created when DB is absent")
 }
 
 func TestDailyLabel(t *testing.T) {
@@ -88,7 +89,7 @@ func TestCopyFile_LeavesNoTmpOnFailure(t *testing.T) {
 
 	// No .tmp file left behind.
 	_, statErr := os.Stat(dst + ".tmp")
-	assert.True(t, os.IsNotExist(statErr))
+	assert.True(t, errors.Is(statErr, os.ErrNotExist))
 }
 
 func TestRotate_PrunesOldestBeyondRetention(t *testing.T) {
@@ -119,9 +120,9 @@ func TestRotate_PrunesOldestBeyondRetention(t *testing.T) {
 	assert.Len(t, entries, 7)
 	// Oldest two should be gone.
 	_, err = os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-06.db"))
-	assert.True(t, os.IsNotExist(err))
+	assert.True(t, errors.Is(err, os.ErrNotExist))
 	_, err = os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-07.db"))
-	assert.True(t, os.IsNotExist(err))
+	assert.True(t, errors.Is(err, os.ErrNotExist))
 	// Newest should remain.
 	_, err = os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-14.db"))
 	assert.NoError(t, err)
@@ -298,7 +299,7 @@ func TestRun_RotationTriggered(t *testing.T) {
 
 	// Oldest (Apr 7) removed, newest (Apr 14) present.
 	_, err := os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-07.db"))
-	assert.True(t, os.IsNotExist(err))
+	assert.True(t, errors.Is(err, os.ErrNotExist))
 	assertFileExists(t, backupDir, "kea_daily_2026-04-14.db")
 }
 
@@ -314,6 +315,76 @@ func TestRun_CopyFailure_ReturnsError(t *testing.T) {
 	clk := fakeClock{t: fixedTime("2026-04-14")}
 	err := run(dbPath, clk)
 	assert.Error(t, err)
+}
+
+func TestRotate_PrunesOldestWeekly(t *testing.T) {
+	dir := t.TempDir()
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	// Create 6 weekly backup files (retention is 4).
+	files := []string{
+		"kea_weekly_2026-W10.db",
+		"kea_weekly_2026-W11.db",
+		"kea_weekly_2026-W12.db",
+		"kea_weekly_2026-W13.db",
+		"kea_weekly_2026-W14.db",
+		"kea_weekly_2026-W15.db",
+	}
+	for _, f := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(backupDir, f), []byte("x"), 0644))
+	}
+
+	require.NoError(t, rotate(backupDir, "kea", "weekly", ".db", 4))
+
+	entries, err := os.ReadDir(backupDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 4)
+	_, err = os.Stat(filepath.Join(backupDir, "kea_weekly_2026-W10.db"))
+	assert.True(t, errors.Is(err, os.ErrNotExist))
+	_, err = os.Stat(filepath.Join(backupDir, "kea_weekly_2026-W11.db"))
+	assert.True(t, errors.Is(err, os.ErrNotExist))
+	_, err = os.Stat(filepath.Join(backupDir, "kea_weekly_2026-W15.db"))
+	assert.NoError(t, err)
+}
+
+func TestRotate_PrunesOldestMonthly(t *testing.T) {
+	dir := t.TempDir()
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	// Create 14 monthly backup files (retention is 12).
+	files := []string{
+		"kea_monthly_2025-01.db",
+		"kea_monthly_2025-02.db",
+		"kea_monthly_2025-03.db",
+		"kea_monthly_2025-04.db",
+		"kea_monthly_2025-05.db",
+		"kea_monthly_2025-06.db",
+		"kea_monthly_2025-07.db",
+		"kea_monthly_2025-08.db",
+		"kea_monthly_2025-09.db",
+		"kea_monthly_2025-10.db",
+		"kea_monthly_2025-11.db",
+		"kea_monthly_2025-12.db",
+		"kea_monthly_2026-01.db",
+		"kea_monthly_2026-02.db",
+	}
+	for _, f := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(backupDir, f), []byte("x"), 0644))
+	}
+
+	require.NoError(t, rotate(backupDir, "kea", "monthly", ".db", 12))
+
+	entries, err := os.ReadDir(backupDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 12)
+	_, err = os.Stat(filepath.Join(backupDir, "kea_monthly_2025-01.db"))
+	assert.True(t, errors.Is(err, os.ErrNotExist))
+	_, err = os.Stat(filepath.Join(backupDir, "kea_monthly_2025-02.db"))
+	assert.True(t, errors.Is(err, os.ErrNotExist))
+	_, err = os.Stat(filepath.Join(backupDir, "kea_monthly_2026-02.db"))
+	assert.NoError(t, err)
 }
 
 // assertFileExists is a helper that checks a file exists in dir.

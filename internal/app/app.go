@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hance08/kea/internal/backup"
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 )
+
 type App struct {
 	Service *service.Service
 }
@@ -24,6 +26,10 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 			return nil, nil, fmt.Errorf("failed to determine data directory: %w", err)
 		}
 		dbPathRaw = filepath.Join(appDir, "kea.db")
+	}
+
+	if err := backup.Run(dbPathRaw); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: backup failed: %v\n", err)
 	}
 
 	dbStore, err := store.NewStore(dbPathRaw, migrationFS)

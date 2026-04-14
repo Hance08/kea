@@ -2,6 +2,7 @@ package backup
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 )
@@ -56,4 +57,38 @@ func monthlyLabel(t time.Time) string {
 // e.g. backupFilename("kea", "daily", "2026-04-14", ".db") → "kea_daily_2026-04-14.db"
 func backupFilename(dbBase, tierName, label, ext string) string {
 	return fmt.Sprintf("%s_%s_%s%s", dbBase, tierName, label, ext)
+}
+
+// copyFile copies src to dst atomically via a .tmp intermediate file.
+func copyFile(src, dst string) error {
+	tmp := dst + ".tmp"
+
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		os.Remove(tmp)
+		return err
+	}
+
+	if err := out.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+
+	if err := os.Rename(tmp, dst); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+
+	return nil
 }

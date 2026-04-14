@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -159,4 +160,165 @@ func TestRotate_OnlyTouchesMatchingTier(t *testing.T) {
 
 	_, err := os.Stat(filepath.Join(backupDir, "kea_weekly_2026-W15.db"))
 	assert.NoError(t, err, "weekly backup must not be deleted by daily rotation")
+}
+
+// mkDB creates a fake DB file at dbPath with contents "fake-db".
+func mkDB(t *testing.T, dbPath string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(dbPath, []byte("fake-db"), 0644))
+}
+
+func TestRun_FirstRun_AllThreeTiersCreated(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+	mkDB(t, dbPath)
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+
+	require.NoError(t, run(dbPath, clk))
+
+	backupDir := filepath.Join(dir, "backups")
+	assertFileExists(t, backupDir, "kea_daily_2026-04-14.db")
+	assertFileExists(t, backupDir, "kea_weekly_2026-W16.db")
+	assertFileExists(t, backupDir, "kea_monthly_2026-04.db")
+}
+
+func TestRun_AlreadyCurrent_NoNewFiles(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+	mkDB(t, dbPath)
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	// Pre-populate all three tiers for today.
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+	for _, name := range []string{
+		"kea_daily_2026-04-14.db",
+		"kea_weekly_2026-W16.db",
+		"kea_monthly_2026-04.db",
+	} {
+		require.NoError(t, os.WriteFile(filepath.Join(backupDir, name), []byte("old"), 0644))
+	}
+
+	require.NoError(t, run(dbPath, clk))
+
+	// Files should still have "old" contents — not overwritten.
+	for _, name := range []string{
+		"kea_daily_2026-04-14.db",
+		"kea_weekly_2026-W16.db",
+		"kea_monthly_2026-04.db",
+	} {
+		got, err := os.ReadFile(filepath.Join(backupDir, name))
+		require.NoError(t, err)
+		assert.Equal(t, []byte("old"), got, "file %s should not be overwritten", name)
+	}
+}
+
+func TestRun_DailyDue_OtherTiersCurrent(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+	mkDB(t, dbPath)
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+	// Weekly and monthly already present for this period; daily is missing.
+	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_weekly_2026-W16.db"), []byte("old"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_monthly_2026-04.db"), []byte("old"), 0644))
+
+	require.NoError(t, run(dbPath, clk))
+
+	assertFileExists(t, backupDir, "kea_daily_2026-04-14.db")
+	// Others untouched.
+	weekly, _ := os.ReadFile(filepath.Join(backupDir, "kea_weekly_2026-W16.db"))
+	assert.Equal(t, []byte("old"), weekly)
+}
+
+func TestRun_WeeklyDue_OtherTiersCurrent(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+	mkDB(t, dbPath)
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+	// Daily and monthly present; weekly is missing.
+	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"), []byte("old"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_monthly_2026-04.db"), []byte("old"), 0644))
+
+	require.NoError(t, run(dbPath, clk))
+
+	assertFileExists(t, backupDir, "kea_weekly_2026-W16.db")
+	daily, _ := os.ReadFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"))
+	assert.Equal(t, []byte("old"), daily, "daily should not be overwritten")
+}
+
+func TestRun_MonthlyDue_OtherTiersCurrent(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+	mkDB(t, dbPath)
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+	// Daily and weekly present; monthly is missing.
+	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"), []byte("old"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_weekly_2026-W16.db"), []byte("old"), 0644))
+
+	require.NoError(t, run(dbPath, clk))
+
+	assertFileExists(t, backupDir, "kea_monthly_2026-04.db")
+	daily, _ := os.ReadFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"))
+	assert.Equal(t, []byte("old"), daily, "daily should not be overwritten")
+}
+
+func TestRun_RotationTriggered(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+	mkDB(t, dbPath)
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	// Create 7 existing daily backups (at retention limit).
+	for i := 7; i <= 13; i++ {
+		name := fmt.Sprintf("kea_daily_2026-04-%02d.db", i)
+		require.NoError(t, os.WriteFile(filepath.Join(backupDir, name), []byte("x"), 0644))
+	}
+
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+	require.NoError(t, run(dbPath, clk))
+
+	entries, _ := os.ReadDir(backupDir)
+	var dailyCount int
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "kea_daily_") {
+			dailyCount++
+		}
+	}
+	assert.Equal(t, 7, dailyCount, "should have exactly 7 daily backups after rotation")
+
+	// Oldest (Apr 7) removed, newest (Apr 14) present.
+	_, err := os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-07.db"))
+	assert.True(t, os.IsNotExist(err))
+	assertFileExists(t, backupDir, "kea_daily_2026-04-14.db")
+}
+
+func TestRun_CopyFailure_ReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+	mkDB(t, dbPath)
+
+	// Make the backups dir a file so MkdirAll fails, triggering an error path.
+	backupsPath := filepath.Join(dir, "backups")
+	require.NoError(t, os.WriteFile(backupsPath, []byte("not-a-dir"), 0644))
+
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+	err := run(dbPath, clk)
+	assert.Error(t, err)
+}
+
+// assertFileExists is a helper that checks a file exists in dir.
+func assertFileExists(t *testing.T, dir, name string) {
+	t.Helper()
+	_, err := os.Stat(filepath.Join(dir, name))
+	assert.NoError(t, err, "expected file %s to exist in %s", name, dir)
 }

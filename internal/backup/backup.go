@@ -28,7 +28,35 @@ func run(dbPath string, clk clock) error {
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		return nil
 	}
-	return nil // remaining logic added in later tasks
+
+	dir := filepath.Dir(dbPath)
+	backupDir := filepath.Join(dir, "backups")
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		return fmt.Errorf("create backup dir: %w", err)
+	}
+
+	ext := filepath.Ext(dbPath)
+	dbBase := strings.TrimSuffix(filepath.Base(dbPath), ext)
+	now := clk.Now()
+
+	for _, t := range tiers {
+		label := t.label(now)
+		dst := filepath.Join(backupDir, backupFilename(dbBase, t.name, label, ext))
+
+		if _, err := os.Stat(dst); err == nil {
+			continue // backup for this period already exists
+		}
+
+		if err := copyFile(dbPath, dst); err != nil {
+			return fmt.Errorf("backup %s: %w", t.name, err)
+		}
+
+		if err := rotate(backupDir, dbBase, t.name, ext, t.retention); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: backup rotation failed for %s: %v\n", t.name, err)
+		}
+	}
+
+	return nil
 }
 
 type tier struct {

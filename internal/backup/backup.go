@@ -60,6 +60,7 @@ func backupFilename(dbBase, tierName, label, ext string) string {
 }
 
 // copyFile copies src to dst atomically via a .tmp intermediate file.
+// The parent directory of dst must already exist.
 func copyFile(src, dst string) error {
 	tmp := dst + ".tmp"
 

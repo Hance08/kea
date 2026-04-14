@@ -11,6 +11,7 @@ import (
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 )
+
 type App struct {
 	Service *service.Service
 }

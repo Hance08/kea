@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -57,6 +60,35 @@ func monthlyLabel(t time.Time) string {
 // e.g. backupFilename("kea", "daily", "2026-04-14", ".db") → "kea_daily_2026-04-14.db"
 func backupFilename(dbBase, tierName, label, ext string) string {
 	return fmt.Sprintf("%s_%s_%s%s", dbBase, tierName, label, ext)
+}
+
+// rotate removes the oldest backups for a given tier beyond the retention limit.
+// Files are identified by prefix "<dbBase>_<tierName>_" and suffix ext.
+func rotate(backupDir, dbBase, tierName, ext string, retention int) error {
+	prefix := fmt.Sprintf("%s_%s_", dbBase, tierName)
+
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		return err
+	}
+
+	var files []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasPrefix(e.Name(), prefix) && strings.HasSuffix(e.Name(), ext) {
+			files = append(files, e.Name())
+		}
+	}
+
+	sort.Strings(files) // lexicographic = chronological given the naming scheme
+
+	for len(files) > retention {
+		if err := os.Remove(filepath.Join(backupDir, files[0])); err != nil {
+			return err
+		}
+		files = files[1:]
+	}
+
+	return nil
 }
 
 // copyFile copies src to dst atomically via a .tmp intermediate file.

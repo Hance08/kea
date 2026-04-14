@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -87,4 +88,75 @@ func TestCopyFile_LeavesNoTmpOnFailure(t *testing.T) {
 	// No .tmp file left behind.
 	_, statErr := os.Stat(dst + ".tmp")
 	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestRotate_PrunesOldestBeyondRetention(t *testing.T) {
+	dir := t.TempDir()
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	// Create 9 daily backup files (retention is 7).
+	files := []string{
+		"kea_daily_2026-04-06.db",
+		"kea_daily_2026-04-07.db",
+		"kea_daily_2026-04-08.db",
+		"kea_daily_2026-04-09.db",
+		"kea_daily_2026-04-10.db",
+		"kea_daily_2026-04-11.db",
+		"kea_daily_2026-04-12.db",
+		"kea_daily_2026-04-13.db",
+		"kea_daily_2026-04-14.db",
+	}
+	for _, f := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(backupDir, f), []byte("x"), 0644))
+	}
+
+	require.NoError(t, rotate(backupDir, "kea", "daily", ".db", 7))
+
+	entries, err := os.ReadDir(backupDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 7)
+	// Oldest two should be gone.
+	_, err = os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-06.db"))
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-07.db"))
+	assert.True(t, os.IsNotExist(err))
+	// Newest should remain.
+	_, err = os.Stat(filepath.Join(backupDir, "kea_daily_2026-04-14.db"))
+	assert.NoError(t, err)
+}
+
+func TestRotate_NoOpWhenUnderRetention(t *testing.T) {
+	dir := t.TempDir()
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	// Create 3 daily files (retention is 7) — nothing should be deleted.
+	for _, f := range []string{"kea_daily_2026-04-12.db", "kea_daily_2026-04-13.db", "kea_daily_2026-04-14.db"} {
+		require.NoError(t, os.WriteFile(filepath.Join(backupDir, f), []byte("x"), 0644))
+	}
+
+	require.NoError(t, rotate(backupDir, "kea", "daily", ".db", 7))
+
+	entries, err := os.ReadDir(backupDir)
+	require.NoError(t, err)
+	assert.Len(t, entries, 3)
+}
+
+func TestRotate_OnlyTouchesMatchingTier(t *testing.T) {
+	dir := t.TempDir()
+	backupDir := filepath.Join(dir, "backups")
+	require.NoError(t, os.MkdirAll(backupDir, 0755))
+
+	// 9 daily + 1 weekly — rotate daily with retention 7, weekly must be untouched.
+	for i := 6; i <= 14; i++ {
+		name := fmt.Sprintf("kea_daily_2026-04-%02d.db", i)
+		require.NoError(t, os.WriteFile(filepath.Join(backupDir, name), []byte("x"), 0644))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_weekly_2026-W15.db"), []byte("x"), 0644))
+
+	require.NoError(t, rotate(backupDir, "kea", "daily", ".db", 7))
+
+	_, err := os.Stat(filepath.Join(backupDir, "kea_weekly_2026-W15.db"))
+	assert.NoError(t, err, "weekly backup must not be deleted by daily rotation")
 }

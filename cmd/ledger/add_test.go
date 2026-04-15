@@ -14,9 +14,6 @@ import (
 
 // noopDBInit is a test double that creates an empty file (simulating DB init).
 func noopDBInit(path string, _ fs.FS) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
 	return os.WriteFile(path, []byte(""), 0644)
 }
 
@@ -101,4 +98,7 @@ func TestAddRunner_DuplicateName(t *testing.T) {
 
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, internalled.ErrLedgerExists))
+	// No DB file should have been created
+	_, statErr := os.Stat(filepath.Join(dir, "ledgers", "personal.db"))
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "no DB file should be created on duplicate error")
 }

@@ -55,9 +55,17 @@ func defaultDBInit(path string, migrations fs.FS) error {
 }
 
 func (r *addRunner) Run() error {
+	// Fail early on duplicate name before creating any files.
+	if _, exists := r.registry.Ledgers[r.name]; exists {
+		return fmt.Errorf("%w: %q", internalled.ErrLedgerExists, r.name)
+	}
+
 	dbPath := r.customPath
 	if dbPath == "" {
 		dbPath = filepath.Join(r.appDir, "ledgers", r.name+".db")
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+			return fmt.Errorf("create ledger directory: %w", err)
+		}
 	} else {
 		dir := filepath.Dir(dbPath)
 		if _, err := os.Stat(dir); err != nil {

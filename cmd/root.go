@@ -10,9 +10,11 @@ import (
 	"unicode"
 
 	"github.com/hance08/kea/cmd/account"
+	ledgercmd "github.com/hance08/kea/cmd/ledger"
 	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/config"
+	"github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
@@ -41,8 +43,6 @@ func Execute(migrations fs.FS) {
 		Style: pterm.NewStyle(pterm.BgLightRed, pterm.FgBlack),
 	}
 
-	// rootCmd and the --config flag must be created before initConfig() so that
-	// ParseFlags() can populate cfgFile prior to reading the configuration file.
 	rootCmd := &cobra.Command{
 		Use:           "kea",
 		Short:         "kea is a CLI/TUI based personal accounting tool",
@@ -53,8 +53,6 @@ func Execute(migrations fs.FS) {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "set the config file path")
 	rootCmd.PersistentFlags().BoolVar(new(bool), "no-color", false, "disable colored output (machine-friendly)")
 
-	// Parse the persistent flags (--config / -c) before calling initConfig so
-	// that a user-supplied config path is respected.
 	_ = rootCmd.ParseFlags(os.Args[1:])
 
 	noColor, _ := rootCmd.PersistentFlags().GetBool("no-color")
@@ -66,7 +64,41 @@ func Execute(migrations fs.FS) {
 		os.Exit(1)
 	}
 
+	appDir, err := app.GetAppDataDir()
+	if err != nil {
+		pterm.Error.Println(err)
+		os.Exit(1)
+	}
+
+	registry, err := ledger.Load(appDir)
+	if err != nil {
+		pterm.Error.Println(err)
+		os.Exit(1)
+	}
+
+	if registry.MigratedLegacy {
+		pterm.Info.Println(`Migrated existing database as ledger "default".`)
+	}
+
 	exitCode := func() int {
+		// Ledger management commands are always available.
+		rootCmd.AddCommand(ledgercmd.NewLedgerCmd(registry, migrations, appDir))
+
+		activePath, err := registry.Active()
+		if err != nil {
+			// No active ledger — only ledger commands are useful.
+			pterm.Warning.Println("No ledger configured. Run: kea ledger add <name>")
+			if err := rootCmd.Execute(); err != nil {
+				pterm.Error.Println(capitalize(err.Error()))
+				return 1
+			}
+			return 0
+		}
+
+		// Inject the resolved DB path so app.NewApp and kea info both see it.
+		cfg.Database.Path = activePath
+		cfg.ActiveLedger = registry.ActiveName()
+
 		application, cleanup, err := app.NewApp(cfg, migrations)
 		if err != nil {
 			pterm.Error.Println(err)
@@ -86,7 +118,6 @@ func Execute(migrations fs.FS) {
 
 		rootCmd.AddCommand(account.NewAccountCmd(application.Service))
 		rootCmd.AddCommand(transaction.NewTransactionCmd(application.Service))
-
 		rootCmd.AddCommand(NewAddCmd(application.Service))
 		rootCmd.AddCommand(NewInfoCmd(application.Service))
 		rootCmd.AddCommand(NewReportCmd(application.Service))

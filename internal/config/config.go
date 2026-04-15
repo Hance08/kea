@@ -1,9 +1,10 @@
 package config
 
 type Config struct {
-	Database   DatabaseConfig `mapstructure:"database"`
-	Defaults   DefaultsConfig `mapstructure:"defaults"`
-	ConfigPath string         `mapstructure:"-"`
+	Database     DatabaseConfig `mapstructure:"database"`
+	Defaults     DefaultsConfig `mapstructure:"defaults"`
+	ConfigPath   string         `mapstructure:"-"`
+	ActiveLedger string         `mapstructure:"-"` // name of the active ledger, set at startup
 }
 
 type DatabaseConfig struct {

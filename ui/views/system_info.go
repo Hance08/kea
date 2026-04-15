@@ -8,6 +8,7 @@ type SystemInfo struct {
 	DBExists        bool // true = Found, false = Not Found
 	DefaultCurrency string
 	AppDataDir      string
+	ActiveLedger    string
 }
 
 type SystemInfoView struct{}
@@ -24,6 +25,7 @@ func (v *SystemInfoView) Render(info SystemInfo) error {
 
 	tableData := pterm.TableData{
 		{"Configuration File", info.ConfigPath},
+		{"Active Ledger", info.ActiveLedger},
 		{"Database Path", info.DBPath},
 		{"Database Status", dbStatus},
 		{"Default Currency", info.DefaultCurrency},

@@ -16,22 +16,6 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 		return addTransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
 	}
 
-	var srcAllowedTypes, dstAllowedTypes []string
-
-	// Validate account types if --type is provided
-	if flags.Type != "" {
-		mode := r.determineMode(flags.Type)
-		if mode != model.TxTypeExpense && mode != model.TxTypeIncome && mode != model.TxTypeTransfer {
-			return addTransactionInput{}, fmt.Errorf("invalid type %q: must be expense, income, or transfer", flags.Type)
-		}
-		rule, err := r.txSvc.GetTransactionRule(mode)
-		if err != nil {
-			return addTransactionInput{}, err
-		}
-		srcAllowedTypes = rule.SourceTypes
-		dstAllowedTypes = rule.DestTypes
-	}
-
 	description := flags.Description
 	if description == "" {
 		description = "-"
@@ -55,11 +39,11 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 		return addTransactionInput{}, err
 	}
 
-	if err := r.validateAccountSelectable(flags.From, srcAllowedTypes, "--from"); err != nil {
+	if err := r.validateAccountSelectable(flags.From, nil, "--from"); err != nil {
 		return addTransactionInput{}, err
 	}
 
-	if err := r.validateAccountSelectable(flags.To, dstAllowedTypes, "--to"); err != nil {
+	if err := r.validateAccountSelectable(flags.To, nil, "--to"); err != nil {
 		return addTransactionInput{}, err
 	}
 

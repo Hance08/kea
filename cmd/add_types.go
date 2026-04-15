@@ -27,7 +27,6 @@ type addFlags struct {
 	To          string
 	Status      string
 	Timestamp   string
-	Type        string
 	JSON        bool
 }
 

@@ -15,6 +15,7 @@ func NewLedgerCmd(registry *internalled.Registry, migrations fs.FS, appDir strin
 	}
 	cmd.AddCommand(NewListCmd(registry))
 	cmd.AddCommand(NewAddCmd(registry, migrations, appDir))
-	// switch, remove subcommands added in Tasks 6-7
+	cmd.AddCommand(NewSwitchCmd(registry))
+	// remove subcommand added in Task 7
 	return cmd
 }

@@ -14,6 +14,7 @@ func NewLedgerCmd(registry *internalled.Registry, migrations fs.FS, appDir strin
 		Long:  `Create, list, switch between, and remove named ledgers.`,
 	}
 	cmd.AddCommand(NewListCmd(registry))
-	// add, switch, remove subcommands added in Tasks 5-7
+	cmd.AddCommand(NewAddCmd(registry, migrations, appDir))
+	// switch, remove subcommands added in Tasks 6-7
 	return cmd
 }

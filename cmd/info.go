@@ -64,6 +64,7 @@ func (r *infoRunner) Run() error {
 
 	info := views.SystemInfo{
 		ConfigPath:      configPath,
+		ActiveLedger:    r.svc.Config().ActiveLedger,
 		DBPath:          expandedDBPath,
 		DBExists:        dbExists,
 		DefaultCurrency: r.svc.Config().Defaults.Currency,

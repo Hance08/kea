@@ -54,6 +54,7 @@ type JSONTxListItem struct {
 
 type JSONSystemInfo struct {
 	ConfigPath      string `json:"config_path"`
+	ActiveLedger    string `json:"active_ledger"`
 	DBPath          string `json:"db_path"`
 	// false means DB does not yet exist; it will be created on first use.
 	DBExists        bool   `json:"db_exists"`
@@ -120,6 +121,7 @@ func ToJSONTxListItem(item TransactionListItem) JSONTxListItem {
 func ToJSONSystemInfo(info SystemInfo) JSONSystemInfo {
 	return JSONSystemInfo{
 		ConfigPath:      info.ConfigPath,
+		ActiveLedger:    info.ActiveLedger,
 		DBPath:          info.DBPath,
 		DBExists:        info.DBExists,
 		DefaultCurrency: info.DefaultCurrency,

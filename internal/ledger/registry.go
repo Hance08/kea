@@ -24,9 +24,10 @@ type Entry struct {
 
 // Registry manages the set of known ledgers and the active ledger name.
 type Registry struct {
-	ActiveLedger string           `yaml:"active"`
-	Ledgers      map[string]Entry `yaml:"ledgers"`
-	filePath     string
+	ActiveLedger   string           `yaml:"active"`
+	Ledgers        map[string]Entry `yaml:"ledgers"`
+	MigratedLegacy bool             `yaml:"-"`
+	filePath       string
 }
 
 // Load reads or initialises the ledger registry from appDir/ledgers.yaml.
@@ -59,10 +60,10 @@ func Load(appDir string) (*Registry, error) {
 	if _, err := os.Stat(legacyDB); err == nil {
 		r.Ledgers["default"] = Entry{Path: legacyDB}
 		r.ActiveLedger = "default"
+		r.MigratedLegacy = true
 		if err := r.Save(); err != nil {
 			return nil, fmt.Errorf("auto-migrate: %w", err)
 		}
-		fmt.Println(`Migrated existing database as ledger "default".`)
 		return r, nil
 	}
 
@@ -74,6 +75,9 @@ func Load(appDir string) (*Registry, error) {
 
 // Save writes the current registry state to ledgers.yaml.
 func (r *Registry) Save() error {
+	if err := os.MkdirAll(filepath.Dir(r.filePath), 0755); err != nil {
+		return fmt.Errorf("create registry directory: %w", err)
+	}
 	data, err := yaml.Marshal(r)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)

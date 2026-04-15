@@ -32,6 +32,7 @@ func TestLoad_AutoMigratesLegacyDB(t *testing.T) {
 	require.Contains(t, r.Ledgers, "default")
 	assert.Equal(t, legacyDB, r.Ledgers["default"].Path)
 	assert.Equal(t, "default", r.ActiveLedger)
+	assert.True(t, r.MigratedLegacy, "should signal migration to caller")
 }
 
 func TestLoad_NormalLoad(t *testing.T) {

@@ -176,14 +176,18 @@ func TestRemove_UnregisterOnly(t *testing.T) {
 	dir := t.TempDir()
 	r, err := Load(dir)
 	require.NoError(t, err)
+	dbFile := filepath.Join(dir, "personal.db")
+	require.NoError(t, os.WriteFile(dbFile, []byte(""), 0644))
 	require.NoError(t, r.Add("work", "/tmp/work.db"))
-	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
+	require.NoError(t, r.Add("personal", dbFile))
 	require.NoError(t, r.Switch("work"))
 
 	err = r.Remove("personal", false)
 
 	require.NoError(t, err)
 	assert.NotContains(t, r.Ledgers, "personal")
+	_, statErr := os.Stat(dbFile)
+	assert.NoError(t, statErr, "file should NOT be deleted when deleteFile=false")
 }
 
 func TestRemove_RefusesActiveLedger(t *testing.T) {

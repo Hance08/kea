@@ -57,3 +57,15 @@ func TestRemoveRunner_RefusesActiveLedger(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, internalled.ErrRemoveActive))
 }
+
+func TestRemoveRunner_UnknownName(t *testing.T) {
+	dir := t.TempDir()
+	r, err := internalled.Load(dir)
+	require.NoError(t, err)
+
+	runner := &removeRunner{registry: r, name: "ghost", deleteFile: false, yes: true}
+	err = runner.Run()
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, internalled.ErrLedgerNotFound))
+}

@@ -45,7 +45,6 @@ Examples:
 	cmd.Flags().StringVarP(&flags.To, "to", "t", "", "Destination account (where money goes to)")
 	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
 	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
-	cmd.Flags().StringVarP(&flags.Type, "type", "T", "", "Transaction type: expense, income, or transfer (validates account types when provided)")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created transaction as JSON")
 
 	return cmd
@@ -57,11 +56,10 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 
 	// Check if using flag mode or interactive mode
 	hasFlags := cmd.Flags().Changed("desc") || cmd.Flags().Changed("amount") ||
-		cmd.Flags().Changed("from") || cmd.Flags().Changed("to") ||
-		cmd.Flags().Changed("type")
+		cmd.Flags().Changed("from") || cmd.Flags().Changed("to")
 
 	if flags.JSON && !hasFlags {
-		return fmt.Errorf("--json requires flags: --type, --amount, --from, --to")
+		return fmt.Errorf("--json requires flags: --amount, --from, --to")
 	}
 
 	if hasFlags {

@@ -50,3 +50,72 @@ func TestLoad_NormalLoad(t *testing.T) {
 	assert.Equal(t, "/tmp/work.db", r2.Ledgers["work"].Path)
 	assert.Equal(t, "work", r2.ActiveLedger)
 }
+
+func TestAdd_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+
+	err = r.Add("personal", "/tmp/personal.db")
+
+	require.NoError(t, err)
+	assert.Equal(t, "/tmp/personal.db", r.Ledgers["personal"].Path)
+}
+
+func TestAdd_DuplicateName(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
+
+	err = r.Add("personal", "/tmp/other.db")
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrLedgerExists)
+}
+
+func TestAdd_PersistsToDisk(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+
+	r2, err := Load(dir)
+	require.NoError(t, err)
+	assert.Contains(t, r2.Ledgers, "work")
+}
+
+func TestSwitch_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+
+	err = r.Switch("work")
+
+	require.NoError(t, err)
+	assert.Equal(t, "work", r.ActiveLedger)
+}
+
+func TestSwitch_UnknownName(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+
+	err = r.Switch("nonexistent")
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrLedgerNotFound)
+}
+
+func TestSwitch_PersistsToDisk(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Switch("work"))
+
+	r2, err := Load(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "work", r2.ActiveLedger)
+}

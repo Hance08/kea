@@ -100,3 +100,21 @@ func (r *Registry) EntryFor(name string) (Entry, bool) {
 	e, ok := r.Ledgers[name]
 	return e, ok
 }
+
+// Add registers a new ledger. Returns ErrLedgerExists if the name is already taken.
+func (r *Registry) Add(name, dbPath string) error {
+	if _, exists := r.Ledgers[name]; exists {
+		return fmt.Errorf("%w: %q", ErrLedgerExists, name)
+	}
+	r.Ledgers[name] = Entry{Path: dbPath}
+	return r.Save()
+}
+
+// Switch sets the active ledger by name. Returns ErrLedgerNotFound if unknown.
+func (r *Registry) Switch(name string) error {
+	if _, exists := r.Ledgers[name]; !exists {
+		return fmt.Errorf("%w: %q — run: kea ledger list", ErrLedgerNotFound, name)
+	}
+	r.ActiveLedger = name
+	return r.Save()
+}

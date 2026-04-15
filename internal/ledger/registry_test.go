@@ -72,6 +72,7 @@ func TestAdd_DuplicateName(t *testing.T) {
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrLedgerExists)
+	assert.Equal(t, "/tmp/personal.db", r.Ledgers["personal"].Path, "existing entry must not be overwritten")
 }
 
 func TestAdd_PersistsToDisk(t *testing.T) {

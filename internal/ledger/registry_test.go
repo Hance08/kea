@@ -1,6 +1,7 @@
 package ledger
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -119,4 +120,121 @@ func TestSwitch_PersistsToDisk(t *testing.T) {
 	r2, err := Load(dir)
 	require.NoError(t, err)
 	assert.Equal(t, "work", r2.ActiveLedger)
+}
+
+func TestActive_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Switch("work"))
+
+	path, err := r.Active()
+
+	require.NoError(t, err)
+	assert.Equal(t, "/tmp/work.db", path)
+}
+
+func TestActive_NoActiveLedger(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+
+	_, err = r.Active()
+
+	assert.ErrorIs(t, err, ErrNoActiveLedger)
+}
+
+func TestActive_EnvVarOverride(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
+	require.NoError(t, r.Switch("work"))
+	t.Setenv("KEA_LEDGER", "personal")
+
+	path, err := r.Active()
+
+	require.NoError(t, err)
+	assert.Equal(t, "/tmp/personal.db", path)
+}
+
+func TestActive_UnregisteredActiveName(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	r.ActiveLedger = "ghost"
+
+	_, err = r.Active()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ghost")
+}
+
+func TestRemove_UnregisterOnly(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
+	require.NoError(t, r.Switch("work"))
+
+	err = r.Remove("personal", false)
+
+	require.NoError(t, err)
+	assert.NotContains(t, r.Ledgers, "personal")
+}
+
+func TestRemove_RefusesActiveLedger(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Switch("work"))
+
+	err = r.Remove("work", false)
+
+	assert.ErrorIs(t, err, ErrRemoveActive)
+}
+
+func TestRemove_DeleteFile(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	dbFile := filepath.Join(dir, "personal.db")
+	require.NoError(t, os.WriteFile(dbFile, []byte(""), 0644))
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Add("personal", dbFile))
+	require.NoError(t, r.Switch("work"))
+
+	err = r.Remove("personal", true)
+
+	require.NoError(t, err)
+	_, statErr := os.Stat(dbFile)
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "database file should be deleted")
+}
+
+func TestRemove_UnknownName(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+
+	err = r.Remove("nonexistent", false)
+
+	assert.ErrorIs(t, err, ErrLedgerNotFound)
+}
+
+func TestRemove_PersistsToDisk(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
+	require.NoError(t, r.Switch("work"))
+	require.NoError(t, r.Remove("personal", false))
+
+	r2, err := Load(dir)
+	require.NoError(t, err)
+	assert.NotContains(t, r2.Ledgers, "personal")
 }

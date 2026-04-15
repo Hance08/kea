@@ -118,3 +118,49 @@ func (r *Registry) Switch(name string) error {
 	r.ActiveLedger = name
 	return r.Save()
 }
+
+// Active returns the resolved DB path for the active ledger.
+// KEA_LEDGER env var overrides the registry's active field.
+func (r *Registry) Active() (string, error) {
+	name := r.ActiveName()
+	if name == "" {
+		return "", ErrNoActiveLedger
+	}
+	entry, exists := r.Ledgers[name]
+	if !exists {
+		return "", fmt.Errorf("active ledger %q is not registered — run: kea ledger list", name)
+	}
+	return entry.Path, nil
+}
+
+// ActiveName returns the name of the active ledger.
+// KEA_LEDGER env var takes precedence over the registry's active field.
+func (r *Registry) ActiveName() string {
+	if env := os.Getenv("KEA_LEDGER"); env != "" {
+		return env
+	}
+	return r.ActiveLedger
+}
+
+// Remove unregisters a ledger. If deleteFile is true and the ledger's DB file
+// exists, it is deleted after unregistering. Returns ErrRemoveActive if the
+// target is currently the active ledger.
+func (r *Registry) Remove(name string, deleteFile bool) error {
+	if name == r.ActiveName() {
+		return ErrRemoveActive
+	}
+	entry, exists := r.Ledgers[name]
+	if !exists {
+		return fmt.Errorf("%w: %q", ErrLedgerNotFound, name)
+	}
+	delete(r.Ledgers, name)
+	if err := r.Save(); err != nil {
+		return err
+	}
+	if deleteFile {
+		if err := os.Remove(entry.Path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("delete database file: %w", err)
+		}
+	}
+	return nil
+}

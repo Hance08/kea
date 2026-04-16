@@ -73,3 +73,15 @@ type SplitDetail struct {
 	Currency    string
 	Memo        string
 }
+
+// ReconcileEntry is a read-only projection used by the reconciliation workflow.
+// It carries a transaction plus the net split amount for the queried account,
+// so the TUI can display amounts and the service can compute the cleared balance
+// without issuing per-transaction queries.
+type ReconcileEntry struct {
+	ID          int64
+	Timestamp   int64
+	Description string
+	Status      TransactionStatus
+	Amount      int64 // net split amount for the reconciled account
+}

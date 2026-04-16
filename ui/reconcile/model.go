@@ -12,6 +12,11 @@ import (
 	"github.com/hance08/kea/internal/utils"
 )
 
+// overheadLines is the number of non-item lines in the view:
+// account+badge (1) · blank (1) · statement (1) · top-sep (1) ·
+// bottom-sep (1) · cleared (1) · blank (1) · hint (1) = 8
+const overheadLines = 8
+
 type listItem struct {
 	entry   *model.ReconcileEntry
 	checked bool
@@ -25,6 +30,8 @@ type Model struct {
 	statementBalance int64
 	items            []listItem
 	cursor           int
+	viewportOffset   int // index of the first visible item
+	height           int // terminal height (0 = unknown, show all)
 	confirmPending   bool // waiting for y/n after Enter with non-zero diff
 	cancelled        bool
 	done             bool
@@ -59,10 +66,49 @@ func (m Model) SelectedIDs() []int64 {
 	return ids
 }
 
+// visibleCount returns how many item rows fit in the current terminal height.
+// Returns len(items) when height is unknown (0) so nothing is clipped.
+func (m Model) visibleCount() int {
+	if m.height == 0 {
+		return len(m.items)
+	}
+	n := m.height - overheadLines
+	if n < 1 {
+		n = 1
+	}
+	return n
+}
+
+// clampViewport adjusts viewportOffset so the cursor row is always visible.
+func clampViewport(cursor, viewportOffset, visibleCount, totalItems int) int {
+	if cursor < viewportOffset {
+		viewportOffset = cursor
+	}
+	if cursor >= viewportOffset+visibleCount {
+		viewportOffset = cursor - visibleCount + 1
+	}
+	maxOffset := totalItems - visibleCount
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if viewportOffset > maxOffset {
+		viewportOffset = maxOffset
+	}
+	if viewportOffset < 0 {
+		viewportOffset = 0
+	}
+	return viewportOffset
+}
+
 func (m Model) Init() tea.Cmd { return nil }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.viewportOffset = clampViewport(m.cursor, m.viewportOffset, m.visibleCount(), len(m.items))
+		return m, nil
+
 	case tea.KeyMsg:
 		if m.confirmPending {
 			switch {
@@ -81,10 +127,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Up):
 			if m.cursor > 0 {
 				m.cursor--
+				m.viewportOffset = clampViewport(m.cursor, m.viewportOffset, m.visibleCount(), len(m.items))
 			}
 		case key.Matches(msg, m.keys.Down):
 			if m.cursor < len(m.items)-1 {
 				m.cursor++
+				m.viewportOffset = clampViewport(m.cursor, m.viewportOffset, m.visibleCount(), len(m.items))
 			}
 		case key.Matches(msg, m.keys.Toggle):
 			if len(m.items) > 0 {
@@ -134,10 +182,29 @@ func (m Model) View() string {
 
 	stmtStr := utils.FormatAmount(m.statementBalance)
 	sb.WriteString(fmt.Sprintf("STATEMENT: $%s · %d UNRECONCILED\n", stmtStr, len(m.items)))
-	sb.WriteString(strings.Repeat("─", 52) + "\n")
+
+	// ── Viewport calculation ─────────────────────────────
+	vis := m.visibleCount()
+	start := m.viewportOffset
+	end := start + vis
+	if end > len(m.items) {
+		end = len(m.items)
+	}
+	above := start
+	below := len(m.items) - end
+
+	// ── Top separator (with scroll-up indicator) ─────────
+	if above > 0 {
+		indicator := fmt.Sprintf("↑ %d more  ", above)
+		sb.WriteString(indicator + strings.Repeat("─", 52-len(indicator)) + "\n")
+	} else {
+		sb.WriteString(strings.Repeat("─", 52) + "\n")
+	}
 
 	// ── Transaction list ────────────────────────────────
-	for i, it := range m.items {
+	for i := start; i < end; i++ {
+		it := m.items[i]
+
 		cursorMark := "  "
 		if i == m.cursor {
 			cursorMark = "▶ "
@@ -165,7 +232,13 @@ func (m Model) View() string {
 		sb.WriteString(line + "\n")
 	}
 
-	sb.WriteString(strings.Repeat("─", 52) + "\n")
+	// ── Bottom separator (with scroll-down indicator) ────
+	if below > 0 {
+		indicator := fmt.Sprintf("  ↓ %d more", below)
+		sb.WriteString(strings.Repeat("─", 52-len(indicator)) + indicator + "\n")
+	} else {
+		sb.WriteString(strings.Repeat("─", 52) + "\n")
+	}
 
 	// ── Footer balance ───────────────────────────────────
 	clearedStr := utils.FormatAmount(m.clearedBalance())

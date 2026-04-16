@@ -27,12 +27,12 @@ type mockAccountRepo struct {
 	nextID         int64
 
 	// injectable errors
-	createErr          error
-	deleteErr          error
-	getByNameErr       map[string]error
-	getByIDErr         map[int64]error
-	getBalanceErr      map[int64]error
-	getAllBalancesErr   error
+	createErr         error
+	deleteErr         error
+	getByNameErr      map[string]error
+	getByIDErr        map[int64]error
+	getBalanceErr     map[int64]error
+	getAllBalancesErr error
 }
 
 func newMockAccountRepo() *mockAccountRepo {
@@ -196,16 +196,24 @@ type mockTransactionRepo struct {
 	deleteSplitCalls []int64
 	createSplitCalls []*model.Split
 	updateSplitCalls []int64
+
+	// reconciliation support
+	unreconciledByAccount    map[int64][]*model.ReconcileEntry
+	unreconciledByAccountErr map[int64]error
+	bulkUpdateErr            error
+	bulkUpdateCalls          [][]int64
 }
 
 func newMockTransactionRepo() *mockTransactionRepo {
 	return &mockTransactionRepo{
-		transactions:    make(map[int64]*model.Transaction),
-		splits:          make(map[int64][]*model.Split),
-		getByIDErr:      make(map[int64]error),
-		splitsWithAccts: make(map[int64][]model.SplitDetail),
-		nextTxID:        1,
-		nextSplitID:     100,
+		transactions:             make(map[int64]*model.Transaction),
+		splits:                   make(map[int64][]*model.Split),
+		getByIDErr:               make(map[int64]error),
+		splitsWithAccts:          make(map[int64][]model.SplitDetail),
+		unreconciledByAccount:    make(map[int64][]*model.ReconcileEntry),
+		unreconciledByAccountErr: make(map[int64]error),
+		nextTxID:                 1,
+		nextSplitID:              100,
 	}
 }
 
@@ -346,6 +354,28 @@ func (m *mockTransactionRepo) GetSplitsWithAccountsByTransaction(txID int64) ([]
 		})
 	}
 	return result, nil
+}
+
+func (m *mockTransactionRepo) GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.ReconcileEntry, error) {
+	if err, ok := m.unreconciledByAccountErr[accountID]; ok {
+		return nil, err
+	}
+	return m.unreconciledByAccount[accountID], nil
+}
+
+func (m *mockTransactionRepo) BulkUpdateTransactionStatus(txIDs []int64, status model.TransactionStatus) error {
+	if m.bulkUpdateErr != nil {
+		return m.bulkUpdateErr
+	}
+	ids := make([]int64, len(txIDs))
+	copy(ids, txIDs)
+	m.bulkUpdateCalls = append(m.bulkUpdateCalls, ids)
+	for _, id := range txIDs {
+		if tx, ok := m.transactions[id]; ok {
+			tx.Status = status
+		}
+	}
+	return nil
 }
 
 // ──────────────────────────────────────────────

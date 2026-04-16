@@ -98,7 +98,10 @@ func (r *reconcileRunner) runInteractive(acc *model.Account) error {
 	if err != nil {
 		return fmt.Errorf("TUI error: %w", err)
 	}
-	finalModel := finalRaw.(reconcileui.Model)
+	finalModel, ok := finalRaw.(reconcileui.Model)
+	if !ok {
+		return fmt.Errorf("unexpected TUI model type: %T", finalRaw)
+	}
 
 	if finalModel.Cancelled() {
 		pterm.Info.Println("Reconciliation cancelled.")

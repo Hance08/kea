@@ -138,6 +138,11 @@ func (m Model) View() string {
 
 	// ── Transaction list ────────────────────────────────
 	for i, it := range m.items {
+		cursorMark := "  "
+		if i == m.cursor {
+			cursorMark = "▶ "
+		}
+
 		checkbox := "[ ]"
 		rowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 		if it.checked {
@@ -147,7 +152,7 @@ func (m Model) View() string {
 
 		date := time.Unix(it.entry.Timestamp, 0).Format("Jan 02")
 		amt := fmt.Sprintf("$%s", utils.FormatAmount(it.entry.Amount))
-		line := fmt.Sprintf("%s %s  %-28s %10s", checkbox, date, truncate(it.entry.Description, 28), amt)
+		line := fmt.Sprintf("%s%s %s  %-26s %10s", cursorMark, checkbox, date, truncate(it.entry.Description, 26), amt)
 
 		if i == m.cursor {
 			line = lipgloss.NewStyle().

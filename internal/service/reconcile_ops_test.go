@@ -113,6 +113,9 @@ func TestReconcileTransactions_EmptyIDs(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty IDs, got nil")
 	}
+	if len(txRepo.bulkUpdateCalls) != 0 {
+		t.Error("bulk update must not be called when IDs are empty")
+	}
 }
 
 func TestReconcileTransactions_AccountNotFound(t *testing.T) {

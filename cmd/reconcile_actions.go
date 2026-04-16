@@ -93,7 +93,7 @@ func (r *reconcileRunner) runInteractive(acc *model.Account) error {
 
 	// 3. Run bubbletea TUI.
 	m := reconcileui.NewModel(acc.Name, statementBalance, entries)
-	prog := tea.NewProgram(m)
+	prog := tea.NewProgram(m, tea.WithAltScreen())
 	finalRaw, err := prog.Run()
 	if err != nil {
 		return fmt.Errorf("TUI error: %w", err)

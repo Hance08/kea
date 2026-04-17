@@ -62,12 +62,16 @@ func (s *Store) GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.
 }
 
 // MarkSplitsReconciledByAccount marks the splits for accountID in each of the
-// listed transactions as reconciled (splits.reconciled = 1). After updating the
-// splits it checks whether every split in each affected transaction is now
-// reconciled; if so the transaction's status is upgraded to StatusReconciled.
-// This is intentionally two separate statements (not wrapped in a store-level
-// transaction) because the status upgrade is a derived convenience — the split
-// flag is the source of truth.
+// listed transactions as reconciled (splits.reconciled = 1), then upgrades
+// every affected transaction's status to StatusReconciled.
+//
+// The transaction status is upgraded as soon as any split is reconciled — not
+// only when all splits are reconciled. Expense, Revenue, and Equity accounts
+// are never reconciled against statements, so requiring all splits to be marked
+// would mean ordinary expense transactions could never reach StatusReconciled.
+// The reconcile TUI filters on s.reconciled = 0 (not t.status), so marking the
+// transaction Reconciled here does not hide it from other accounts that still
+// need to reconcile their own splits.
 func (s *Store) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) error {
 	if len(txIDs) == 0 {
 		return nil
@@ -90,40 +94,8 @@ func (s *Store) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) er
 		return fmt.Errorf("failed to mark splits as reconciled: %w", err)
 	}
 
-	// 2. Find transactions where ALL splits are now reconciled.
-	txArgs := make([]any, len(txIDs))
-	for i, id := range txIDs {
-		txArgs[i] = id
-	}
-	fullyQuery := fmt.Sprintf(`
-		SELECT transaction_id FROM splits
-		WHERE transaction_id IN (%s)
-		GROUP BY transaction_id
-		HAVING MIN(reconciled) = 1
-	`, placeholders)
-	rows, err := s.db.Query(fullyQuery, txArgs...)
-	if err != nil {
-		return fmt.Errorf("failed to check fully reconciled transactions: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var fullyReconciled []int64
-	for rows.Next() {
-		var txID int64
-		if err := rows.Scan(&txID); err != nil {
-			return fmt.Errorf("failed to scan transaction ID: %w", err)
-		}
-		fullyReconciled = append(fullyReconciled, txID)
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("rows iteration error: %w", err)
-	}
-
-	// 3. Upgrade the status of fully-reconciled transactions.
-	if len(fullyReconciled) == 0 {
-		return nil
-	}
-	return s.BulkUpdateTransactionStatus(fullyReconciled, model.StatusReconciled)
+	// 2. Upgrade all affected transactions to StatusReconciled.
+	return s.BulkUpdateTransactionStatus(txIDs, model.StatusReconciled)
 }
 
 // BulkUpdateTransactionStatus sets the status of all listed transaction IDs

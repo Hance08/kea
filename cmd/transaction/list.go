@@ -136,10 +136,7 @@ func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *model.Tran
 
 	date := time.Unix(tx.Timestamp, 0).Format("2006-01-02")
 
-	status := "Cleared"
-	if tx.Status == model.StatusPending {
-		status = "Pending"
-	}
+	status := tx.Status.String()
 
 	return views.TransactionListItem{
 		ID:          tx.ID,

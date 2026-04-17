@@ -25,10 +25,7 @@ func (v *TransactionDetailView) Render(input *model.TransactionDetail, isCreate 
 
 	date := time.Unix(input.Timestamp, 0).Format("2006-01-02")
 
-	status := "Cleared"
-	if input.Status == 0 {
-		status = "Pending"
-	}
+	status := input.Status.String()
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{})

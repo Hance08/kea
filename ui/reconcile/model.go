@@ -194,12 +194,18 @@ func (m Model) View() string {
 			Background(lipgloss.Color("22")).
 			Foreground(lipgloss.Color("15")).
 			Render("BALANCED")
-	} else {
+	} else if diff > 0 {
 		badge = lipgloss.NewStyle().
 			Padding(0, 1).
 			Background(lipgloss.Color("58")).
 			Foreground(lipgloss.Color("15")).
-			Render(fmt.Sprintf("OFF BY $%s", utils.FormatAmount(abs(diff))))
+			Render(fmt.Sprintf("SHORT $%s", utils.FormatAmount(diff)))
+	} else {
+		badge = lipgloss.NewStyle().
+			Padding(0, 1).
+			Background(lipgloss.Color("130")).
+			Foreground(lipgloss.Color("15")).
+			Render(fmt.Sprintf("OVER $%s", utils.FormatAmount(abs(diff))))
 	}
 
 	accountStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("78"))
@@ -273,21 +279,34 @@ func (m Model) View() string {
 	// ── Footer balance ───────────────────────────────────
 	clearedStr := utils.FormatAmount(m.clearedBalance())
 	diffStr := utils.FormatAmount(abs(diff))
-	remainingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	if diff == 0 {
-		remainingStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("78"))
+	var diffLabel string
+	var diffStyle lipgloss.Style
+	switch {
+	case diff == 0:
+		diffLabel = "Balanced"
+		diffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("78"))
+	case diff > 0:
+		diffLabel = fmt.Sprintf("Short $%s", diffStr)
+		diffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	default: // diff < 0: cleared more than statement
+		diffLabel = fmt.Sprintf("Over $%s", diffStr)
+		diffStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 	}
 	sb.WriteString(fmt.Sprintf(
 		"Cleared $%s · %s\n",
 		clearedStr,
-		remainingStyle.Render(fmt.Sprintf("Remaining $%s", diffStr)),
+		diffStyle.Render(diffLabel),
 	))
 
 	// ── Prompt or hint ───────────────────────────────────
 	if m.confirmPending {
 		warnStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
+		direction := "short"
+		if diff < 0 {
+			direction = "over"
+		}
 		sb.WriteString(fmt.Sprintf("\n%s\n",
-			warnStyle.Render(fmt.Sprintf("You're off by $%s. Confirm anyway? (y/n)", diffStr)),
+			warnStyle.Render(fmt.Sprintf("$%s %s. Confirm anyway? (y/n)", diffStr, direction)),
 		))
 	} else {
 		sb.WriteString("\nspace toggle · a select all · enter finish · ↑↓ navigate · q quit\n")

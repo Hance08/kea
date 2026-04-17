@@ -6,25 +6,38 @@ import (
 	"github.com/hance08/kea/internal/model"
 )
 
-// GetUnreconciledByAccount returns all Pending/Cleared transactions that
-// have a split touching the given account, including the split amount for
-// that account. Used to populate the reconciliation TUI.
-func (ts *TransactionService) GetUnreconciledByAccount(accountID int64) ([]*model.ReconcileEntry, error) {
+// GetUnreconciledByAccount returns all Pending/Cleared transactions that have
+// a split touching the given account, together with the account's last
+// reconciled balance. Used to populate the reconciliation TUI.
+//
+// The last reconciled balance is 0 if the account has never been reconciled.
+func (ts *TransactionService) GetUnreconciledByAccount(accountID int64) ([]*model.ReconcileEntry, int64, error) {
 	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(accountID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load unreconciled transactions: %w", err)
+		return nil, 0, fmt.Errorf("failed to load unreconciled transactions: %w", err)
 	}
-	return entries, nil
+	lastBalance, err := ts.txRepo.GetLastReconciledBalance(accountID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to load last reconciled balance: %w", err)
+	}
+	return entries, lastBalance, nil
 }
 
 // ReconcileTransactions marks the given transaction IDs as reconciled for
 // accountID. It validates that every requested ID is in the unreconciled set
 // for that account before writing anything.
 //
-// Returns the difference between statementBalance and the sum of the selected
-// split amounts for accountID. A non-zero difference is informational — the
-// method always commits if the IDs are valid. The caller decides whether to
-// warn (non-zero diff) or proceed silently (zero diff).
+// The returned difference is:
+//
+//	statementBalance − (lastReconciledBalance + clearedBalance)
+//
+// where clearedBalance is the sum of splits the caller selected in this
+// session. A zero difference means the selected transactions exactly bridge
+// the gap between the last reconciled balance and the new bank statement.
+//
+// The new running reconciled balance (lastReconciledBalance + clearedBalance)
+// is always persisted after a successful reconcile — regardless of whether the
+// difference is zero. The caller decides whether to warn on a non-zero diff.
 func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBalance int64, txIDs []int64) (int64, error) {
 	if len(txIDs) == 0 {
 		return 0, fmt.Errorf("no transactions selected for reconciliation")
@@ -35,18 +48,24 @@ func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBa
 		return 0, fmt.Errorf("account not found: %w", err)
 	}
 
-	// 2. Fetch unreconciled transactions and build a valid-ID → amount map.
+	// 2. Fetch last reconciled balance.
+	lastBalance, err := ts.txRepo.GetLastReconciledBalance(accountID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load last reconciled balance: %w", err)
+	}
+
+	// 3. Fetch unreconciled transactions and build a valid-ID → amount map.
 	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(accountID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to load unreconciled transactions: %w", err)
 	}
 
-	validAmounts := make(map[int64]int64, len(entries)) // txID → split amount
+	validAmounts := make(map[int64]int64, len(entries))
 	for _, e := range entries {
 		validAmounts[e.ID] = e.Amount
 	}
 
-	// 3. Validate every requested ID and accumulate the cleared balance.
+	// 4. Validate every requested ID and accumulate the cleared balance.
 	var clearedBalance int64
 	for _, id := range txIDs {
 		amount, ok := validAmounts[id]
@@ -56,11 +75,17 @@ func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBa
 		clearedBalance += amount
 	}
 
-	// 4. Mark the account's splits as reconciled (split-level tracking so that
+	// 5. Mark the account's splits as reconciled (split-level tracking so that
 	// multi-account transactions remain visible for other accounts).
 	if err := ts.txRepo.MarkSplitsReconciledByAccount(accountID, txIDs); err != nil {
 		return 0, fmt.Errorf("failed to reconcile transactions: %w", err)
 	}
 
-	return statementBalance - clearedBalance, nil
+	// 6. Persist the new running reconciled balance.
+	newBalance := lastBalance + clearedBalance
+	if err := ts.txRepo.SetLastReconciledBalance(accountID, newBalance); err != nil {
+		return 0, fmt.Errorf("failed to persist reconciled balance: %w", err)
+	}
+
+	return statementBalance - newBalance, nil
 }

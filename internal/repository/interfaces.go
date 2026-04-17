@@ -55,6 +55,11 @@ type TransactionRepository interface {
 	// in a single atomic UPDATE. Returns an error if the affected row count
 	// does not match len(txIDs).
 	BulkUpdateTransactionStatus(txIDs []int64, status model.TransactionStatus) error
+
+	// MarkSplitsReconciledByAccount marks the splits for accountID in each of
+	// the listed transactions as reconciled. If all splits in a transaction are
+	// now reconciled the transaction's status is upgraded to StatusReconciled.
+	MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) error
 }
 
 type Repository interface {

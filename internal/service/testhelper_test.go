@@ -202,6 +202,11 @@ type mockTransactionRepo struct {
 	unreconciledByAccountErr map[int64]error
 	bulkUpdateErr            error
 	bulkUpdateCalls          [][]int64
+	markSplitsReconciledErr  error
+	markSplitsReconciledCalls []struct {
+		accountID int64
+		txIDs     []int64
+	}
 }
 
 func newMockTransactionRepo() *mockTransactionRepo {
@@ -375,6 +380,19 @@ func (m *mockTransactionRepo) BulkUpdateTransactionStatus(txIDs []int64, status 
 			tx.Status = status
 		}
 	}
+	return nil
+}
+
+func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) error {
+	if m.markSplitsReconciledErr != nil {
+		return m.markSplitsReconciledErr
+	}
+	ids := make([]int64, len(txIDs))
+	copy(ids, txIDs)
+	m.markSplitsReconciledCalls = append(m.markSplitsReconciledCalls, struct {
+		accountID int64
+		txIDs     []int64
+	}{accountID, ids})
 	return nil
 }
 

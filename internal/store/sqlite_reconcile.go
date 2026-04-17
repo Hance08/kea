@@ -13,14 +13,33 @@ import (
 // Results are ordered by timestamp ASC so the TUI shows chronological order.
 func (s *Store) GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.ReconcileEntry, error) {
 	rows, err := s.db.Query(`
-        SELECT t.id, t.timestamp, t.description, t.status, SUM(s.amount) AS amount
+        SELECT
+            t.id, t.timestamp, t.description, t.status,
+            SUM(s.amount) AS amount,
+            CASE
+                WHEN (
+                    SELECT COUNT(DISTINCT s2.account_id)
+                    FROM splits s2
+                    WHERE s2.transaction_id = t.id AND s2.account_id != ?
+                ) > 1
+                THEN '(split)'
+                ELSE COALESCE(
+                    (
+                        SELECT a.name
+                        FROM splits s2
+                        JOIN accounts a ON a.id = s2.account_id
+                        WHERE s2.transaction_id = t.id AND s2.account_id != ?
+                        LIMIT 1
+                    ), ''
+                )
+            END AS offset_account
         FROM transactions t
         INNER JOIN splits s ON t.id = s.transaction_id
         WHERE s.account_id = ?
           AND t.status IN (0, 1)
         GROUP BY t.id, t.timestamp, t.description, t.status
         ORDER BY t.timestamp ASC, t.id ASC
-    `, accountID)
+    `, accountID, accountID, accountID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query unreconciled transactions: %w", err)
 	}
@@ -29,7 +48,7 @@ func (s *Store) GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.
 	var result []*model.ReconcileEntry
 	for rows.Next() {
 		e := &model.ReconcileEntry{}
-		if err := rows.Scan(&e.ID, &e.Timestamp, &e.Description, &e.Status, &e.Amount); err != nil {
+		if err := rows.Scan(&e.ID, &e.Timestamp, &e.Description, &e.Status, &e.Amount, &e.OffsetAccount); err != nil {
 			return nil, fmt.Errorf("failed to scan reconcile entry: %w", err)
 		}
 		result = append(result, e)

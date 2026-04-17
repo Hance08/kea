@@ -138,6 +138,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.items) > 0 {
 				m.items[m.cursor].checked = !m.items[m.cursor].checked
 			}
+		case key.Matches(msg, m.keys.SelectAll):
+			// If every item is already checked, uncheck all; otherwise check all.
+			allChecked := true
+			for _, it := range m.items {
+				if !it.checked {
+					allChecked = false
+					break
+				}
+			}
+			for i := range m.items {
+				m.items[i].checked = !allChecked
+			}
 		case key.Matches(msg, m.keys.Confirm):
 			if len(m.items) == 0 {
 				return m, nil
@@ -193,12 +205,14 @@ func (m Model) View() string {
 	above := start
 	below := len(m.items) - end
 
+	const sepWidth = 70
+
 	// ── Top separator (with scroll-up indicator) ─────────
 	if above > 0 {
 		indicator := fmt.Sprintf("↑ %d more  ", above)
-		sb.WriteString(indicator + strings.Repeat("─", 52-len(indicator)) + "\n")
+		sb.WriteString(indicator + strings.Repeat("─", sepWidth-len(indicator)) + "\n")
 	} else {
-		sb.WriteString(strings.Repeat("─", 52) + "\n")
+		sb.WriteString(strings.Repeat("─", sepWidth) + "\n")
 	}
 
 	// ── Transaction list ────────────────────────────────
@@ -217,9 +231,16 @@ func (m Model) View() string {
 			rowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("78"))
 		}
 
-		date := time.Unix(it.entry.Timestamp, 0).Format("Jan 02")
+		date := time.Unix(it.entry.Timestamp, 0).Format("06-01-02")
 		amt := fmt.Sprintf("$%s", utils.FormatAmount(it.entry.Amount))
-		line := fmt.Sprintf("%s%s %s  %-26s %10s", cursorMark, checkbox, date, truncate(it.entry.Description, 26), amt)
+		line := fmt.Sprintf("%s%s %s  %-18s  %-18s  %12s",
+			cursorMark,
+			checkbox,
+			date,
+			truncate(it.entry.Description, 18),
+			truncate(it.entry.OffsetAccount, 18),
+			amt,
+		)
 
 		if i == m.cursor {
 			line = lipgloss.NewStyle().
@@ -235,9 +256,9 @@ func (m Model) View() string {
 	// ── Bottom separator (with scroll-down indicator) ────
 	if below > 0 {
 		indicator := fmt.Sprintf("  ↓ %d more", below)
-		sb.WriteString(strings.Repeat("─", 52-len(indicator)) + indicator + "\n")
+		sb.WriteString(strings.Repeat("─", sepWidth-len(indicator)) + indicator + "\n")
 	} else {
-		sb.WriteString(strings.Repeat("─", 52) + "\n")
+		sb.WriteString(strings.Repeat("─", sepWidth) + "\n")
 	}
 
 	// ── Footer balance ───────────────────────────────────
@@ -260,7 +281,7 @@ func (m Model) View() string {
 			warnStyle.Render(fmt.Sprintf("You're off by $%s. Confirm anyway? (y/n)", diffStr)),
 		))
 	} else {
-		sb.WriteString("\nspace toggle · enter finish · ↑↓ navigate · q quit\n")
+		sb.WriteString("\nspace toggle · a select all · enter finish · ↑↓ navigate · q quit\n")
 	}
 
 	return sb.String()

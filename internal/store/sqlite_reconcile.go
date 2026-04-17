@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -131,6 +132,39 @@ func (s *Store) BulkUpdateTransactionStatus(txIDs []int64, status model.Transact
 	}
 	if rowsAffected != int64(len(txIDs)) {
 		return fmt.Errorf("expected to update %d transactions, updated %d", len(txIDs), rowsAffected)
+	}
+	return nil
+}
+
+// GetLastReconciledBalance returns the running reconciled balance for
+// accountID. Returns 0 if the account has never been reconciled (no row in
+// account_reconcile_state for this account yet).
+func (s *Store) GetLastReconciledBalance(accountID int64) (int64, error) {
+	var balance int64
+	err := s.db.QueryRow(
+		"SELECT last_reconciled_balance FROM account_reconcile_state WHERE account_id = ?",
+		accountID,
+	).Scan(&balance)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last reconciled balance: %w", err)
+	}
+	return balance, nil
+}
+
+// SetLastReconciledBalance persists the new running reconciled balance for
+// accountID. An upsert is used so that the first reconcile for an account
+// inserts a row; subsequent reconciles update it.
+func (s *Store) SetLastReconciledBalance(accountID int64, balance int64) error {
+	_, err := s.db.Exec(`
+        INSERT INTO account_reconcile_state (account_id, last_reconciled_balance)
+        VALUES (?, ?)
+        ON CONFLICT(account_id) DO UPDATE SET last_reconciled_balance = excluded.last_reconciled_balance
+    `, accountID, balance)
+	if err != nil {
+		return fmt.Errorf("failed to set last reconciled balance: %w", err)
 	}
 	return nil
 }

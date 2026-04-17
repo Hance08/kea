@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/service"
 )
 
 type EditView interface {
@@ -28,7 +29,7 @@ type EditView interface {
 
 type EditProvider interface {
 	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
-	IsEditable(detail *model.TransactionDetail) bool
+	IsEditable(detail *model.TransactionDetail) (bool, service.NotEditableReason)
 	DetermineType(splits []model.SplitDetail) (model.TransactionType, error)
 	GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account
 	ValidateTransactionEdit(splits []model.SplitDetail) error

@@ -275,14 +275,23 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 	})
 }
 
-func (ts *TransactionService) IsEditable(detail *model.TransactionDetail) bool {
+// NotEditableReason identifies why a transaction cannot be edited.
+type NotEditableReason int
+
+const (
+	EditableOK              NotEditableReason = 0 // transaction may be edited
+	NotEditableSystemTx     NotEditableReason = 1 // opening-balance system transaction
+	NotEditableReconciled   NotEditableReason = 2 // already reconciled
+)
+
+func (ts *TransactionService) IsEditable(detail *model.TransactionDetail) (bool, NotEditableReason) {
 	if detail.ID == model.OpeningBalanceTransactionID {
-		return false
+		return false, NotEditableSystemTx
 	}
 
 	if detail.Status == model.StatusReconciled {
-		return false
+		return false, NotEditableReconciled
 	}
 
-	return true
+	return true, EditableOK
 }

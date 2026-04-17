@@ -45,6 +45,16 @@ type TransactionRepository interface {
 	// GetSplitsWithAccountsByTransaction returns all splits (with account info) for
 	// a single transaction in one JOIN query.
 	GetSplitsWithAccountsByTransaction(txID int64) ([]model.SplitDetail, error)
+
+	// GetUnreconciledTransactionsByAccount returns all Pending and Cleared
+	// transactions that have a split touching accountID, together with the
+	// net split amount for that account. Ordered by timestamp ASC.
+	GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.ReconcileEntry, error)
+
+	// BulkUpdateTransactionStatus sets status on all listed transaction IDs
+	// in a single atomic UPDATE. Returns an error if the affected row count
+	// does not match len(txIDs).
+	BulkUpdateTransactionStatus(txIDs []int64, status model.TransactionStatus) error
 }
 
 type Repository interface {

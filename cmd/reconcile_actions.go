@@ -85,14 +85,14 @@ func (r *reconcileRunner) runInteractive(acc *model.Account) error {
 		return fmt.Errorf("invalid balance: %w", err)
 	}
 
-	// 2. Load unreconciled entries.
-	entries, err := r.txSvc.GetUnreconciledByAccount(acc.ID)
+	// 2. Load unreconciled entries and the last reconciled balance.
+	entries, lastReconciledBalance, err := r.txSvc.GetUnreconciledByAccount(acc.ID)
 	if err != nil {
 		return err
 	}
 
 	// 3. Run bubbletea TUI.
-	m := reconcileui.NewModel(acc.Name, statementBalance, entries)
+	m := reconcileui.NewModel(acc.Name, statementBalance, lastReconciledBalance, entries)
 	prog := tea.NewProgram(m, tea.WithAltScreen())
 	finalRaw, err := prog.Run()
 	if err != nil {

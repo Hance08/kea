@@ -14,9 +14,9 @@ import (
 )
 
 // overheadLines is the number of non-item lines in the view:
-// account+badge (1) · blank (1) · statement (1) · top-sep (1) ·
-// bottom-sep (1) · cleared (1) · blank (1) · hint (1) = 8
-const overheadLines = 8
+// account+badge (1) · blank (1) · statement (1) · last-reconciled (1) ·
+// top-sep (1) · bottom-sep (1) · cleared (1) · blank (1) · hint (1) = 9
+const overheadLines = 9
 
 // Column widths in terminal display columns (accounts for double-wide CJK chars).
 const (
@@ -39,29 +39,31 @@ type listItem struct {
 // After tea.Program.Run() returns, inspect Cancelled() and SelectedIDs()
 // to determine the outcome.
 type Model struct {
-	accountName      string
-	statementBalance int64
-	items            []listItem
-	cursor           int
-	viewportOffset   int  // index of the first visible item
-	height           int  // terminal height (0 = unknown, show all)
-	confirmPending   bool // waiting for y/n after Enter with non-zero diff
-	cancelled        bool
-	done             bool
-	keys             keyMap
+	accountName           string
+	statementBalance      int64
+	lastReconciledBalance int64
+	items                 []listItem
+	cursor                int
+	viewportOffset        int  // index of the first visible item
+	height                int  // terminal height (0 = unknown, show all)
+	confirmPending        bool // waiting for y/n after Enter with non-zero diff
+	cancelled             bool
+	done                  bool
+	keys                  keyMap
 }
 
 // NewModel constructs the initial reconciliation model.
-func NewModel(accountName string, statementBalance int64, entries []*model.ReconcileEntry) Model {
+func NewModel(accountName string, statementBalance int64, lastReconciledBalance int64, entries []*model.ReconcileEntry) Model {
 	items := make([]listItem, len(entries))
 	for i, e := range entries {
 		items[i] = listItem{entry: e}
 	}
 	return Model{
-		accountName:      accountName,
-		statementBalance: statementBalance,
-		items:            items,
-		keys:             defaultKeyMap(),
+		accountName:           accountName,
+		statementBalance:      statementBalance,
+		lastReconciledBalance: lastReconciledBalance,
+		items:                 items,
+		keys:                  defaultKeyMap(),
 	}
 }
 
@@ -212,7 +214,9 @@ func (m Model) View() string {
 	sb.WriteString(fmt.Sprintf("%-40s %s\n\n", accountStyle.Render(m.accountName), badge))
 
 	stmtStr := utils.FormatAmount(m.statementBalance)
+	lastStr := utils.FormatAmount(m.lastReconciledBalance)
 	sb.WriteString(fmt.Sprintf("STATEMENT: $%s · %d UNRECONCILED\n", stmtStr, len(m.items)))
+	sb.WriteString(fmt.Sprintf("LAST RECONCILED: $%s\n", lastStr))
 
 	// ── Viewport calculation ─────────────────────────────
 	vis := m.visibleCount()
@@ -328,7 +332,7 @@ func (m Model) clearedBalance() int64 {
 }
 
 func (m Model) difference() int64 {
-	return m.statementBalance - m.clearedBalance()
+	return m.statementBalance - (m.lastReconciledBalance + m.clearedBalance())
 }
 
 func abs(n int64) int64 {

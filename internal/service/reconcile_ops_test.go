@@ -31,8 +31,8 @@ func TestReconcileTransactions_ZeroDifference(t *testing.T) {
 	if diff != 0 {
 		t.Errorf("expected difference 0, got %d", diff)
 	}
-	if len(txRepo.bulkUpdateCalls) != 1 {
-		t.Errorf("expected 1 bulk update call, got %d", len(txRepo.bulkUpdateCalls))
+	if len(txRepo.markSplitsReconciledCalls) != 1 {
+		t.Errorf("expected 1 MarkSplitsReconciledByAccount call, got %d", len(txRepo.markSplitsReconciledCalls))
 	}
 }
 
@@ -55,8 +55,8 @@ func TestReconcileTransactions_NonZeroDifference(t *testing.T) {
 	if diff != 20000 {
 		t.Errorf("expected difference 20000, got %d", diff)
 	}
-	if len(txRepo.bulkUpdateCalls) != 1 {
-		t.Fatalf("expected bulk update to be called")
+	if len(txRepo.markSplitsReconciledCalls) != 1 {
+		t.Fatalf("expected MarkSplitsReconciledByAccount to be called")
 	}
 }
 
@@ -75,8 +75,8 @@ func TestReconcileTransactions_UnknownTxID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown transaction ID, got nil")
 	}
-	if len(txRepo.bulkUpdateCalls) != 0 {
-		t.Error("bulk update must not be called when validation fails")
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not be called when validation fails")
 	}
 }
 
@@ -96,8 +96,8 @@ func TestReconcileTransactions_AlreadyReconciledID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for already-reconciled ID, got nil")
 	}
-	if len(txRepo.bulkUpdateCalls) != 0 {
-		t.Error("bulk update must not be called when validation fails")
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not be called when validation fails")
 	}
 }
 
@@ -113,8 +113,8 @@ func TestReconcileTransactions_EmptyIDs(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty IDs, got nil")
 	}
-	if len(txRepo.bulkUpdateCalls) != 0 {
-		t.Error("bulk update must not be called when IDs are empty")
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not be called when IDs are empty")
 	}
 }
 
@@ -130,7 +130,7 @@ func TestReconcileTransactions_AccountNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown account, got nil")
 	}
-	if len(txRepo.bulkUpdateCalls) != 0 {
-		t.Error("bulk update must not be called when account lookup fails")
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not be called when account lookup fails")
 	}
 }

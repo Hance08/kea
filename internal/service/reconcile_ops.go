@@ -56,8 +56,9 @@ func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBa
 		clearedBalance += amount
 	}
 
-	// 4. Atomically mark all selected transactions as reconciled.
-	if err := ts.txRepo.BulkUpdateTransactionStatus(txIDs, model.StatusReconciled); err != nil {
+	// 4. Mark the account's splits as reconciled (split-level tracking so that
+	// multi-account transactions remain visible for other accounts).
+	if err := ts.txRepo.MarkSplitsReconciledByAccount(accountID, txIDs); err != nil {
 		return 0, fmt.Errorf("failed to reconcile transactions: %w", err)
 	}
 

@@ -209,9 +209,12 @@ type mockTransactionRepo struct {
 	}
 
 	// last reconciled balance support
-	lastReconciledBalances map[int64]int64
-	getLastReconciledErr   error
-	setLastReconciledErr   error
+	lastReconciledBalances    map[int64]int64
+	getLastReconciledBalErr   map[int64]error
+	setLastReconciledBalCalls []struct {
+		accountID int64
+		balance   int64
+	}
 }
 
 func newMockTransactionRepo() *mockTransactionRepo {
@@ -223,6 +226,7 @@ func newMockTransactionRepo() *mockTransactionRepo {
 		unreconciledByAccount:    make(map[int64][]*model.ReconcileEntry),
 		unreconciledByAccountErr: make(map[int64]error),
 		lastReconciledBalances:   make(map[int64]int64),
+		getLastReconciledBalErr:  make(map[int64]error),
 		nextTxID:                 1,
 		nextSplitID:              100,
 	}
@@ -403,17 +407,18 @@ func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(accountID int64, txI
 }
 
 func (m *mockTransactionRepo) GetLastReconciledBalance(accountID int64) (int64, error) {
-	if m.getLastReconciledErr != nil {
-		return 0, m.getLastReconciledErr
+	if err, ok := m.getLastReconciledBalErr[accountID]; ok {
+		return 0, err
 	}
 	return m.lastReconciledBalances[accountID], nil
 }
 
 func (m *mockTransactionRepo) SetLastReconciledBalance(accountID int64, balance int64) error {
-	if m.setLastReconciledErr != nil {
-		return m.setLastReconciledErr
-	}
 	m.lastReconciledBalances[accountID] = balance
+	m.setLastReconciledBalCalls = append(m.setLastReconciledBalCalls, struct {
+		accountID int64
+		balance   int64
+	}{accountID, balance})
 	return nil
 }
 

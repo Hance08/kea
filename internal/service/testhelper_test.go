@@ -215,6 +215,7 @@ type mockTransactionRepo struct {
 		accountID int64
 		balance   int64
 	}
+	setLastReconciledBalErr map[int64]error
 }
 
 func newMockTransactionRepo() *mockTransactionRepo {
@@ -227,6 +228,7 @@ func newMockTransactionRepo() *mockTransactionRepo {
 		unreconciledByAccountErr: make(map[int64]error),
 		lastReconciledBalances:   make(map[int64]int64),
 		getLastReconciledBalErr:  make(map[int64]error),
+		setLastReconciledBalErr:  make(map[int64]error),
 		nextTxID:                 1,
 		nextSplitID:              100,
 	}
@@ -414,6 +416,9 @@ func (m *mockTransactionRepo) GetLastReconciledBalance(accountID int64) (int64, 
 }
 
 func (m *mockTransactionRepo) SetLastReconciledBalance(accountID int64, balance int64) error {
+	if err, ok := m.setLastReconciledBalErr[accountID]; ok {
+		return err
+	}
 	m.lastReconciledBalances[accountID] = balance
 	m.setLastReconciledBalCalls = append(m.setLastReconciledBalCalls, struct {
 		accountID int64

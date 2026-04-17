@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
@@ -234,5 +235,62 @@ func TestReconcileTransactions_AccountNotFound(t *testing.T) {
 	}
 	if len(txRepo.setLastReconciledBalCalls) != 0 {
 		t.Error("SetLastReconciledBalance must not be called when account lookup fails")
+	}
+}
+
+func TestReconcileTransactions_GetLastReconciledBalance_Error(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	txRepo.getLastReconciledBalErr[1] = fmt.Errorf("db error")
+
+	_, err := svc.ReconcileTransactions(1, 50000, []int64{10})
+
+	if err == nil {
+		t.Fatal("expected error when GetLastReconciledBalance fails")
+	}
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not be called on GetLastReconciledBalance error")
+	}
+	if len(txRepo.setLastReconciledBalCalls) != 0 {
+		t.Error("SetLastReconciledBalance must not be called on GetLastReconciledBalance error")
+	}
+}
+
+func TestReconcileTransactions_SetLastReconciledBalance_Error(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 50000},
+	})
+	txRepo.setLastReconciledBalErr[1] = fmt.Errorf("persist error")
+
+	_, err := svc.ReconcileTransactions(1, 50000, []int64{10})
+
+	if err == nil {
+		t.Fatal("expected error when SetLastReconciledBalance fails")
+	}
+	if len(txRepo.markSplitsReconciledCalls) != 1 {
+		t.Error("MarkSplitsReconciledByAccount should have been called before the error")
+	}
+}
+
+func TestGetUnreconciledByAccount_GetLastReconciledBalance_Error(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	txRepo.getLastReconciledBalErr[1] = fmt.Errorf("db error")
+
+	_, _, err := svc.GetUnreconciledByAccount(1)
+
+	if err == nil {
+		t.Fatal("expected error when GetLastReconciledBalance fails in GetUnreconciledByAccount")
 	}
 }

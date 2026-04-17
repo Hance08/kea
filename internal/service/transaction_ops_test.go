@@ -571,29 +571,29 @@ func TestIsEditable(t *testing.T) {
 
 	t.Run("regular transaction is editable", func(t *testing.T) {
 		detail := &model.TransactionDetail{ID: 5}
-		editable, code := svc.IsEditable(detail)
+		editable, reason := svc.IsEditable(detail)
 		assert.True(t, editable)
-		assert.Equal(t, int64(0), code)
+		assert.Equal(t, EditableOK, reason)
 	})
 
 	t.Run("opening balance transaction (ID=1) is not editable", func(t *testing.T) {
 		detail := &model.TransactionDetail{ID: model.OpeningBalanceTransactionID}
-		editable, code := svc.IsEditable(detail)
+		editable, reason := svc.IsEditable(detail)
 		assert.False(t, editable)
-		assert.Equal(t, int64(1), code)
+		assert.Equal(t, NotEditableSystemTx, reason)
 	})
 
 	t.Run("ID=2 is editable", func(t *testing.T) {
 		detail := &model.TransactionDetail{ID: 2}
-		editable, code := svc.IsEditable(detail)
+		editable, reason := svc.IsEditable(detail)
 		assert.True(t, editable)
-		assert.Equal(t, int64(0), code)
+		assert.Equal(t, EditableOK, reason)
 	})
 
 	t.Run("reconciled transaction is not editable", func(t *testing.T) {
 		detail := &model.TransactionDetail{ID: 5, Status: model.StatusReconciled}
-		editable, code := svc.IsEditable(detail)
+		editable, reason := svc.IsEditable(detail)
 		assert.False(t, editable)
-		assert.Equal(t, int64(2), code)
+		assert.Equal(t, NotEditableReconciled, reason)
 	})
 }

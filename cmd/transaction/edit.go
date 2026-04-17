@@ -50,8 +50,14 @@ func (r *editRunner) Run(args []string) error {
 		return nil
 	}
 
-	if !r.txSvc.IsEditable(detail) {
-		r.view.ShowWarning("This transaction cannot be edited (System Transaction)")
+	isEditable, reason := r.txSvc.IsEditable(detail)
+	if !isEditable {
+		switch reason {
+		case service.NotEditableSystemTx:
+			r.view.ShowWarning("This transaction cannot be edited (System Transaction)")
+		case service.NotEditableReconciled:
+			r.view.ShowWarning("This transaction cannot be edited (Reconciled Transaction)")
+		}
 		return nil
 	}
 

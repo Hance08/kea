@@ -60,6 +60,15 @@ type TransactionRepository interface {
 	// the listed transactions as reconciled. If all splits in a transaction are
 	// now reconciled the transaction's status is upgraded to StatusReconciled.
 	MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) error
+
+	// GetLastReconciledBalance returns the running reconciled balance for
+	// accountID as persisted after the most recent successful reconcile.
+	// Returns 0 if the account has never been reconciled.
+	GetLastReconciledBalance(accountID int64) (int64, error)
+
+	// SetLastReconciledBalance persists the new running reconciled balance for
+	// accountID. Uses an upsert so the first call creates the row.
+	SetLastReconciledBalance(accountID int64, balance int64) error
 }
 
 type Repository interface {

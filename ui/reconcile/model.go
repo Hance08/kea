@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	rw "github.com/mattn/go-runewidth"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
@@ -16,6 +17,20 @@ import (
 // account+badge (1) · blank (1) · statement (1) · top-sep (1) ·
 // bottom-sep (1) · cleared (1) · blank (1) · hint (1) = 8
 const overheadLines = 8
+
+// Column widths in terminal display columns (accounts for double-wide CJK chars).
+const (
+	colDate   = 8  // "YY-MM-DD"
+	colAcct   = 16 // reconciled account
+	colOffset = 16 // other-side account
+	colDesc   = 12 // description
+	colAmt    = 12 // amount, right-aligned
+)
+
+// sepWidth is the total display width of separator lines.
+// cursor(2) + checkbox(3) + sp(1) + date(8) + sp(2) + acct(16) + sp(2) +
+// offset(16) + sp(2) + desc(12) + sp(2) + amt(12) = 78
+const sepWidth = 78
 
 type listItem struct {
 	entry   *model.ReconcileEntry
@@ -30,8 +45,8 @@ type Model struct {
 	statementBalance int64
 	items            []listItem
 	cursor           int
-	viewportOffset   int // index of the first visible item
-	height           int // terminal height (0 = unknown, show all)
+	viewportOffset   int  // index of the first visible item
+	height           int  // terminal height (0 = unknown, show all)
 	confirmPending   bool // waiting for y/n after Enter with non-zero diff
 	cancelled        bool
 	done             bool
@@ -205,8 +220,6 @@ func (m Model) View() string {
 	above := start
 	below := len(m.items) - end
 
-	const sepWidth = 70
-
 	// ── Top separator (with scroll-up indicator) ─────────
 	if above > 0 {
 		indicator := fmt.Sprintf("↑ %d more  ", above)
@@ -215,7 +228,8 @@ func (m Model) View() string {
 		sb.WriteString(strings.Repeat("─", sepWidth) + "\n")
 	}
 
-	// ── Transaction list ────────────────────────────────
+	// ── Transaction list ─────────────────────────────────
+	// Column order: date · account · offset account · description · amount
 	for i := start; i < end; i++ {
 		it := m.items[i]
 
@@ -232,15 +246,13 @@ func (m Model) View() string {
 		}
 
 		date := time.Unix(it.entry.Timestamp, 0).Format("06-01-02")
-		amt := fmt.Sprintf("$%s", utils.FormatAmount(it.entry.Amount))
-		line := fmt.Sprintf("%s%s %s  %-18s  %-18s  %12s",
-			cursorMark,
-			checkbox,
-			date,
-			truncate(it.entry.Description, 18),
-			truncate(it.entry.OffsetAccount, 18),
-			amt,
-		)
+		amt := fmt.Sprintf("%*s", colAmt, "$"+utils.FormatAmount(it.entry.Amount))
+
+		line := cursorMark + checkbox + " " + date + "  " +
+			padRight(m.accountName, colAcct) + "  " +
+			padRight(it.entry.OffsetAccount, colOffset) + "  " +
+			padRight(it.entry.Description, colDesc) + "  " +
+			amt
 
 		if i == m.cursor {
 			line = lipgloss.NewStyle().
@@ -310,9 +322,16 @@ func abs(n int64) int64 {
 	return n
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
+// padRight pads s to exactly `width` terminal display columns, correctly
+// accounting for double-wide CJK characters. Strings wider than `width`
+// are truncated and suffixed with "…".
+func padRight(s string, width int) string {
+	w := rw.StringWidth(s)
+	if w >= width {
+		// Truncate: fill width-1 columns then append "…" (1 column).
+		truncated := rw.Truncate(s, width-1, "")
+		tw := rw.StringWidth(truncated)
+		return truncated + strings.Repeat(" ", width-1-tw) + "…"
 	}
-	return s[:max-1] + "…"
+	return s + strings.Repeat(" ", width-w)
 }

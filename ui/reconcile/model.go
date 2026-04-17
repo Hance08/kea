@@ -8,9 +8,9 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	rw "github.com/mattn/go-runewidth"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
+	rw "github.com/mattn/go-runewidth"
 )
 
 // overheadLines is the number of non-item lines in the view:
@@ -20,17 +20,15 @@ const overheadLines = 8
 
 // Column widths in terminal display columns (accounts for double-wide CJK chars).
 const (
-	colDate   = 8  // "YY-MM-DD"
-	colAcct   = 16 // reconciled account
-	colOffset = 16 // other-side account
+	colOffset = 40 // other-side account
 	colDesc   = 12 // description
 	colAmt    = 12 // amount, right-aligned
 )
 
 // sepWidth is the total display width of separator lines.
-// cursor(2) + checkbox(3) + sp(1) + date(8) + sp(2) + acct(16) + sp(2) +
-// offset(16) + sp(2) + desc(12) + sp(2) + amt(12) = 78
-const sepWidth = 78
+// cursor(2) + checkbox(3) + sp(1) + date(8) + sp(2) +
+// offset(40) + sp(2) + desc(12) + sp(2) + amt(12) = 84
+const sepWidth = 84
 
 type listItem struct {
 	entry   *model.ReconcileEntry
@@ -249,7 +247,6 @@ func (m Model) View() string {
 		amt := fmt.Sprintf("%*s", colAmt, "$"+utils.FormatAmount(it.entry.Amount))
 
 		line := cursorMark + checkbox + " " + date + "  " +
-			padRight(m.accountName, colAcct) + "  " +
 			padRight(it.entry.OffsetAccount, colOffset) + "  " +
 			padRight(it.entry.Description, colDesc) + "  " +
 			amt

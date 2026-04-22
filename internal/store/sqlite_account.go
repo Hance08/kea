@@ -233,12 +233,11 @@ func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
 // RenameAccount updates the name of an account and cascades the rename to all descendants.
 // Both updates run in a single transaction.
 func (s *Store) RenameAccount(oldName, newName string) error {
-	db, ok := s.db.(*sql.DB)
-	if !ok {
+	if s.rawDB == nil {
 		return fmt.Errorf("store is already in a transaction")
 	}
 
-	tx, err := db.Begin()
+	tx, err := s.rawDB.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}

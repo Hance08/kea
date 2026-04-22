@@ -24,7 +24,8 @@ type DBTX interface {
 }
 
 type Store struct {
-	db DBTX
+	db    DBTX
+	rawDB *sql.DB
 }
 
 func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
@@ -52,7 +53,7 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 	}
 
 	success = true
-	return &Store{db: db}, nil
+	return &Store{db: db, rawDB: db}, nil
 }
 
 func (s *Store) ExecTx(ctx context.Context, fn func(repository.Repository) error) error {

@@ -166,10 +166,6 @@ func (as *AccountService) RenameAccount(oldName, newSegment string) error {
 		newFullName = newSegment
 	}
 
-	if err := as.ValidateFullAccountName(newFullName); err != nil {
-		return fmt.Errorf("invalid account name: %w", err)
-	}
-
 	exists, err := as.repo.AccountExists(newFullName)
 	if err != nil {
 		return err

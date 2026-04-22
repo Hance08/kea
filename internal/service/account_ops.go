@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hance08/kea/internal/model"
@@ -142,4 +143,40 @@ func (as *AccountService) FormatAccountName(prefix, name string) string {
 		return name
 	}
 	return prefix + ":" + name
+}
+
+func (as *AccountService) RenameAccount(oldName, newSegment string) error {
+	acc, err := as.repo.GetAccountByName(oldName)
+	if err != nil {
+		return err
+	}
+
+	if model.IsOpeningBalancesAccount(acc.Name) {
+		return fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
+	}
+
+	if err := as.ValidateAccountName(newSegment); err != nil {
+		return fmt.Errorf("invalid account name: %w", err)
+	}
+
+	var newFullName string
+	if idx := strings.LastIndex(acc.Name, ":"); idx >= 0 {
+		newFullName = acc.Name[:idx+1] + newSegment
+	} else {
+		newFullName = newSegment
+	}
+
+	if err := as.ValidateFullAccountName(newFullName); err != nil {
+		return fmt.Errorf("invalid account name: %w", err)
+	}
+
+	exists, err := as.repo.AccountExists(newFullName)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("account %q already exists", newFullName)
+	}
+
+	return as.repo.RenameAccount(acc.Name, newFullName)
 }

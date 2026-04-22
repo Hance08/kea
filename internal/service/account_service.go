@@ -57,10 +57,6 @@ func (as *AccountService) CheckAccountExists(name string) (bool, error) {
 	return as.repo.AccountExists(name)
 }
 
-func (as *AccountService) RenameAccount(oldName, newName string) error {
-	return as.repo.RenameAccount(oldName, newName)
-}
-
 func (as *AccountService) ValidateSelectableAccount(name string, allowedTypes []string) error {
 	acc, err := as.repo.GetAccountByName(name)
 	if err != nil {

@@ -57,10 +57,6 @@ func (as *AccountService) CheckAccountExists(name string) (bool, error) {
 	return as.repo.AccountExists(name)
 }
 
-func (as *AccountService) RenameAccount(oldName, newName string) error {
-	return as.repo.RenameAccount(oldName, newName)
-}
-
 func (as *AccountService) ValidateSelectableAccount(name string, allowedTypes []string) error {
 	acc, err := as.repo.GetAccountByName(name)
 	if err != nil {
@@ -93,4 +89,17 @@ func (as *AccountService) ValidateSelectableAccount(name string, allowedTypes []
 	}
 
 	return nil
+}
+
+func (as *AccountService) UpdateAccountMetadata(accountID int64, description string, isHidden bool) error {
+	acc, err := as.repo.GetAccountByID(accountID)
+	if err != nil {
+		return err
+	}
+
+	if model.IsOpeningBalancesAccount(acc.Name) {
+		return fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
+	}
+
+	return as.repo.UpdateAccountMetadata(accountID, description, isHidden)
 }

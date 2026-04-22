@@ -230,14 +230,22 @@ func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
 	return exists, nil
 }
 
-// RenameAccount updates the name of an account identified by its current name.
+// RenameAccount updates the name of an account and cascades the rename to all descendants.
+// Both updates run in a single transaction.
 func (s *Store) RenameAccount(oldName, newName string) error {
-	res, err := s.db.Exec(
-		`UPDATE accounts SET name = ? WHERE name = ?`,
-		newName, oldName,
-	)
+	if s.rawDB == nil {
+		return fmt.Errorf("store is already in a transaction")
+	}
+
+	tx, err := s.rawDB.Begin()
 	if err != nil {
-		return fmt.Errorf("failed to rename account %q to %q: %w", oldName, newName, err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.Exec(`UPDATE accounts SET name = ? WHERE name = ?`, newName, oldName)
+	if err != nil {
+		return fmt.Errorf("failed to rename account %q: %w", oldName, err)
 	}
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
@@ -246,7 +254,16 @@ func (s *Store) RenameAccount(oldName, newName string) error {
 	if rowsAffected == 0 {
 		return fmt.Errorf("account %q not found", oldName)
 	}
-	return nil
+
+	_, err = tx.Exec(
+		`UPDATE accounts SET name = replace(name, ?, ?) WHERE name LIKE ? || ':%'`,
+		oldName, newName, oldName,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to cascade rename from %q to %q: %w", oldName, newName, err)
+	}
+
+	return tx.Commit()
 }
 
 // DeleteAccount removes an account record by ID.
@@ -265,5 +282,24 @@ func (s *Store) DeleteAccount(accountID int64) error {
 		return fmt.Errorf("account with ID %d not found", accountID)
 	}
 
+	return nil
+}
+
+// UpdateAccountMetadata updates the description and hidden status of an account.
+func (s *Store) UpdateAccountMetadata(accountID int64, description string, isHidden bool) error {
+	res, err := s.db.Exec(
+		`UPDATE accounts SET description = ?, is_hidden = ? WHERE id = ?`,
+		description, isHidden, accountID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update account metadata for ID %d: %w", accountID, err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("account with ID %d not found", accountID)
+	}
 	return nil
 }

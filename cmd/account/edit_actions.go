@@ -13,14 +13,7 @@ import (
 func (r *editRunner) runFromFlags(acc *model.Account, flags *editFlags, cmd *cobra.Command) (editInput, error) {
 	var input editInput
 
-	if flags.Hidden && flags.NoHidden {
-		return editInput{}, fmt.Errorf("--hidden and --no-hidden cannot both be set")
-	}
-
 	if cmd.Flags().Changed("name") {
-		if err := r.svc.ValidateAccountName(flags.Name); err != nil {
-			return editInput{}, fmt.Errorf("invalid name: %w", err)
-		}
 		input.newName = &flags.Name
 	}
 

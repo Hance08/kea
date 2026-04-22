@@ -30,7 +30,7 @@ Example:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &editRunner{
 				svc:  svc.Account(),
-				view: views.NewAccountCreateView(),
+				view: views.NewCommonView(),
 			}
 			return runner.Run(args[0], flags, cmd)
 		},
@@ -41,6 +41,8 @@ Example:
 	cmd.Flags().BoolVar(&flags.Hidden, "hidden", false, "Hide the account")
 	cmd.Flags().BoolVar(&flags.NoHidden, "no-hidden", false, "Unhide the account")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "Output updated account as JSON")
+
+	cmd.MarkFlagsMutuallyExclusive("hidden", "no-hidden")
 
 	return cmd
 }

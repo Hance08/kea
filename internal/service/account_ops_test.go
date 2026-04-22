@@ -581,3 +581,51 @@ func TestRenameAccount(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// ──────────────────────────────────────────────
+// UpdateAccountMetadata
+// ──────────────────────────────────────────────
+
+func TestUpdateAccountMetadata(t *testing.T) {
+	t.Run("description and hidden updated correctly", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Description: "old desc", IsHidden: false})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.UpdateAccountMetadata(1, "new desc", true)
+		require.NoError(t, err)
+
+		require.Len(t, accRepo.updateMetadataCalls, 1)
+		call := accRepo.updateMetadataCalls[0]
+		assert.Equal(t, int64(1), call.id)
+		assert.Equal(t, "new desc", call.description)
+		assert.True(t, call.isHidden)
+	})
+
+	t.Run("system account is rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 99, Name: model.OpeningBalancesAccountName("USD"), Type: model.AccountTypeEquity})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.UpdateAccountMetadata(99, "desc", false)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotEditable))
+		assert.Empty(t, accRepo.updateMetadataCalls)
+	})
+
+	t.Run("account not found returns error", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+		err := svc.UpdateAccountMetadata(999, "desc", false)
+		require.Error(t, err)
+	})
+
+	t.Run("repo error propagated", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank"})
+		accRepo.updateMetadataErr = errors.New("db error")
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.UpdateAccountMetadata(1, "desc", false)
+		require.Error(t, err)
+	})
+}

@@ -13,6 +13,7 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 
 	var totalRevenueAmount int64
 	var totalExpenseAmount int64
+	var totalPositiveAssetLiabAmount int64
 
 	var (
 		hasExpense      bool
@@ -40,7 +41,7 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 		switch accType {
 		case "E":
 			hasExpense = true
-			totalExpenseAmount += split.Amount
+			totalExpenseAmount += utils.AbsInt64(split.Amount)
 		case "R":
 			hasRevenue = true
 			totalRevenueAmount += utils.AbsInt64(split.Amount)
@@ -48,9 +49,13 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 			assetOrLiabCnt++
 			if split.Amount > 0 {
 				isAssetIncrease = true
+				totalPositiveAssetLiabAmount += split.Amount
 			}
 		case "L":
 			assetOrLiabCnt++
+			if split.Amount > 0 {
+				totalPositiveAssetLiabAmount += split.Amount
+			}
 		case "C":
 			hasEquity = true
 		}
@@ -67,7 +72,13 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 		return model.TxTypeExpense, nil
 	}
 
-	if hasExpense && assetOrLiabCnt >= 1 {
+	if hasExpense && assetOrLiabCnt >= 2 {
+		if totalPositiveAssetLiabAmount > totalExpenseAmount {
+			return model.TxTypeTransfer, nil
+		}
+		return model.TxTypeExpense, nil
+	}
+	if hasExpense && assetOrLiabCnt == 1 {
 		return model.TxTypeExpense, nil
 	}
 

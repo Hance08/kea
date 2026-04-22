@@ -267,3 +267,22 @@ func (s *Store) DeleteAccount(accountID int64) error {
 
 	return nil
 }
+
+// UpdateAccountMetadata updates the description and hidden status of an account.
+func (s *Store) UpdateAccountMetadata(accountID int64, description string, isHidden bool) error {
+	res, err := s.db.Exec(
+		`UPDATE accounts SET description = ?, is_hidden = ? WHERE id = ?`,
+		description, isHidden, accountID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update account metadata for ID %d: %w", accountID, err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("account with ID %d not found", accountID)
+	}
+	return nil
+}

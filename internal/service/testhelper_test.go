@@ -33,6 +33,15 @@ type mockAccountRepo struct {
 	getByIDErr        map[int64]error
 	getBalanceErr     map[int64]error
 	getAllBalancesErr error
+
+	// call recorders
+	renameCalls          []struct{ old, new string }
+	updateMetadataCalls  []struct {
+		id          int64
+		description string
+		isHidden    bool
+	}
+	updateMetadataErr error
 }
 
 func newMockAccountRepo() *mockAccountRepo {
@@ -162,6 +171,7 @@ func (m *mockAccountRepo) DeleteAccount(accountID int64) error {
 }
 
 func (m *mockAccountRepo) RenameAccount(oldName, newName string) error {
+	m.renameCalls = append(m.renameCalls, struct{ old, new string }{oldName, newName})
 	acc, ok := m.accountsByName[oldName]
 	if !ok {
 		return fmt.Errorf("account %q not found", oldName)
@@ -169,6 +179,24 @@ func (m *mockAccountRepo) RenameAccount(oldName, newName string) error {
 	delete(m.accountsByName, oldName)
 	acc.Name = newName
 	m.accountsByName[newName] = acc
+	return nil
+}
+
+func (m *mockAccountRepo) UpdateAccountMetadata(accountID int64, description string, isHidden bool) error {
+	if m.updateMetadataErr != nil {
+		return m.updateMetadataErr
+	}
+	acc, ok := m.accountsByID[accountID]
+	if !ok {
+		return fmt.Errorf("account ID %d not found", accountID)
+	}
+	m.updateMetadataCalls = append(m.updateMetadataCalls, struct {
+		id          int64
+		description string
+		isHidden    bool
+	}{accountID, description, isHidden})
+	acc.Description = description
+	acc.IsHidden = isHidden
 	return nil
 }
 

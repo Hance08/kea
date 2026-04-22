@@ -19,6 +19,7 @@ type AccountRepository interface {
 	AccountHasTransactions(accountID int64) (bool, error)
 	DeleteAccount(accountID int64) error
 	RenameAccount(oldName, newName string) error
+	UpdateAccountMetadata(accountID int64, description string, isHidden bool) error
 }
 
 type TransactionRepository interface {

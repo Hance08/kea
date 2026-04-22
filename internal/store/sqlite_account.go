@@ -230,14 +230,23 @@ func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
 	return exists, nil
 }
 
-// RenameAccount updates the name of an account identified by its current name.
+// RenameAccount updates the name of an account and cascades the rename to all descendants.
+// Both updates run in a single transaction.
 func (s *Store) RenameAccount(oldName, newName string) error {
-	res, err := s.db.Exec(
-		`UPDATE accounts SET name = ? WHERE name = ?`,
-		newName, oldName,
-	)
+	db, ok := s.db.(*sql.DB)
+	if !ok {
+		return fmt.Errorf("store is already in a transaction")
+	}
+
+	tx, err := db.Begin()
 	if err != nil {
-		return fmt.Errorf("failed to rename account %q to %q: %w", oldName, newName, err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.Exec(`UPDATE accounts SET name = ? WHERE name = ?`, newName, oldName)
+	if err != nil {
+		return fmt.Errorf("failed to rename account %q: %w", oldName, err)
 	}
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
@@ -246,7 +255,16 @@ func (s *Store) RenameAccount(oldName, newName string) error {
 	if rowsAffected == 0 {
 		return fmt.Errorf("account %q not found", oldName)
 	}
-	return nil
+
+	_, err = tx.Exec(
+		`UPDATE accounts SET name = replace(name, ?, ?) WHERE name LIKE ? || ':%'`,
+		oldName, newName, oldName,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to cascade rename from %q to %q: %w", oldName, newName, err)
+	}
+
+	return tx.Commit()
 }
 
 // DeleteAccount removes an account record by ID.

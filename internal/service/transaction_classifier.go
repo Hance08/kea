@@ -41,7 +41,7 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 		switch accType {
 		case "E":
 			hasExpense = true
-			totalExpenseAmount += split.Amount
+			totalExpenseAmount += utils.AbsInt64(split.Amount)
 		case "R":
 			hasRevenue = true
 			totalRevenueAmount += utils.AbsInt64(split.Amount)

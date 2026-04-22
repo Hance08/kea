@@ -500,3 +500,84 @@ func TestGetAccountBalance(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+// ──────────────────────────────────────────────
+// RenameAccount
+// ──────────────────────────────────────────────
+
+func TestRenameAccount(t *testing.T) {
+	t.Run("leaf account renamed with correct full name constructed", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.RenameAccount("Assets:Bank", "Savings")
+		require.NoError(t, err)
+
+		require.Len(t, accRepo.renameCalls, 1)
+		assert.Equal(t, "Assets:Bank", accRepo.renameCalls[0].old)
+		assert.Equal(t, "Assets:Savings", accRepo.renameCalls[0].new)
+	})
+
+	t.Run("repo called with old full name and new full name (not bare segment)", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank:Checking", Type: model.AccountTypeAsset})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.RenameAccount("Assets:Bank:Checking", "Current")
+		require.NoError(t, err)
+
+		require.Len(t, accRepo.renameCalls, 1)
+		assert.Equal(t, "Assets:Bank:Checking", accRepo.renameCalls[0].old)
+		assert.Equal(t, "Assets:Bank:Current", accRepo.renameCalls[0].new)
+	})
+
+	t.Run("segment containing colon rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.RenameAccount("Assets:Bank", "Bad:Name")
+		require.Error(t, err)
+		assert.Empty(t, accRepo.renameCalls)
+	})
+
+	t.Run("empty segment rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.RenameAccount("Assets:Bank", "")
+		require.Error(t, err)
+		assert.Empty(t, accRepo.renameCalls)
+	})
+
+	t.Run("new full name already exists is rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Savings", Type: model.AccountTypeAsset})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.RenameAccount("Assets:Bank", "Savings")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+		assert.Empty(t, accRepo.renameCalls)
+	})
+
+	t.Run("system account is rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		addOpeningBalanceAccount(accRepo)
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.RenameAccount(model.OpeningBalancesAccountName("USD"), "Other")
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotEditable))
+		assert.Empty(t, accRepo.renameCalls)
+	})
+
+	t.Run("account not found returns error", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+		err := svc.RenameAccount("Assets:Ghost", "NewName")
+		require.Error(t, err)
+	})
+}

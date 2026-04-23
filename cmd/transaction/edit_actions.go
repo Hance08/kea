@@ -253,7 +253,7 @@ func (r *editRunner) actionSave(detail *model.TransactionDetail) error {
 
 	// Execute Update
 	if err := r.txSvc.UpdateTransactionComplete(
-		r.txID, detail.Description, detail.Timestamp, detail.Status, splits,
+		r.txID, detail.Description, detail.Timestamp, detail.Status, detail.Type, splits,
 	); err != nil {
 		return err
 	}

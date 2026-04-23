@@ -195,7 +195,7 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
-func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, splits []model.SplitDetail) error {
+func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error {
 	// Validate status
 	if status != model.StatusPending && status != model.StatusCleared && status != model.StatusReconciled {
 		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
@@ -228,6 +228,10 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("splits must balance to zero (current sum: %d)", total)
 	}
 
+	if err := ts.ValidateSplitsMatchType(txType, splits); err != nil {
+		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
+	}
+
 	// Validate all accounts exist
 	for _, split := range splits {
 		_, err := ts.accRepo.GetAccountByID(split.AccountID)
@@ -237,7 +241,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 	}
 
 	return ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
-		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status, oldTx.Type); err != nil {
+		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status, txType); err != nil {
 			return err
 		}
 

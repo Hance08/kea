@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
@@ -269,6 +271,79 @@ func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, c
 	default:
 		return allAccounts
 	}
+}
+
+func (ts *TransactionService) ValidateSplitsMatchType(txType model.TransactionType, splits []model.SplitDetail) error {
+	resolveType := func(s model.SplitDetail) (model.AccountType, error) {
+		if s.AccountType != "" {
+			return s.AccountType, nil
+		}
+		acc, err := ts.accRepo.GetAccountByName(s.AccountName)
+		if err != nil {
+			return "", err
+		}
+		return acc.Type, nil
+	}
+
+	switch txType {
+	case model.TxTypeOpening, model.TxTypeOther, model.TxTypeDeposit, model.TxTypeWithdrawal:
+		return nil
+
+	case model.TxTypeExpense:
+		var hasExpense, hasAssetOrLiab bool
+		for _, s := range splits {
+			accType, err := resolveType(s)
+			if err != nil {
+				return err
+			}
+			if accType == model.AccountTypeExpense {
+				hasExpense = true
+			}
+			if accType == model.AccountTypeAsset || accType == model.AccountTypeLiability {
+				hasAssetOrLiab = true
+			}
+		}
+		if !hasExpense {
+			return fmt.Errorf("expense transaction requires at least one Expense account")
+		}
+		if !hasAssetOrLiab {
+			return fmt.Errorf("expense transaction requires at least one Asset or Liability account")
+		}
+
+	case model.TxTypeIncome:
+		var hasRevenue, hasAssetOrLiab bool
+		for _, s := range splits {
+			accType, err := resolveType(s)
+			if err != nil {
+				return err
+			}
+			if accType == model.AccountTypeRevenue {
+				hasRevenue = true
+			}
+			if accType == model.AccountTypeAsset || accType == model.AccountTypeLiability {
+				hasAssetOrLiab = true
+			}
+		}
+		if !hasRevenue {
+			return fmt.Errorf("income transaction requires at least one Revenue account")
+		}
+		if !hasAssetOrLiab {
+			return fmt.Errorf("income transaction requires at least one Asset or Liability account")
+		}
+
+	case model.TxTypeTransfer:
+		for _, s := range splits {
+			accType, err := resolveType(s)
+			if err != nil {
+				return err
+			}
+			if accType != model.AccountTypeAsset && accType != model.AccountTypeLiability {
+				return fmt.Errorf("transfer transaction must only contain Asset and Liability accounts (found account type %q)", accType)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (ts *TransactionService) filterAccountsByTypes(accounts []*model.Account, allowedTypes []string) []*model.Account {

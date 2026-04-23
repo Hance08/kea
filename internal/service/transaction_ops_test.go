@@ -81,7 +81,7 @@ func TestCreateTransaction(t *testing.T) {
 		}
 		_, err := svc.CreateTransaction(input)
 		require.Error(t, err)
-		assert.True(t, err != nil)
+		assert.Contains(t, err.Error(), "type is required")
 	})
 
 	t.Run("unbalanced splits rejected", func(t *testing.T) {

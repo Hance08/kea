@@ -80,6 +80,7 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 		input.Description,
 		input.Timestamp,
 		input.Status,
+		"",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)

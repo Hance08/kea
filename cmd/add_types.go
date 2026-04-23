@@ -17,7 +17,7 @@ type AddProvider interface {
 
 type TransactionProvider interface {
 	GetTransactionRule(mode model.TransactionType) (model.TransactionRule, error)
-	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus) (model.TransactionDetail, error)
+	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
 }
 
 type addFlags struct {

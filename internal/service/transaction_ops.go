@@ -26,6 +26,10 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 		return 0, fmt.Errorf("transaction must have at least 2 splits (got %d)", len(input.Splits))
 	}
 
+	if input.Type == "" {
+		return 0, fmt.Errorf("transaction type is required")
+	}
+
 	// Set default timestamp: Use current system time if not provided.
 	if input.Timestamp == 0 {
 		input.Timestamp = time.Now().Unix()
@@ -57,6 +61,10 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 		})
 	}
 
+	if err := ts.ValidateSplitsMatchType(input.Type, input.Splits); err != nil {
+		return 0, fmt.Errorf("splits do not match transaction type %q: %w", input.Type, err)
+	}
+
 	// Validate: Ensure the sum of all splits balances to zero.
 	if err := ts.ValidateSplitsBalance(splits); err != nil {
 		return 0, err
@@ -67,6 +75,7 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 		Timestamp:   input.Timestamp,
 		Description: input.Description,
 		Status:      input.Status,
+		Type:        input.Type,
 	}
 
 	var newTxID int64
@@ -97,43 +106,52 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 //   - A Credit (negative) to the fromAccount (Source).
 //   - A Debit (positive) to the toAccount (Destination).
 //
-// Returns the new TransactionID and the constructed TransactionDetail (useful for UI rendering).
-func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus) (model.TransactionDetail, error) {
+// If txType is empty, it is inferred from the account types via DetermineType.
+// Returns the constructed TransactionDetail (useful for UI rendering).
+func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
 	if fromAccount == toAccount {
 		return model.TransactionDetail{}, fmt.Errorf("source and destination accounts cannot be the same")
 	}
-
 	if amount <= 0 {
 		return model.TransactionDetail{}, fmt.Errorf("amount must be positive")
 	}
 
-	splits := []model.SplitDetail{
-		{
-			AccountName: toAccount,
-			Amount:      amount,
-			Memo:        "",
-		},
-		{
-			AccountName: fromAccount,
-			Amount:      -amount,
-			Memo:        "",
-		},
+	// If no type provided, infer from account types.
+	if txType == "" {
+		fromAcc, err := ts.accRepo.GetAccountByName(fromAccount)
+		if err != nil {
+			return model.TransactionDetail{}, fmt.Errorf("failed to resolve from account: %w", err)
+		}
+		toAcc, err := ts.accRepo.GetAccountByName(toAccount)
+		if err != nil {
+			return model.TransactionDetail{}, fmt.Errorf("failed to resolve to account: %w", err)
+		}
+		inferred, err := ts.DetermineType([]model.SplitDetail{
+			{AccountType: toAcc.Type, Amount: amount},
+			{AccountType: fromAcc.Type, Amount: -amount},
+		})
+		if err != nil {
+			return model.TransactionDetail{}, err
+		}
+		txType = inferred
 	}
 
+	splits := []model.SplitDetail{
+		{AccountName: toAccount, Amount: amount},
+		{AccountName: fromAccount, Amount: -amount},
+	}
 	input := model.TransactionDetail{
 		Timestamp:   timestamp,
 		Description: desc,
 		Status:      status,
+		Type:        txType,
 		Splits:      splits,
 	}
-
 	id, err := ts.CreateTransaction(input)
 	if err != nil {
 		return model.TransactionDetail{}, err
 	}
-
 	input.ID = id
-
 	return input, nil
 }
 

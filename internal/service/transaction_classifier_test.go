@@ -134,6 +134,33 @@ func TestDetermineType(t *testing.T) {
 			},
 			want: model.TxTypeOther,
 		},
+		{
+			name: "transfer with fee: A/L dominates E → Transfer",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 5160),
+				split("Expenses:Fees:Stocks", model.AccountTypeExpense, 7),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -5167),
+			},
+			want: model.TxTypeTransfer,
+		},
+		{
+			name: "expense split bill: E ties A/L → Expense",
+			splits: []model.SplitDetail{
+				split("Expenses:Food:Drink", model.AccountTypeExpense, 60),
+				split("Assets:Receivable:Friends", model.AccountTypeAsset, 60),
+				split("Assets:Ewallet:LinePayMoney", model.AccountTypeAsset, -120),
+			},
+			want: model.TxTypeExpense,
+		},
+		{
+			name: "expense dominant: E > A/L → Expense",
+			splits: []model.SplitDetail{
+				split("Expenses:Food", model.AccountTypeExpense, 100),
+				split("Assets:Receivable:Friends", model.AccountTypeAsset, 40),
+				split("Assets:Bank", model.AccountTypeAsset, -140),
+			},
+			want: model.TxTypeExpense,
+		},
 	}
 
 	for _, tt := range tests {

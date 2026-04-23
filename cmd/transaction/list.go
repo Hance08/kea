@@ -112,7 +112,6 @@ func (r *listRunner) buildViewItems(transactions []*model.Transaction) []views.T
 }
 
 func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *model.TransactionDetail) views.TransactionListItem {
-	// 1. Determine Type
 	txType := string(detail.Type)
 
 	accountName, err := r.svc.GetDisplayAccount(detail.Splits, txType)

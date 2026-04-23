@@ -220,6 +220,9 @@ type mockTransactionRepo struct {
 	splitsWithAccts map[int64][]model.SplitDetail
 	splitsRangeErr  error
 
+	// default return for GetTransactionsByDateRange
+	txsByDateRangeErr error
+
 	// call recorders for interaction verification
 	deleteSplitCalls []int64
 	createSplitCalls []*model.Split
@@ -305,6 +308,9 @@ func (m *mockTransactionRepo) GetTransactionsByAccount(accountID int64, limit in
 }
 
 func (m *mockTransactionRepo) GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error) {
+	if m.txsByDateRangeErr != nil {
+		return nil, m.txsByDateRangeErr
+	}
 	result := make([]*model.Transaction, 0, len(m.transactions))
 	for _, tx := range m.transactions {
 		result = append(result, tx)

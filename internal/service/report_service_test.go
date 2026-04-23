@@ -279,6 +279,15 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		_, err := svc.GenerateIncomeStatement(0, 0)
 		assert.Error(t, err)
 	})
+
+	t.Run("txs by date range error returns error", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.txsByDateRangeErr = assert.AnError
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		_, err := svc.GenerateIncomeStatement(0, 0)
+		assert.Error(t, err)
+	})
 }
 
 // ──────────────────────────────────────────────

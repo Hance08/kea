@@ -205,7 +205,7 @@ func (r *addRunner) parseDate(dateStr string) (int64, error) {
 }
 
 func parseTransactionType(s string) (model.TransactionType, error) {
-	switch strings.ToLower(s) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "expense":
 		return model.TxTypeExpense, nil
 	case "income":

@@ -37,6 +37,8 @@ func (m *mockTransactionProvider) CreateTransactionFromSplits(splits []model.Spl
 	return model.TransactionDetail{ID: 1}, nil
 }
 
+var _ TransactionProvider = (*mockTransactionProvider)(nil)
+
 // ──────────────────────────────────────────────
 // TestParseSplitFlag
 // ──────────────────────────────────────────────

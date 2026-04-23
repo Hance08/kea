@@ -32,10 +32,7 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 	}
 
 	// Parse status
-	status := model.StatusCleared
-	if strings.ToLower(flags.Status) == "pending" {
-		status = model.StatusPending
-	}
+	status := parseStatus(flags.Status)
 
 	// Parse timestamp
 	timestamp, err := r.parseDate(flags.Timestamp)
@@ -245,10 +242,7 @@ func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, err
 		description = "-"
 	}
 
-	status := model.StatusCleared
-	if strings.ToLower(flags.Status) == "pending" {
-		status = model.StatusPending
-	}
+	status := parseStatus(flags.Status)
 
 	timestamp, err := r.parseDate(flags.Timestamp)
 	if err != nil {
@@ -290,4 +284,11 @@ func parseSplitFlag(s string) (model.SplitDetail, error) {
 		return model.SplitDetail{}, fmt.Errorf("invalid split %q: %w", s, err)
 	}
 	return model.SplitDetail{AccountName: accountName, Amount: cents}, nil
+}
+
+func parseStatus(s string) model.TransactionStatus {
+	if strings.ToLower(s) == "pending" {
+		return model.StatusPending
+	}
+	return model.StatusCleared
 }

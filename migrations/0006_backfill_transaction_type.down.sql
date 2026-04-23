@@ -1,0 +1,1 @@
+UPDATE transactions SET type = '';

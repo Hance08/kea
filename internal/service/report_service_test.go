@@ -151,6 +151,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 			split("Revenue:Salary", model.AccountTypeRevenue, -2000),
 			split("Assets:Bank", model.AccountTypeAsset, 2000),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeStatement(0, 0)
@@ -168,6 +169,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 			split("Expenses:Food", model.AccountTypeExpense, 500),
 			split("Assets:Bank", model.AccountTypeAsset, -500),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeStatement(0, 0)
@@ -189,6 +191,8 @@ func TestGenerateIncomeStatement(t *testing.T) {
 			split("Expenses:Food", model.AccountTypeExpense, 800),
 			split("Assets:Bank", model.AccountTypeAsset, -800),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeStatement(0, 0)
@@ -204,6 +208,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 			split("Assets:Savings", model.AccountTypeAsset, 1000),
 			split("Assets:Checking", model.AccountTypeAsset, -1000),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeTransfer}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeStatement(0, 0)
@@ -233,6 +238,8 @@ func TestGenerateIncomeStatement(t *testing.T) {
 			split("Revenue:Salary", model.AccountTypeRevenue, -3000),
 			split("Assets:Bank", model.AccountTypeAsset, 3000),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeIncome}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeStatement(0, 0)
@@ -251,6 +258,8 @@ func TestGenerateIncomeStatement(t *testing.T) {
 			split("Expenses:Food", model.AccountTypeExpense, 200),
 			split("Assets:Bank", model.AccountTypeAsset, -200),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeExpense}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeStatement(0, 0)
@@ -287,6 +296,8 @@ func TestGenerateIncomeBreakdown(t *testing.T) {
 			split("Expenses:Food", model.AccountTypeExpense, 500),
 			split("Assets:Bank", model.AccountTypeAsset, -500),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeBreakdown(0, 0)
@@ -306,6 +317,8 @@ func TestGenerateIncomeBreakdown(t *testing.T) {
 			split("Revenue:Salary", model.AccountTypeRevenue, -5000),
 			split("Assets:Bank", model.AccountTypeAsset, 5000),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeIncome}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateIncomeBreakdown(0, 0)
@@ -330,6 +343,8 @@ func TestGenerateExpenseBreakdown(t *testing.T) {
 			split("Expenses:Food", model.AccountTypeExpense, 500),
 			split("Assets:Bank", model.AccountTypeAsset, -500),
 		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		result, err := svc.GenerateExpenseBreakdown(0, 0)

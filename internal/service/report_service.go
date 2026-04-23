@@ -60,14 +60,20 @@ func (ts *TransactionService) buildReportMaps(startTime, endTime int64, includeI
 		return nil, nil, err
 	}
 
+	txs, err := ts.txRepo.GetTransactionsByDateRange(startTime, endTime)
+	if err != nil {
+		return nil, nil, err
+	}
+	txTypeMap := make(map[int64]model.TransactionType, len(txs))
+	for _, tx := range txs {
+		txTypeMap[tx.ID] = tx.Type
+	}
+
 	incomeByAccount = map[string]*model.ReportRow{}
 	expenseByAccount = map[string]*model.ReportRow{}
 
-	for _, details := range txSplitsMap {
-		txType, err := ts.DetermineType(details)
-		if err != nil {
-			return nil, nil, err
-		}
+	for txID, details := range txSplitsMap {
+		txType := txTypeMap[txID]
 
 		if includeIncome && txType == model.TxTypeIncome {
 			offset := offsetAccountName(details, model.AccountTypeRevenue)

@@ -38,11 +38,7 @@ func (r *editRunner) actionQuickChangeAccount(detail *model.TransactionDetail) e
 		return fmt.Errorf("quick edit supports only 2 splits")
 	}
 
-	// Determine Type (Asset/Expense/etc)
-	txType, err := r.txSvc.DetermineType(detail.Splits)
-	if err != nil {
-		return err
-	}
+	txType := detail.Type
 
 	if txType == model.TxTypeOpening {
 		r.view.ShowWarning("Cannot quick-edit Opening Balance transaction")

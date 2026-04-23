@@ -45,6 +45,7 @@ Examples:
 	cmd.Flags().StringVarP(&flags.To, "to", "t", "", "Destination account (where money goes to)")
 	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
 	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
+	cmd.Flags().StringVar(&flags.Type, "type", "", "Transaction type: expense, income, transfer")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created transaction as JSON")
 
 	return cmd
@@ -56,7 +57,7 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 
 	// Check if using flag mode or interactive mode
 	hasFlags := cmd.Flags().Changed("desc") || cmd.Flags().Changed("amount") ||
-		cmd.Flags().Changed("from") || cmd.Flags().Changed("to")
+		cmd.Flags().Changed("from") || cmd.Flags().Changed("to") || cmd.Flags().Changed("type")
 
 	if flags.JSON && !hasFlags {
 		return fmt.Errorf("--json requires flags: --amount, --from, --to")
@@ -80,7 +81,7 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 		input.Description,
 		input.Timestamp,
 		input.Status,
-		"",
+		input.Type,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)

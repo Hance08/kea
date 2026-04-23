@@ -39,6 +39,14 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 		return addTransactionInput{}, err
 	}
 
+	var txType model.TransactionType
+	if flags.Type != "" {
+		txType, err = parseTransactionType(flags.Type)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+	}
+
 	if err := r.validateAccountSelectable(flags.From, nil, "--from"); err != nil {
 		return addTransactionInput{}, err
 	}
@@ -54,6 +62,7 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 		Description:   description,
 		Timestamp:     timestamp,
 		Status:        status,
+		Type:          txType,
 	}, nil
 }
 
@@ -153,6 +162,7 @@ func (r *addRunner) runInteractive() (addTransactionInput, error) {
 		Description:   description,
 		Timestamp:     timestamp,
 		Status:        status,
+		Type:          mode,
 	}, nil
 }
 
@@ -192,6 +202,19 @@ func (r *addRunner) parseDate(dateStr string) (int64, error) {
 		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
 	}
 	return t.Unix(), nil
+}
+
+func parseTransactionType(s string) (model.TransactionType, error) {
+	switch strings.ToLower(s) {
+	case "expense":
+		return model.TxTypeExpense, nil
+	case "income":
+		return model.TxTypeIncome, nil
+	case "transfer":
+		return model.TxTypeTransfer, nil
+	default:
+		return "", fmt.Errorf("invalid type %q: must be expense, income, or transfer", s)
+	}
 }
 
 var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{

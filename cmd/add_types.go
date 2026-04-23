@@ -27,6 +27,7 @@ type addFlags struct {
 	To          string
 	Status      string
 	Timestamp   string
+	Type        string
 	JSON        bool
 }
 
@@ -37,4 +38,5 @@ type addTransactionInput struct {
 	Description   string
 	Timestamp     int64
 	Status        model.TransactionStatus
+	Type          model.TransactionType
 }

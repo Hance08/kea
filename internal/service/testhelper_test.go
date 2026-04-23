@@ -305,7 +305,11 @@ func (m *mockTransactionRepo) GetTransactionsByAccount(accountID int64, limit in
 }
 
 func (m *mockTransactionRepo) GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error) {
-	return nil, nil
+	result := make([]*model.Transaction, 0, len(m.transactions))
+	for _, tx := range m.transactions {
+		result = append(result, tx)
+	}
+	return result, nil
 }
 
 func (m *mockTransactionRepo) GetAllTransactions(limit int) ([]*model.Transaction, error) {
@@ -340,7 +344,7 @@ func (m *mockTransactionRepo) DeleteTransaction(txID int64) error {
 	return nil
 }
 
-func (m *mockTransactionRepo) UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus) error {
+func (m *mockTransactionRepo) UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
@@ -351,6 +355,7 @@ func (m *mockTransactionRepo) UpdateTransactionBasic(txID int64, description str
 	tx.Description = description
 	tx.Timestamp = timestamp
 	tx.Status = status
+	tx.Type = txType
 	return nil
 }
 

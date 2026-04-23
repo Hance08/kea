@@ -655,3 +655,42 @@ func TestIsEditable(t *testing.T) {
 		assert.Equal(t, NotEditableReconciled, reason)
 	})
 }
+
+// ──────────────────────────────────────────────
+// CreateTransactionFromSplits
+// ──────────────────────────────────────────────
+
+func TestCreateTransactionFromSplits(t *testing.T) {
+	t.Run("delegates to CreateTransaction and returns detail with ID", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", Amount: -200000},
+			{AccountName: "Expenses:Food", Amount: 200000},
+		}
+		result, err := svc.CreateTransactionFromSplits(splits, "team lunch", 0, model.StatusCleared, model.TxTypeExpense)
+		require.NoError(t, err)
+		assert.Greater(t, result.ID, int64(0))
+		assert.Equal(t, "team lunch", result.Description)
+		assert.Equal(t, model.TxTypeExpense, result.Type)
+		assert.Equal(t, splits, result.Splits)
+	})
+
+	t.Run("propagates CreateTransaction error", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		txRepo.createErr = errors.New("db error")
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", Amount: -200000},
+			{AccountName: "Expenses:Food", Amount: 200000},
+		}
+		_, err := svc.CreateTransactionFromSplits(splits, "team lunch", 0, model.StatusCleared, model.TxTypeExpense)
+		require.Error(t, err)
+	})
+}

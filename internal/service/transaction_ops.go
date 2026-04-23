@@ -155,6 +155,31 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 	return input, nil
 }
 
+// CreateTransactionFromSplits creates a transaction from an explicit slice of splits.
+// All validation (balance, type match, ≥2 splits, account resolution) is handled
+// by CreateTransaction.
+func (ts *TransactionService) CreateTransactionFromSplits(
+	splits []model.SplitDetail,
+	desc string,
+	timestamp int64,
+	status model.TransactionStatus,
+	txType model.TransactionType,
+) (model.TransactionDetail, error) {
+	input := model.TransactionDetail{
+		Timestamp:   timestamp,
+		Description: desc,
+		Status:      status,
+		Type:        txType,
+		Splits:      splits,
+	}
+	id, err := ts.CreateTransaction(input)
+	if err != nil {
+		return model.TransactionDetail{}, err
+	}
+	input.ID = id
+	return input, nil
+}
+
 // DeleteTransaction deletes a transaction
 func (ts *TransactionService) DeleteTransaction(txID int64) error {
 	if txID == model.OpeningBalanceTransactionID {

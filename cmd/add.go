@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/views"
 	"github.com/spf13/cobra"
@@ -46,7 +47,12 @@ Examples:
 	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
 	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
 	cmd.Flags().StringVar(&flags.Type, "type", "", "Transaction type: expense, income, transfer")
+	cmd.Flags().StringArrayVar(&flags.Splits, "split", nil, "Split as AccountName=amount, e.g. Assets:Bank=-1000 (repeatable)")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created transaction as JSON")
+
+	cmd.MarkFlagsMutuallyExclusive("split", "from")
+	cmd.MarkFlagsMutuallyExclusive("split", "to")
+	cmd.MarkFlagsMutuallyExclusive("split", "amount")
 
 	return cmd
 }
@@ -57,7 +63,8 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 
 	// Check if using flag mode or interactive mode
 	hasFlags := cmd.Flags().Changed("desc") || cmd.Flags().Changed("amount") ||
-		cmd.Flags().Changed("from") || cmd.Flags().Changed("to") || cmd.Flags().Changed("type")
+		cmd.Flags().Changed("from") || cmd.Flags().Changed("to") ||
+		cmd.Flags().Changed("type") || cmd.Flags().Changed("split")
 
 	if flags.JSON && !hasFlags {
 		return fmt.Errorf("--json requires flags: --amount, --from, --to")
@@ -74,15 +81,22 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 		return err
 	}
 
-	result, err := r.txSvc.CreateSimpleTransaction(
-		input.FromAccountID,
-		input.ToAccountID,
-		input.AmountCents,
-		input.Description,
-		input.Timestamp,
-		input.Status,
-		input.Type,
-	)
+	var result model.TransactionDetail
+	if len(input.Splits) > 0 {
+		result, err = r.txSvc.CreateTransactionFromSplits(
+			input.Splits, input.Description, input.Timestamp, input.Status, input.Type,
+		)
+	} else {
+		result, err = r.txSvc.CreateSimpleTransaction(
+			input.FromAccountID,
+			input.ToAccountID,
+			input.AmountCents,
+			input.Description,
+			input.Timestamp,
+			input.Status,
+			input.Type,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to create transaction: %w", err)
 	}

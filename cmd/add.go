@@ -67,7 +67,7 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 		cmd.Flags().Changed("type") || cmd.Flags().Changed("split")
 
 	if flags.JSON && !hasFlags {
-		return fmt.Errorf("--json requires flags: --amount, --from, --to")
+		return fmt.Errorf("--json requires flag mode: use --amount/--from/--to or --split")
 	}
 
 	if hasFlags {

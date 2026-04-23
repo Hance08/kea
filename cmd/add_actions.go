@@ -11,6 +11,10 @@ import (
 )
 
 func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
+	if len(flags.Splits) > 0 {
+		return r.runFromSplitFlags(flags)
+	}
+
 	// Flag mode: validate all required flags
 	if flags.Amount == "" || flags.From == "" || flags.To == "" {
 		return addTransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
@@ -221,4 +225,67 @@ var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
 	model.ModeExpense:  {"Payment Source:", "Expense Type:"},
 	model.ModeIncome:   {"Revenue Type:", "Deposit To:"},
 	model.ModeTransfer: {"From Account:", "To Account:"},
+}
+
+func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, error) {
+	if flags.Type == "" {
+		return addTransactionInput{}, fmt.Errorf("--type is required when using --split")
+	}
+	if len(flags.Splits) < 2 {
+		return addTransactionInput{}, fmt.Errorf("--split requires at least 2 splits, got %d", len(flags.Splits))
+	}
+
+	txType, err := parseTransactionType(flags.Type)
+	if err != nil {
+		return addTransactionInput{}, err
+	}
+
+	description := flags.Description
+	if description == "" {
+		description = "-"
+	}
+
+	status := model.StatusCleared
+	if strings.ToLower(flags.Status) == "pending" {
+		status = model.StatusPending
+	}
+
+	timestamp, err := r.parseDate(flags.Timestamp)
+	if err != nil {
+		return addTransactionInput{}, err
+	}
+
+	splits := make([]model.SplitDetail, 0, len(flags.Splits))
+	for _, s := range flags.Splits {
+		split, err := parseSplitFlag(s)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+		splits = append(splits, split)
+	}
+
+	return addTransactionInput{
+		Splits:      splits,
+		Description: description,
+		Timestamp:   timestamp,
+		Status:      status,
+		Type:        txType,
+	}, nil
+}
+
+func parseSplitFlag(s string) (model.SplitDetail, error) {
+	i := strings.LastIndex(s, "=")
+	if i < 0 {
+		return model.SplitDetail{}, fmt.Errorf("invalid split %q: expected format AccountName=amount", s)
+	}
+	accountName := s[:i]
+	amountStr := s[i+1:]
+	if accountName == "" {
+		return model.SplitDetail{}, fmt.Errorf("invalid split %q: account name cannot be empty", s)
+	}
+	cents, err := utils.ParseAmount(amountStr)
+	if err != nil {
+		return model.SplitDetail{}, fmt.Errorf("invalid split %q: %w", s, err)
+	}
+	return model.SplitDetail{AccountName: accountName, Amount: cents}, nil
 }

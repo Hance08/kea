@@ -30,9 +30,9 @@ type EditView interface {
 type EditProvider interface {
 	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
 	IsEditable(detail *model.TransactionDetail) (bool, service.NotEditableReason)
-	DetermineType(splits []model.SplitDetail) (model.TransactionType, error)
 	GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account
 	ValidateTransactionEdit(splits []model.SplitDetail) error
+	ValidateSplitsMatchType(txType model.TransactionType, splits []model.SplitDetail) error
 	UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error
 }
 
@@ -43,6 +43,7 @@ type AccountProvider interface {
 
 const (
 	OptBasicInfo    = "Basic Info (description, date, status)"
+	OptChangeType   = "Change Type"
 	OptQuickAccount = "Change Account (quick edit)"
 	OptQuickAmount  = "Change Amount (both sides)"
 	OptEditSplits   = "Edit Splits (Advanced)"

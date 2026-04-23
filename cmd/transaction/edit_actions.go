@@ -2,9 +2,11 @@ package transaction
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
+	"github.com/hance08/kea/ui/prompts"
 )
 
 func (r *editRunner) actionEditBasicInfo(detail *model.TransactionDetail) error {
@@ -238,6 +240,36 @@ func (r *editRunner) actionDeleteSplit(detail *model.TransactionDetail) error {
 		detail.Splits = append(detail.Splits[:idx], detail.Splits[idx+1:]...)
 	}
 	return nil
+}
+
+func (r *editRunner) actionEditType(detail *model.TransactionDetail) error {
+	rawType, err := prompts.PromptTransactionType()
+	if err != nil {
+		return err
+	}
+
+	newType := r.determineMode(rawType)
+
+	if err := r.txSvc.ValidateSplitsMatchType(newType, detail.Splits); err != nil {
+		r.view.ShowWarning(fmt.Sprintf("Cannot change type to %s: %s", newType, err.Error()))
+		r.view.ShowWarning("Fix the splits first, then change the type.")
+		return nil
+	}
+
+	detail.Type = newType
+	r.view.ShowSuccess(fmt.Sprintf("Type changed to: %s", newType))
+	return nil
+}
+
+func (r *editRunner) determineMode(rawInput string) model.TransactionType {
+	lower := strings.ToLower(rawInput)
+	if strings.Contains(lower, "expense") {
+		return model.TxTypeExpense
+	}
+	if strings.Contains(lower, "income") {
+		return model.TxTypeIncome
+	}
+	return model.TxTypeTransfer
 }
 
 func (r *editRunner) actionSave(detail *model.TransactionDetail) error {

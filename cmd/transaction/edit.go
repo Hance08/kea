@@ -102,6 +102,11 @@ func (r *editRunner) getAvailableMenuItems(detail *model.TransactionDetail) []me
 			Action: r.actionEditBasicInfo,
 		},
 		{
+			Label:     OptChangeType,
+			Condition: func(d *model.TransactionDetail) bool { return d.Type != model.TxTypeOpening },
+			Action:    r.actionEditType,
+		},
+		{
 			Label:     OptQuickAccount,
 			Condition: func(d *model.TransactionDetail) bool { return len(d.Splits) == 2 },
 			Action:    r.actionQuickChangeAccount,

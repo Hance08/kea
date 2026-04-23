@@ -78,6 +78,7 @@ func (as *AccountService) createOpeningBalance(account *model.Account, amountInC
 		Timestamp:   time.Now().Unix(),
 		Description: model.OpeningAccountMemo,
 		Status:      model.StatusCleared,
+		Type:        model.TxTypeOpening,
 	}
 
 	return as.tm.ExecTx(context.Background(), func(repo repository.Repository) error {

@@ -341,6 +341,9 @@ func (ts *TransactionService) ValidateSplitsMatchType(txType model.TransactionTy
 				return fmt.Errorf("transfer transaction must only contain Asset and Liability accounts (found account type %q)", accType)
 			}
 		}
+
+	default:
+		return fmt.Errorf("unknown transaction type %q", txType)
 	}
 
 	return nil

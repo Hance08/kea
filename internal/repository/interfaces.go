@@ -31,7 +31,7 @@ type TransactionRepository interface {
 
 	UpdateTransactionStatus(txID int64, status model.TransactionStatus) error
 	DeleteTransaction(txID int64) error
-	UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus) error
+	UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error
 
 	CreateSplit(txID int64, split *model.Split) (int64, error)
 	UpdateSplit(splitID int64, accountID int64, amount int64, currency string, memo string) error

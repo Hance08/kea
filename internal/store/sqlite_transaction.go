@@ -13,8 +13,8 @@ import (
 // It relies on the caller (Service layer) to wrap it in ExecTx for atomicity.
 func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model.Split) (int64, error) {
 	stmtTx, err := s.db.Prepare(`
-        INSERT INTO transactions (timestamp, description, status, external_id)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO transactions (timestamp, description, status, external_id, type)
+        VALUES (?, ?, ?, ?, ?)
         RETURNING id;
     `)
 	if err != nil {
@@ -25,7 +25,7 @@ func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model
 	}()
 
 	var newTxID int64
-	err = stmtTx.QueryRow(tx.Timestamp, tx.Description, tx.Status, tx.ExternalID).Scan(&newTxID)
+	err = stmtTx.QueryRow(tx.Timestamp, tx.Description, tx.Status, tx.ExternalID, tx.Type).Scan(&newTxID)
 
 	if err != nil {
 		var sqliteErr sqlite.Error
@@ -61,10 +61,10 @@ func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model
 func (s *Store) GetTransactionByID(txID int64) (*model.Transaction, error) {
 	var tx model.Transaction
 	err := s.db.QueryRow(`
-        SELECT id, timestamp, description, status, external_id
+        SELECT id, timestamp, description, status, external_id, type
         FROM transactions
         WHERE id = ?
-    `, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
+    `, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID, &tx.Type)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("transaction with ID %d not found", txID)
@@ -80,7 +80,7 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*model.T
 	}
 
 	rows, err := s.db.Query(`
-        SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id
+        SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id, t.type
         FROM transactions t
         INNER JOIN splits s ON t.id = s.transaction_id
         WHERE s.account_id = ?
@@ -99,7 +99,7 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*model.T
 
 func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error) {
 	rows, err := s.db.Query(`
-        SELECT id, timestamp, description, status, external_id
+        SELECT id, timestamp, description, status, external_id, type
         FROM transactions
         WHERE timestamp >= ? AND timestamp <= ?
         ORDER BY timestamp DESC, id DESC
@@ -120,7 +120,7 @@ func (s *Store) GetAllTransactions(limit int) ([]*model.Transaction, error) {
 	}
 
 	rows, err := s.db.Query(`
-        SELECT id, timestamp, description, status, external_id
+        SELECT id, timestamp, description, status, external_id, type
         FROM transactions
         ORDER BY timestamp DESC, id DESC
         LIMIT ?
@@ -178,12 +178,12 @@ func (s *Store) DeleteTransaction(txID int64) error {
 	return nil
 }
 
-func (s *Store) UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus) error {
+func (s *Store) UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
 	result, err := s.db.Exec(`
         UPDATE transactions
-        SET description = ?, timestamp = ?, status = ?
+        SET description = ?, timestamp = ?, status = ?, type = ?
         WHERE id = ?
-    `, description, timestamp, status, txID)
+    `, description, timestamp, status, txType, txID)
 	if err != nil {
 		return fmt.Errorf("failed to update transaction: %w", err)
 	}
@@ -364,7 +364,7 @@ func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
 	var transactions []*model.Transaction
 	for rows.Next() {
 		tx := &model.Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID)
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID, &tx.Type)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
 		}

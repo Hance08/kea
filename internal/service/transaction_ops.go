@@ -219,7 +219,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 	}
 
 	return ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
-		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status); err != nil {
+		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status, oldTx.Type); err != nil {
 			return err
 		}
 

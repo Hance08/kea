@@ -34,6 +34,7 @@ func TestCreateTransaction(t *testing.T) {
 
 		input := model.TransactionDetail{
 			Description: "Lunch",
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -500},
@@ -50,6 +51,7 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		input := model.TransactionDetail{
+			Type: model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Assets:Bank", Amount: 1000},
 			},
@@ -61,9 +63,25 @@ func TestCreateTransaction(t *testing.T) {
 
 	t.Run("empty splits rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		_, err := svc.CreateTransaction(model.TransactionDetail{})
+		_, err := svc.CreateTransaction(model.TransactionDetail{Type: model.TxTypeExpense})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 2")
+	})
+
+	t.Run("error: missing type", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		input := model.TransactionDetail{
+			Splits: []model.SplitDetail{
+				{AccountName: "Expenses:Food", Amount: 500},
+				{AccountName: "Assets:Bank", Amount: -500},
+			},
+		}
+		_, err := svc.CreateTransaction(input)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "type is required")
 	})
 
 	t.Run("unbalanced splits rejected", func(t *testing.T) {
@@ -72,6 +90,7 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		input := model.TransactionDetail{
+			Type: model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -400}, // off by 100
@@ -88,6 +107,7 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		input := model.TransactionDetail{
+			Type: model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Assets:Bank", Amount: -500},
 				{AccountName: "NonExistent:Account", Amount: 500},
@@ -107,6 +127,7 @@ func TestCreateTransaction(t *testing.T) {
 		before := time.Now().Unix()
 		input := model.TransactionDetail{
 			Timestamp: 0,
+			Type:      model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -500},
@@ -128,6 +149,7 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		input := model.TransactionDetail{
+			Type: model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:TWDFood", Amount: 500},
 				{AccountName: "Assets:TWDBank", Amount: -500},
@@ -151,6 +173,7 @@ func TestCreateTransaction(t *testing.T) {
 
 		// Assets:Cash is TWD, Expenses:Food has no currency (falls back to USD)
 		input := model.TransactionDetail{
+			Type: model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Cash", Amount: -500},
@@ -168,6 +191,7 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		input := model.TransactionDetail{
+			Type: model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -500},
@@ -189,6 +213,7 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		input := model.TransactionDetail{
+			Type: model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -500},
@@ -211,7 +236,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		detail, err := svc.CreateSimpleTransaction(
-			"Assets:Bank", "Expenses:Food", 1000, "Dinner", 0, model.StatusPending,
+			"Assets:Bank", "Expenses:Food", 1000, "Dinner", 0, model.StatusPending, model.TxTypeExpense,
 		)
 		require.NoError(t, err)
 		assert.Greater(t, detail.ID, int64(0))
@@ -233,7 +258,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		detail, err := svc.CreateSimpleTransaction(
-			"Assets:Bank", "Expenses:Food", 750, "Coffee", 0, model.StatusPending,
+			"Assets:Bank", "Expenses:Food", 750, "Coffee", 0, model.StatusPending, model.TxTypeExpense,
 		)
 		require.NoError(t, err)
 
@@ -247,7 +272,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 	t.Run("same account rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		_, err := svc.CreateSimpleTransaction(
-			"Assets:Bank", "Assets:Bank", 1000, "Self", 0, model.StatusPending,
+			"Assets:Bank", "Assets:Bank", 1000, "Self", 0, model.StatusPending, model.TxTypeExpense,
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "same")
@@ -256,7 +281,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 	t.Run("zero amount rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		_, err := svc.CreateSimpleTransaction(
-			"Assets:Bank", "Expenses:Food", 0, "Zero", 0, model.StatusPending,
+			"Assets:Bank", "Expenses:Food", 0, "Zero", 0, model.StatusPending, model.TxTypeExpense,
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "positive")
@@ -265,10 +290,23 @@ func TestCreateSimpleTransaction(t *testing.T) {
 	t.Run("negative amount rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		_, err := svc.CreateSimpleTransaction(
-			"Assets:Bank", "Expenses:Food", -100, "Negative", 0, model.StatusPending,
+			"Assets:Bank", "Expenses:Food", -100, "Negative", 0, model.StatusPending, model.TxTypeExpense,
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "positive")
+	})
+
+	t.Run("empty type infers from account types", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		detail, err := svc.CreateSimpleTransaction(
+			"Assets:Bank", "Expenses:Food", 500, "Inferred", 0, model.StatusPending, "",
+		)
+		require.NoError(t, err)
+		assert.Equal(t, model.TxTypeExpense, detail.Type)
 	})
 }
 
@@ -418,10 +456,10 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		splits := []model.SplitDetail{
-			{ID: 10, AccountID: 1, Amount: -800, Currency: "USD"},
-			{ID: 11, AccountID: 2, Amount: 800, Currency: "USD"},
+			{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -800, Currency: "USD"},
+			{ID: 11, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 800, Currency: "USD"},
 		}
-		err := svc.UpdateTransactionComplete(5, "Updated desc", 0, model.StatusCleared, splits)
+		err := svc.UpdateTransactionComplete(5, "Updated desc", 0, model.StatusCleared, model.TxTypeExpense, splits)
 		require.NoError(t, err)
 	})
 
@@ -430,14 +468,14 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		err := svc.UpdateTransactionComplete(5, "", 0, model.TransactionStatus(99), nil)
+		err := svc.UpdateTransactionComplete(5, "", 0, model.TransactionStatus(99), model.TxTypeExpense, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid status")
 	})
 
 	t.Run("non-existent transaction returns error", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.UpdateTransactionComplete(999, "", 0, model.StatusPending,
+		err := svc.UpdateTransactionComplete(999, "", 0, model.StatusPending, model.TxTypeExpense,
 			[]model.SplitDetail{{AccountID: 1, Amount: 0}, {AccountID: 2, Amount: 0}})
 		require.Error(t, err)
 	})
@@ -447,7 +485,7 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusReconciled}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusCleared,
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusCleared, model.TxTypeExpense,
 			[]model.SplitDetail{{AccountID: 1, Amount: 500}, {AccountID: 2, Amount: -500}})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrReconciled))
@@ -458,7 +496,7 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending,
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, model.TxTypeExpense,
 			[]model.SplitDetail{{AccountID: 1, Amount: 0}})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 2")
@@ -471,7 +509,7 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, nil)
 		svc := newTestTransactionService(accRepo, txRepo)
 
-		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending,
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, model.TxTypeExpense,
 			[]model.SplitDetail{
 				{AccountID: 1, Amount: -500},
 				{AccountID: 2, Amount: 400}, // off by 100
@@ -486,10 +524,10 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, nil)
 		svc := newTestTransactionService(accRepo, txRepo)
 
-		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending,
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, model.TxTypeExpense,
 			[]model.SplitDetail{
-				{AccountID: 1, Amount: -500},
-				{AccountID: 99, Amount: 500}, // does not exist
+				{AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -500},
+				{AccountID: 99, AccountType: model.AccountTypeExpense, Amount: 500}, // does not exist
 			})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "99")
@@ -511,10 +549,10 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		splits := []model.SplitDetail{
-			{ID: 10, AccountID: 1, Amount: -1000, Currency: "USD"},
-			{ID: 11, AccountID: 2, Amount: 1000, Currency: "USD"},
+			{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -1000, Currency: "USD"},
+			{ID: 11, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 1000, Currency: "USD"},
 		}
-		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, splits)
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
 		require.NoError(t, err)
 		assert.Contains(t, txRepo.deleteSplitCalls, int64(12), "split ID 12 should be deleted")
 	})
@@ -530,10 +568,10 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		splits := []model.SplitDetail{
-			{ID: 10, AccountID: 1, Amount: -1000, Currency: "USD"},
-			{ID: 0, AccountID: 2, Amount: 1000, Currency: "USD"}, // new split
+			{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -1000, Currency: "USD"},
+			{ID: 0, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 1000, Currency: "USD"}, // new split
 		}
-		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, splits)
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
 		require.NoError(t, err)
 		assert.Len(t, txRepo.createSplitCalls, 1, "CreateSplit should be called once")
 	})
@@ -552,13 +590,33 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		splits := []model.SplitDetail{
-			{ID: 10, AccountID: 1, Amount: -800, Currency: "USD"},
-			{ID: 11, AccountID: 2, Amount: 800, Currency: "USD"},
+			{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -800, Currency: "USD"},
+			{ID: 11, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 800, Currency: "USD"},
 		}
-		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, splits)
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
 		require.NoError(t, err)
 		assert.Contains(t, txRepo.updateSplitCalls, int64(10))
 		assert.Contains(t, txRepo.updateSplitCalls, int64(11))
+	})
+
+	t.Run("error: splits do not match declared type", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		txRepo.addTransaction(
+			&model.Transaction{ID: 5, Status: model.StatusPending},
+			makeExistingSplits(10, 11),
+		)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		// txType = Transfer but splits contain an Expense account — should fail
+		splits := []model.SplitDetail{
+			{AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+			{AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(5, "", 0, model.StatusPending, model.TxTypeTransfer, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "splits do not match transaction type")
 	})
 }
 
@@ -595,5 +653,44 @@ func TestIsEditable(t *testing.T) {
 		editable, reason := svc.IsEditable(detail)
 		assert.False(t, editable)
 		assert.Equal(t, NotEditableReconciled, reason)
+	})
+}
+
+// ──────────────────────────────────────────────
+// CreateTransactionFromSplits
+// ──────────────────────────────────────────────
+
+func TestCreateTransactionFromSplits(t *testing.T) {
+	t.Run("delegates to CreateTransaction and returns detail with ID", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", Amount: -200000},
+			{AccountName: "Expenses:Food", Amount: 200000},
+		}
+		result, err := svc.CreateTransactionFromSplits(splits, "team lunch", 0, model.StatusCleared, model.TxTypeExpense)
+		require.NoError(t, err)
+		assert.Greater(t, result.ID, int64(0))
+		assert.Equal(t, "team lunch", result.Description)
+		assert.Equal(t, model.TxTypeExpense, result.Type)
+		assert.Equal(t, splits, result.Splits)
+	})
+
+	t.Run("propagates CreateTransaction error", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		txRepo.createErr = errors.New("db error")
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", Amount: -200000},
+			{AccountName: "Expenses:Food", Amount: 200000},
+		}
+		_, err := svc.CreateTransactionFromSplits(splits, "team lunch", 0, model.StatusCleared, model.TxTypeExpense)
+		require.Error(t, err)
 	})
 }

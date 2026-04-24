@@ -11,6 +11,10 @@ import (
 )
 
 func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
+	if len(flags.Splits) > 0 {
+		return r.runFromSplitFlags(flags)
+	}
+
 	// Flag mode: validate all required flags
 	if flags.Amount == "" || flags.From == "" || flags.To == "" {
 		return addTransactionInput{}, fmt.Errorf("when using flags, --amount, --from, and --to are all required")
@@ -28,15 +32,20 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 	}
 
 	// Parse status
-	status := model.StatusCleared
-	if strings.ToLower(flags.Status) == "pending" {
-		status = model.StatusPending
-	}
+	status := parseStatus(flags.Status)
 
 	// Parse timestamp
 	timestamp, err := r.parseDate(flags.Timestamp)
 	if err != nil {
 		return addTransactionInput{}, err
+	}
+
+	var txType model.TransactionType
+	if flags.Type != "" {
+		txType, err = parseTransactionType(flags.Type)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
 	}
 
 	if err := r.validateAccountSelectable(flags.From, nil, "--from"); err != nil {
@@ -54,6 +63,7 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 		Description:   description,
 		Timestamp:     timestamp,
 		Status:        status,
+		Type:          txType,
 	}, nil
 }
 
@@ -153,6 +163,7 @@ func (r *addRunner) runInteractive() (addTransactionInput, error) {
 		Description:   description,
 		Timestamp:     timestamp,
 		Status:        status,
+		Type:          mode,
 	}, nil
 }
 
@@ -194,8 +205,90 @@ func (r *addRunner) parseDate(dateStr string) (int64, error) {
 	return t.Unix(), nil
 }
 
+func parseTransactionType(s string) (model.TransactionType, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "expense":
+		return model.TxTypeExpense, nil
+	case "income":
+		return model.TxTypeIncome, nil
+	case "transfer":
+		return model.TxTypeTransfer, nil
+	default:
+		return "", fmt.Errorf("invalid type %q: must be expense, income, or transfer", s)
+	}
+}
+
 var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
 	model.ModeExpense:  {"Payment Source:", "Expense Type:"},
 	model.ModeIncome:   {"Revenue Type:", "Deposit To:"},
 	model.ModeTransfer: {"From Account:", "To Account:"},
+}
+
+func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, error) {
+	if flags.Type == "" {
+		return addTransactionInput{}, fmt.Errorf("--type is required when using --split")
+	}
+	if len(flags.Splits) < 2 {
+		return addTransactionInput{}, fmt.Errorf("--split requires at least 2 splits, got %d", len(flags.Splits))
+	}
+
+	txType, err := parseTransactionType(flags.Type)
+	if err != nil {
+		return addTransactionInput{}, err
+	}
+
+	description := flags.Description
+	if description == "" {
+		description = "-"
+	}
+
+	status := parseStatus(flags.Status)
+
+	timestamp, err := r.parseDate(flags.Timestamp)
+	if err != nil {
+		return addTransactionInput{}, err
+	}
+
+	splits := make([]model.SplitDetail, 0, len(flags.Splits))
+	for _, s := range flags.Splits {
+		split, err := parseSplitFlag(s)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+		splits = append(splits, split)
+	}
+
+	// Account name validity and selectability are validated by CreateTransaction
+	// (which calls GetAccountByName per split). Errors propagate with split index context.
+	return addTransactionInput{
+		Splits:      splits,
+		Description: description,
+		Timestamp:   timestamp,
+		Status:      status,
+		Type:        txType,
+	}, nil
+}
+
+func parseSplitFlag(s string) (model.SplitDetail, error) {
+	i := strings.LastIndex(s, "=")
+	if i < 0 {
+		return model.SplitDetail{}, fmt.Errorf("invalid split %q: expected format AccountName=amount", s)
+	}
+	accountName := s[:i]
+	amountStr := s[i+1:]
+	if accountName == "" {
+		return model.SplitDetail{}, fmt.Errorf("invalid split %q: account name cannot be empty", s)
+	}
+	cents, err := utils.ParseAmount(amountStr)
+	if err != nil {
+		return model.SplitDetail{}, fmt.Errorf("invalid split %q: %w", s, err)
+	}
+	return model.SplitDetail{AccountName: accountName, Amount: cents}, nil
+}
+
+func parseStatus(s string) model.TransactionStatus {
+	if strings.ToLower(s) == "pending" {
+		return model.StatusPending
+	}
+	return model.StatusCleared
 }

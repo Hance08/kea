@@ -17,7 +17,8 @@ type AddProvider interface {
 
 type TransactionProvider interface {
 	GetTransactionRule(mode model.TransactionType) (model.TransactionRule, error)
-	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus) (model.TransactionDetail, error)
+	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
+	CreateTransactionFromSplits(splits []model.SplitDetail, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
 }
 
 type addFlags struct {
@@ -27,7 +28,9 @@ type addFlags struct {
 	To          string
 	Status      string
 	Timestamp   string
+	Type        string
 	JSON        bool
+	Splits      []string
 }
 
 type addTransactionInput struct {
@@ -37,4 +40,6 @@ type addTransactionInput struct {
 	Description   string
 	Timestamp     int64
 	Status        model.TransactionStatus
+	Type          model.TransactionType
+	Splits        []model.SplitDetail
 }

@@ -7,6 +7,7 @@ type Transaction struct {
 	Timestamp   int64
 	Description string
 	Status      TransactionStatus
+	Type        TransactionType
 	ExternalID  *string
 }
 
@@ -15,6 +16,7 @@ type TransactionDetail struct {
 	Timestamp   int64
 	Description string
 	Status      TransactionStatus
+	Type        TransactionType
 	Splits      []SplitDetail
 }
 

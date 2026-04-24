@@ -21,7 +21,6 @@ type ListProvider interface {
 	GetTransactionHistory(accountName string, limit int) ([]*model.Transaction, error)
 	GetRecentTransactions(limit int) ([]*model.Transaction, error)
 	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
-	DetermineType(splits []model.SplitDetail) (model.TransactionType, error)
 	GetDisplayAccount(splits []model.SplitDetail, txType string) (string, error)
 	GetDisplayOffsetAccount(splits []model.SplitDetail, txType string, primaryAccount string) (string, error)
 	GetDisplayAmount(splits []model.SplitDetail) (int64, string)
@@ -113,12 +112,7 @@ func (r *listRunner) buildViewItems(transactions []*model.Transaction) []views.T
 }
 
 func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *model.TransactionDetail) views.TransactionListItem {
-	// 1. Determine Type
-	txTypeEnum, err := r.svc.DetermineType(detail.Splits)
-	txType := string(txTypeEnum)
-	if err != nil {
-		txType = "-"
-	}
+	txType := string(detail.Type)
 
 	accountName, err := r.svc.GetDisplayAccount(detail.Splits, txType)
 	if err != nil {

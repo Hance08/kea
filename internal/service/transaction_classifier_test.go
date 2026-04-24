@@ -433,3 +433,128 @@ func TestGetAllowedAccounts(t *testing.T) {
 		assert.Empty(t, result)
 	})
 }
+
+// ──────────────────────────────────────────────
+// ValidateSplitsMatchType
+// ──────────────────────────────────────────────
+
+func TestValidateSplitsMatchType(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+
+	tests := []struct {
+		name    string
+		txType  model.TransactionType
+		splits  []model.SplitDetail
+		wantErr bool
+	}{
+		{
+			name:   "expense: E + A is valid",
+			txType: model.TxTypeExpense,
+			splits: []model.SplitDetail{
+				split("Expenses:Food", model.AccountTypeExpense, 500),
+				split("Assets:Bank", model.AccountTypeAsset, -500),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "expense: missing E account",
+			txType: model.TxTypeExpense,
+			splits: []model.SplitDetail{
+				split("Assets:Bank", model.AccountTypeAsset, 500),
+				split("Assets:Cash", model.AccountTypeAsset, -500),
+			},
+			wantErr: true,
+		},
+		{
+			name:   "expense: missing A/L account",
+			txType: model.TxTypeExpense,
+			splits: []model.SplitDetail{
+				split("Expenses:Food", model.AccountTypeExpense, 500),
+				split("Expenses:Drink", model.AccountTypeExpense, -500),
+			},
+			wantErr: true,
+		},
+		{
+			name:   "income: R + A is valid",
+			txType: model.TxTypeIncome,
+			splits: []model.SplitDetail{
+				split("Revenue:Salary", model.AccountTypeRevenue, -1000),
+				split("Assets:Bank", model.AccountTypeAsset, 1000),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "income: missing R account",
+			txType: model.TxTypeIncome,
+			splits: []model.SplitDetail{
+				split("Assets:Bank", model.AccountTypeAsset, 500),
+				split("Assets:Cash", model.AccountTypeAsset, -500),
+			},
+			wantErr: true,
+		},
+		{
+			name:   "income: missing A/L account",
+			txType: model.TxTypeIncome,
+			splits: []model.SplitDetail{
+				split("Revenue:Salary", model.AccountTypeRevenue, 1000),
+				split("Revenue:Bonus", model.AccountTypeRevenue, -1000),
+			},
+			wantErr: true,
+		},
+		{
+			name:   "transfer: two A accounts is valid",
+			txType: model.TxTypeTransfer,
+			splits: []model.SplitDetail{
+				split("Assets:Checking", model.AccountTypeAsset, 500),
+				split("Assets:Savings", model.AccountTypeAsset, -500),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "transfer: A + L is valid",
+			txType: model.TxTypeTransfer,
+			splits: []model.SplitDetail{
+				split("Assets:Bank", model.AccountTypeAsset, 500),
+				split("Liabilities:Card", model.AccountTypeLiability, -500),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "transfer: contains E account is invalid",
+			txType: model.TxTypeTransfer,
+			splits: []model.SplitDetail{
+				split("Assets:Bank", model.AccountTypeAsset, 500),
+				split("Expenses:Food", model.AccountTypeExpense, -500),
+			},
+			wantErr: true,
+		},
+		{
+			name:   "opening: always valid",
+			txType: model.TxTypeOpening,
+			splits: []model.SplitDetail{
+				split("Assets:Bank", model.AccountTypeAsset, 500),
+				split("Equity:OpeningBalances_TWD", model.AccountTypeEquity, -500),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "other: always valid",
+			txType: model.TxTypeOther,
+			splits: []model.SplitDetail{
+				split("Assets:Bank", model.AccountTypeAsset, 500),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := svc.ValidateSplitsMatchType(tt.txType, tt.splits)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

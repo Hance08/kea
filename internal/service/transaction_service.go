@@ -61,6 +61,7 @@ func (ts *TransactionService) GetTransactionByID(txID int64) (*model.Transaction
 		Timestamp:   tx.Timestamp,
 		Description: tx.Description,
 		Status:      tx.Status,
+		Type:        tx.Type,
 		Splits:      splits,
 	}, nil
 }

@@ -16,8 +16,9 @@ func TestLoad_FreshInstall(t *testing.T) {
 	r, err := Load(dir)
 
 	require.NoError(t, err)
-	assert.Empty(t, r.Ledgers)
-	assert.Empty(t, r.ActiveLedger)
+	require.Contains(t, r.Ledgers, "default", "fresh install should bootstrap a default ledger")
+	assert.Equal(t, filepath.Join(dir, "kea.db"), r.Ledgers["default"].Path)
+	assert.Equal(t, "default", r.ActiveLedger)
 	_, statErr := os.Stat(filepath.Join(dir, "ledgers.yaml"))
 	assert.NoError(t, statErr, "ledgers.yaml should be created on fresh install")
 }
@@ -136,11 +137,10 @@ func TestActive_HappyPath(t *testing.T) {
 }
 
 func TestActive_NoActiveLedger(t *testing.T) {
-	dir := t.TempDir()
-	r, err := Load(dir)
-	require.NoError(t, err)
+	// Construct a registry with no active ledger directly (e.g. corrupted/manually edited ledgers.yaml).
+	r := &Registry{Ledgers: map[string]Entry{"work": {Path: "/tmp/work.db"}}}
 
-	_, err = r.Active()
+	_, err := r.Active()
 
 	assert.ErrorIs(t, err, ErrNoActiveLedger)
 }

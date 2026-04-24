@@ -30,45 +30,54 @@ type Registry struct {
 	filePath       string
 }
 
+// EmptyRegistry returns a Registry with no ledgers and no active ledger.
+// Intended for use in tests that need to exercise the "no ledgers" code path.
+func EmptyRegistry() *Registry {
+	return &Registry{Ledgers: make(map[string]Entry)}
+}
+
 // Load reads or initialises the ledger registry from appDir/ledgers.yaml.
 // If ledgers.yaml is absent and appDir/kea.db exists, it auto-migrates
 // by registering kea.db as the "default" ledger.
 func Load(appDir string) (*Registry, error) {
 	registryPath := filepath.Join(appDir, "ledgers.yaml")
 
+	r := &Registry{
+		Ledgers:  make(map[string]Entry),
+		filePath: registryPath,
+	}
+
 	data, err := os.ReadFile(registryPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("read ledgers.yaml: %w", err)
+	}
 	if err == nil {
-		r := &Registry{filePath: registryPath}
 		if err := yaml.Unmarshal(data, r); err != nil {
 			return nil, fmt.Errorf("parse ledgers.yaml: %w", err)
 		}
 		if r.Ledgers == nil {
 			r.Ledgers = make(map[string]Entry)
 		}
-		return r, nil
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("read ledgers.yaml: %w", err)
-	}
-
-	r := &Registry{
-		Ledgers:  make(map[string]Entry),
-		filePath: registryPath,
+		// If the file exists but has ledgers, return as-is.
+		if len(r.Ledgers) > 0 {
+			return r, nil
+		}
 	}
 
+	// No ledgers registered yet (fresh install or empty file from old version).
+	// Auto-migrate a pre-existing kea.db if present; otherwise bootstrap a default.
 	legacyDB := filepath.Join(appDir, "kea.db")
 	if _, err := os.Stat(legacyDB); err == nil {
 		r.Ledgers["default"] = Entry{Path: legacyDB}
 		r.ActiveLedger = "default"
 		r.MigratedLegacy = true
-		if err := r.Save(); err != nil {
-			return nil, fmt.Errorf("auto-migrate: %w", err)
-		}
-		return r, nil
+	} else {
+		r.Ledgers["default"] = Entry{Path: legacyDB}
+		r.ActiveLedger = "default"
 	}
 
 	if err := r.Save(); err != nil {
-		return nil, fmt.Errorf("init ledgers.yaml: %w", err)
+		return nil, fmt.Errorf("init default ledger: %w", err)
 	}
 	return r, nil
 }

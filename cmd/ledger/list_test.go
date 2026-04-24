@@ -11,13 +11,12 @@ import (
 )
 
 func TestListRunner_NoLedgers(t *testing.T) {
-	dir := t.TempDir()
-	r, err := internalled.Load(dir)
-	require.NoError(t, err)
+	// Construct an empty registry directly (e.g. corrupted/manually edited ledgers.yaml).
+	r := internalled.EmptyRegistry()
 
 	var buf bytes.Buffer
 	runner := &listRunner{registry: r, out: &buf}
-	err = runner.Run()
+	err := runner.Run()
 
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "No ledgers registered")

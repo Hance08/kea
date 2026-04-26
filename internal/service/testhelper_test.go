@@ -69,7 +69,7 @@ func (m *mockAccountRepo) CreateAccount(name string, accType model.AccountType, 
 		return 0, m.createErr
 	}
 	if _, exists := m.accountsByName[name]; exists {
-		return 0, errors.New("account already exists")
+		return 0, fmt.Errorf("account %q already exists: %w", name, store.ErrAccountExists)
 	}
 	id := m.nextID
 	m.nextID++

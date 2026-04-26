@@ -207,6 +207,16 @@ func TestCreateAccount(t *testing.T) {
 		_, err := svc.CreateAccount("Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
 		require.Error(t, err)
 	})
+
+	t.Run("duplicate account name returns ErrAlreadyExists", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
+
+		_, err := svc.CreateAccount("Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrAlreadyExists), "expected ErrAlreadyExists, got: %v", err)
+	})
 }
 
 // ──────────────────────────────────────────────

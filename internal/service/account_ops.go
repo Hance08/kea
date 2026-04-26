@@ -25,6 +25,9 @@ func (as *AccountService) CreateAccount(name string, accType model.AccountType, 
 
 	newID, err := as.repo.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
+		if errors.Is(err, store.ErrAccountExists) {
+			return nil, fmt.Errorf("account %q: %w", name, ErrAlreadyExists)
+		}
 		return nil, err
 	}
 

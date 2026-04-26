@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/utils"
 	"github.com/hance08/kea/ui/prompts"
 	"github.com/hance08/kea/ui/views"
@@ -76,7 +75,7 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 		input, err = r.runInteractive()
 	}
 	if err != nil {
-		if errors.Is(err, store.ErrAccountExists) {
+		if errors.Is(err, service.ErrAlreadyExists) {
 			if flags.JSON {
 				return err
 			}

@@ -405,13 +405,15 @@ func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {
 // GetAccountByName
 // ──────────────────────────────────────────────
 
-func TestGetAccountByName_NotFound(t *testing.T) {
-	repo := newMockAccountRepo()
-	svc := newTestAccountService(repo, newMockTransactionRepo())
+func TestGetAccountByName(t *testing.T) {
+	t.Run("unknown account returns ErrNotFound", func(t *testing.T) {
+		repo := newMockAccountRepo()
+		svc := newTestAccountService(repo, newMockTransactionRepo())
 
-	_, err := svc.GetAccountByName("Assets:Nonexistent")
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrNotFound), "expected ErrNotFound, got: %v", err)
+		_, err := svc.GetAccountByName("Assets:Nonexistent")
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound), "expected ErrNotFound, got: %v", err)
+	})
 }
 
 // ──────────────────────────────────────────────

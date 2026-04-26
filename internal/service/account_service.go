@@ -1,12 +1,14 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
+	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/utils"
 )
 
@@ -25,7 +27,14 @@ func (as *AccountService) GetAllAccounts() ([]*model.Account, error) {
 }
 
 func (as *AccountService) GetAccountByName(name string) (*model.Account, error) {
-	return as.repo.GetAccountByName(name)
+	acc, err := as.repo.GetAccountByName(name)
+	if err != nil {
+		if errors.Is(err, store.ErrRecordNotFound) {
+			return nil, fmt.Errorf("account %q: %w", name, ErrNotFound)
+		}
+		return nil, err
+	}
+	return acc, nil
 }
 
 func (as *AccountService) GetAccountsByType(accType model.AccountType) ([]*model.Account, error) {

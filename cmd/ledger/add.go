@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hance08/kea/internal/app"
 	internalled "github.com/hance08/kea/internal/ledger"
-	"github.com/hance08/kea/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -47,11 +47,7 @@ func NewAddCmd(registry *internalled.Registry, migrations fs.FS, appDir string) 
 }
 
 func defaultDBInit(path string, migrations fs.FS) error {
-	s, err := store.NewStore(path, migrations)
-	if err != nil {
-		return err
-	}
-	return s.Close()
+	return app.InitLedgerDB(path, migrations)
 }
 
 func (r *addRunner) Run() error {

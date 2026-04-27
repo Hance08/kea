@@ -338,7 +338,7 @@ func TestDeleteTransaction(t *testing.T) {
 
 	t.Run("opening balance transaction (ID=1) rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.DeleteTransaction(model.OpeningBalanceTransactionID)
+		err := svc.DeleteTransaction(model.SystemTransactionID)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrNotEditable), "expected ErrNotEditable, got: %v", err)
 	})
@@ -423,6 +423,13 @@ func TestUpdateTransactionStatus(t *testing.T) {
 		err := svc.UpdateTransactionStatus(5, model.StatusCleared)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrReconciled))
+	})
+
+	t.Run("system transaction (ID=1) rejected", func(t *testing.T) {
+		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		err := svc.UpdateTransactionStatus(model.SystemTransactionID, model.StatusCleared)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotEditable), "expected ErrNotEditable, got: %v", err)
 	})
 
 	t.Run("non-existent transaction returns error", func(t *testing.T) {
@@ -635,7 +642,7 @@ func TestIsEditable(t *testing.T) {
 	})
 
 	t.Run("opening balance transaction (ID=1) is not editable", func(t *testing.T) {
-		detail := &model.TransactionDetail{ID: model.OpeningBalanceTransactionID}
+		detail := &model.TransactionDetail{ID: model.SystemTransactionID}
 		editable, reason := svc.IsEditable(detail)
 		assert.False(t, editable)
 		assert.Equal(t, NotEditableSystemTx, reason)

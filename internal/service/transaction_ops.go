@@ -182,7 +182,7 @@ func (ts *TransactionService) CreateTransactionFromSplits(
 
 // DeleteTransaction deletes a transaction
 func (ts *TransactionService) DeleteTransaction(txID int64) error {
-	if txID == model.OpeningBalanceTransactionID {
+	if txID == model.SystemTransactionID {
 		return fmt.Errorf("cannot delete the initial opening transaction: %w", ErrNotEditable)
 	}
 
@@ -206,6 +206,10 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
 
+	if txID == model.SystemTransactionID {
+		return fmt.Errorf("transaction #%d cannot be modified: %w", txID, ErrNotEditable)
+	}
+
 	oldTx, err := ts.txRepo.GetTransactionByID(txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
@@ -226,7 +230,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
 	}
 
-	if txID == model.OpeningBalanceTransactionID {
+	if txID == model.SystemTransactionID {
 		return fmt.Errorf("cannot modify the initial opening transaction: %w", ErrNotEditable)
 	}
 
@@ -332,7 +336,7 @@ const (
 )
 
 func (ts *TransactionService) IsEditable(detail *model.TransactionDetail) (bool, NotEditableReason) {
-	if detail.ID == model.OpeningBalanceTransactionID {
+	if detail.ID == model.SystemTransactionID {
 		return false, NotEditableSystemTx
 	}
 

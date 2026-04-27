@@ -73,9 +73,9 @@ func (s *Store) GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.
 // The reconcile TUI filters on s.reconciled = 0 (not t.status), so marking the
 // transaction Reconciled here does not hide it from other accounts that still
 // need to reconcile their own splits.
-func (s *Store) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) error {
+func (s *Store) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) (int64, error) {
 	if len(txIDs) == 0 {
-		return nil
+		return 0, nil
 	}
 
 	placeholders := strings.Repeat("?,", len(txIDs))
@@ -91,12 +91,17 @@ func (s *Store) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) er
 		"UPDATE splits SET reconciled = 1 WHERE account_id = ? AND transaction_id IN (%s)",
 		placeholders,
 	)
-	if _, err := s.db.Exec(splitQuery, splitArgs...); err != nil {
-		return fmt.Errorf("failed to mark splits as reconciled: %w", err)
+	result, err := s.db.Exec(splitQuery, splitArgs...)
+	if err != nil {
+		return 0, fmt.Errorf("failed to mark splits as reconciled: %w", err)
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected from splits update: %w", err)
 	}
 
 	// 2. Upgrade all affected transactions to StatusReconciled.
-	return s.BulkUpdateTransactionStatus(txIDs, model.StatusReconciled)
+	return rowsAffected, s.BulkUpdateTransactionStatus(txIDs, model.StatusReconciled)
 }
 
 // BulkUpdateTransactionStatus sets the status of all listed transaction IDs

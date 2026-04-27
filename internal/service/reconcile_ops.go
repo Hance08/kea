@@ -77,8 +77,15 @@ func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBa
 
 	// 5. Mark the account's splits as reconciled (split-level tracking so that
 	// multi-account transactions remain visible for other accounts).
-	if err := ts.txRepo.MarkSplitsReconciledByAccount(accountID, txIDs); err != nil {
+	rowsAffected, err := ts.txRepo.MarkSplitsReconciledByAccount(accountID, txIDs)
+	if err != nil {
 		return 0, fmt.Errorf("failed to reconcile transactions: %w", err)
+	}
+	if rowsAffected < int64(len(txIDs)) {
+		return 0, fmt.Errorf(
+			"reconcile: expected splits for %d transactions to be marked, but only %d rows were affected; transaction IDs may not have a split for this account",
+			len(txIDs), rowsAffected,
+		)
 	}
 
 	// 6. Persist the new running reconciled balance.

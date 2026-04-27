@@ -294,3 +294,28 @@ func TestGetUnreconciledByAccount_GetLastReconciledBalance_Error(t *testing.T) {
 		t.Fatal("expected error when GetLastReconciledBalance fails in GetUnreconciledByAccount")
 	}
 }
+
+func TestReconcileTransactions_MarkSplitsAffectsFewerRowsThanTxIDs_ReturnsError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 100000},
+		{ID: 11, Amount: -50000},
+	})
+	// Simulate the store updating only 1 row even though 2 txIDs were requested —
+	// meaning txID 11 had no split for this account.
+	one := int64(1)
+	txRepo.markSplitsRowsOverride = &one
+
+	_, err := svc.ReconcileTransactions(1, 50000, []int64{10, 11})
+
+	if err == nil {
+		t.Fatal("expected error when fewer rows were affected than txIDs, got nil")
+	}
+	if len(txRepo.setLastReconciledBalCalls) != 0 {
+		t.Error("SetLastReconciledBalance must not be called when the rows guard fires")
+	}
+}

@@ -238,6 +238,7 @@ type mockTransactionRepo struct {
 		accountID int64
 		txIDs     []int64
 	}
+	markSplitsRowsOverride *int64 // nil = return len(txIDs); non-nil = return *markSplitsRowsOverride
 
 	// last reconciled balance support
 	lastReconciledBalances    map[int64]int64
@@ -434,9 +435,9 @@ func (m *mockTransactionRepo) BulkUpdateTransactionStatus(txIDs []int64, status 
 	return nil
 }
 
-func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) error {
+func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) (int64, error) {
 	if m.markSplitsReconciledErr != nil {
-		return m.markSplitsReconciledErr
+		return 0, m.markSplitsReconciledErr
 	}
 	ids := make([]int64, len(txIDs))
 	copy(ids, txIDs)
@@ -444,7 +445,10 @@ func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(accountID int64, txI
 		accountID int64
 		txIDs     []int64
 	}{accountID, ids})
-	return nil
+	if m.markSplitsRowsOverride != nil {
+		return *m.markSplitsRowsOverride, nil
+	}
+	return int64(len(txIDs)), nil
 }
 
 func (m *mockTransactionRepo) GetLastReconciledBalance(accountID int64) (int64, error) {

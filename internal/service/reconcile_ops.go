@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 )
 
 // GetUnreconciledByAccount returns all Pending/Cleared transactions that have
@@ -75,16 +77,27 @@ func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBa
 		clearedBalance += amount
 	}
 
-	// 5. Mark the account's splits as reconciled (split-level tracking so that
-	// multi-account transactions remain visible for other accounts).
-	if err := ts.txRepo.MarkSplitsReconciledByAccount(accountID, txIDs); err != nil {
-		return 0, fmt.Errorf("failed to reconcile transactions: %w", err)
-	}
-
-	// 6. Persist the new running reconciled balance.
+	// 5-6. Atomically mark splits reconciled and persist the new running balance.
+	// Both writes run in the same DB transaction so a rows guard or a balance
+	// persistence error rolls back the splits UPDATE too.
 	newBalance := lastBalance + clearedBalance
-	if err := ts.txRepo.SetLastReconciledBalance(accountID, newBalance); err != nil {
-		return 0, fmt.Errorf("failed to persist reconciled balance: %w", err)
+	if err := ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
+		rowsAffected, err := repo.MarkSplitsReconciledByAccount(accountID, txIDs)
+		if err != nil {
+			return fmt.Errorf("failed to reconcile transactions: %w", err)
+		}
+		if rowsAffected < int64(len(txIDs)) {
+			return fmt.Errorf(
+				"reconcile: expected splits for %d transactions to be marked, but only %d rows were affected; transaction IDs may not have a split for this account",
+				len(txIDs), rowsAffected,
+			)
+		}
+		if err := repo.SetLastReconciledBalance(accountID, newBalance); err != nil {
+			return fmt.Errorf("failed to persist reconciled balance: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return 0, err
 	}
 
 	return statementBalance - newBalance, nil

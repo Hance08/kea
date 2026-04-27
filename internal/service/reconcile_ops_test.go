@@ -270,13 +270,12 @@ func TestReconcileTransactions_SetLastReconciledBalance_Error(t *testing.T) {
 	})
 	txRepo.setLastReconciledBalErr[1] = fmt.Errorf("persist error")
 
+	// Note: under ExecTx the marks are rolled back atomically when SetLastReconciledBalance
+	// fails. The mock does not simulate rollback, so we do not assert on markSplitsReconciledCalls.
 	_, err := svc.ReconcileTransactions(1, 50000, []int64{10})
 
 	if err == nil {
 		t.Fatal("expected error when SetLastReconciledBalance fails")
-	}
-	if len(txRepo.markSplitsReconciledCalls) != 1 {
-		t.Error("MarkSplitsReconciledByAccount should have been called before the error")
 	}
 }
 
@@ -317,5 +316,27 @@ func TestReconcileTransactions_MarkSplitsAffectsFewerRowsThanTxIDs_ReturnsError(
 	}
 	if len(txRepo.setLastReconciledBalCalls) != 0 {
 		t.Error("SetLastReconciledBalance must not be called when the rows guard fires")
+	}
+}
+
+func TestReconcileTransactions_ExecTxFailure_ReturnsError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{{ID: 10, Amount: 50000}})
+
+	tm := &mockTransactionManager{accRepo: accRepo, txRepo: txRepo, failTx: true}
+	svc := NewTransactionService(txRepo, accRepo, tm, defaultConfig())
+
+	_, err := svc.ReconcileTransactions(1, 50000, []int64{10})
+
+	if err == nil {
+		t.Fatal("expected error when ExecTx fails, got nil")
+	}
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not be called when ExecTx itself fails")
+	}
+	if len(txRepo.setLastReconciledBalCalls) != 0 {
+		t.Error("SetLastReconciledBalance must not be called when ExecTx itself fails")
 	}
 }

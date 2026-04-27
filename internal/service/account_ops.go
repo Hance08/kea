@@ -25,6 +25,9 @@ func (as *AccountService) CreateAccount(name string, accType model.AccountType, 
 
 	newID, err := as.repo.CreateAccount(name, accType, currency, description, parentID)
 	if err != nil {
+		if errors.Is(err, store.ErrAccountExists) {
+			return nil, fmt.Errorf("account %q: %w", name, ErrAlreadyExists)
+		}
 		return nil, err
 	}
 
@@ -82,6 +85,8 @@ func (as *AccountService) createOpeningBalance(account *model.Account, amountInC
 	}
 
 	return as.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
+		// repo is the raw repository.Repository passed by ExecTx, not AccountService,
+		// so GetAccountByName here returns store.ErrRecordNotFound directly (no service translation).
 		equityAcc, err := repo.GetAccountByName(equityAccountName)
 		if err != nil {
 			if !errors.Is(err, store.ErrRecordNotFound) {

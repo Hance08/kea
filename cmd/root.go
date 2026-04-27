@@ -17,7 +17,6 @@ import (
 	"github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
-	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/ui/prompts"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -142,7 +141,7 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	if err == nil {
 		return nil
 	}
-	if !errors.Is(err, store.ErrRecordNotFound) {
+	if !errors.Is(err, service.ErrNotFound) {
 		return fmt.Errorf("failed to check system account: %w", err)
 	}
 
@@ -169,7 +168,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 
 	// Nothing to migrate if legacy account is already gone.
 	_, err := svc.Account().GetAccountByName(legacyName)
-	if errors.Is(err, store.ErrRecordNotFound) {
+	if errors.Is(err, service.ErrNotFound) {
 		return nil
 	}
 	if err != nil {
@@ -181,7 +180,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 	if err == nil {
 		return nil
 	}
-	if !errors.Is(err, store.ErrRecordNotFound) {
+	if !errors.Is(err, service.ErrNotFound) {
 		return fmt.Errorf("failed to check target system account: %w", err)
 	}
 

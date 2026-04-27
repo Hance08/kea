@@ -62,3 +62,11 @@ func GetAppDataDir() (string, error) {
 
 	return filepath.Join(configDir, "kea"), nil
 }
+
+func InitLedgerDB(path string, migrations fs.FS) error {
+	s, err := store.NewStore(path, migrations)
+	if err != nil {
+		return err
+	}
+	return s.Close()
+}

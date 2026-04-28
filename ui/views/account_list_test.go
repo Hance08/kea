@@ -3,7 +3,6 @@ package views
 import (
 	"bytes"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
@@ -43,8 +42,7 @@ func TestAccountListView_NegativeAssetBalancePreservesSign(t *testing.T) {
 
 	output := captureRender(t, []*model.Account{acc}, getter)
 
-	assert.True(t, strings.Contains(output, "-50"),
-		"negative asset balance should show minus sign; got:\n%s", output)
+	assert.Contains(t, output, "-50")
 }
 
 func TestAccountListView_NegativeExpenseBalancePreservesSign(t *testing.T) {
@@ -58,8 +56,7 @@ func TestAccountListView_NegativeExpenseBalancePreservesSign(t *testing.T) {
 
 	output := captureRender(t, []*model.Account{acc}, getter)
 
-	assert.True(t, strings.Contains(output, "-20"),
-		"negative expense balance should show minus sign; got:\n%s", output)
+	assert.Contains(t, output, "-20")
 }
 
 func TestAccountListView_NegativeLiabilityBalanceStripsSign(t *testing.T) {
@@ -74,10 +71,8 @@ func TestAccountListView_NegativeLiabilityBalanceStripsSign(t *testing.T) {
 
 	output := captureRender(t, []*model.Account{acc}, getter)
 
-	assert.True(t, strings.Contains(output, "100"),
-		"liability balance should strip minus sign; got:\n%s", output)
-	assert.False(t, strings.Contains(output, "-100"),
-		"liability balance must not show minus sign; got:\n%s", output)
+	assert.Contains(t, output, "100")
+	assert.NotContains(t, output, "-100")
 }
 
 func TestAccountListView_PositiveAssetBalanceUnchanged(t *testing.T) {
@@ -91,6 +86,35 @@ func TestAccountListView_PositiveAssetBalanceUnchanged(t *testing.T) {
 
 	output := captureRender(t, []*model.Account{acc}, getter)
 
-	assert.True(t, strings.Contains(output, "200"),
-		"positive asset balance should be unchanged; got:\n%s", output)
+	assert.Contains(t, output, "200")
+}
+
+func TestAccountListView_NegativeRevenueBalanceStripsSign(t *testing.T) {
+	acc := &model.Account{
+		ID:       5,
+		Name:     "Revenue:Sales",
+		Type:     model.AccountTypeRevenue,
+		Currency: "TWD",
+	}
+	getter := func(int64) (string, error) { return "-75", nil }
+
+	output := captureRender(t, []*model.Account{acc}, getter)
+
+	assert.Contains(t, output, "75")
+	assert.NotContains(t, output, "-75")
+}
+
+func TestAccountListView_NegativeEquityBalanceStripsSign(t *testing.T) {
+	acc := &model.Account{
+		ID:       6,
+		Name:     "Equity:OpeningBalances",
+		Type:     model.AccountTypeEquity,
+		Currency: "TWD",
+	}
+	getter := func(int64) (string, error) { return "-300", nil }
+
+	output := captureRender(t, []*model.Account{acc}, getter)
+
+	assert.Contains(t, output, "300")
+	assert.NotContains(t, output, "-300")
 }

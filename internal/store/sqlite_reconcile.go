@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -15,7 +16,7 @@ import (
 // ensures multi-account transactions remain visible for other accounts after one
 // account has already been reconciled. Results are ordered by timestamp ASC.
 func (s *Store) GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.ReconcileEntry, error) {
-	rows, err := s.db.Query(`
+	rows, err := s.db.QueryContext(context.Background(), `
         SELECT
             t.id, t.timestamp, t.description, t.status,
             SUM(s.amount) AS amount,
@@ -91,7 +92,7 @@ func (s *Store) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) (i
 		"UPDATE splits SET reconciled = 1 WHERE account_id = ? AND transaction_id IN (%s)",
 		placeholders,
 	)
-	result, err := s.db.Exec(splitQuery, splitArgs...)
+	result, err := s.db.ExecContext(context.Background(), splitQuery, splitArgs...)
 	if err != nil {
 		return 0, fmt.Errorf("failed to mark splits as reconciled: %w", err)
 	}
@@ -126,7 +127,7 @@ func (s *Store) BulkUpdateTransactionStatus(txIDs []int64, status model.Transact
 		args = append(args, id)
 	}
 
-	result, err := s.db.Exec(query, args...)
+	result, err := s.db.ExecContext(context.Background(), query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to bulk update transaction status: %w", err)
 	}
@@ -146,7 +147,7 @@ func (s *Store) BulkUpdateTransactionStatus(txIDs []int64, status model.Transact
 // account_reconcile_state for this account yet).
 func (s *Store) GetLastReconciledBalance(accountID int64) (int64, error) {
 	var balance int64
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(context.Background(),
 		"SELECT last_reconciled_balance FROM account_reconcile_state WHERE account_id = ?",
 		accountID,
 	).Scan(&balance)
@@ -163,7 +164,7 @@ func (s *Store) GetLastReconciledBalance(accountID int64) (int64, error) {
 // accountID. An upsert is used so that the first reconcile for an account
 // inserts a row; subsequent reconciles update it.
 func (s *Store) SetLastReconciledBalance(accountID int64, balance int64) error {
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(context.Background(), `
         INSERT INTO account_reconcile_state (account_id, last_reconciled_balance)
         VALUES (?, ?)
         ON CONFLICT(account_id) DO UPDATE SET last_reconciled_balance = excluded.last_reconciled_balance

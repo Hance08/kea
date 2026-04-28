@@ -37,7 +37,13 @@ func (v *AccountListView) Render(accounts []*model.Account, balanceGetter func(i
 
 	for _, acc := range accounts {
 		balance, _ := balanceGetter(acc.ID)
-		balanceStr := strings.TrimPrefix(balance, "-")
+		var balanceStr string
+		switch acc.Type {
+		case model.AccountTypeLiability, model.AccountTypeRevenue, model.AccountTypeEquity:
+			balanceStr = strings.TrimPrefix(balance, "-")
+		default:
+			balanceStr = balance
+		}
 
 		var coloredAccount, coloredType, coloredBalance string
 		switch acc.Type {

@@ -35,8 +35,8 @@ type mockAccountRepo struct {
 	getAllBalancesErr error
 
 	// call recorders
-	renameCalls          []struct{ old, new string }
-	updateMetadataCalls  []struct {
+	renameCalls         []struct{ old, new string }
+	updateMetadataCalls []struct {
 		id          int64
 		description string
 		isHidden    bool
@@ -64,7 +64,7 @@ func (m *mockAccountRepo) addAccount(acc *model.Account) {
 	m.accountsByID[acc.ID] = acc
 }
 
-func (m *mockAccountRepo) CreateAccount(name string, accType model.AccountType, currency, description string, parentID *int64) (int64, error) {
+func (m *mockAccountRepo) CreateAccount(_ context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (int64, error) {
 	if m.createErr != nil {
 		return 0, m.createErr
 	}
@@ -86,7 +86,7 @@ func (m *mockAccountRepo) CreateAccount(name string, accType model.AccountType, 
 	return id, nil
 }
 
-func (m *mockAccountRepo) GetAllAccounts() ([]*model.Account, error) {
+func (m *mockAccountRepo) GetAllAccounts(_ context.Context) ([]*model.Account, error) {
 	result := make([]*model.Account, 0, len(m.accountsByID))
 	for _, acc := range m.accountsByID {
 		result = append(result, acc)
@@ -94,7 +94,7 @@ func (m *mockAccountRepo) GetAllAccounts() ([]*model.Account, error) {
 	return result, nil
 }
 
-func (m *mockAccountRepo) GetAccountByName(name string) (*model.Account, error) {
+func (m *mockAccountRepo) GetAccountByName(_ context.Context, name string) (*model.Account, error) {
 	if err, ok := m.getByNameErr[name]; ok {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (m *mockAccountRepo) GetAccountByName(name string) (*model.Account, error) 
 	return acc, nil
 }
 
-func (m *mockAccountRepo) GetAccountByID(id int64) (*model.Account, error) {
+func (m *mockAccountRepo) GetAccountByID(_ context.Context, id int64) (*model.Account, error) {
 	if err, ok := m.getByIDErr[id]; ok {
 		return nil, err
 	}
@@ -116,12 +116,12 @@ func (m *mockAccountRepo) GetAccountByID(id int64) (*model.Account, error) {
 	return acc, nil
 }
 
-func (m *mockAccountRepo) AccountExists(name string) (bool, error) {
+func (m *mockAccountRepo) AccountExists(_ context.Context, name string) (bool, error) {
 	_, ok := m.accountsByName[name]
 	return ok, nil
 }
 
-func (m *mockAccountRepo) GetAccountsByType(accType model.AccountType) ([]*model.Account, error) {
+func (m *mockAccountRepo) GetAccountsByType(_ context.Context, accType model.AccountType) ([]*model.Account, error) {
 	var result []*model.Account
 	for _, acc := range m.accountsByID {
 		if acc.Type == accType {
@@ -131,14 +131,14 @@ func (m *mockAccountRepo) GetAccountsByType(accType model.AccountType) ([]*model
 	return result, nil
 }
 
-func (m *mockAccountRepo) GetAccountBalance(accountID int64) (int64, error) {
+func (m *mockAccountRepo) GetAccountBalance(_ context.Context, accountID int64) (int64, error) {
 	if err, ok := m.getBalanceErr[accountID]; ok {
 		return 0, err
 	}
 	return m.balances[accountID], nil
 }
 
-func (m *mockAccountRepo) GetAllAccountBalances(_ int64) (map[int64]int64, error) {
+func (m *mockAccountRepo) GetAllAccountBalances(_ context.Context, _ int64) (map[int64]int64, error) {
 	if m.getAllBalancesErr != nil {
 		return nil, m.getAllBalancesErr
 	}
@@ -149,15 +149,15 @@ func (m *mockAccountRepo) GetAllAccountBalances(_ int64) (map[int64]int64, error
 	return result, nil
 }
 
-func (m *mockAccountRepo) HasChildAccounts(accountID int64) (bool, error) {
+func (m *mockAccountRepo) HasChildAccounts(_ context.Context, accountID int64) (bool, error) {
 	return m.childMap[accountID], nil
 }
 
-func (m *mockAccountRepo) AccountHasTransactions(accountID int64) (bool, error) {
+func (m *mockAccountRepo) AccountHasTransactions(_ context.Context, accountID int64) (bool, error) {
 	return m.txExistsMap[accountID], nil
 }
 
-func (m *mockAccountRepo) DeleteAccount(accountID int64) error {
+func (m *mockAccountRepo) DeleteAccount(_ context.Context, accountID int64) error {
 	if m.deleteErr != nil {
 		return m.deleteErr
 	}
@@ -170,7 +170,7 @@ func (m *mockAccountRepo) DeleteAccount(accountID int64) error {
 	return nil
 }
 
-func (m *mockAccountRepo) RenameAccount(oldName, newName string) error {
+func (m *mockAccountRepo) RenameAccount(_ context.Context, oldName, newName string) error {
 	m.renameCalls = append(m.renameCalls, struct{ old, new string }{oldName, newName})
 	acc, ok := m.accountsByName[oldName]
 	if !ok {
@@ -182,7 +182,7 @@ func (m *mockAccountRepo) RenameAccount(oldName, newName string) error {
 	return nil
 }
 
-func (m *mockAccountRepo) UpdateAccountMetadata(accountID int64, description string, isHidden bool) error {
+func (m *mockAccountRepo) UpdateAccountMetadata(_ context.Context, accountID int64, description string, isHidden bool) error {
 	if m.updateMetadataErr != nil {
 		return m.updateMetadataErr
 	}
@@ -229,11 +229,11 @@ type mockTransactionRepo struct {
 	updateSplitCalls []int64
 
 	// reconciliation support
-	unreconciledByAccount    map[int64][]*model.ReconcileEntry
-	unreconciledByAccountErr map[int64]error
-	bulkUpdateErr            error
-	bulkUpdateCalls          [][]int64
-	markSplitsReconciledErr  error
+	unreconciledByAccount     map[int64][]*model.ReconcileEntry
+	unreconciledByAccountErr  map[int64]error
+	bulkUpdateErr             error
+	bulkUpdateCalls           [][]int64
+	markSplitsReconciledErr   error
 	markSplitsReconciledCalls []struct {
 		accountID int64
 		txIDs     []int64
@@ -271,7 +271,7 @@ func (m *mockTransactionRepo) addTransaction(tx *model.Transaction, splits []*mo
 	m.splits[tx.ID] = splits
 }
 
-func (m *mockTransactionRepo) CreateTransactionWithSplits(tx model.Transaction, splits []model.Split) (int64, error) {
+func (m *mockTransactionRepo) CreateTransactionWithSplits(_ context.Context, tx model.Transaction, splits []model.Split) (int64, error) {
 	if m.createErr != nil {
 		return 0, m.createErr
 	}
@@ -293,7 +293,7 @@ func (m *mockTransactionRepo) CreateTransactionWithSplits(tx model.Transaction, 
 	return id, nil
 }
 
-func (m *mockTransactionRepo) GetTransactionByID(txID int64) (*model.Transaction, error) {
+func (m *mockTransactionRepo) GetTransactionByID(_ context.Context, txID int64) (*model.Transaction, error) {
 	if err, ok := m.getByIDErr[txID]; ok {
 		return nil, err
 	}
@@ -304,11 +304,11 @@ func (m *mockTransactionRepo) GetTransactionByID(txID int64) (*model.Transaction
 	return tx, nil
 }
 
-func (m *mockTransactionRepo) GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error) {
+func (m *mockTransactionRepo) GetTransactionsByAccount(_ context.Context, accountID int64, limit int) ([]*model.Transaction, error) {
 	return nil, nil
 }
 
-func (m *mockTransactionRepo) GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error) {
+func (m *mockTransactionRepo) GetTransactionsByDateRange(_ context.Context, startTime, endTime int64) ([]*model.Transaction, error) {
 	if m.txsByDateRangeErr != nil {
 		return nil, m.txsByDateRangeErr
 	}
@@ -319,7 +319,7 @@ func (m *mockTransactionRepo) GetTransactionsByDateRange(startTime, endTime int6
 	return result, nil
 }
 
-func (m *mockTransactionRepo) GetAllTransactions(limit int) ([]*model.Transaction, error) {
+func (m *mockTransactionRepo) GetAllTransactions(_ context.Context, limit int) ([]*model.Transaction, error) {
 	result := make([]*model.Transaction, 0, len(m.transactions))
 	for _, tx := range m.transactions {
 		result = append(result, tx)
@@ -327,7 +327,7 @@ func (m *mockTransactionRepo) GetAllTransactions(limit int) ([]*model.Transactio
 	return result, nil
 }
 
-func (m *mockTransactionRepo) UpdateTransactionStatus(txID int64, status model.TransactionStatus) error {
+func (m *mockTransactionRepo) UpdateTransactionStatus(_ context.Context, txID int64, status model.TransactionStatus) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
@@ -339,7 +339,7 @@ func (m *mockTransactionRepo) UpdateTransactionStatus(txID int64, status model.T
 	return nil
 }
 
-func (m *mockTransactionRepo) DeleteTransaction(txID int64) error {
+func (m *mockTransactionRepo) DeleteTransaction(_ context.Context, txID int64) error {
 	if m.deleteErr != nil {
 		return m.deleteErr
 	}
@@ -351,7 +351,7 @@ func (m *mockTransactionRepo) DeleteTransaction(txID int64) error {
 	return nil
 }
 
-func (m *mockTransactionRepo) UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
+func (m *mockTransactionRepo) UpdateTransactionBasic(_ context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
@@ -366,7 +366,7 @@ func (m *mockTransactionRepo) UpdateTransactionBasic(txID int64, description str
 	return nil
 }
 
-func (m *mockTransactionRepo) CreateSplit(txID int64, split *model.Split) (int64, error) {
+func (m *mockTransactionRepo) CreateSplit(_ context.Context, txID int64, split *model.Split) (int64, error) {
 	id := m.nextSplitID
 	m.nextSplitID++
 	sc := *split
@@ -377,28 +377,28 @@ func (m *mockTransactionRepo) CreateSplit(txID int64, split *model.Split) (int64
 	return id, nil
 }
 
-func (m *mockTransactionRepo) UpdateSplit(splitID int64, accountID int64, amount int64, currency string, memo string) error {
+func (m *mockTransactionRepo) UpdateSplit(_ context.Context, splitID int64, accountID int64, amount int64, currency string, memo string) error {
 	m.updateSplitCalls = append(m.updateSplitCalls, splitID)
 	return nil
 }
 
-func (m *mockTransactionRepo) DeleteSplit(splitID int64) error {
+func (m *mockTransactionRepo) DeleteSplit(_ context.Context, splitID int64) error {
 	m.deleteSplitCalls = append(m.deleteSplitCalls, splitID)
 	return nil
 }
 
-func (m *mockTransactionRepo) GetSplitsByTransaction(txID int64) ([]*model.Split, error) {
+func (m *mockTransactionRepo) GetSplitsByTransaction(_ context.Context, txID int64) ([]*model.Split, error) {
 	return m.splits[txID], nil
 }
 
-func (m *mockTransactionRepo) GetSplitsWithAccountsByDateRange(startTime, endTime int64) (map[int64][]model.SplitDetail, error) {
+func (m *mockTransactionRepo) GetSplitsWithAccountsByDateRange(_ context.Context, startTime, endTime int64) (map[int64][]model.SplitDetail, error) {
 	if m.splitsRangeErr != nil {
 		return nil, m.splitsRangeErr
 	}
 	return m.splitsWithAccts, nil
 }
 
-func (m *mockTransactionRepo) GetSplitsWithAccountsByTransaction(txID int64) ([]model.SplitDetail, error) {
+func (m *mockTransactionRepo) GetSplitsWithAccountsByTransaction(_ context.Context, txID int64) ([]model.SplitDetail, error) {
 	splits := m.splits[txID]
 	result := make([]model.SplitDetail, 0, len(splits))
 	for _, s := range splits {
@@ -413,14 +413,14 @@ func (m *mockTransactionRepo) GetSplitsWithAccountsByTransaction(txID int64) ([]
 	return result, nil
 }
 
-func (m *mockTransactionRepo) GetUnreconciledTransactionsByAccount(accountID int64) ([]*model.ReconcileEntry, error) {
+func (m *mockTransactionRepo) GetUnreconciledTransactionsByAccount(_ context.Context, accountID int64) ([]*model.ReconcileEntry, error) {
 	if err, ok := m.unreconciledByAccountErr[accountID]; ok {
 		return nil, err
 	}
 	return m.unreconciledByAccount[accountID], nil
 }
 
-func (m *mockTransactionRepo) BulkUpdateTransactionStatus(txIDs []int64, status model.TransactionStatus) error {
+func (m *mockTransactionRepo) BulkUpdateTransactionStatus(_ context.Context, txIDs []int64, status model.TransactionStatus) error {
 	if m.bulkUpdateErr != nil {
 		return m.bulkUpdateErr
 	}
@@ -435,7 +435,7 @@ func (m *mockTransactionRepo) BulkUpdateTransactionStatus(txIDs []int64, status 
 	return nil
 }
 
-func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(accountID int64, txIDs []int64) (int64, error) {
+func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(_ context.Context, accountID int64, txIDs []int64) (int64, error) {
 	if m.markSplitsReconciledErr != nil {
 		return 0, m.markSplitsReconciledErr
 	}
@@ -451,14 +451,14 @@ func (m *mockTransactionRepo) MarkSplitsReconciledByAccount(accountID int64, txI
 	return int64(len(txIDs)), nil
 }
 
-func (m *mockTransactionRepo) GetLastReconciledBalance(accountID int64) (int64, error) {
+func (m *mockTransactionRepo) GetLastReconciledBalance(_ context.Context, accountID int64) (int64, error) {
 	if err, ok := m.getLastReconciledBalErr[accountID]; ok {
 		return 0, err
 	}
 	return m.lastReconciledBalances[accountID], nil
 }
 
-func (m *mockTransactionRepo) SetLastReconciledBalance(accountID int64, balance int64) error {
+func (m *mockTransactionRepo) SetLastReconciledBalance(_ context.Context, accountID int64, balance int64) error {
 	if err, ok := m.setLastReconciledBalErr[accountID]; ok {
 		return err
 	}

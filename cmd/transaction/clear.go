@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
@@ -11,11 +12,11 @@ import (
 )
 
 type ClearProvider interface {
-	UpdateTransactionStatus(txID int64, status model.TransactionStatus) error
+	UpdateTransactionStatus(ctx context.Context, txID int64, status model.TransactionStatus) error
 }
 
 type clearFlags struct {
-	JSON    bool
+	JSON bool
 }
 
 type clearRunner struct {
@@ -32,20 +33,20 @@ func NewClearCmd(svc *service.Service) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &clearRunner{svc: svc.Transaction(), json: flags.JSON}
-			return runner.Run(args)
+			return runner.Run(cmd.Context(), args)
 		},
 	}
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output result as JSON")
 	return cmd
 }
 
-func (r *clearRunner) Run(args []string) error {
+func (r *clearRunner) Run(ctx context.Context, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	if err := r.svc.UpdateTransactionStatus(txID, model.StatusCleared); err != nil {
+	if err := r.svc.UpdateTransactionStatus(ctx, txID, model.StatusCleared); err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
 

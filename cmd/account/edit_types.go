@@ -1,15 +1,19 @@
 package account
 
-import "github.com/hance08/kea/internal/model"
+import (
+	"context"
+
+	"github.com/hance08/kea/internal/model"
+)
 
 // EditProvider is the service interface required by the edit command.
 type EditProvider interface {
-	GetAccountByName(name string) (*model.Account, error)
-	GetAccountBalance(id int64) (int64, error)
-	RenameAccount(oldName, newSegment string) error
-	UpdateAccountMetadata(id int64, description string, isHidden bool) error
+	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
+	GetAccountBalance(ctx context.Context, id int64) (int64, error)
+	RenameAccount(ctx context.Context, oldName, newSegment string) error
+	UpdateAccountMetadata(ctx context.Context, id int64, description string, isHidden bool) error
 	ValidateAccountName(name string) error
-	CheckAccountExists(name string) (bool, error)
+	CheckAccountExists(ctx context.Context, name string) (bool, error)
 }
 
 // EditView is the display interface required by the edit command.

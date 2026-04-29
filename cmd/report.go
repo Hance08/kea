@@ -39,7 +39,7 @@ Examples:
 				provider: svc.Transaction(),
 				view:     newReportView(flags),
 			}
-			return runner.run()
+			return runner.run(cmd.Context())
 		},
 	}
 

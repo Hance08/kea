@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,8 +12,8 @@ import (
 
 // CreateTransactionWithSplits inserts a transaction and its splits.
 // It relies on the caller (Service layer) to wrap it in ExecTx for atomicity.
-func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model.Split) (int64, error) {
-	stmtTx, err := s.db.Prepare(`
+func (s *Store) CreateTransactionWithSplits(ctx context.Context, tx model.Transaction, splits []model.Split) (int64, error) {
+	stmtTx, err := s.db.PrepareContext(ctx, `
         INSERT INTO transactions (timestamp, description, status, external_id, type)
         VALUES (?, ?, ?, ?, ?)
         RETURNING id;
@@ -25,7 +26,7 @@ func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model
 	}()
 
 	var newTxID int64
-	err = stmtTx.QueryRow(tx.Timestamp, tx.Description, tx.Status, tx.ExternalID, tx.Type).Scan(&newTxID)
+	err = stmtTx.QueryRowContext(ctx, tx.Timestamp, tx.Description, tx.Status, tx.ExternalID, tx.Type).Scan(&newTxID)
 
 	if err != nil {
 		var sqliteErr sqlite.Error
@@ -37,7 +38,7 @@ func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model
 		return 0, fmt.Errorf("failed to insert transaction: %w", err)
 	}
 
-	stmtSplit, err := s.db.Prepare(`
+	stmtSplit, err := s.db.PrepareContext(ctx, `
         INSERT INTO splits (transaction_id, account_id, amount, currency, memo)
         VALUES (?, ?, ?, ?, ?);
     `)
@@ -49,7 +50,7 @@ func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model
 	}()
 
 	for _, split := range splits {
-		_, err := stmtSplit.Exec(newTxID, split.AccountID, split.Amount, split.Currency, split.Memo)
+		_, err := stmtSplit.ExecContext(ctx, newTxID, split.AccountID, split.Amount, split.Currency, split.Memo)
 		if err != nil {
 			return 0, fmt.Errorf("failed to insert split (account_id: %d): %w", split.AccountID, err)
 		}
@@ -58,9 +59,9 @@ func (s *Store) CreateTransactionWithSplits(tx model.Transaction, splits []model
 	return newTxID, nil
 }
 
-func (s *Store) GetTransactionByID(txID int64) (*model.Transaction, error) {
+func (s *Store) GetTransactionByID(ctx context.Context, txID int64) (*model.Transaction, error) {
 	var tx model.Transaction
-	err := s.db.QueryRow(`
+	err := s.db.QueryRowContext(ctx, `
         SELECT id, timestamp, description, status, external_id, type
         FROM transactions
         WHERE id = ?
@@ -74,12 +75,12 @@ func (s *Store) GetTransactionByID(txID int64) (*model.Transaction, error) {
 	return &tx, nil
 }
 
-func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*model.Transaction, error) {
+func (s *Store) GetTransactionsByAccount(ctx context.Context, accountID int64, limit int) ([]*model.Transaction, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 
-	rows, err := s.db.Query(`
+	rows, err := s.db.QueryContext(ctx, `
         SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id, t.type
         FROM transactions t
         INNER JOIN splits s ON t.id = s.transaction_id
@@ -97,8 +98,8 @@ func (s *Store) GetTransactionsByAccount(accountID int64, limit int) ([]*model.T
 	return s.scanTransactions(rows)
 }
 
-func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*model.Transaction, error) {
-	rows, err := s.db.Query(`
+func (s *Store) GetTransactionsByDateRange(ctx context.Context, startTime, endTime int64) ([]*model.Transaction, error) {
+	rows, err := s.db.QueryContext(ctx, `
         SELECT id, timestamp, description, status, external_id, type
         FROM transactions
         WHERE timestamp >= ? AND timestamp <= ?
@@ -114,12 +115,12 @@ func (s *Store) GetTransactionsByDateRange(startTime, endTime int64) ([]*model.T
 	return s.scanTransactions(rows)
 }
 
-func (s *Store) GetAllTransactions(limit int) ([]*model.Transaction, error) {
+func (s *Store) GetAllTransactions(ctx context.Context, limit int) ([]*model.Transaction, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 
-	rows, err := s.db.Query(`
+	rows, err := s.db.QueryContext(ctx, `
         SELECT id, timestamp, description, status, external_id, type
         FROM transactions
         ORDER BY timestamp DESC, id DESC
@@ -135,8 +136,8 @@ func (s *Store) GetAllTransactions(limit int) ([]*model.Transaction, error) {
 	return s.scanTransactions(rows)
 }
 
-func (s *Store) UpdateTransactionStatus(txID int64, status model.TransactionStatus) error {
-	result, err := s.db.Exec(`
+func (s *Store) UpdateTransactionStatus(ctx context.Context, txID int64, status model.TransactionStatus) error {
+	result, err := s.db.ExecContext(ctx, `
         UPDATE transactions
         SET status = ?
         WHERE id = ?
@@ -157,8 +158,8 @@ func (s *Store) UpdateTransactionStatus(txID int64, status model.TransactionStat
 	return nil
 }
 
-func (s *Store) DeleteTransaction(txID int64) error {
-	result, err := s.db.Exec(`
+func (s *Store) DeleteTransaction(ctx context.Context, txID int64) error {
+	result, err := s.db.ExecContext(ctx, `
         DELETE FROM transactions
         WHERE id = ?
     `, txID)
@@ -178,8 +179,8 @@ func (s *Store) DeleteTransaction(txID int64) error {
 	return nil
 }
 
-func (s *Store) UpdateTransactionBasic(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
-	result, err := s.db.Exec(`
+func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
+	result, err := s.db.ExecContext(ctx, `
         UPDATE transactions
         SET description = ?, timestamp = ?, status = ?, type = ?
         WHERE id = ?
@@ -200,8 +201,8 @@ func (s *Store) UpdateTransactionBasic(txID int64, description string, timestamp
 	return nil
 }
 
-func (s *Store) UpdateSplit(splitID int64, accountID int64, amount int64, currency string, memo string) error {
-	result, err := s.db.Exec(`
+func (s *Store) UpdateSplit(ctx context.Context, splitID int64, accountID int64, amount int64, currency string, memo string) error {
+	result, err := s.db.ExecContext(ctx, `
         UPDATE splits
         SET account_id = ?, amount = ?, currency = ?, memo = ?
         WHERE id = ?
@@ -222,8 +223,8 @@ func (s *Store) UpdateSplit(splitID int64, accountID int64, amount int64, curren
 	return nil
 }
 
-func (s *Store) DeleteSplit(splitID int64) error {
-	result, err := s.db.Exec(`
+func (s *Store) DeleteSplit(ctx context.Context, splitID int64) error {
+	result, err := s.db.ExecContext(ctx, `
         DELETE FROM splits
         WHERE id = ?
     `, splitID)
@@ -243,8 +244,8 @@ func (s *Store) DeleteSplit(splitID int64) error {
 	return nil
 }
 
-func (s *Store) CreateSplit(txID int64, split *model.Split) (int64, error) {
-	result, err := s.db.Exec(`
+func (s *Store) CreateSplit(ctx context.Context, txID int64, split *model.Split) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `
         INSERT INTO splits (transaction_id, account_id, amount, currency, memo)
         VALUES (?, ?, ?, ?, ?)
     `, txID, split.AccountID, split.Amount, split.Currency, split.Memo)
@@ -260,8 +261,8 @@ func (s *Store) CreateSplit(txID int64, split *model.Split) (int64, error) {
 	return splitID, nil
 }
 
-func (s *Store) GetSplitsByTransaction(txID int64) ([]*model.Split, error) {
-	rows, err := s.db.Query(`
+func (s *Store) GetSplitsByTransaction(ctx context.Context, txID int64) ([]*model.Split, error) {
+	rows, err := s.db.QueryContext(ctx, `
         SELECT id, transaction_id, account_id, amount, currency, memo
         FROM splits
         WHERE transaction_id = ?
@@ -294,8 +295,8 @@ func (s *Store) GetSplitsByTransaction(txID int64) ([]*model.Split, error) {
 	return splits, rows.Err()
 }
 
-func (s *Store) GetSplitsWithAccountsByDateRange(startTime, endTime int64) (map[int64][]model.SplitDetail, error) {
-	rows, err := s.db.Query(`
+func (s *Store) GetSplitsWithAccountsByDateRange(ctx context.Context, startTime, endTime int64) (map[int64][]model.SplitDetail, error) {
+	rows, err := s.db.QueryContext(ctx, `
         SELECT
             s.id, s.transaction_id, s.account_id, s.amount, s.currency, s.memo,
             a.name, a.type
@@ -328,8 +329,8 @@ func (s *Store) GetSplitsWithAccountsByDateRange(startTime, endTime int64) (map[
 	return result, nil
 }
 
-func (s *Store) GetSplitsWithAccountsByTransaction(txID int64) ([]model.SplitDetail, error) {
-	rows, err := s.db.Query(`
+func (s *Store) GetSplitsWithAccountsByTransaction(ctx context.Context, txID int64) ([]model.SplitDetail, error) {
+	rows, err := s.db.QueryContext(ctx, `
         SELECT
             s.id, s.account_id, s.amount, s.currency, s.memo,
             a.name, a.type

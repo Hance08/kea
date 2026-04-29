@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
@@ -165,7 +166,7 @@ func TestDetermineType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := svc.DetermineType(tt.splits)
+			got, err := svc.DetermineType(context.Background(), tt.splits)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
@@ -184,7 +185,7 @@ func TestDetermineType_FallbackToRepo(t *testing.T) {
 			{AccountID: 1, AccountName: "Expenses:Food", Amount: 500},
 			{AccountID: 2, AccountName: "Assets:Bank", Amount: -500},
 		}
-		got, err := svc.DetermineType(splits)
+		got, err := svc.DetermineType(context.Background(), splits)
 		require.NoError(t, err)
 		assert.Equal(t, model.TxTypeExpense, got)
 	})
@@ -197,7 +198,7 @@ func TestDetermineType_FallbackToRepo(t *testing.T) {
 		splits := []model.SplitDetail{
 			{AccountID: 99, AccountName: "Unknown", Amount: 100},
 		}
-		_, err := svc.DetermineType(splits)
+		_, err := svc.DetermineType(context.Background(), splits)
 		assert.Error(t, err)
 	})
 }
@@ -260,7 +261,7 @@ func TestGetDisplayAccount(t *testing.T) {
 			{AccountName: "Expenses:Food", Amount: 500},
 			{AccountName: "Assets:Cash", Amount: -500},
 		}
-		got, err := svc.GetDisplayAccount(splits, "Expense")
+		got, err := svc.GetDisplayAccount(context.Background(), splits, "Expense")
 		require.NoError(t, err)
 		assert.Equal(t, "Expenses:Food", got)
 	})
@@ -275,7 +276,7 @@ func TestGetDisplayAccount(t *testing.T) {
 			{AccountName: "Revenue:Salary", Amount: -3000},
 			{AccountName: "Assets:Bank", Amount: 3000},
 		}
-		got, err := svc.GetDisplayAccount(splits, "Income")
+		got, err := svc.GetDisplayAccount(context.Background(), splits, "Income")
 		require.NoError(t, err)
 		assert.Equal(t, "Revenue:Salary", got)
 	})
@@ -290,7 +291,7 @@ func TestGetDisplayAccount(t *testing.T) {
 			{AccountName: "Assets:Savings", Amount: 1000},
 			{AccountName: "Assets:Checking", Amount: -1000},
 		}
-		got, err := svc.GetDisplayAccount(splits, "Transfer")
+		got, err := svc.GetDisplayAccount(context.Background(), splits, "Transfer")
 		require.NoError(t, err)
 		assert.Equal(t, "Assets:Savings", got)
 	})
@@ -305,14 +306,14 @@ func TestGetDisplayAccount(t *testing.T) {
 			{AccountName: "Assets:Cash", Amount: 5000},
 			{AccountName: model.OpeningBalancesAccountName("USD"), Amount: -5000},
 		}
-		got, err := svc.GetDisplayAccount(splits, "Opening")
+		got, err := svc.GetDisplayAccount(context.Background(), splits, "Opening")
 		require.NoError(t, err)
 		assert.Equal(t, "Assets:Cash", got)
 	})
 
 	t.Run("empty splits returns -", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		got, err := svc.GetDisplayAccount(nil, "Expense")
+		got, err := svc.GetDisplayAccount(context.Background(), nil, "Expense")
 		require.NoError(t, err)
 		assert.Equal(t, "-", got)
 	})
@@ -329,7 +330,7 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 			{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500},
 			{AccountName: "Assets:Cash", AccountType: model.AccountTypeAsset, Amount: -500},
 		}
-		got, err := svc.GetDisplayOffsetAccount(splits, "Expense", "Expenses:Food")
+		got, err := svc.GetDisplayOffsetAccount(context.Background(), splits, "Expense", "Expenses:Food")
 		require.NoError(t, err)
 		assert.Equal(t, "Assets:Cash", got)
 	})
@@ -341,7 +342,7 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 			{AccountName: "Assets:Cash", AccountType: model.AccountTypeAsset, Amount: -300},
 			{AccountName: "Assets:Card", AccountType: model.AccountTypeAsset, Amount: -200},
 		}
-		got, err := svc.GetDisplayOffsetAccount(splits, "Expense", "Expenses:Food")
+		got, err := svc.GetDisplayOffsetAccount(context.Background(), splits, "Expense", "Expenses:Food")
 		require.NoError(t, err)
 		assert.Equal(t, "(multiple)", got)
 	})
@@ -352,7 +353,7 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 			{AccountName: "Assets:Savings", AccountType: model.AccountTypeAsset, Amount: 1000},
 			{AccountName: "Assets:Checking", AccountType: model.AccountTypeAsset, Amount: -1000},
 		}
-		got, err := svc.GetDisplayOffsetAccount(splits, "Transfer", "Assets:Savings")
+		got, err := svc.GetDisplayOffsetAccount(context.Background(), splits, "Transfer", "Assets:Savings")
 		require.NoError(t, err)
 		assert.Equal(t, "Assets:Checking", got)
 	})
@@ -362,14 +363,14 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 		splits := []model.SplitDetail{
 			{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500},
 		}
-		got, err := svc.GetDisplayOffsetAccount(splits, "Expense", "Expenses:Food")
+		got, err := svc.GetDisplayOffsetAccount(context.Background(), splits, "Expense", "Expenses:Food")
 		require.NoError(t, err)
 		assert.Equal(t, "-", got)
 	})
 
 	t.Run("empty splits returns -", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		got, err := svc.GetDisplayOffsetAccount(nil, "Expense", "")
+		got, err := svc.GetDisplayOffsetAccount(context.Background(), nil, "Expense", "")
 		require.NoError(t, err)
 		assert.Equal(t, "-", got)
 	})
@@ -549,7 +550,7 @@ func TestValidateSplitsMatchType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := svc.ValidateSplitsMatchType(tt.txType, tt.splits)
+			err := svc.ValidateSplitsMatchType(context.Background(), tt.txType, tt.splits)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

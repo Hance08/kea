@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -10,7 +11,7 @@ import (
 	"github.com/hance08/kea/ui/prompts"
 )
 
-func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
+func (r *addRunner) runFromFlags(ctx context.Context, flags *addFlags) (addTransactionInput, error) {
 	if len(flags.Splits) > 0 {
 		return r.runFromSplitFlags(flags)
 	}
@@ -48,11 +49,11 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 		}
 	}
 
-	if err := r.validateAccountSelectable(flags.From, nil, "--from"); err != nil {
+	if err := r.validateAccountSelectable(ctx, flags.From, nil, "--from"); err != nil {
 		return addTransactionInput{}, err
 	}
 
-	if err := r.validateAccountSelectable(flags.To, nil, "--to"); err != nil {
+	if err := r.validateAccountSelectable(ctx, flags.To, nil, "--to"); err != nil {
 		return addTransactionInput{}, err
 	}
 
@@ -67,9 +68,9 @@ func (r *addRunner) runFromFlags(flags *addFlags) (addTransactionInput, error) {
 	}, nil
 }
 
-func (r *addRunner) runInteractive() (addTransactionInput, error) {
+func (r *addRunner) runInteractive(ctx context.Context) (addTransactionInput, error) {
 	// Get all accounts
-	accounts, err := r.accSvc.GetAllAccounts()
+	accounts, err := r.accSvc.GetAllAccounts(ctx)
 	if err != nil {
 		return addTransactionInput{}, fmt.Errorf("failed to load accounts: %w", err)
 	}
@@ -117,19 +118,19 @@ func (r *addRunner) runInteractive() (addTransactionInput, error) {
 		return addTransactionInput{}, fmt.Errorf("UI config missing for mode: %s", mode)
 	}
 
-	fromAccount, err := r.selectAccount(accounts, rule.SourceTypes, uiConf.Src, true, "")
+	fromAccount, err := r.selectAccount(ctx, accounts, rule.SourceTypes, uiConf.Src, true, "")
 	if err != nil {
 		return addTransactionInput{}, err
 	}
 
 	// Resolve the selected account's currency so the offset account list
 	// is filtered to the same currency, preventing mixed-currency splits.
-	fromAcc, err := r.accSvc.GetAccountByName(fromAccount)
+	fromAcc, err := r.accSvc.GetAccountByName(ctx, fromAccount)
 	if err != nil {
 		return addTransactionInput{}, fmt.Errorf("failed to load account %q: %w", fromAccount, err)
 	}
 
-	toAccount, err := r.selectAccount(accounts, rule.DestTypes, uiConf.Dst, mode != model.TxTypeExpense, fromAcc.Currency)
+	toAccount, err := r.selectAccount(ctx, accounts, rule.DestTypes, uiConf.Dst, mode != model.TxTypeExpense, fromAcc.Currency)
 	if err != nil {
 		return addTransactionInput{}, err
 	}
@@ -167,17 +168,19 @@ func (r *addRunner) runInteractive() (addTransactionInput, error) {
 	}, nil
 }
 
-func (r *addRunner) selectAccount(accounts []*model.Account, allowedTypes []string, message string, showBalance bool, allowedCurrency string) (string, error) {
+func (r *addRunner) selectAccount(ctx context.Context, accounts []*model.Account, allowedTypes []string, message string, showBalance bool, allowedCurrency string) (string, error) {
 	var balanceGetter func(int64) (string, error)
 	if showBalance {
-		balanceGetter = r.accSvc.GetAccountBalanceFormatted
+		balanceGetter = func(id int64) (string, error) {
+			return r.accSvc.GetAccountBalanceFormatted(ctx, id)
+		}
 	}
 
 	return prompts.PromptAccountSelection(accounts, allowedTypes, message, showBalance, balanceGetter, allowedCurrency)
 }
 
-func (r *addRunner) validateAccountSelectable(accountName string, allowedTypes []string, flagName string) error {
-	if err := r.accSvc.ValidateSelectableAccount(accountName, allowedTypes); err != nil {
+func (r *addRunner) validateAccountSelectable(ctx context.Context, accountName string, allowedTypes []string, flagName string) error {
+	if err := r.accSvc.ValidateSelectableAccount(ctx, accountName, allowedTypes); err != nil {
 		return fmt.Errorf("%s: %w", flagName, err)
 	}
 	return nil

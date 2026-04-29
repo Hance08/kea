@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -137,7 +138,7 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	}
 
 	targetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
-	_, err := svc.Account().GetAccountByName(targetName)
+	_, err := svc.Account().GetAccountByName(context.Background(), targetName)
 	if err == nil {
 		return nil
 	}
@@ -146,6 +147,7 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	}
 
 	_, err = svc.Account().CreateAccount(
+		context.Background(),
 		targetName,
 		model.AccountTypeEquity,
 		cfg.Defaults.Currency,
@@ -167,7 +169,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 	targetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
 
 	// Nothing to migrate if legacy account is already gone.
-	_, err := svc.Account().GetAccountByName(legacyName)
+	_, err := svc.Account().GetAccountByName(context.Background(), legacyName)
 	if errors.Is(err, service.ErrNotFound) {
 		return nil
 	}
@@ -176,7 +178,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 	}
 
 	// Target already exists — already migrated.
-	_, err = svc.Account().GetAccountByName(targetName)
+	_, err = svc.Account().GetAccountByName(context.Background(), targetName)
 	if err == nil {
 		return nil
 	}
@@ -184,7 +186,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 		return fmt.Errorf("failed to check target system account: %w", err)
 	}
 
-	if err := svc.Account().RenameAccount(legacyName, targetName); err != nil {
+	if err := svc.Account().RenameAccount(context.Background(), legacyName, targetName); err != nil {
 		return fmt.Errorf("failed to migrate legacy system account: %w", err)
 	}
 

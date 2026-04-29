@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
@@ -37,7 +38,7 @@ Examples:
 				view:   views.NewTransactionDetailView(),
 			}
 
-			return runner.Run(flags, cmd)
+			return runner.Run(cmd.Context(), flags, cmd)
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Description, "desc", "d", "", "Transaction description")
@@ -57,7 +58,7 @@ Examples:
 	return cmd
 }
 
-func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
+func (r *addRunner) Run(ctx context.Context, flags *addFlags, cmd *cobra.Command) error {
 	var input addTransactionInput
 	var err error
 
@@ -72,10 +73,10 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 
 	if hasFlags {
 		// Flag mode: validate all required flags
-		input, err = r.runFromFlags(flags)
+		input, err = r.runFromFlags(ctx, flags)
 	} else {
 		// Interactive mode
-		input, err = r.runInteractive()
+		input, err = r.runInteractive(ctx)
 	}
 	if err != nil {
 		return err
@@ -84,10 +85,11 @@ func (r *addRunner) Run(flags *addFlags, cmd *cobra.Command) error {
 	var result model.TransactionDetail
 	if len(input.Splits) > 0 {
 		result, err = r.txSvc.CreateTransactionFromSplits(
-			input.Splits, input.Description, input.Timestamp, input.Status, input.Type,
+			ctx, input.Splits, input.Description, input.Timestamp, input.Status, input.Type,
 		)
 	} else {
 		result, err = r.txSvc.CreateSimpleTransaction(
+			ctx,
 			input.FromAccountID,
 			input.ToAccountID,
 			input.AmountCents,

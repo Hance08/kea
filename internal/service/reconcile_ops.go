@@ -13,12 +13,12 @@ import (
 // reconciled balance. Used to populate the reconciliation TUI.
 //
 // The last reconciled balance is 0 if the account has never been reconciled.
-func (ts *TransactionService) GetUnreconciledByAccount(accountID int64) ([]*model.ReconcileEntry, int64, error) {
-	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(accountID)
+func (ts *TransactionService) GetUnreconciledByAccount(ctx context.Context, accountID int64) ([]*model.ReconcileEntry, int64, error) {
+	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(ctx, accountID)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to load unreconciled transactions: %w", err)
 	}
-	lastBalance, err := ts.txRepo.GetLastReconciledBalance(accountID)
+	lastBalance, err := ts.txRepo.GetLastReconciledBalance(ctx, accountID)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to load last reconciled balance: %w", err)
 	}
@@ -40,24 +40,24 @@ func (ts *TransactionService) GetUnreconciledByAccount(accountID int64) ([]*mode
 // The new running reconciled balance (lastReconciledBalance + clearedBalance)
 // is always persisted after a successful reconcile — regardless of whether the
 // difference is zero. The caller decides whether to warn on a non-zero diff.
-func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBalance int64, txIDs []int64) (int64, error) {
+func (ts *TransactionService) ReconcileTransactions(ctx context.Context, accountID int64, statementBalance int64, txIDs []int64) (int64, error) {
 	if len(txIDs) == 0 {
 		return 0, fmt.Errorf("no transactions selected for reconciliation")
 	}
 
 	// 1. Verify account exists.
-	if _, err := ts.accRepo.GetAccountByID(accountID); err != nil {
+	if _, err := ts.accRepo.GetAccountByID(ctx, accountID); err != nil {
 		return 0, fmt.Errorf("account not found: %w", err)
 	}
 
 	// 2. Fetch last reconciled balance.
-	lastBalance, err := ts.txRepo.GetLastReconciledBalance(accountID)
+	lastBalance, err := ts.txRepo.GetLastReconciledBalance(ctx, accountID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to load last reconciled balance: %w", err)
 	}
 
 	// 3. Fetch unreconciled transactions and build a valid-ID → amount map.
-	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(accountID)
+	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(ctx, accountID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to load unreconciled transactions: %w", err)
 	}
@@ -81,8 +81,8 @@ func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBa
 	// Both writes run in the same DB transaction so a rows guard or a balance
 	// persistence error rolls back the splits UPDATE too.
 	newBalance := lastBalance + clearedBalance
-	if err := ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
-		rowsAffected, err := repo.MarkSplitsReconciledByAccount(accountID, txIDs)
+	if err := ts.tm.ExecTx(ctx, func(repo repository.Repository) error {
+		rowsAffected, err := repo.MarkSplitsReconciledByAccount(ctx, accountID, txIDs)
 		if err != nil {
 			return fmt.Errorf("failed to reconcile transactions: %w", err)
 		}
@@ -92,7 +92,7 @@ func (ts *TransactionService) ReconcileTransactions(accountID int64, statementBa
 				len(txIDs), rowsAffected,
 			)
 		}
-		if err := repo.SetLastReconciledBalance(accountID, newBalance); err != nil {
+		if err := repo.SetLastReconciledBalance(ctx, accountID, newBalance); err != nil {
 			return fmt.Errorf("failed to persist reconciled balance: %w", err)
 		}
 		return nil

@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -35,7 +36,7 @@ func (r *editRunner) actionEditBasicInfo(detail *model.TransactionDetail) error 
 	return nil
 }
 
-func (r *editRunner) actionQuickChangeAccount(detail *model.TransactionDetail) error {
+func (r *editRunner) actionQuickChangeAccount(ctx context.Context, detail *model.TransactionDetail) error {
 	if len(detail.Splits) != 2 {
 		return fmt.Errorf("quick edit supports only 2 splits")
 	}
@@ -59,12 +60,12 @@ func (r *editRunner) actionQuickChangeAccount(detail *model.TransactionDetail) e
 	targetSplit := &detail.Splits[splitIndex]
 
 	// Filter compatible accounts
-	allAccounts, err := r.accSvc.GetAllAccounts()
+	allAccounts, err := r.accSvc.GetAllAccounts(ctx)
 	if err != nil {
 		return err
 	}
 
-	currentAcc, err := r.accSvc.GetAccountByName(targetSplit.AccountName)
+	currentAcc, err := r.accSvc.GetAccountByName(ctx, targetSplit.AccountName)
 	if err != nil {
 		return fmt.Errorf("failed to load account details for '%s': %w", targetSplit.AccountName, err)
 	}
@@ -82,7 +83,7 @@ func (r *editRunner) actionQuickChangeAccount(detail *model.TransactionDetail) e
 		return err
 	}
 
-	newAcc, _ := r.accSvc.GetAccountByName(newAccName)
+	newAcc, _ := r.accSvc.GetAccountByName(ctx, newAccName)
 
 	// Apply Change
 	targetSplit.AccountID = newAcc.ID
@@ -119,7 +120,7 @@ func (r *editRunner) actionQuickChangeAmount(detail *model.TransactionDetail) er
 	return nil
 }
 
-func (r *editRunner) runSplitsMenu(detail *model.TransactionDetail) error {
+func (r *editRunner) runSplitsMenu(ctx context.Context, detail *model.TransactionDetail) error {
 	for {
 		if err := r.view.RenderDetail(detail); err != nil {
 			return err
@@ -134,11 +135,11 @@ func (r *editRunner) runSplitsMenu(detail *model.TransactionDetail) error {
 
 		switch action {
 		case "Add Split":
-			if err := r.actionAddSplit(detail); err != nil {
+			if err := r.actionAddSplit(ctx, detail); err != nil {
 				return err
 			}
 		case "Edit Split":
-			if err := r.actionEditSplit(detail); err != nil {
+			if err := r.actionEditSplit(ctx, detail); err != nil {
 				return err
 			}
 		case "Delete Split":
@@ -151,9 +152,9 @@ func (r *editRunner) runSplitsMenu(detail *model.TransactionDetail) error {
 	}
 }
 
-func (r *editRunner) actionAddSplit(detail *model.TransactionDetail) error {
+func (r *editRunner) actionAddSplit(ctx context.Context, detail *model.TransactionDetail) error {
 	// Prepare Data
-	accounts, err := r.accSvc.GetAllAccounts()
+	accounts, err := r.accSvc.GetAllAccounts(ctx)
 	if err != nil {
 		return err
 	}
@@ -175,7 +176,7 @@ func (r *editRunner) actionAddSplit(detail *model.TransactionDetail) error {
 	}
 
 	// Update Model
-	acc, _ := r.accSvc.GetAccountByName(accName)
+	acc, _ := r.accSvc.GetAccountByName(ctx, accName)
 	detail.Splits = append(detail.Splits, model.SplitDetail{
 		AccountID: acc.ID, AccountName: acc.Name, Currency: acc.Currency,
 		Amount: amount, Memo: memo,
@@ -183,7 +184,7 @@ func (r *editRunner) actionAddSplit(detail *model.TransactionDetail) error {
 	return nil
 }
 
-func (r *editRunner) actionEditSplit(detail *model.TransactionDetail) error {
+func (r *editRunner) actionEditSplit(ctx context.Context, detail *model.TransactionDetail) error {
 	// Select Split
 	idx, err := r.view.AskSplitSelection(detail.Splits)
 	if err != nil || idx == -1 {
@@ -192,7 +193,7 @@ func (r *editRunner) actionEditSplit(detail *model.TransactionDetail) error {
 	split := &detail.Splits[idx]
 
 	// Prepare Data
-	accounts, err := r.accSvc.GetAllAccounts()
+	accounts, err := r.accSvc.GetAllAccounts(ctx)
 	if err != nil {
 		return err
 	}
@@ -214,7 +215,7 @@ func (r *editRunner) actionEditSplit(detail *model.TransactionDetail) error {
 	}
 
 	// Update Model
-	acc, _ := r.accSvc.GetAccountByName(newAccName)
+	acc, _ := r.accSvc.GetAccountByName(ctx, newAccName)
 	split.AccountID = acc.ID
 	split.AccountName = acc.Name
 	split.Currency = acc.Currency
@@ -242,7 +243,7 @@ func (r *editRunner) actionDeleteSplit(detail *model.TransactionDetail) error {
 	return nil
 }
 
-func (r *editRunner) actionEditType(detail *model.TransactionDetail) error {
+func (r *editRunner) actionEditType(ctx context.Context, detail *model.TransactionDetail) error {
 	rawType, err := prompts.PromptTransactionType()
 	if err != nil {
 		return err
@@ -250,7 +251,7 @@ func (r *editRunner) actionEditType(detail *model.TransactionDetail) error {
 
 	newType := r.determineMode(rawType)
 
-	if err := r.txSvc.ValidateSplitsMatchType(newType, detail.Splits); err != nil {
+	if err := r.txSvc.ValidateSplitsMatchType(ctx, newType, detail.Splits); err != nil {
 		r.view.ShowWarning(fmt.Sprintf("Cannot change type to %s: %s", newType, err.Error()))
 		r.view.ShowWarning("Fix the splits first, then change the type.")
 		return nil
@@ -272,16 +273,16 @@ func (r *editRunner) determineMode(rawInput string) model.TransactionType {
 	return model.TxTypeTransfer
 }
 
-func (r *editRunner) actionSave(detail *model.TransactionDetail) error {
+func (r *editRunner) actionSave(ctx context.Context, detail *model.TransactionDetail) error {
 	// Validate via Service
 	splits := detail.ToSplitInputs()
-	if err := r.txSvc.ValidateTransactionEdit(splits); err != nil {
+	if err := r.txSvc.ValidateTransactionEdit(ctx, splits); err != nil {
 		return err
 	}
 
 	// Execute Update
 	if err := r.txSvc.UpdateTransactionComplete(
-		r.txID, detail.Description, detail.Timestamp, detail.Status, detail.Type, splits,
+		ctx, r.txID, detail.Description, detail.Timestamp, detail.Status, detail.Type, splits,
 	); err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
@@ -85,7 +86,7 @@ func TestGetNetWorthAt(t *testing.T) {
 		)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		worth, err := svc.GetNetWorthAt(0)
+		worth, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(10000), worth)
 	})
@@ -105,14 +106,14 @@ func TestGetNetWorthAt(t *testing.T) {
 		// totalAssets = 15000 + (-5000) = 10000
 		// totalLiabilities = 5000
 		// netWorth = 10000 - 5000 = 5000
-		worth, err := svc.GetNetWorthAt(0)
+		worth, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(5000), worth)
 	})
 
 	t.Run("no transactions returns zero net worth", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		worth, err := svc.GetNetWorthAt(0)
+		worth, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), worth)
 	})
@@ -125,7 +126,7 @@ func TestGetNetWorthAt(t *testing.T) {
 		)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		worth, err := svc.GetNetWorthAt(0)
+		worth, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), worth)
 	})
@@ -135,7 +136,7 @@ func TestGetNetWorthAt(t *testing.T) {
 		txRepo.splitsRangeErr = assert.AnError
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		_, err := svc.GetNetWorthAt(0)
+		_, err := svc.GetNetWorthAt(context.Background(), 0)
 		assert.Error(t, err)
 	})
 }
@@ -154,7 +155,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeStatement(0, 0)
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2000), result.TotalIncome)
 		assert.Equal(t, int64(0), result.TotalExpense)
@@ -172,7 +173,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeStatement(0, 0)
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), result.TotalIncome)
 		assert.Equal(t, int64(500), result.TotalExpense)
@@ -195,7 +196,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeStatement(0, 0)
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(3000), result.TotalIncome)
 		assert.Equal(t, int64(800), result.TotalExpense)
@@ -211,7 +212,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeTransfer}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeStatement(0, 0)
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), result.TotalIncome)
 		assert.Equal(t, int64(0), result.TotalExpense)
@@ -221,7 +222,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 
 	t.Run("empty data returns all-zero result", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		result, err := svc.GenerateIncomeStatement(0, 0)
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), result.TotalIncome)
 		assert.Equal(t, int64(0), result.TotalExpense)
@@ -242,7 +243,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeIncome}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeStatement(0, 0)
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
 		require.Len(t, result.IncomeRows, 2)
 		assert.GreaterOrEqual(t, result.IncomeRows[0].Amount, result.IncomeRows[1].Amount)
@@ -262,7 +263,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeStatement(0, 0)
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(500), result.TotalExpense)
 		// two transactions for the same account should be merged into one row
@@ -276,7 +277,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.splitsRangeErr = assert.AnError
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		_, err := svc.GenerateIncomeStatement(0, 0)
+		_, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		assert.Error(t, err)
 	})
 
@@ -285,7 +286,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		txRepo.txsByDateRangeErr = assert.AnError
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		_, err := svc.GenerateIncomeStatement(0, 0)
+		_, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		assert.Error(t, err)
 	})
 }
@@ -309,7 +310,7 @@ func TestGenerateIncomeBreakdown(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeBreakdown(0, 0)
+		result, err := svc.GenerateIncomeBreakdown(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2000), result.TotalIncome)
 		assert.NotEmpty(t, result.IncomeRows)
@@ -330,7 +331,7 @@ func TestGenerateIncomeBreakdown(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeIncome}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateIncomeBreakdown(0, 0)
+		result, err := svc.GenerateIncomeBreakdown(context.Background(), 0, 0)
 		require.NoError(t, err)
 		require.Len(t, result.IncomeRows, 2)
 		assert.GreaterOrEqual(t, result.IncomeRows[0].Amount, result.IncomeRows[1].Amount)
@@ -356,7 +357,7 @@ func TestGenerateExpenseBreakdown(t *testing.T) {
 		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeExpense}, nil)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		result, err := svc.GenerateExpenseBreakdown(0, 0)
+		result, err := svc.GenerateExpenseBreakdown(context.Background(), 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int64(500), result.TotalExpense)
 		assert.NotEmpty(t, result.ExpenseRows)
@@ -377,7 +378,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[2] = 3000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet(9999999999)
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
 		assert.Equal(t, int64(10000), result.TotalAssets)
 		assert.Equal(t, int64(3000), result.TotalLiabilities)
@@ -394,7 +395,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[2] = 0 // zero balance
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet(9999999999)
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
 		assert.Len(t, result.Assets, 1)
 		assert.Equal(t, "Assets:Bank", result.Assets[0].AccountName)
@@ -406,7 +407,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[1] = 5000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet(9999999999)
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
 		assert.Equal(t, int64(5000), result.TotalEquity)
 		require.Len(t, result.Equity, 1)
@@ -418,7 +419,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[1] = 10000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet(9999999999)
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
 		require.Len(t, result.Assets, 1)
 		assert.Equal(t, "TWD", result.Assets[0].Currency)
@@ -430,7 +431,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[1] = 10000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet(9999999999)
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
 		require.Len(t, result.Assets, 1)
 		assert.Equal(t, "USD", result.Assets[0].Currency)
@@ -444,7 +445,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.balances[2] = 9000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		result, err := svc.GenerateBalanceSheet(9999999999)
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
 		require.Len(t, result.Assets, 2)
 		assert.GreaterOrEqual(t, result.Assets[0].Amount, result.Assets[1].Amount)
@@ -456,7 +457,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.getAllBalancesErr = assert.AnError
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
-		_, err := svc.GenerateBalanceSheet(9999999999)
+		_, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		assert.Error(t, err)
 	})
 }

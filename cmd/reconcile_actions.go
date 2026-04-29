@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -16,10 +17,11 @@ import (
 )
 
 func (r *reconcileRunner) Run(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	accountName := args[0]
 
 	// Resolve account.
-	acc, err := r.accSvc.GetAccountByName(accountName)
+	acc, err := r.accSvc.GetAccountByName(ctx, accountName)
 	if err != nil {
 		return fmt.Errorf("account %q not found: %w", accountName, err)
 	}
@@ -27,14 +29,14 @@ func (r *reconcileRunner) Run(cmd *cobra.Command, args []string) error {
 	nonInteractive := cmd.Flags().Changed("balance") && cmd.Flags().Changed("ids")
 
 	if nonInteractive {
-		return r.runNonInteractive(acc)
+		return r.runNonInteractive(ctx, acc)
 	}
-	return r.runInteractive(acc)
+	return r.runInteractive(ctx, acc)
 }
 
 // ── Non-interactive (agent / script) mode ────────────────────────────────────
 
-func (r *reconcileRunner) runNonInteractive(acc *model.Account) error {
+func (r *reconcileRunner) runNonInteractive(ctx context.Context, acc *model.Account) error {
 	statementBalance, err := utils.ParseAmount(r.flags.Balance)
 	if err != nil {
 		return fmt.Errorf("invalid --balance value %q: %w", r.flags.Balance, err)
@@ -45,7 +47,7 @@ func (r *reconcileRunner) runNonInteractive(acc *model.Account) error {
 		return fmt.Errorf("invalid --ids value %q: %w", r.flags.IDs, err)
 	}
 
-	diff, err := r.txSvc.ReconcileTransactions(acc.ID, statementBalance, txIDs)
+	diff, err := r.txSvc.ReconcileTransactions(ctx, acc.ID, statementBalance, txIDs)
 	if err != nil {
 		return err
 	}
@@ -69,7 +71,7 @@ func (r *reconcileRunner) runNonInteractive(acc *model.Account) error {
 
 // ── Interactive mode ──────────────────────────────────────────────────────────
 
-func (r *reconcileRunner) runInteractive(acc *model.Account) error {
+func (r *reconcileRunner) runInteractive(ctx context.Context, acc *model.Account) error {
 	// 1. Prompt for statement balance.
 	balanceStr, err := prompts.PromptAmount(
 		"Statement ending balance:",
@@ -86,7 +88,7 @@ func (r *reconcileRunner) runInteractive(acc *model.Account) error {
 	}
 
 	// 2. Load unreconciled entries and the last reconciled balance.
-	entries, lastReconciledBalance, err := r.txSvc.GetUnreconciledByAccount(acc.ID)
+	entries, lastReconciledBalance, err := r.txSvc.GetUnreconciledByAccount(ctx, acc.ID)
 	if err != nil {
 		return err
 	}
@@ -115,7 +117,7 @@ func (r *reconcileRunner) runInteractive(acc *model.Account) error {
 	}
 
 	// 4. Persist.
-	diff, err := r.txSvc.ReconcileTransactions(acc.ID, statementBalance, selectedIDs)
+	diff, err := r.txSvc.ReconcileTransactions(ctx, acc.ID, statementBalance, selectedIDs)
 	if err != nil {
 		return err
 	}

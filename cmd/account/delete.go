@@ -1,6 +1,7 @@
 package account
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
@@ -12,13 +13,13 @@ import (
 )
 
 type AccountDeleteProvider interface {
-	GetAccountByName(name string) (*model.Account, error)
-	DeleteAccountByName(name string) error
+	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
+	DeleteAccountByName(ctx context.Context, name string) error
 }
 
 type deleteFlags struct {
-	Yes     bool
-	JSON    bool
+	Yes  bool
+	JSON bool
 }
 
 type deleteRunner struct {
@@ -38,7 +39,7 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &deleteRunner{svc: svc.Account(), yes: flags.Yes || flags.JSON, json: flags.JSON}
-			return runner.Run(args[0])
+			return runner.Run(cmd.Context(), args[0])
 		},
 	}
 
@@ -48,8 +49,8 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 	return cmd
 }
 
-func (r *deleteRunner) Run(name string) error {
-	acc, err := r.svc.GetAccountByName(name)
+func (r *deleteRunner) Run(ctx context.Context, name string) error {
+	acc, err := r.svc.GetAccountByName(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to find account: %w", err)
 	}
@@ -69,7 +70,7 @@ func (r *deleteRunner) Run(name string) error {
 		}
 	}
 
-	if err := r.svc.DeleteAccountByName(acc.Name); err != nil {
+	if err := r.svc.DeleteAccountByName(ctx, acc.Name); err != nil {
 		return fmt.Errorf("failed to delete account: %w", err)
 	}
 

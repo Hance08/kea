@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/spf13/cobra"
@@ -8,13 +10,13 @@ import (
 
 // reconcileAccountProvider is the subset of AccountService used by the runner.
 type reconcileAccountProvider interface {
-	GetAccountByName(name string) (*model.Account, error)
+	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
 }
 
 // reconcileTxProvider is the subset of TransactionService used by the runner.
 type reconcileTxProvider interface {
-	GetUnreconciledByAccount(accountID int64) ([]*model.ReconcileEntry, int64, error)
-	ReconcileTransactions(accountID int64, statementBalance int64, txIDs []int64) (int64, error)
+	GetUnreconciledByAccount(ctx context.Context, accountID int64) ([]*model.ReconcileEntry, int64, error)
+	ReconcileTransactions(ctx context.Context, accountID int64, statementBalance int64, txIDs []int64) (int64, error)
 }
 
 type reconcileFlags struct {

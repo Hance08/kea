@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/hance08/kea/internal/model"
 )
 
@@ -9,16 +11,16 @@ type AddView interface {
 }
 
 type AddProvider interface {
-	GetAllAccounts() ([]*model.Account, error)
-	GetAccountBalanceFormatted(accountID int64) (string, error)
-	GetAccountByName(name string) (*model.Account, error)
-	ValidateSelectableAccount(name string, allowedTypes []string) error
+	GetAllAccounts(ctx context.Context) ([]*model.Account, error)
+	GetAccountBalanceFormatted(ctx context.Context, accountID int64) (string, error)
+	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
+	ValidateSelectableAccount(ctx context.Context, name string, allowedTypes []string) error
 }
 
 type TransactionProvider interface {
 	GetTransactionRule(mode model.TransactionType) (model.TransactionRule, error)
-	CreateSimpleTransaction(fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
-	CreateTransactionFromSplits(splits []model.SplitDetail, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
+	CreateSimpleTransaction(ctx context.Context, fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
+	CreateTransactionFromSplits(ctx context.Context, splits []model.SplitDetail, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
 }
 
 type addFlags struct {

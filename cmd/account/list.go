@@ -1,6 +1,7 @@
 package account
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
@@ -16,10 +17,10 @@ type listFlags struct {
 }
 
 type AccountListProvider interface {
-	GetAccountsByType(accType model.AccountType) ([]*model.Account, error)
-	GetAllAccounts() ([]*model.Account, error)
-	GetAccountBalance(id int64) (int64, error)
-	GetAccountBalanceFormatted(id int64) (string, error)
+	GetAccountsByType(ctx context.Context, accType model.AccountType) ([]*model.Account, error)
+	GetAllAccounts(ctx context.Context) ([]*model.Account, error)
+	GetAccountBalance(ctx context.Context, id int64) (int64, error)
+	GetAccountBalanceFormatted(ctx context.Context, id int64) (string, error)
 }
 
 type listRunner struct {
@@ -41,7 +42,7 @@ You can filter by account type or show hidden accounts.`,
 				svc:   svc.Account(),
 				flags: flags,
 			}
-			return runner.Run()
+			return runner.Run(cmd.Context())
 		},
 	}
 
@@ -52,15 +53,15 @@ You can filter by account type or show hidden accounts.`,
 	return cmd
 }
 
-func (r *listRunner) Run() error {
+func (r *listRunner) Run(ctx context.Context) error {
 
 	var accounts []*model.Account
 	var err error
 
 	if r.flags.Type != "" {
-		accounts, err = r.svc.GetAccountsByType(model.AccountType(r.flags.Type))
+		accounts, err = r.svc.GetAccountsByType(ctx, model.AccountType(r.flags.Type))
 	} else {
-		accounts, err = r.svc.GetAllAccounts()
+		accounts, err = r.svc.GetAllAccounts(ctx)
 	}
 
 	if err != nil {
@@ -74,7 +75,7 @@ func (r *listRunner) Run() error {
 	if r.flags.JSON {
 		items := make([]views.JSONAccount, 0, len(accounts))
 		for _, acc := range accounts {
-			bal, err := r.svc.GetAccountBalance(acc.ID)
+			bal, err := r.svc.GetAccountBalance(ctx, acc.ID)
 			if err != nil {
 				return fmt.Errorf("failed to get balance for %s: %w", acc.Name, err)
 			}
@@ -82,7 +83,9 @@ func (r *listRunner) Run() error {
 		}
 		return views.WriteJSON(items)
 	}
-	return views.NewAccountListView().Render(accounts, r.svc.GetAccountBalanceFormatted)
+	return views.NewAccountListView().Render(accounts, func(id int64) (string, error) {
+		return r.svc.GetAccountBalanceFormatted(ctx, id)
+	})
 }
 
 func (r *listRunner) filterHiddenAccounts(accounts []*model.Account) []*model.Account {

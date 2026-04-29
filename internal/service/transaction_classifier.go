@@ -1,13 +1,14 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
 
-func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.TransactionType, error) {
+func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.SplitDetail) (model.TransactionType, error) {
 	// Fallback for empty splits
 	if len(splits) == 0 {
 		return model.TxTypeOther, nil
@@ -29,7 +30,7 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 	for _, split := range splits {
 		accType := split.AccountType
 		if accType == "" {
-			acc, err := ts.accRepo.GetAccountByID(split.AccountID)
+			acc, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
 			if err != nil {
 				return model.TxTypeOther, err
 			}
@@ -102,7 +103,7 @@ func (ts *TransactionService) DetermineType(splits []model.SplitDetail) (model.T
 	return model.TxTypeOther, nil
 }
 
-func (ts *TransactionService) GetDisplayAccount(splits []model.SplitDetail, txType string) (string, error) {
+func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []model.SplitDetail, txType string) (string, error) {
 	if len(splits) == 0 {
 		return "-", nil
 	}
@@ -111,7 +112,7 @@ func (ts *TransactionService) GetDisplayAccount(splits []model.SplitDetail, txTy
 		if split.AccountType != "" {
 			return split.AccountType, nil
 		}
-		account, err := ts.accRepo.GetAccountByName(split.AccountName)
+		account, err := ts.accRepo.GetAccountByName(ctx, split.AccountName)
 		if err != nil {
 			return "", err
 		}
@@ -195,7 +196,7 @@ func (ts *TransactionService) GetDisplayAmount(splits []model.SplitDetail) (int6
 	return maxAmount, currency
 }
 
-func (ts *TransactionService) GetDisplayOffsetAccount(splits []model.SplitDetail, txType string, primaryAccount string) (string, error) {
+func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, splits []model.SplitDetail, txType string, primaryAccount string) (string, error) {
 	if len(splits) == 0 {
 		return "-", nil
 	}
@@ -204,7 +205,7 @@ func (ts *TransactionService) GetDisplayOffsetAccount(splits []model.SplitDetail
 		if split.AccountType != "" {
 			return split.AccountType, nil
 		}
-		account, err := ts.accRepo.GetAccountByName(split.AccountName)
+		account, err := ts.accRepo.GetAccountByName(ctx, split.AccountName)
 		if err != nil {
 			return "", err
 		}
@@ -273,12 +274,12 @@ func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, c
 	}
 }
 
-func (ts *TransactionService) ValidateSplitsMatchType(txType model.TransactionType, splits []model.SplitDetail) error {
+func (ts *TransactionService) ValidateSplitsMatchType(ctx context.Context, txType model.TransactionType, splits []model.SplitDetail) error {
 	resolveType := func(s model.SplitDetail) (model.AccountType, error) {
 		if s.AccountType != "" {
 			return s.AccountType, nil
 		}
-		acc, err := ts.accRepo.GetAccountByName(s.AccountName)
+		acc, err := ts.accRepo.GetAccountByName(ctx, s.AccountName)
 		if err != nil {
 			return "", err
 		}

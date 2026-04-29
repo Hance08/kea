@@ -1,6 +1,7 @@
 package account
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/service"
@@ -32,7 +33,7 @@ Example:
 				svc:  svc.Account(),
 				view: views.NewCommonView(),
 			}
-			return runner.Run(args[0], flags, cmd)
+			return runner.Run(cmd.Context(), args[0], flags, cmd)
 		},
 	}
 
@@ -47,8 +48,8 @@ Example:
 	return cmd
 }
 
-func (r *editRunner) Run(accName string, flags *editFlags, cmd *cobra.Command) error {
-	acc, err := r.svc.GetAccountByName(accName)
+func (r *editRunner) Run(ctx context.Context, accName string, flags *editFlags, cmd *cobra.Command) error {
+	acc, err := r.svc.GetAccountByName(ctx, accName)
 	if err != nil {
 		return fmt.Errorf("account not found: %w", err)
 	}
@@ -62,9 +63,9 @@ func (r *editRunner) Run(accName string, flags *editFlags, cmd *cobra.Command) e
 
 	var input editInput
 	if hasFlags {
-		input, err = r.runFromFlags(acc, flags, cmd)
+		input, err = r.runFromFlags(flags, cmd)
 	} else {
-		input, err = r.runInteractive(acc)
+		input, err = r.runInteractive(ctx, acc)
 	}
 	if err != nil {
 		return err
@@ -75,17 +76,17 @@ func (r *editRunner) Run(accName string, flags *editFlags, cmd *cobra.Command) e
 		return nil
 	}
 
-	finalName, err := r.applyChanges(acc, input)
+	finalName, err := r.applyChanges(ctx, acc, input)
 	if err != nil {
 		return err
 	}
 
 	if flags.JSON {
-		updatedAcc, err := r.svc.GetAccountByName(finalName)
+		updatedAcc, err := r.svc.GetAccountByName(ctx, finalName)
 		if err != nil {
 			return err
 		}
-		bal, err := r.svc.GetAccountBalance(updatedAcc.ID)
+		bal, err := r.svc.GetAccountBalance(ctx, updatedAcc.ID)
 		if err != nil {
 			return err
 		}

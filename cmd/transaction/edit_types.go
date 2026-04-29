@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"context"
 	"errors"
 
 	"github.com/hance08/kea/internal/model"
@@ -28,17 +29,17 @@ type EditView interface {
 }
 
 type EditProvider interface {
-	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
+	GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error)
 	IsEditable(detail *model.TransactionDetail) (bool, service.NotEditableReason)
 	GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account
-	ValidateTransactionEdit(splits []model.SplitDetail) error
-	ValidateSplitsMatchType(txType model.TransactionType, splits []model.SplitDetail) error
-	UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error
+	ValidateTransactionEdit(ctx context.Context, splits []model.SplitDetail) error
+	ValidateSplitsMatchType(ctx context.Context, txType model.TransactionType, splits []model.SplitDetail) error
+	UpdateTransactionComplete(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error
 }
 
 type AccountProvider interface {
-	GetAccountByName(name string) (*model.Account, error)
-	GetAllAccounts() ([]*model.Account, error)
+	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
+	GetAllAccounts(ctx context.Context) ([]*model.Account, error)
 }
 
 const (

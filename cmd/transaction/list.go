@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -18,11 +19,11 @@ type ListView interface {
 }
 
 type ListProvider interface {
-	GetTransactionHistory(accountName string, limit int) ([]*model.Transaction, error)
-	GetRecentTransactions(limit int) ([]*model.Transaction, error)
-	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
-	GetDisplayAccount(splits []model.SplitDetail, txType string) (string, error)
-	GetDisplayOffsetAccount(splits []model.SplitDetail, txType string, primaryAccount string) (string, error)
+	GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error)
+	GetRecentTransactions(ctx context.Context, limit int) ([]*model.Transaction, error)
+	GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error)
+	GetDisplayAccount(ctx context.Context, splits []model.SplitDetail, txType string) (string, error)
+	GetDisplayOffsetAccount(ctx context.Context, splits []model.SplitDetail, txType string, primaryAccount string) (string, error)
 	GetDisplayAmount(splits []model.SplitDetail) (int64, string)
 }
 
@@ -55,7 +56,7 @@ date, type, account, description, amount, and status.`,
 				view:  views.NewTransactionListView(),
 				flags: flags,
 			}
-			return runner.Run()
+			return runner.Run(cmd.Context())
 		},
 	}
 
@@ -66,15 +67,15 @@ date, type, account, description, amount, and status.`,
 	return cmd
 }
 
-func (r *listRunner) Run() error {
+func (r *listRunner) Run(ctx context.Context) error {
 	// 1. Fetch Data
-	transactions, err := r.fetchTransactions()
+	transactions, err := r.fetchTransactions(ctx)
 	if err != nil {
 		return err
 	}
 
 	// 2. Transform Data (Model -> View Model)
-	viewItems := r.buildViewItems(transactions)
+	viewItems := r.buildViewItems(ctx, transactions)
 
 	// 3. Render
 	if r.flags.JSON {
@@ -87,18 +88,18 @@ func (r *listRunner) Run() error {
 	return r.view.Render(viewItems, r.flags.Limit)
 }
 
-func (r *listRunner) fetchTransactions() ([]*model.Transaction, error) {
+func (r *listRunner) fetchTransactions(ctx context.Context) ([]*model.Transaction, error) {
 	if r.flags.Account != "" {
-		return r.svc.GetTransactionHistory(r.flags.Account, r.flags.Limit)
+		return r.svc.GetTransactionHistory(ctx, r.flags.Account, r.flags.Limit)
 	}
-	return r.svc.GetRecentTransactions(r.flags.Limit)
+	return r.svc.GetRecentTransactions(ctx, r.flags.Limit)
 }
 
-func (r *listRunner) buildViewItems(transactions []*model.Transaction) []views.TransactionListItem {
+func (r *listRunner) buildViewItems(ctx context.Context, transactions []*model.Transaction) []views.TransactionListItem {
 	var viewItems []views.TransactionListItem
 
 	for _, tx := range transactions {
-		detail, err := r.svc.GetTransactionByID(tx.ID)
+		detail, err := r.svc.GetTransactionByID(ctx, tx.ID)
 		if err != nil {
 			if !r.flags.JSON {
 				r.view.ShowWarning("Skipping transaction %d: %v\n", tx.ID, err)
@@ -106,20 +107,20 @@ func (r *listRunner) buildViewItems(transactions []*model.Transaction) []views.T
 			continue
 		}
 
-		viewItems = append(viewItems, r.convertToViewItem(tx, detail))
+		viewItems = append(viewItems, r.convertToViewItem(ctx, tx, detail))
 	}
 	return viewItems
 }
 
-func (r *listRunner) convertToViewItem(tx *model.Transaction, detail *model.TransactionDetail) views.TransactionListItem {
+func (r *listRunner) convertToViewItem(ctx context.Context, tx *model.Transaction, detail *model.TransactionDetail) views.TransactionListItem {
 	txType := string(detail.Type)
 
-	accountName, err := r.svc.GetDisplayAccount(detail.Splits, txType)
+	accountName, err := r.svc.GetDisplayAccount(ctx, detail.Splits, txType)
 	if err != nil {
 		accountName = "-"
 	}
 
-	offsetAccount, err := r.svc.GetDisplayOffsetAccount(detail.Splits, txType, accountName)
+	offsetAccount, err := r.svc.GetDisplayOffsetAccount(ctx, detail.Splits, txType, accountName)
 	if err != nil {
 		offsetAccount = "-"
 	}

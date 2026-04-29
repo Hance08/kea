@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -111,7 +112,7 @@ func TestValidateTransactionEdit(t *testing.T) {
 			{AccountID: 1, Amount: -500, Currency: "USD"},
 			{AccountID: 2, Amount: 500, Currency: "USD"},
 		}
-		err := svc.ValidateTransactionEdit(splits)
+		err := svc.ValidateTransactionEdit(context.Background(), splits)
 		require.NoError(t, err)
 	})
 
@@ -120,14 +121,14 @@ func TestValidateTransactionEdit(t *testing.T) {
 		splits := []model.SplitDetail{
 			{AccountID: 1, Amount: 1000},
 		}
-		err := svc.ValidateTransactionEdit(splits)
+		err := svc.ValidateTransactionEdit(context.Background(), splits)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 2")
 	})
 
 	t.Run("empty split list rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.ValidateTransactionEdit([]model.SplitDetail{})
+		err := svc.ValidateTransactionEdit(context.Background(), []model.SplitDetail{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 2")
 	})
@@ -142,7 +143,7 @@ func TestValidateTransactionEdit(t *testing.T) {
 			{AccountID: 1, Amount: -500},
 			{AccountID: 2, Amount: 600}, // off by 100
 		}
-		err := svc.ValidateTransactionEdit(splits)
+		err := svc.ValidateTransactionEdit(context.Background(), splits)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "balance")
 	})
@@ -157,7 +158,7 @@ func TestValidateTransactionEdit(t *testing.T) {
 			{AccountID: 1, Amount: -500},
 			{AccountID: 99, Amount: 500},
 		}
-		err := svc.ValidateTransactionEdit(splits)
+		err := svc.ValidateTransactionEdit(context.Background(), splits)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "99")
 	})
@@ -172,7 +173,7 @@ func TestValidateTransactionEdit(t *testing.T) {
 			{AccountID: 1, Amount: -500},
 			{AccountID: 2, Amount: 500},
 		}
-		err := svc.ValidateTransactionEdit(splits)
+		err := svc.ValidateTransactionEdit(context.Background(), splits)
 		require.Error(t, err)
 		// error message should reference split #2
 		assert.Contains(t, err.Error(), "#2")
@@ -190,7 +191,7 @@ func TestValidateTransactionEdit(t *testing.T) {
 			{AccountID: 3, Amount: 300},
 			{AccountID: 4, Amount: 300},
 		}
-		err := svc.ValidateTransactionEdit(splits)
+		err := svc.ValidateTransactionEdit(context.Background(), splits)
 		require.NoError(t, err)
 	})
 }

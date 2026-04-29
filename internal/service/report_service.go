@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"sort"
 
 	"github.com/hance08/kea/internal/model"
@@ -8,8 +9,8 @@ import (
 )
 
 // GetNetWorthAt returns net worth (assets - liabilities) using all posted splits up to endTime.
-func (ts *TransactionService) GetNetWorthAt(endTime int64) (int64, error) {
-	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(0, endTime)
+func (ts *TransactionService) GetNetWorthAt(ctx context.Context, endTime int64) (int64, error) {
+	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(ctx, 0, endTime)
 	if err != nil {
 		return 0, err
 	}
@@ -54,13 +55,13 @@ func offsetAccountName(details []model.SplitDetail, primaryType model.AccountTyp
 // buildReportMaps fetches all splits in the date range and aggregates them into
 // income/expense row maps. Pass includeIncome=false to skip income classification
 // (and vice versa) to avoid unnecessary work for breakdown-only queries.
-func (ts *TransactionService) buildReportMaps(startTime, endTime int64, includeIncome, includeExpense bool) (incomeByAccount, expenseByAccount map[string]*model.ReportRow, err error) {
-	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(startTime, endTime)
+func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, endTime int64, includeIncome, includeExpense bool) (incomeByAccount, expenseByAccount map[string]*model.ReportRow, err error) {
+	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(ctx, startTime, endTime)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	txs, err := ts.txRepo.GetTransactionsByDateRange(startTime, endTime)
+	txs, err := ts.txRepo.GetTransactionsByDateRange(ctx, startTime, endTime)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -104,8 +105,8 @@ func (ts *TransactionService) buildReportMaps(startTime, endTime int64, includeI
 }
 
 // GenerateIncomeStatement produces an income/expense summary for the given Unix time range.
-func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) (*model.ReportResult, error) {
-	incomeByAccount, expenseByAccount, err := ts.buildReportMaps(startTime, endTime, true, true)
+func (ts *TransactionService) GenerateIncomeStatement(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error) {
+	incomeByAccount, expenseByAccount, err := ts.buildReportMaps(ctx, startTime, endTime, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +128,8 @@ func (ts *TransactionService) GenerateIncomeStatement(startTime, endTime int64) 
 }
 
 // GenerateIncomeBreakdown produces a detailed income-only report for the given Unix time range.
-func (ts *TransactionService) GenerateIncomeBreakdown(startTime, endTime int64) (*model.ReportResult, error) {
-	incomeByAccount, _, err := ts.buildReportMaps(startTime, endTime, true, false)
+func (ts *TransactionService) GenerateIncomeBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error) {
+	incomeByAccount, _, err := ts.buildReportMaps(ctx, startTime, endTime, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +150,8 @@ func (ts *TransactionService) GenerateIncomeBreakdown(startTime, endTime int64) 
 }
 
 // GenerateExpenseBreakdown produces a detailed expense-only report for the given Unix time range.
-func (ts *TransactionService) GenerateExpenseBreakdown(startTime, endTime int64) (*model.ReportResult, error) {
-	_, expenseByAccount, err := ts.buildReportMaps(startTime, endTime, false, true)
+func (ts *TransactionService) GenerateExpenseBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error) {
+	_, expenseByAccount, err := ts.buildReportMaps(ctx, startTime, endTime, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -172,13 +173,13 @@ func (ts *TransactionService) GenerateExpenseBreakdown(startTime, endTime int64)
 
 // GenerateBalanceSheet produces a snapshot of all asset, liability, and equity account balances
 // as of the given Unix timestamp.
-func (ts *TransactionService) GenerateBalanceSheet(asOf int64) (*model.BalanceSheetResult, error) {
-	allAccounts, err := ts.accRepo.GetAllAccounts()
+func (ts *TransactionService) GenerateBalanceSheet(ctx context.Context, asOf int64) (*model.BalanceSheetResult, error) {
+	allAccounts, err := ts.accRepo.GetAllAccounts(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	balances, err := ts.accRepo.GetAllAccountBalances(asOf)
+	balances, err := ts.accRepo.GetAllAccountBalances(ctx, asOf)
 	if err != nil {
 		return nil, err
 	}

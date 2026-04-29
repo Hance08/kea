@@ -1,6 +1,7 @@
 package account
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -9,8 +10,9 @@ import (
 	"github.com/hance08/kea/ui/prompts"
 )
 
-func (r *createRunner) createAccount(input createInput) (*model.Account, error) {
+func (r *createRunner) createAccount(ctx context.Context, input createInput) (*model.Account, error) {
 	return r.accSvc.CreateAccountWithBalance(
+		ctx,
 		input.fullName,
 		input.accountType,
 		input.currency,
@@ -20,7 +22,7 @@ func (r *createRunner) createAccount(input createInput) (*model.Account, error) 
 	)
 }
 
-func (r *createRunner) applyTypeSettings(rootName, accType, currencyOverride string, input *createInput) error {
+func (r *createRunner) applyTypeSettings(accType, currencyOverride string, input *createInput) error {
 	input.accountType = model.AccountType(accType)
 	if currencyOverride != "" {
 		if err := r.accSvc.ValidateCurrency(currencyOverride); err != nil {
@@ -43,8 +45,8 @@ func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverri
 	}
 }
 
-func (r *createRunner) buildFromParentName(parentName, currency string, input *createInput) error {
-	parentAccount, err := r.accSvc.GetAccountByName(parentName)
+func (r *createRunner) buildFromParentName(ctx context.Context, parentName, currency string, input *createInput) error {
+	parentAccount, err := r.accSvc.GetAccountByName(ctx, parentName)
 	if err != nil {
 		return err
 	}
@@ -58,7 +60,7 @@ func (r *createRunner) buildFromTypeFlag(accType, currency string, input *create
 	if err != nil {
 		return fmt.Errorf("get root name: %w", err)
 	}
-	if err := r.applyTypeSettings(rootName, accType, currency, input); err != nil {
+	if err := r.applyTypeSettings(accType, currency, input); err != nil {
 		return err
 	}
 	input.fullName = rootName // prefix for FormatAccountName in runFromFlags
@@ -69,8 +71,8 @@ func (r *createRunner) promptType() (string, error) {
 	return prompts.PromptAccountType()
 }
 
-func (r *createRunner) promptParent() (*model.Account, error) {
-	allAccounts, err := r.accSvc.GetAllAccounts()
+func (r *createRunner) promptParent(ctx context.Context) (*model.Account, error) {
+	allAccounts, err := r.accSvc.GetAllAccounts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
 	}
@@ -87,7 +89,7 @@ func (r *createRunner) promptParent() (*model.Account, error) {
 	return selectedAccount, nil
 }
 
-func (r *createRunner) promptName(prefix string) (string, error) {
+func (r *createRunner) promptName(ctx context.Context, prefix string) (string, error) {
 	surveyValidator := func(inputStr string) error {
 		if err := r.accSvc.ValidateAccountName(inputStr); err != nil {
 			return err
@@ -95,7 +97,7 @@ func (r *createRunner) promptName(prefix string) (string, error) {
 
 		fullName := r.accSvc.FormatAccountName(prefix, inputStr)
 
-		exists, err := r.accSvc.CheckAccountExists(fullName)
+		exists, err := r.accSvc.CheckAccountExists(ctx, fullName)
 		if err != nil {
 			return fmt.Errorf("failed to validate: %w", err)
 		}

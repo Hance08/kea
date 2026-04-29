@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
@@ -17,13 +18,13 @@ type TransactionDeleteView interface {
 }
 
 type TxDeleteProvider interface {
-	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
-	DeleteTransaction(txID int64) error
+	GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error)
+	DeleteTransaction(ctx context.Context, txID int64) error
 }
 
 type deleteFlags struct {
-	Yes     bool
-	JSON    bool
+	Yes  bool
+	JSON bool
 }
 
 type deleteRunner struct {
@@ -49,7 +50,7 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 				yes:  flags.Yes || flags.JSON,
 				json: flags.JSON,
 			}
-			return runner.Run(args)
+			return runner.Run(cmd.Context(), args)
 		},
 	}
 
@@ -59,13 +60,13 @@ func NewDeleteCmd(svc *service.Service) *cobra.Command {
 	return cmd
 }
 
-func (r *deleteRunner) Run(args []string) error {
+func (r *deleteRunner) Run(ctx context.Context, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	detail, err := r.svc.GetTransactionByID(txID)
+	detail, err := r.svc.GetTransactionByID(ctx, txID)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}
@@ -92,7 +93,7 @@ func (r *deleteRunner) Run(args []string) error {
 		}
 	}
 
-	if err := r.svc.DeleteTransaction(txID); err != nil {
+	if err := r.svc.DeleteTransaction(ctx, txID); err != nil {
 		return fmt.Errorf("failed to delete transaction: %w", err)
 	}
 

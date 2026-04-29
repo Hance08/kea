@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/config"
@@ -45,13 +46,13 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 }
 
 // GetTransactionByID retrieves a transaction with all split details
-func (ts *TransactionService) GetTransactionByID(txID int64) (*model.TransactionDetail, error) {
-	tx, err := ts.txRepo.GetTransactionByID(txID)
+func (ts *TransactionService) GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error) {
+	tx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
 		return nil, err
 	}
 
-	splits, err := ts.txRepo.GetSplitsWithAccountsByTransaction(txID)
+	splits, err := ts.txRepo.GetSplitsWithAccountsByTransaction(ctx, txID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get splits for transaction: %w", err)
 	}
@@ -67,8 +68,8 @@ func (ts *TransactionService) GetTransactionByID(txID int64) (*model.Transaction
 }
 
 // GetRecentTransactions retrieves recent transactions across all accounts
-func (ts *TransactionService) GetRecentTransactions(limit int) ([]*model.Transaction, error) {
-	transactions, err := ts.txRepo.GetAllTransactions(limit)
+func (ts *TransactionService) GetRecentTransactions(ctx context.Context, limit int) ([]*model.Transaction, error) {
+	transactions, err := ts.txRepo.GetAllTransactions(ctx, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get recent transactions: %w", err)
 	}
@@ -76,15 +77,15 @@ func (ts *TransactionService) GetRecentTransactions(limit int) ([]*model.Transac
 }
 
 // GetTransactionHistory retrieves transaction history for a specific account
-func (ts *TransactionService) GetTransactionHistory(accountName string, limit int) ([]*model.Transaction, error) {
+func (ts *TransactionService) GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error) {
 	// Get account by name
-	account, err := ts.accRepo.GetAccountByName(accountName)
+	account, err := ts.accRepo.GetAccountByName(ctx, accountName)
 	if err != nil {
 		return nil, fmt.Errorf("account not found: %w", err)
 	}
 
 	// Get transactions for this account
-	transactions, err := ts.txRepo.GetTransactionsByAccount(account.ID, limit)
+	transactions, err := ts.txRepo.GetTransactionsByAccount(ctx, account.ID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get transaction history: %w", err)
 	}

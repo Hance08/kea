@@ -10,8 +10,8 @@ import (
 	sqlite "github.com/mattn/go-sqlite3"
 )
 
-func (s *Store) CreateAccount(name string, accType model.AccountType, currency string, description string, parentID *int64) (int64, error) {
-	stmt, err := s.db.PrepareContext(context.Background(), `
+func (s *Store) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency string, description string, parentID *int64) (int64, error) {
+	stmt, err := s.db.PrepareContext(ctx, `
         INSERT INTO accounts (name, type, currency, description, parent_id)
         VALUES (?, ?, ?, ?, ?)
         RETURNING id;
@@ -25,7 +25,7 @@ func (s *Store) CreateAccount(name string, accType model.AccountType, currency s
 
 	var newID int64
 
-	err = stmt.QueryRowContext(context.Background(), name, string(accType), currency, description, parentID).Scan(&newID)
+	err = stmt.QueryRowContext(ctx, name, string(accType), currency, description, parentID).Scan(&newID)
 
 	if err != nil {
 		var sqliteErr sqlite.Error
@@ -40,8 +40,8 @@ func (s *Store) CreateAccount(name string, accType model.AccountType, currency s
 	return newID, nil
 }
 
-func (s *Store) GetAllAccounts() ([]*model.Account, error) {
-	rows, err := s.db.QueryContext(context.Background(), `
+func (s *Store) GetAllAccounts(ctx context.Context) ([]*model.Account, error) {
+	rows, err := s.db.QueryContext(ctx, `
         SELECT id, name, type, parent_id, currency, description, is_hidden
         FROM accounts
         ORDER BY name
@@ -56,8 +56,8 @@ func (s *Store) GetAllAccounts() ([]*model.Account, error) {
 	return s.scanAccounts(rows)
 }
 
-func (s *Store) GetAccountByName(name string) (*model.Account, error) {
-	row := s.db.QueryRowContext(context.Background(), "SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE name = ?", name)
+func (s *Store) GetAccountByName(ctx context.Context, name string) (*model.Account, error) {
+	row := s.db.QueryRowContext(ctx, "SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE name = ?", name)
 
 	acc := &model.Account{}
 	var parentID sql.NullInt64
@@ -82,8 +82,8 @@ func (s *Store) GetAccountByName(name string) (*model.Account, error) {
 	return acc, nil
 }
 
-func (s *Store) GetAccountByID(id int64) (*model.Account, error) {
-	row := s.db.QueryRowContext(context.Background(), "SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE id = ?", id)
+func (s *Store) GetAccountByID(ctx context.Context, id int64) (*model.Account, error) {
+	row := s.db.QueryRowContext(ctx, "SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE id = ?", id)
 
 	acc := &model.Account{}
 	var parentID sql.NullInt64
@@ -108,17 +108,17 @@ func (s *Store) GetAccountByID(id int64) (*model.Account, error) {
 	return acc, nil
 }
 
-func (s *Store) AccountExists(name string) (bool, error) {
+func (s *Store) AccountExists(ctx context.Context, name string) (bool, error) {
 	var exists bool
-	row := s.db.QueryRowContext(context.Background(), "SELECT EXISTS(SELECT 1 FROM accounts WHERE name = ?)", name)
+	row := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE name = ?)", name)
 	if err := row.Scan(&exists); err != nil {
 		return false, fmt.Errorf("failed to check account existence: %w", err)
 	}
 	return exists, nil
 }
 
-func (s *Store) GetAllAccountBalances(asOf int64) (map[int64]int64, error) {
-	rows, err := s.db.QueryContext(context.Background(), `
+func (s *Store) GetAllAccountBalances(ctx context.Context, asOf int64) (map[int64]int64, error) {
+	rows, err := s.db.QueryContext(ctx, `
         SELECT s.account_id, SUM(s.amount)
         FROM splits s
         JOIN transactions t ON s.transaction_id = t.id
@@ -147,17 +147,17 @@ func (s *Store) GetAllAccountBalances(asOf int64) (map[int64]int64, error) {
 	return result, nil
 }
 
-func (s *Store) HasChildAccounts(accountID int64) (bool, error) {
+func (s *Store) HasChildAccounts(ctx context.Context, accountID int64) (bool, error) {
 	var exists bool
-	row := s.db.QueryRowContext(context.Background(), "SELECT EXISTS(SELECT 1 FROM accounts WHERE parent_id = ?)", accountID)
+	row := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE parent_id = ?)", accountID)
 	if err := row.Scan(&exists); err != nil {
 		return false, fmt.Errorf("failed to check child accounts: %w", err)
 	}
 	return exists, nil
 }
 
-func (s *Store) GetAccountsByType(accType model.AccountType) ([]*model.Account, error) {
-	rows, err := s.db.QueryContext(context.Background(), `
+func (s *Store) GetAccountsByType(ctx context.Context, accType model.AccountType) ([]*model.Account, error) {
+	rows, err := s.db.QueryContext(ctx, `
         SELECT id, name, type, parent_id, currency, description, is_hidden
         FROM accounts
         WHERE type = ?
@@ -174,9 +174,9 @@ func (s *Store) GetAccountsByType(accType model.AccountType) ([]*model.Account, 
 	return s.scanAccounts(rows)
 }
 
-func (s *Store) GetAccountBalance(accountID int64) (int64, error) {
+func (s *Store) GetAccountBalance(ctx context.Context, accountID int64) (int64, error) {
 	var balance sql.NullInt64
-	err := s.db.QueryRowContext(context.Background(), `
+	err := s.db.QueryRowContext(ctx, `
         SELECT SUM(amount)
         FROM splits
         WHERE account_id = ?
@@ -222,9 +222,9 @@ func (s *Store) scanAccounts(rows *sql.Rows) ([]*model.Account, error) {
 }
 
 // AccountHasTransactions returns true when the account is referenced by any split.
-func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
+func (s *Store) AccountHasTransactions(ctx context.Context, accountID int64) (bool, error) {
 	var exists bool
-	row := s.db.QueryRowContext(context.Background(), "SELECT EXISTS(SELECT 1 FROM splits WHERE account_id = ?)", accountID)
+	row := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM splits WHERE account_id = ?)", accountID)
 	if err := row.Scan(&exists); err != nil {
 		return false, fmt.Errorf("failed to check account transactions: %w", err)
 	}
@@ -233,18 +233,18 @@ func (s *Store) AccountHasTransactions(accountID int64) (bool, error) {
 
 // RenameAccount updates the name of an account and cascades the rename to all descendants.
 // Both updates run in a single transaction.
-func (s *Store) RenameAccount(oldName, newName string) error {
+func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) error {
 	if s.rawDB == nil {
 		return fmt.Errorf("store is already in a transaction")
 	}
 
-	tx, err := s.rawDB.BeginTx(context.Background(), nil)
+	tx, err := s.rawDB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	res, err := tx.ExecContext(context.Background(), `UPDATE accounts SET name = ? WHERE name = ?`, newName, oldName)
+	res, err := tx.ExecContext(ctx, `UPDATE accounts SET name = ? WHERE name = ?`, newName, oldName)
 	if err != nil {
 		return fmt.Errorf("failed to rename account %q: %w", oldName, err)
 	}
@@ -256,7 +256,7 @@ func (s *Store) RenameAccount(oldName, newName string) error {
 		return fmt.Errorf("account %q not found", oldName)
 	}
 
-	_, err = tx.ExecContext(context.Background(),
+	_, err = tx.ExecContext(ctx,
 		`UPDATE accounts SET name = replace(name, ?, ?) WHERE name LIKE ? || ':%'`,
 		oldName, newName, oldName,
 	)
@@ -268,8 +268,8 @@ func (s *Store) RenameAccount(oldName, newName string) error {
 }
 
 // DeleteAccount removes an account record by ID.
-func (s *Store) DeleteAccount(accountID int64) error {
-	result, err := s.db.ExecContext(context.Background(), "DELETE FROM accounts WHERE id = ?", accountID)
+func (s *Store) DeleteAccount(ctx context.Context, accountID int64) error {
+	result, err := s.db.ExecContext(ctx, "DELETE FROM accounts WHERE id = ?", accountID)
 	if err != nil {
 		return fmt.Errorf("failed to delete account: %w", err)
 	}
@@ -287,8 +287,8 @@ func (s *Store) DeleteAccount(accountID int64) error {
 }
 
 // UpdateAccountMetadata updates the description and hidden status of an account.
-func (s *Store) UpdateAccountMetadata(accountID int64, description string, isHidden bool) error {
-	res, err := s.db.ExecContext(context.Background(),
+func (s *Store) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) error {
+	res, err := s.db.ExecContext(ctx,
 		`UPDATE accounts SET description = ?, is_hidden = ? WHERE id = ?`,
 		description, isHidden, accountID,
 	)

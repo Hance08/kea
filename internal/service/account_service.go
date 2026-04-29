@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,12 +23,12 @@ func NewAccountService(repo repository.AccountRepository, cfg *config.Config, tm
 	return &AccountService{repo: repo, config: cfg, tm: tm}
 }
 
-func (as *AccountService) GetAllAccounts() ([]*model.Account, error) {
-	return as.repo.GetAllAccounts()
+func (as *AccountService) GetAllAccounts(ctx context.Context) ([]*model.Account, error) {
+	return as.repo.GetAllAccounts(ctx)
 }
 
-func (as *AccountService) GetAccountByName(name string) (*model.Account, error) {
-	acc, err := as.repo.GetAccountByName(name)
+func (as *AccountService) GetAccountByName(ctx context.Context, name string) (*model.Account, error) {
+	acc, err := as.repo.GetAccountByName(ctx, name)
 	if err != nil {
 		if errors.Is(err, store.ErrRecordNotFound) {
 			return nil, fmt.Errorf("account %q: %w", name, ErrNotFound)
@@ -37,16 +38,16 @@ func (as *AccountService) GetAccountByName(name string) (*model.Account, error) 
 	return acc, nil
 }
 
-func (as *AccountService) GetAccountsByType(accType model.AccountType) ([]*model.Account, error) {
-	return as.repo.GetAccountsByType(accType)
+func (as *AccountService) GetAccountsByType(ctx context.Context, accType model.AccountType) ([]*model.Account, error) {
+	return as.repo.GetAccountsByType(ctx, accType)
 }
 
-func (as *AccountService) GetAccountBalance(accountID int64) (int64, error) {
-	return as.repo.GetAccountBalance(accountID)
+func (as *AccountService) GetAccountBalance(ctx context.Context, accountID int64) (int64, error) {
+	return as.repo.GetAccountBalance(ctx, accountID)
 }
 
-func (as *AccountService) GetAccountBalanceFormatted(accountID int64) (string, error) {
-	balance, err := as.repo.GetAccountBalance(accountID)
+func (as *AccountService) GetAccountBalanceFormatted(ctx context.Context, accountID int64) (string, error) {
+	balance, err := as.repo.GetAccountBalance(ctx, accountID)
 	if err != nil {
 		return "", err
 	}
@@ -62,12 +63,12 @@ func (as *AccountService) GetRootNameByType(accType string) (string, error) {
 	return name, nil
 }
 
-func (as *AccountService) CheckAccountExists(name string) (bool, error) {
-	return as.repo.AccountExists(name)
+func (as *AccountService) CheckAccountExists(ctx context.Context, name string) (bool, error) {
+	return as.repo.AccountExists(ctx, name)
 }
 
-func (as *AccountService) ValidateSelectableAccount(name string, allowedTypes []string) error {
-	acc, err := as.repo.GetAccountByName(name)
+func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name string, allowedTypes []string) error {
+	acc, err := as.repo.GetAccountByName(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -89,7 +90,7 @@ func (as *AccountService) ValidateSelectableAccount(name string, allowedTypes []
 		return fmt.Errorf("account %q is hidden", name)
 	}
 
-	hasChildren, err := as.repo.HasChildAccounts(acc.ID)
+	hasChildren, err := as.repo.HasChildAccounts(ctx, acc.ID)
 	if err != nil {
 		return err
 	}
@@ -100,8 +101,8 @@ func (as *AccountService) ValidateSelectableAccount(name string, allowedTypes []
 	return nil
 }
 
-func (as *AccountService) UpdateAccountMetadata(accountID int64, description string, isHidden bool) error {
-	acc, err := as.repo.GetAccountByID(accountID)
+func (as *AccountService) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) error {
+	acc, err := as.repo.GetAccountByID(ctx, accountID)
 	if err != nil {
 		return err
 	}
@@ -110,5 +111,5 @@ func (as *AccountService) UpdateAccountMetadata(accountID int64, description str
 		return fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
 	}
 
-	return as.repo.UpdateAccountMetadata(accountID, description, isHidden)
+	return as.repo.UpdateAccountMetadata(ctx, accountID, description, isHidden)
 }

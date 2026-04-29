@@ -1,6 +1,7 @@
 package account
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -42,7 +43,7 @@ Example:
 				view:            views.NewAccountCreateView(),
 			}
 
-			return runner.Run(flags, cmd)
+			return runner.Run(cmd.Context(), flags, cmd)
 		},
 	}
 	cmd.Flags().StringVarP(&flags.Name, "name", "n", "", "Account name")
@@ -56,7 +57,7 @@ Example:
 	return cmd
 }
 
-func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
+func (r *createRunner) Run(ctx context.Context, flags *createFlags, cmd *cobra.Command) error {
 	hasFlags := cmd.Flags().Changed("name") ||
 		cmd.Flags().Changed("type") ||
 		cmd.Flags().Changed("parent") || cmd.Flags().Changed("balance") ||
@@ -70,9 +71,9 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 	var err error
 
 	if hasFlags {
-		input, err = r.runFromFlags(flags)
+		input, err = r.runFromFlags(ctx, flags)
 	} else {
-		input, err = r.runInteractive()
+		input, err = r.runInteractive(ctx)
 	}
 	if err != nil {
 		if errors.Is(err, service.ErrAlreadyExists) {
@@ -85,13 +86,13 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 		return err
 	}
 
-	newAccount, err := r.createAccount(input)
+	newAccount, err := r.createAccount(ctx, input)
 	if err != nil {
 		return err
 	}
 
 	if flags.JSON {
-		bal, err := r.accSvc.GetAccountBalance(newAccount.ID)
+		bal, err := r.accSvc.GetAccountBalance(ctx, newAccount.ID)
 		if err != nil {
 			return err
 		}
@@ -101,7 +102,7 @@ func (r *createRunner) Run(flags *createFlags, cmd *cobra.Command) error {
 	return nil
 }
 
-func (r *createRunner) runFromFlags(flags *createFlags) (createInput, error) {
+func (r *createRunner) runFromFlags(ctx context.Context, flags *createFlags) (createInput, error) {
 	if flags.Parent == "" && flags.Type == "" {
 		return createInput{}, fmt.Errorf("must enter at least one of --type or --parent flag")
 	}
@@ -117,7 +118,7 @@ func (r *createRunner) runFromFlags(flags *createFlags) (createInput, error) {
 	input.description = flags.Description
 
 	if flags.Parent != "" {
-		if err := r.buildFromParentName(flags.Parent, flags.Currency, &input); err != nil {
+		if err := r.buildFromParentName(ctx, flags.Parent, flags.Currency, &input); err != nil {
 			return createInput{}, err
 		}
 	} else {
@@ -142,7 +143,7 @@ func (r *createRunner) runFromFlags(flags *createFlags) (createInput, error) {
 	return input, nil
 }
 
-func (r *createRunner) runInteractive() (createInput, error) {
+func (r *createRunner) runInteractive(ctx context.Context) (createInput, error) {
 	var input createInput
 
 	isSubAccount, err := prompts.PromptIsSubAccount()
@@ -151,11 +152,11 @@ func (r *createRunner) runInteractive() (createInput, error) {
 	}
 
 	if isSubAccount {
-		parentAccount, err := r.promptParent()
+		parentAccount, err := r.promptParent(ctx)
 		if err != nil {
 			return createInput{}, err
 		}
-		nameInput, err := r.promptName(parentAccount.Name)
+		nameInput, err := r.promptName(ctx, parentAccount.Name)
 		if err != nil {
 			return createInput{}, err
 		}
@@ -170,11 +171,11 @@ func (r *createRunner) runInteractive() (createInput, error) {
 		if err != nil {
 			return createInput{}, err
 		}
-		nameInput, err := r.promptName(rootName)
+		nameInput, err := r.promptName(ctx, rootName)
 		if err != nil {
 			return createInput{}, err
 		}
-		if err := r.applyTypeSettings(rootName, accType, "", &input); err != nil {
+		if err := r.applyTypeSettings(accType, "", &input); err != nil {
 			return createInput{}, err
 		}
 		input.fullName = r.accSvc.FormatAccountName(rootName, nameInput)

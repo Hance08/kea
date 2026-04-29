@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 )
 
 // run is the main entry point called by the cobra command.
-func (r *reportRunner) run() error {
+func (r *reportRunner) run(ctx context.Context) error {
 	reportType := r.flags.Type
 	if reportType == "" {
 		reportType = "is"
@@ -17,39 +18,39 @@ func (r *reportRunner) run() error {
 
 	switch reportType {
 	case "is":
-		return r.runIncomeStatement()
+		return r.runIncomeStatement(ctx)
 	case "ib":
-		return r.runIncomeBreakdown()
+		return r.runIncomeBreakdown(ctx)
 	case "eb":
-		return r.runExpenseBreakdown()
+		return r.runExpenseBreakdown(ctx)
 	case "bs":
-		return r.runBalanceSheet()
+		return r.runBalanceSheet(ctx)
 	default:
 		return fmt.Errorf("unknown report type %q — use: is, ib, eb, bs", reportType)
 	}
 }
 
-func (r *reportRunner) runIncomeStatement() error {
+func (r *reportRunner) runIncomeStatement(ctx context.Context) error {
 	start, end, period, err := r.resolveDateRange()
 	if err != nil {
 		return err
 	}
 
-	result, err := r.provider.GenerateIncomeStatement(start, end)
+	result, err := r.provider.GenerateIncomeStatement(ctx, start, end)
 	if err != nil {
 		return fmt.Errorf("failed to generate income statement: %w", err)
 	}
 
 	result.Period = period
 
-	currentNetWorth, err := r.provider.GetNetWorthAt(end)
+	currentNetWorth, err := r.provider.GetNetWorthAt(ctx, end)
 	if err != nil {
 		return fmt.Errorf("failed to fetch net worth for current period: %w", err)
 	}
 	result.NetWorth = currentNetWorth
 
 	_, prevEnd := previousPeriodRange(start, end)
-	previousNetWorth, err := r.provider.GetNetWorthAt(prevEnd)
+	previousNetWorth, err := r.provider.GetNetWorthAt(ctx, prevEnd)
 	if err != nil {
 		return fmt.Errorf("failed to fetch net worth for previous period: %w", err)
 	}
@@ -59,13 +60,13 @@ func (r *reportRunner) runIncomeStatement() error {
 	return r.view.RenderIncomeStatement(result)
 }
 
-func (r *reportRunner) runExpenseBreakdown() error {
+func (r *reportRunner) runExpenseBreakdown(ctx context.Context) error {
 	start, end, period, err := r.resolveDateRange()
 	if err != nil {
 		return err
 	}
 
-	result, err := r.provider.GenerateExpenseBreakdown(start, end)
+	result, err := r.provider.GenerateExpenseBreakdown(ctx, start, end)
 	if err != nil {
 		return fmt.Errorf("failed to generate expense breakdown: %w", err)
 	}
@@ -74,13 +75,13 @@ func (r *reportRunner) runExpenseBreakdown() error {
 	return r.view.RenderExpenseBreakdown(result)
 }
 
-func (r *reportRunner) runIncomeBreakdown() error {
+func (r *reportRunner) runIncomeBreakdown(ctx context.Context) error {
 	start, end, period, err := r.resolveDateRange()
 	if err != nil {
 		return err
 	}
 
-	result, err := r.provider.GenerateIncomeBreakdown(start, end)
+	result, err := r.provider.GenerateIncomeBreakdown(ctx, start, end)
 	if err != nil {
 		return fmt.Errorf("failed to generate income breakdown: %w", err)
 	}
@@ -89,13 +90,13 @@ func (r *reportRunner) runIncomeBreakdown() error {
 	return r.view.RenderIncomeBreakdown(result)
 }
 
-func (r *reportRunner) runBalanceSheet() error {
+func (r *reportRunner) runBalanceSheet(ctx context.Context) error {
 	_, end, _, err := r.resolveDateRange()
 	if err != nil {
 		return err
 	}
 
-	result, err := r.provider.GenerateBalanceSheet(end)
+	result, err := r.provider.GenerateBalanceSheet(ctx, end)
 	if err != nil {
 		return fmt.Errorf("failed to generate balance sheet: %w", err)
 	}

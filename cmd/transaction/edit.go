@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -31,12 +32,12 @@ func NewEditCmd(svc *service.Service) *cobra.Command {
 				accSvc: svc.Account(),
 				view:   views.NewTransactionEditView(),
 			}
-			return runner.Run(args)
+			return runner.Run(cmd.Context(), args)
 		},
 	}
 }
 
-func (r *editRunner) Run(args []string) error {
+func (r *editRunner) Run(ctx context.Context, args []string) error {
 	id, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil {
 		return fmt.Errorf("invalid transaction ID '%s': %w", args[0], err)
@@ -44,7 +45,7 @@ func (r *editRunner) Run(args []string) error {
 	r.txID = id
 
 	// Fetch Data
-	detail, err := r.txSvc.GetTransactionByID(r.txID)
+	detail, err := r.txSvc.GetTransactionByID(ctx, r.txID)
 	if err != nil {
 		r.view.ShowError("Failed to get transaction", err)
 		return nil
@@ -65,12 +66,12 @@ func (r *editRunner) Run(args []string) error {
 		return err
 	}
 
-	return r.runEditMenu(detail)
+	return r.runEditMenu(ctx, detail)
 }
 
-func (r *editRunner) runEditMenu(detail *model.TransactionDetail) error {
+func (r *editRunner) runEditMenu(ctx context.Context, detail *model.TransactionDetail) error {
 	for {
-		items := r.getAvailableMenuItems(detail)
+		items := r.getAvailableMenuItems(ctx, detail)
 
 		var options []string
 		itemMap := make(map[string]menuItem)
@@ -95,7 +96,7 @@ func (r *editRunner) runEditMenu(detail *model.TransactionDetail) error {
 	}
 }
 
-func (r *editRunner) getAvailableMenuItems(detail *model.TransactionDetail) []menuItem {
+func (r *editRunner) getAvailableMenuItems(ctx context.Context, detail *model.TransactionDetail) []menuItem {
 	allActions := []menuItem{
 		{
 			Label:  OptBasicInfo,
@@ -104,12 +105,16 @@ func (r *editRunner) getAvailableMenuItems(detail *model.TransactionDetail) []me
 		{
 			Label:     OptChangeType,
 			Condition: func(d *model.TransactionDetail) bool { return d.Type != model.TxTypeOpening },
-			Action:    r.actionEditType,
+			Action: func(d *model.TransactionDetail) error {
+				return r.actionEditType(ctx, d)
+			},
 		},
 		{
 			Label:     OptQuickAccount,
 			Condition: func(d *model.TransactionDetail) bool { return len(d.Splits) == 2 },
-			Action:    r.actionQuickChangeAccount,
+			Action: func(d *model.TransactionDetail) error {
+				return r.actionQuickChangeAccount(ctx, d)
+			},
 		},
 		{
 			Label:     OptQuickAmount,
@@ -117,13 +122,15 @@ func (r *editRunner) getAvailableMenuItems(detail *model.TransactionDetail) []me
 			Action:    r.actionQuickChangeAmount,
 		},
 		{
-			Label:  OptEditSplits,
-			Action: r.runSplitsMenu,
+			Label: OptEditSplits,
+			Action: func(d *model.TransactionDetail) error {
+				return r.runSplitsMenu(ctx, d)
+			},
 		},
 		{
 			Label: OptSave,
 			Action: func(d *model.TransactionDetail) error {
-				if err := r.actionSave(d); err != nil {
+				if err := r.actionSave(ctx, d); err != nil {
 					r.view.ShowError("Cannot save", err)
 					r.view.ShowWarning("Please fix the errors before saving")
 					return nil

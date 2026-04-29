@@ -17,7 +17,7 @@ import (
 // 3. Resolving account names to IDs and determining the appropriate currency.
 // 4. Verifying that the total amount of all splits balances to zero.
 // 5. executing the write operation within an atomic database transaction.
-func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (int64, error) {
+func (ts *TransactionService) CreateTransaction(ctx context.Context, input model.TransactionDetail) (int64, error) {
 	defaultCurrency := ts.config.Defaults.Currency
 
 	// Validate: According to double-entry bookkeeping principles,
@@ -41,7 +41,7 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 
 	for i, splitInput := range input.Splits {
 		// Step 1: Validate account existence and retrieve account details.
-		account, err := ts.accRepo.GetAccountByName(splitInput.AccountName)
+		account, err := ts.accRepo.GetAccountByName(ctx, splitInput.AccountName)
 		if err != nil {
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
@@ -61,7 +61,7 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 		})
 	}
 
-	if err := ts.ValidateSplitsMatchType(input.Type, input.Splits); err != nil {
+	if err := ts.ValidateSplitsMatchType(ctx, input.Type, input.Splits); err != nil {
 		return 0, fmt.Errorf("splits do not match transaction type %q: %w", input.Type, err)
 	}
 
@@ -82,10 +82,10 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 
 	// Execute Database Transaction:
 	// Ensure atomicity when writing the transaction and its splits.
-	err := ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
+	err := ts.tm.ExecTx(ctx, func(repo repository.Repository) error {
 		var err error
 
-		newTxID, err = repo.CreateTransactionWithSplits(tx, splits)
+		newTxID, err = repo.CreateTransactionWithSplits(ctx, tx, splits)
 		if err != nil {
 			return fmt.Errorf("failed to create transaction: %w", err)
 		}
@@ -108,7 +108,7 @@ func (ts *TransactionService) CreateTransaction(input model.TransactionDetail) (
 //
 // If txType is empty, it is inferred from the account types via DetermineType.
 // Returns the constructed TransactionDetail (useful for UI rendering).
-func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
+func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
 	if fromAccount == toAccount {
 		return model.TransactionDetail{}, fmt.Errorf("source and destination accounts cannot be the same")
 	}
@@ -118,15 +118,15 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 
 	// If no type provided, infer from account types.
 	if txType == "" {
-		fromAcc, err := ts.accRepo.GetAccountByName(fromAccount)
+		fromAcc, err := ts.accRepo.GetAccountByName(ctx, fromAccount)
 		if err != nil {
 			return model.TransactionDetail{}, fmt.Errorf("failed to resolve from account: %w", err)
 		}
-		toAcc, err := ts.accRepo.GetAccountByName(toAccount)
+		toAcc, err := ts.accRepo.GetAccountByName(ctx, toAccount)
 		if err != nil {
 			return model.TransactionDetail{}, fmt.Errorf("failed to resolve to account: %w", err)
 		}
-		inferred, err := ts.DetermineType([]model.SplitDetail{
+		inferred, err := ts.DetermineType(ctx, []model.SplitDetail{
 			{AccountType: toAcc.Type, Amount: amount},
 			{AccountType: fromAcc.Type, Amount: -amount},
 		})
@@ -147,7 +147,7 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 		Type:        txType,
 		Splits:      splits,
 	}
-	id, err := ts.CreateTransaction(input)
+	id, err := ts.CreateTransaction(ctx, input)
 	if err != nil {
 		return model.TransactionDetail{}, err
 	}
@@ -159,6 +159,7 @@ func (ts *TransactionService) CreateSimpleTransaction(fromAccount, toAccount str
 // All validation (balance, type match, ≥2 splits, account resolution) is handled
 // by CreateTransaction.
 func (ts *TransactionService) CreateTransactionFromSplits(
+	ctx context.Context,
 	splits []model.SplitDetail,
 	desc string,
 	timestamp int64,
@@ -172,7 +173,7 @@ func (ts *TransactionService) CreateTransactionFromSplits(
 		Type:        txType,
 		Splits:      splits,
 	}
-	id, err := ts.CreateTransaction(input)
+	id, err := ts.CreateTransaction(ctx, input)
 	if err != nil {
 		return model.TransactionDetail{}, err
 	}
@@ -181,12 +182,12 @@ func (ts *TransactionService) CreateTransactionFromSplits(
 }
 
 // DeleteTransaction deletes a transaction
-func (ts *TransactionService) DeleteTransaction(txID int64) error {
+func (ts *TransactionService) DeleteTransaction(ctx context.Context, txID int64) error {
 	if txID == model.SystemTransactionID {
 		return fmt.Errorf("cannot delete the initial opening transaction: %w", ErrNotEditable)
 	}
 
-	tx, err := ts.txRepo.GetTransactionByID(txID)
+	tx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}
@@ -194,12 +195,12 @@ func (ts *TransactionService) DeleteTransaction(txID int64) error {
 	if tx.Status == model.StatusReconciled {
 		return fmt.Errorf("transaction #%d cannot be deleted: %w", tx.ID, ErrReconciled)
 	}
-	return ts.txRepo.DeleteTransaction(txID)
+	return ts.txRepo.DeleteTransaction(ctx, txID)
 }
 
 // UpdateTransactionStatus updates the lifecycle state of a transaction identified by its ID.
 // It validates that the provided status is a legal value (Pending or Cleared) before persisting.
-func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.TransactionStatus) error {
+func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID int64, status model.TransactionStatus) error {
 
 	// Business Rule: Restrict status updates to valid enum constant to ensure data integrity.
 	if status != model.StatusPending && status != model.StatusCleared {
@@ -210,7 +211,7 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 		return fmt.Errorf("transaction #%d cannot be modified: %w", txID, ErrNotEditable)
 	}
 
-	oldTx, err := ts.txRepo.GetTransactionByID(txID)
+	oldTx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
@@ -219,12 +220,12 @@ func (ts *TransactionService) UpdateTransactionStatus(txID int64, status model.T
 		return fmt.Errorf("transaction #%d cannot be modified: %w", txID, ErrReconciled)
 	}
 
-	return ts.txRepo.UpdateTransactionStatus(txID, status)
+	return ts.txRepo.UpdateTransactionStatus(ctx, txID, status)
 }
 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
-func (ts *TransactionService) UpdateTransactionComplete(txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error {
+func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error {
 	// Validate status
 	if status != model.StatusPending && status != model.StatusCleared && status != model.StatusReconciled {
 		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
@@ -234,7 +235,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("cannot modify the initial opening transaction: %w", ErrNotEditable)
 	}
 
-	oldTx, err := ts.txRepo.GetTransactionByID(txID)
+	oldTx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
@@ -257,24 +258,24 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		return fmt.Errorf("splits must balance to zero (current sum: %d)", total)
 	}
 
-	if err := ts.ValidateSplitsMatchType(txType, splits); err != nil {
+	if err := ts.ValidateSplitsMatchType(ctx, txType, splits); err != nil {
 		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
 	}
 
 	// Validate all accounts exist
 	for _, split := range splits {
-		_, err := ts.accRepo.GetAccountByID(split.AccountID)
+		_, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
 		if err != nil {
 			return fmt.Errorf("account ID %d not found", split.AccountID)
 		}
 	}
 
-	return ts.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
-		if err := repo.UpdateTransactionBasic(txID, description, timestamp, status, txType); err != nil {
+	return ts.tm.ExecTx(ctx, func(repo repository.Repository) error {
+		if err := repo.UpdateTransactionBasic(ctx, txID, description, timestamp, status, txType); err != nil {
 			return err
 		}
 
-		existingSplits, err := repo.GetSplitsByTransaction(txID)
+		existingSplits, err := repo.GetSplitsByTransaction(ctx, txID)
 		if err != nil {
 			return err
 		}
@@ -294,7 +295,7 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 		// Delete splits that are no longer present
 		for id := range existingSplitMap {
 			if !newSplitMap[id] {
-				if err := repo.DeleteSplit(id); err != nil {
+				if err := repo.DeleteSplit(ctx, id); err != nil {
 					return fmt.Errorf("failed to delete split: %w", err)
 				}
 			}
@@ -311,13 +312,13 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 					Currency:      split.Currency,
 					Memo:          split.Memo,
 				}
-				_, err := repo.CreateSplit(txID, newSplit)
+				_, err := repo.CreateSplit(ctx, txID, newSplit)
 				if err != nil {
 					return err
 				}
 			} else {
 				// Update existing split
-				if err := repo.UpdateSplit(split.ID, split.AccountID, split.Amount, split.Currency, split.Memo); err != nil {
+				if err := repo.UpdateSplit(ctx, split.ID, split.AccountID, split.Amount, split.Currency, split.Memo); err != nil {
 					return err
 				}
 			}
@@ -330,9 +331,9 @@ func (ts *TransactionService) UpdateTransactionComplete(txID int64, description 
 type NotEditableReason int
 
 const (
-	EditableOK              NotEditableReason = 0 // transaction may be edited
-	NotEditableSystemTx     NotEditableReason = 1 // opening-balance system transaction
-	NotEditableReconciled   NotEditableReason = 2 // already reconciled
+	EditableOK            NotEditableReason = 0 // transaction may be edited
+	NotEditableSystemTx   NotEditableReason = 1 // opening-balance system transaction
+	NotEditableReconciled NotEditableReason = 2 // already reconciled
 )
 
 func (ts *TransactionService) IsEditable(detail *model.TransactionDetail) (bool, NotEditableReason) {

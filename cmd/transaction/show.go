@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
@@ -14,11 +15,11 @@ type ShowView interface {
 }
 
 type ShowProvider interface {
-	GetTransactionByID(txID int64) (*model.TransactionDetail, error)
+	GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error)
 }
 
 type showFlags struct {
-	JSON    bool
+	JSON bool
 }
 
 type showRunner struct {
@@ -39,20 +40,20 @@ func NewShowCmd(svc *service.Service) *cobra.Command {
 				view: views.NewTransactionDetailView(),
 				json: flags.JSON,
 			}
-			return runner.Run(args)
+			return runner.Run(cmd.Context(), args)
 		},
 	}
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
 	return cmd
 }
 
-func (r *showRunner) Run(args []string) error {
+func (r *showRunner) Run(ctx context.Context, args []string) error {
 	var txID int64
 	if _, err := fmt.Sscanf(args[0], "%d", &txID); err != nil {
 		return fmt.Errorf("invalid transaction ID: %s", args[0])
 	}
 
-	detail, err := r.svc.GetTransactionByID(txID)
+	detail, err := r.svc.GetTransactionByID(ctx, txID)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}

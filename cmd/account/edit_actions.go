@@ -1,6 +1,7 @@
 package account
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func (r *editRunner) runFromFlags(acc *model.Account, flags *editFlags, cmd *cobra.Command) (editInput, error) {
+func (r *editRunner) runFromFlags(flags *editFlags, cmd *cobra.Command) (editInput, error) {
 	var input editInput
 
 	if cmd.Flags().Changed("name") {
@@ -34,7 +35,7 @@ func (r *editRunner) runFromFlags(acc *model.Account, flags *editFlags, cmd *cob
 	return input, nil
 }
 
-func (r *editRunner) runInteractive(acc *model.Account) (editInput, error) {
+func (r *editRunner) runInteractive(ctx context.Context, acc *model.Account) (editInput, error) {
 	var input editInput
 
 	currentSegment := acc.Name
@@ -42,7 +43,7 @@ func (r *editRunner) runInteractive(acc *model.Account) (editInput, error) {
 		currentSegment = acc.Name[idx+1:]
 	}
 
-	newSegment, err := r.promptNameSegment(currentSegment, acc.Name)
+	newSegment, err := r.promptNameSegment(ctx, currentSegment, acc.Name)
 	if err != nil {
 		return editInput{}, err
 	}
@@ -90,7 +91,7 @@ func (r *editRunner) runInteractive(acc *model.Account) (editInput, error) {
 	return input, nil
 }
 
-func (r *editRunner) promptNameSegment(currentSegment, currentFullName string) (string, error) {
+func (r *editRunner) promptNameSegment(ctx context.Context, currentSegment, currentFullName string) (string, error) {
 	prefix := ""
 	if idx := strings.LastIndex(currentFullName, ":"); idx >= 0 {
 		prefix = currentFullName[:idx]
@@ -109,7 +110,7 @@ func (r *editRunner) promptNameSegment(currentSegment, currentFullName string) (
 		} else {
 			newFullName = s
 		}
-		exists, err := r.svc.CheckAccountExists(newFullName)
+		exists, err := r.svc.CheckAccountExists(ctx, newFullName)
 		if err != nil {
 			return fmt.Errorf("failed to check existence: %w", err)
 		}
@@ -142,11 +143,11 @@ func (r *editRunner) showChangeSummary(acc *model.Account, input editInput) {
 	}
 }
 
-func (r *editRunner) applyChanges(acc *model.Account, input editInput) (string, error) {
+func (r *editRunner) applyChanges(ctx context.Context, acc *model.Account, input editInput) (string, error) {
 	finalName := acc.Name
 
 	if input.newName != nil {
-		if err := r.svc.RenameAccount(acc.Name, *input.newName); err != nil {
+		if err := r.svc.RenameAccount(ctx, acc.Name, *input.newName); err != nil {
 			return "", fmt.Errorf("failed to rename account: %w", err)
 		}
 		if idx := strings.LastIndex(acc.Name, ":"); idx >= 0 {
@@ -165,7 +166,7 @@ func (r *editRunner) applyChanges(acc *model.Account, input editInput) (string, 
 		if input.isHidden != nil {
 			hidden = *input.isHidden
 		}
-		if err := r.svc.UpdateAccountMetadata(acc.ID, desc, hidden); err != nil {
+		if err := r.svc.UpdateAccountMetadata(ctx, acc.ID, desc, hidden); err != nil {
 			return "", fmt.Errorf("failed to update account: %w", err)
 		}
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/hance08/kea/internal/store"
 )
 
-func (as *AccountService) CreateAccount(name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
+func (as *AccountService) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
 	if err := as.ValidateFullAccountName(name); err != nil {
 		return nil, fmt.Errorf("invalid account name: %w", err)
 	}
@@ -23,7 +23,7 @@ func (as *AccountService) CreateAccount(name string, accType model.AccountType, 
 		return nil, fmt.Errorf("invalid account type: %s", accType)
 	}
 
-	newID, err := as.repo.CreateAccount(name, accType, currency, description, parentID)
+	newID, err := as.repo.CreateAccount(ctx, name, accType, currency, description, parentID)
 	if err != nil {
 		if errors.Is(err, store.ErrAccountExists) {
 			return nil, fmt.Errorf("account %q: %w", name, ErrAlreadyExists)
@@ -42,14 +42,14 @@ func (as *AccountService) CreateAccount(name string, accType model.AccountType, 
 	}, nil
 }
 
-func (as *AccountService) CreateAccountWithBalance(name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
-	account, err := as.CreateAccount(name, accType, currency, description, parentID)
+func (as *AccountService) CreateAccountWithBalance(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
+	account, err := as.CreateAccount(ctx, name, accType, currency, description, parentID)
 	if err != nil {
 		return nil, err
 	}
 
 	if balance != 0 {
-		if err := as.createOpeningBalance(account, balance); err != nil {
+		if err := as.createOpeningBalance(ctx, account, balance); err != nil {
 			return account, fmt.Errorf("account created but failed to set opening balance: %w", err)
 		}
 	}
@@ -57,7 +57,7 @@ func (as *AccountService) CreateAccountWithBalance(name string, accType model.Ac
 	return account, nil
 }
 
-func (as *AccountService) createOpeningBalance(account *model.Account, amountInCents int64) error {
+func (as *AccountService) createOpeningBalance(ctx context.Context, account *model.Account, amountInCents int64) error {
 	currency := account.Currency
 	if currency == "" {
 		currency = as.config.Defaults.Currency
@@ -84,16 +84,17 @@ func (as *AccountService) createOpeningBalance(account *model.Account, amountInC
 		Type:        model.TxTypeOpening,
 	}
 
-	return as.tm.ExecTx(context.Background(), func(repo repository.Repository) error {
+	return as.tm.ExecTx(ctx, func(repo repository.Repository) error {
 		// repo is the raw repository.Repository passed by ExecTx, not AccountService,
 		// so GetAccountByName here returns store.ErrRecordNotFound directly (no service translation).
-		equityAcc, err := repo.GetAccountByName(equityAccountName)
+		equityAcc, err := repo.GetAccountByName(ctx, equityAccountName)
 		if err != nil {
 			if !errors.Is(err, store.ErrRecordNotFound) {
 				return fmt.Errorf("failed to look up %q: %w", equityAccountName, err)
 			}
 			// not found — create it
 			newID, createErr := repo.CreateAccount(
+				ctx,
 				equityAccountName,
 				model.AccountTypeEquity,
 				currency,
@@ -110,13 +111,13 @@ func (as *AccountService) createOpeningBalance(account *model.Account, amountInC
 			{AccountID: account.ID, Amount: balanceAmount, Currency: currency, Memo: model.OpeningAccountMemo},
 			{AccountID: equityAcc.ID, Amount: equityAmount, Currency: currency, Memo: model.OpeningAccountMemo},
 		}
-		_, err = repo.CreateTransactionWithSplits(tx, splits)
+		_, err = repo.CreateTransactionWithSplits(ctx, tx, splits)
 		return err
 	})
 }
 
-func (as *AccountService) DeleteAccountByName(name string) error {
-	acc, err := as.repo.GetAccountByName(name)
+func (as *AccountService) DeleteAccountByName(ctx context.Context, name string) error {
+	acc, err := as.repo.GetAccountByName(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -125,7 +126,7 @@ func (as *AccountService) DeleteAccountByName(name string) error {
 		return fmt.Errorf("account %q is a system account and cannot be deleted: %w", acc.Name, ErrNotEditable)
 	}
 
-	hasChildren, err := as.repo.HasChildAccounts(acc.ID)
+	hasChildren, err := as.repo.HasChildAccounts(ctx, acc.ID)
 	if err != nil {
 		return err
 	}
@@ -133,7 +134,7 @@ func (as *AccountService) DeleteAccountByName(name string) error {
 		return fmt.Errorf("account %q has child accounts; delete or move them first", acc.Name)
 	}
 
-	hasTransactions, err := as.repo.AccountHasTransactions(acc.ID)
+	hasTransactions, err := as.repo.AccountHasTransactions(ctx, acc.ID)
 	if err != nil {
 		return err
 	}
@@ -141,7 +142,7 @@ func (as *AccountService) DeleteAccountByName(name string) error {
 		return fmt.Errorf("account %q has transactions and cannot be deleted", acc.Name)
 	}
 
-	return as.repo.DeleteAccount(acc.ID)
+	return as.repo.DeleteAccount(ctx, acc.ID)
 }
 
 func (as *AccountService) FormatAccountName(prefix, name string) string {
@@ -151,8 +152,8 @@ func (as *AccountService) FormatAccountName(prefix, name string) string {
 	return prefix + ":" + name
 }
 
-func (as *AccountService) RenameAccount(oldName, newSegment string) error {
-	acc, err := as.repo.GetAccountByName(oldName)
+func (as *AccountService) RenameAccount(ctx context.Context, oldName, newSegment string) error {
+	acc, err := as.repo.GetAccountByName(ctx, oldName)
 	if err != nil {
 		return err
 	}
@@ -172,7 +173,7 @@ func (as *AccountService) RenameAccount(oldName, newSegment string) error {
 		newFullName = newSegment
 	}
 
-	exists, err := as.repo.AccountExists(newFullName)
+	exists, err := as.repo.AccountExists(ctx, newFullName)
 	if err != nil {
 		return err
 	}
@@ -180,5 +181,5 @@ func (as *AccountService) RenameAccount(oldName, newSegment string) error {
 		return fmt.Errorf("account %q already exists", newFullName)
 	}
 
-	return as.repo.RenameAccount(acc.Name, newFullName)
+	return as.repo.RenameAccount(ctx, acc.Name, newFullName)
 }

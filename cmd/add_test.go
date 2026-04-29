@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
@@ -22,14 +23,14 @@ func (m *mockTransactionProvider) GetTransactionRule(mode model.TransactionType)
 	return model.TransactionRule{}, nil
 }
 
-func (m *mockTransactionProvider) CreateSimpleTransaction(fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
+func (m *mockTransactionProvider) CreateSimpleTransaction(_ context.Context, fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
 	if m.createSimpleErr != nil {
 		return model.TransactionDetail{}, m.createSimpleErr
 	}
 	return model.TransactionDetail{}, nil
 }
 
-func (m *mockTransactionProvider) CreateTransactionFromSplits(splits []model.SplitDetail, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
+func (m *mockTransactionProvider) CreateTransactionFromSplits(_ context.Context, splits []model.SplitDetail, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
 	m.lastSplitsInput = splits
 	if m.createSplitsErr != nil {
 		return model.TransactionDetail{}, m.createSplitsErr
@@ -95,7 +96,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 			Description: "team lunch",
 			Splits:      []string{"Assets:Bank=-1000", "Expenses:Food=1000"},
 		}
-		input, err := runner.runFromFlags(flags)
+		input, err := runner.runFromFlags(context.Background(), flags)
 		require.NoError(t, err)
 		require.Len(t, input.Splits, 2)
 		assert.Equal(t, "Assets:Bank", input.Splits[0].AccountName)
@@ -111,7 +112,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 			Type:   "expense",
 			Splits: []string{"Assets:Bank:Bank1=-1000", "Assets:Bank:Bank2=-1000", "Expenses:Food:Lunch=2000"},
 		}
-		input, err := runner.runFromFlags(flags)
+		input, err := runner.runFromFlags(context.Background(), flags)
 		require.NoError(t, err)
 		assert.Len(t, input.Splits, 3)
 		assert.Equal(t, int64(200000), input.Splits[2].Amount)
@@ -121,7 +122,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 		flags := &addFlags{
 			Splits: []string{"Assets:Bank=-1000", "Expenses:Food=1000"},
 		}
-		_, err := runner.runFromFlags(flags)
+		_, err := runner.runFromFlags(context.Background(), flags)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "--type is required")
 	})
@@ -131,7 +132,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 			Type:   "expense",
 			Splits: []string{"Assets:Bank=-1000"},
 		}
-		_, err := runner.runFromFlags(flags)
+		_, err := runner.runFromFlags(context.Background(), flags)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least 2")
 	})
@@ -141,7 +142,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 			Type:   "bogus",
 			Splits: []string{"Assets:Bank=-1000", "Expenses:Food=1000"},
 		}
-		_, err := runner.runFromFlags(flags)
+		_, err := runner.runFromFlags(context.Background(), flags)
 		require.Error(t, err)
 	})
 
@@ -150,7 +151,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 			Type:   "expense",
 			Splits: []string{"Assets:Bank=-1000", "Expenses:Food"},
 		}
-		_, err := runner.runFromFlags(flags)
+		_, err := runner.runFromFlags(context.Background(), flags)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "expected format")
 	})
@@ -160,7 +161,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 			Type:   "expense",
 			Splits: []string{"Assets:Bank=-500", "Expenses:Food=500"},
 		}
-		input, err := runner.runFromFlags(flags)
+		input, err := runner.runFromFlags(context.Background(), flags)
 		require.NoError(t, err)
 		assert.Equal(t, "-", input.Description)
 	})

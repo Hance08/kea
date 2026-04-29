@@ -29,25 +29,29 @@ KEA is a CLI/TUI personal double-entry accounting tool. The layers are:
 
 ```
 cmd/              Cobra commands → call service methods
+  cmd/ledger/     Ledger management subcommands (add/list/switch/remove)
 internal/app/     Wires service + store (entry point for dependency injection)
-internal/service/ Business logic (AccountService, TransactionService, report)
-internal/store/   SQLite implementation of repository interfaces
+internal/service/ Business logic (AccountService, TransactionService, report, reconcile)
+internal/store/   SQLite implementation of repository interfaces (sqlite*.go)
 internal/model/   Domain types only (no business logic)
 internal/repository/interfaces.go  Contracts between service and store
+internal/config/  Config struct + defaults (loaded by cmd/root.go via viper)
+internal/ledger/  Ledger registry (multiple named DBs, active selection)
+internal/backup/  Pre-startup DB backup
 internal/utils/   Pure helpers (amount formatting/parsing)
 ui/               charmbracelet/huh prompts and pterm views
 migrations/       golang-migrate SQL files embedded via FS
 ```
 
-**Service facade:** `service.Service` embeds `*AccountService` and `*TransactionService`. Access via `svc.Account()` and `svc.Transaction()`. Report methods live directly on `TransactionService`.
+**Service facade:** `service.Service` holds unexported `*AccountService` and `*TransactionService` fields plus a `*config.Config`. Access via `svc.Account()`, `svc.Transaction()`, `svc.Config()`. Report and reconcile methods live directly on `TransactionService`.
 
-**Repository interfaces** (`internal/repository/interfaces.go`):
+**Repository interfaces** (`internal/repository/interfaces.go`): every method takes `context.Context` as its first argument.
 - `AccountRepository` — account CRUD and balance queries
-- `TransactionRepository` — transaction/split CRUD and bulk date-range queries for reports
+- `TransactionRepository` — transaction/split CRUD, bulk date-range queries for reports, and reconcile-state operations (`GetUnreconciledTransactionsByAccount`, `MarkSplitsReconciledByAccount`, `BulkUpdateTransactionStatus`, `GetLastReconciledBalance`, `SetLastReconciledBalance`)
 - `Repository` — combines both
 - `TransactionManager` — `ExecTx(ctx, fn(Repository) error)` for atomic multi-step operations
 
-**Store** (`internal/store/`): `SQLite` implements `Repository` + `TransactionManager`. The `DBTX` interface abstracts `*sql.DB` and `*sql.Tx` so queries work in both contexts.
+**Store** (`internal/store/`): the `Store` struct implements `Repository` + `TransactionManager`. The `DBTX` interface uses the `*Context` method set (`ExecContext`, `QueryContext`, `QueryRowContext`, `PrepareContext`) so the same queries work over both `*sql.DB` and `*sql.Tx`. All store methods thread `context.Context`; do not call non-context `database/sql` methods.
 
 ## Key Domain Rules
 
@@ -61,9 +65,9 @@ migrations/       golang-migrate SQL files embedded via FS
 - Asset account: asset split = +amount, equity split = -amount
 - Liability account: liability split = -amount, equity split = +amount
 
-**Protected records:** Transaction ID 1 (`OpeningBalanceTransactionID`) and reconciled transactions are immutable. Operations on them return `ErrNotEditable` or `ErrReconciled` (both wrapped with `%w` — check with `errors.Is`).
+**Protected records:** Transaction ID 1 (`model.SystemTransactionID`) and reconciled transactions are immutable. Operations on them return `ErrNotEditable` or `ErrReconciled` (both wrapped with `%w` — check with `errors.Is`).
 
-**System account:** `"Equity:OpeningBalances"` must not be deleted.
+**System account:** per-currency, named `Equity:OpeningBalances_<CCY>` (e.g. `Equity:OpeningBalances_USD`). Use `model.OpeningBalancesAccountName(currency)` to build the name and `model.IsOpeningBalancesAccount(name)` to detect one. The legacy single name `Equity:OpeningBalances` is auto-renamed at startup by `migrateLegacySysAcc` (`cmd/root.go`). System accounts must not be deleted.
 
 ## Testing
 

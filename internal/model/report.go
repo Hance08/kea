@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026  Hance Chin
+
 package model
 
 // ReportRow represents a single account line in a report.

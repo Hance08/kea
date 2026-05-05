@@ -99,9 +99,11 @@ const (
 	ModeIncome   = "Income"
 	ModeTransfer = "Transfer"
 
-	DateFormat                        = "2006-01-02"
+	DateFormat                = "2006-01-02"
 	SystemTransactionID int64 = 1
-	MinSplitsCount                    = 2
+	MinSplitsCount            = 2
+
+	LegacyOpeningBalancesName = "Equity:OpeningBalances"
 )
 
 func OpeningBalancesAccountName(currency string) string {

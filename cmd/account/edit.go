@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/views"
 	"github.com/pterm/pterm"
@@ -55,6 +56,10 @@ func (r *editRunner) Run(ctx context.Context, accName string, flags *editFlags, 
 	acc, err := r.svc.GetAccountByName(ctx, accName)
 	if err != nil {
 		return fmt.Errorf("account not found: %w", err)
+	}
+
+	if model.IsOpeningBalancesAccount(acc.Name) {
+		return fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, service.ErrNotEditable)
 	}
 
 	hasFlags := cmd.Flags().Changed("name") || cmd.Flags().Changed("desc") ||

@@ -164,15 +164,25 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	return nil
 }
 
+type accountRenamer interface {
+	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
+	RenameAccount(ctx context.Context, oldName, newSegment string) error
+}
+
 // migrateLegacySysAcc renames the legacy "Equity:OpeningBalances" account to
 // "Equity:OpeningBalances_<currency>" the first time a user upgrades.
 // It is a no-op when the legacy account does not exist.
 func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
-	const legacyName = "Equity:OpeningBalances"
-	targetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
+	return migrateLegacySysAccWith(svc.Account(), cfg)
+}
+
+func migrateLegacySysAccWith(acc accountRenamer, cfg *config.Config) error {
+	fullTargetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
+	idx := strings.LastIndex(fullTargetName, ":")
+	leafSegment := fullTargetName[idx+1:]
 
 	// Nothing to migrate if legacy account is already gone.
-	_, err := svc.Account().GetAccountByName(context.Background(), legacyName)
+	_, err := acc.GetAccountByName(context.Background(), model.LegacyOpeningBalancesName)
 	if errors.Is(err, service.ErrNotFound) {
 		return nil
 	}
@@ -181,7 +191,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 	}
 
 	// Target already exists — already migrated.
-	_, err = svc.Account().GetAccountByName(context.Background(), targetName)
+	_, err = acc.GetAccountByName(context.Background(), fullTargetName)
 	if err == nil {
 		return nil
 	}
@@ -189,7 +199,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 		return fmt.Errorf("failed to check target system account: %w", err)
 	}
 
-	if err := svc.Account().RenameAccount(context.Background(), legacyName, targetName); err != nil {
+	if err := acc.RenameAccount(context.Background(), model.LegacyOpeningBalancesName, leafSegment); err != nil {
 		return fmt.Errorf("failed to migrate legacy system account: %w", err)
 	}
 

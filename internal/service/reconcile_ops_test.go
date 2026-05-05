@@ -344,3 +344,136 @@ func TestReconcileTransactions_ExecTxFailure_ReturnsError(t *testing.T) {
 		t.Error("SetLastReconciledBalance must not be called when ExecTx itself fails")
 	}
 }
+
+// ── PreviewReconcile ─────────────────────────────────────────────────────────
+
+func TestPreviewReconcile_ZeroDifference(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 100000},
+		{ID: 11, Amount: -50000},
+	})
+
+	diff, err := svc.PreviewReconcile(context.Background(), 1, 50000, []int64{10, 11})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff != 0 {
+		t.Errorf("expected diff 0, got %d", diff)
+	}
+}
+
+func TestPreviewReconcile_NonZeroDifference(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 100000},
+	})
+
+	diff, err := svc.PreviewReconcile(context.Background(), 1, 120000, []int64{10})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff != 20000 {
+		t.Errorf("expected diff 20000, got %d", diff)
+	}
+}
+
+func TestPreviewReconcile_InvalidID(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 100000},
+	})
+
+	_, err := svc.PreviewReconcile(context.Background(), 1, 100000, []int64{10, 99})
+
+	if err == nil {
+		t.Fatal("expected error for unknown ID, got nil")
+	}
+}
+
+func TestPreviewReconcile_EmptyIDs(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+
+	_, err := svc.PreviewReconcile(context.Background(), 1, 100000, []int64{})
+
+	if err == nil {
+		t.Fatal("expected error for empty IDs, got nil")
+	}
+}
+
+func TestPreviewReconcile_AccountNotFound(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	_, err := svc.PreviewReconcile(context.Background(), 99, 100000, []int64{10})
+
+	if err == nil {
+		t.Fatal("expected error for missing account, got nil")
+	}
+}
+
+func TestPreviewReconcile_WithPriorBalance(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 20, Amount: 3000},
+	})
+	txRepo.lastReconciledBalances[1] = 2000
+
+	// diff = statementBalance - (lastBalance + cleared) = 5000 - (2000 + 3000) = 0
+	diff, err := svc.PreviewReconcile(context.Background(), 1, 5000, []int64{20})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff != 0 {
+		t.Errorf("expected diff 0, got %d", diff)
+	}
+}
+
+func TestPreviewReconcile_DoesNotMutate(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 50000},
+	})
+
+	_, err := svc.PreviewReconcile(context.Background(), 1, 50000, []int64{10})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify no writes happened: markSplitsReconciledCalls should be empty.
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Errorf("expected no markSplits calls, got %d", len(txRepo.markSplitsReconciledCalls))
+	}
+	// lastReconciledBalances should be unchanged (still 0 / absent).
+	if bal := txRepo.lastReconciledBalances[1]; bal != 0 {
+		t.Errorf("expected last reconciled balance unchanged at 0, got %d", bal)
+	}
+}

@@ -28,6 +28,50 @@ func (ts *TransactionService) GetUnreconciledByAccount(ctx context.Context, acco
 	return entries, lastBalance, nil
 }
 
+// PreviewReconcile validates the given transaction IDs against the
+// unreconciled set for accountID and computes the balance difference without
+// persisting any changes. Use this to check whether --force is needed before
+// committing to a write.
+//
+// The returned difference is:
+//
+//	statementBalance − (lastReconciledBalance + clearedBalance)
+func (ts *TransactionService) PreviewReconcile(ctx context.Context, accountID int64, statementBalance int64, txIDs []int64) (int64, error) {
+	if len(txIDs) == 0 {
+		return 0, fmt.Errorf("no transactions selected for reconciliation")
+	}
+
+	if _, err := ts.accRepo.GetAccountByID(ctx, accountID); err != nil {
+		return 0, fmt.Errorf("account not found: %w", err)
+	}
+
+	lastBalance, err := ts.txRepo.GetLastReconciledBalance(ctx, accountID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load last reconciled balance: %w", err)
+	}
+
+	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(ctx, accountID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load unreconciled transactions: %w", err)
+	}
+
+	validAmounts := make(map[int64]int64, len(entries))
+	for _, e := range entries {
+		validAmounts[e.ID] = e.Amount
+	}
+
+	var clearedBalance int64
+	for _, id := range txIDs {
+		amount, ok := validAmounts[id]
+		if !ok {
+			return 0, fmt.Errorf("transaction ID %d is not in the unreconciled set for this account", id)
+		}
+		clearedBalance += amount
+	}
+
+	return statementBalance - (lastBalance + clearedBalance), nil
+}
+
 // ReconcileTransactions marks the given transaction IDs as reconciled for
 // accountID. It validates that every requested ID is in the unreconciled set
 // for that account before writing anything.

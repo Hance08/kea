@@ -609,6 +609,26 @@ func TestRenameAccount(t *testing.T) {
 		err := svc.RenameAccount(context.Background(), "Assets:Ghost", "NewName")
 		require.Error(t, err)
 	})
+
+	t.Run("legacy opening-balances account migrated to currency-suffixed full path", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID:   1,
+			Name: model.LegacyOpeningBalancesName,
+			Type: model.AccountTypeEquity,
+		})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.RenameAccount(context.Background(), model.LegacyOpeningBalancesName, "OpeningBalances_USD")
+		require.NoError(t, err)
+
+		require.Len(t, accRepo.renameCalls, 1)
+		assert.Equal(t, model.LegacyOpeningBalancesName, accRepo.renameCalls[0].old)
+		assert.Equal(t, model.OpeningBalancesAccountName("USD"), accRepo.renameCalls[0].new)
+
+		_, err = accRepo.GetAccountByName(context.Background(), model.OpeningBalancesAccountName("USD"))
+		require.NoError(t, err)
+	})
 }
 
 // ──────────────────────────────────────────────

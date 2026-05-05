@@ -164,9 +164,10 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	return nil
 }
 
-type accountRenamer interface {
+type accountMigrator interface {
 	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
 	RenameAccount(ctx context.Context, oldName, newSegment string) error
+	DeleteAccountByName(ctx context.Context, name string) error
 }
 
 // migrateLegacySysAcc renames the legacy "Equity:OpeningBalances" account to
@@ -176,7 +177,7 @@ func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
 	return migrateLegacySysAccWith(svc.Account(), cfg)
 }
 
-func migrateLegacySysAccWith(acc accountRenamer, cfg *config.Config) error {
+func migrateLegacySysAccWith(acc accountMigrator, cfg *config.Config) error {
 	fullTargetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
 	idx := strings.LastIndex(fullTargetName, ":")
 	leafSegment := fullTargetName[idx+1:]
@@ -190,9 +191,17 @@ func migrateLegacySysAccWith(acc accountRenamer, cfg *config.Config) error {
 		return fmt.Errorf("failed to check legacy system account: %w", err)
 	}
 
-	// Target already exists — already migrated.
+	// Both accounts exist: the target was created independently. Remove the
+	// empty legacy account, or error if it still holds transactions.
 	_, err = acc.GetAccountByName(context.Background(), fullTargetName)
 	if err == nil {
+		if err := acc.DeleteAccountByName(context.Background(), model.LegacyOpeningBalancesName); err != nil {
+			return fmt.Errorf(
+				"legacy system account %q and target %q both exist; "+
+					"remove or reconcile the legacy account manually: %w",
+				model.LegacyOpeningBalancesName, fullTargetName, err,
+			)
+		}
 		return nil
 	}
 	if !errors.Is(err, service.ErrNotFound) {

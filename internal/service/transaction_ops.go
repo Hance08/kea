@@ -284,14 +284,31 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
 	}
 
-	// Validate all accounts exist and are selectable
+	// Build a map of existing split ID → AccountID so we can skip the
+	// selectability check for unchanged historical splits (an account may have
+	// been hidden or gained children after the transaction was first created).
+	existingSplits, err := ts.txRepo.GetSplitsByTransaction(ctx, txID)
+	if err != nil {
+		return fmt.Errorf("failed to load existing splits: %w", err)
+	}
+	existingAccountByID := make(map[int64]int64, len(existingSplits))
+	for _, s := range existingSplits {
+		existingAccountByID[s.ID] = s.AccountID
+	}
+
+	// Validate all accounts exist; enforce selectability only for new splits
+	// or splits whose account is being changed.
 	for _, split := range splits {
 		account, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
 		if err != nil {
 			return fmt.Errorf("account ID %d not found", split.AccountID)
 		}
-		if err := ts.checkAccountSelectable(ctx, account); err != nil {
-			return fmt.Errorf("split (account ID %d): %w", split.AccountID, err)
+		isNew := split.ID == 0
+		accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID
+		if isNew || accountChanged {
+			if err := ts.checkAccountSelectable(ctx, account); err != nil {
+				return fmt.Errorf("split (account ID %d): %w", split.AccountID, err)
+			}
 		}
 	}
 

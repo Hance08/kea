@@ -686,6 +686,45 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		assert.Contains(t, err.Error(), "parent account")
 	})
 
+	t.Run("unchanged split on now-hidden account allowed", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:Old", Type: model.AccountTypeAsset, IsHidden: true})
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, []*model.Split{
+			{ID: 20, AccountID: 10, Amount: -500},
+			{ID: 21, AccountID: 2, Amount: 500},
+		})
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 20, AccountID: 10, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{ID: 21, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "updated desc", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.NoError(t, err)
+	})
+
+	t.Run("existing split moved to hidden account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:Old", Type: model.AccountTypeAsset, IsHidden: true})
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, []*model.Split{
+			{ID: 20, AccountID: 1, Amount: -500}, // originally account 1 (Assets:Bank)
+			{ID: 21, AccountID: 2, Amount: 500},
+		})
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 20, AccountID: 10, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"}, // moved to hidden account
+			{ID: 21, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hidden")
+	})
+
 	t.Run("error: splits do not match declared type", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		txRepo := newMockTransactionRepo()

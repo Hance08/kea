@@ -19,6 +19,7 @@ type reconcileAccountProvider interface {
 // reconcileTxProvider is the subset of TransactionService used by the runner.
 type reconcileTxProvider interface {
 	GetUnreconciledByAccount(ctx context.Context, accountID int64) ([]*model.ReconcileEntry, int64, error)
+	PreviewReconcile(ctx context.Context, accountID int64, statementBalance int64, txIDs []int64) (int64, error)
 	ReconcileTransactions(ctx context.Context, accountID int64, statementBalance int64, txIDs []int64) (int64, error)
 }
 

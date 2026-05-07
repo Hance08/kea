@@ -50,7 +50,8 @@ func (r *reconcileRunner) runNonInteractive(ctx context.Context, acc *model.Acco
 		return fmt.Errorf("invalid --ids value %q: %w", r.flags.IDs, err)
 	}
 
-	diff, err := r.txSvc.ReconcileTransactions(ctx, acc.ID, statementBalance, txIDs)
+	// Check balance mismatch BEFORE writing anything.
+	diff, err := r.txSvc.PreviewReconcile(ctx, acc.ID, statementBalance, txIDs)
 	if err != nil {
 		return err
 	}
@@ -60,6 +61,12 @@ func (r *reconcileRunner) runNonInteractive(ctx context.Context, acc *model.Acco
 			"balance mismatch: off by $%s — use --force to reconcile anyway",
 			utils.FormatAmount(abs64(diff)),
 		)
+	}
+
+	// Validation passed (or --force): persist the reconciliation.
+	diff, err = r.txSvc.ReconcileTransactions(ctx, acc.ID, statementBalance, txIDs)
+	if err != nil {
+		return err
 	}
 
 	if r.flags.JSON {

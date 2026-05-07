@@ -49,6 +49,10 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 
+		if err := ts.checkAccountSelectable(ctx, account); err != nil {
+			return 0, fmt.Errorf("split #%d: %w", i+1, err)
+		}
+
 		// Step 2: Determine the currency for the split.
 		// Prioritize the account's specific currency; otherwise, fall back to the system default.
 		splitCurrency := currency
@@ -100,6 +104,21 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 	}
 
 	return newTxID, nil
+}
+
+// checkAccountSelectable returns an error if the account is hidden or has child accounts.
+func (ts *TransactionService) checkAccountSelectable(ctx context.Context, account *model.Account) error {
+	if account.IsHidden {
+		return fmt.Errorf("account %q is hidden", account.Name)
+	}
+	hasChildren, err := ts.accRepo.HasChildAccounts(ctx, account.ID)
+	if err != nil {
+		return err
+	}
+	if hasChildren {
+		return fmt.Errorf("account %q is a parent account; select a leaf account instead", account.Name)
+	}
+	return nil
 }
 
 // CreateSimpleTransaction simplifies the creation of a double-entry transaction by
@@ -265,11 +284,31 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
 	}
 
-	// Validate all accounts exist
+	// Build a map of existing split ID → AccountID so we can skip the
+	// selectability check for unchanged historical splits (an account may have
+	// been hidden or gained children after the transaction was first created).
+	existingSplits, err := ts.txRepo.GetSplitsByTransaction(ctx, txID)
+	if err != nil {
+		return fmt.Errorf("failed to load existing splits: %w", err)
+	}
+	existingAccountByID := make(map[int64]int64, len(existingSplits))
+	for _, s := range existingSplits {
+		existingAccountByID[s.ID] = s.AccountID
+	}
+
+	// Validate all accounts exist; enforce selectability only for new splits
+	// or splits whose account is being changed.
 	for _, split := range splits {
-		_, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
+		account, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
 		if err != nil {
 			return fmt.Errorf("account ID %d not found", split.AccountID)
+		}
+		isNew := split.ID == 0
+		accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID
+		if isNew || accountChanged {
+			if err := ts.checkAccountSelectable(ctx, account); err != nil {
+				return fmt.Errorf("split (account ID %d): %w", split.AccountID, err)
+			}
 		}
 	}
 

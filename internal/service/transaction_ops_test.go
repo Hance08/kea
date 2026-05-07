@@ -226,6 +226,47 @@ func TestCreateTransaction(t *testing.T) {
 		_, err := svc.CreateTransaction(context.Background(), input)
 		assert.Error(t, err)
 	})
+
+	t.Run("split referencing hidden account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:Old", Type: model.AccountTypeAsset, IsHidden: true})
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		input := model.TransactionDetail{
+			Description: "hidden test",
+			Type:        model.TxTypeExpense,
+			Splits: []model.SplitDetail{
+				{AccountName: "Assets:Old", Amount: 500},
+				{AccountName: "Expenses:Food", Amount: -500},
+			},
+		}
+		_, err := svc.CreateTransaction(context.Background(), input)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "split #1")
+		assert.Contains(t, err.Error(), "hidden")
+	})
+
+	t.Run("split referencing parent account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 11, Name: "Assets", Type: model.AccountTypeAsset})
+		accRepo.childMap[11] = true
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		input := model.TransactionDetail{
+			Description: "parent test",
+			Type:        model.TxTypeExpense,
+			Splits: []model.SplitDetail{
+				{AccountName: "Assets", Amount: 500},
+				{AccountName: "Expenses:Food", Amount: -500},
+			},
+		}
+		_, err := svc.CreateTransaction(context.Background(), input)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "split #1")
+		assert.Contains(t, err.Error(), "parent account")
+	})
 }
 
 // ──────────────────────────────────────────────
@@ -608,6 +649,80 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, txRepo.updateSplitCalls, int64(10))
 		assert.Contains(t, txRepo.updateSplitCalls, int64(11))
+	})
+
+	t.Run("split referencing hidden account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:Old", Type: model.AccountTypeAsset, IsHidden: true})
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, makeExistingSplits(20, 21))
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountID: 10, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hidden")
+	})
+
+	t.Run("split referencing parent account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 11, Name: "Assets", Type: model.AccountTypeAsset})
+		accRepo.childMap[11] = true
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, makeExistingSplits(20, 21))
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountID: 11, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parent account")
+	})
+
+	t.Run("unchanged split on now-hidden account allowed", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:Old", Type: model.AccountTypeAsset, IsHidden: true})
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, []*model.Split{
+			{ID: 20, AccountID: 10, Amount: -500},
+			{ID: 21, AccountID: 2, Amount: 500},
+		})
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 20, AccountID: 10, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{ID: 21, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "updated desc", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.NoError(t, err)
+	})
+
+	t.Run("existing split moved to hidden account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:Old", Type: model.AccountTypeAsset, IsHidden: true})
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, []*model.Split{
+			{ID: 20, AccountID: 1, Amount: -500}, // originally account 1 (Assets:Bank)
+			{ID: 21, AccountID: 2, Amount: 500},
+		})
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 20, AccountID: 10, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"}, // moved to hidden account
+			{ID: 21, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hidden")
 	})
 
 	t.Run("error: splits do not match declared type", func(t *testing.T) {

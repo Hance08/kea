@@ -651,6 +651,41 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		assert.Contains(t, txRepo.updateSplitCalls, int64(11))
 	})
 
+	t.Run("split referencing hidden account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 10, Name: "Assets:Old", Type: model.AccountTypeAsset, IsHidden: true})
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, makeExistingSplits(20, 21))
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountID: 10, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hidden")
+	})
+
+	t.Run("split referencing parent account rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		accRepo.addAccount(&model.Account{ID: 11, Name: "Assets", Type: model.AccountTypeAsset})
+		accRepo.childMap[11] = true
+		txRepo.addTransaction(&model.Transaction{ID: 5, Status: model.StatusPending}, makeExistingSplits(20, 21))
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{AccountID: 11, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parent account")
+	})
+
 	t.Run("error: splits do not match declared type", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		txRepo := newMockTransactionRepo()

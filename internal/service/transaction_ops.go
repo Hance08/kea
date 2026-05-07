@@ -49,17 +49,8 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 
-		// Step 1a: Validate account selectability (not hidden, not a parent).
-		if account.IsHidden {
-			return 0, fmt.Errorf("split #%d: account %q is hidden", i+1, account.Name)
-		}
-
-		hasChildren, err := ts.accRepo.HasChildAccounts(ctx, account.ID)
-		if err != nil {
+		if err := ts.checkAccountSelectable(ctx, account); err != nil {
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
-		}
-		if hasChildren {
-			return 0, fmt.Errorf("split #%d: account %q is a parent account; select a leaf account instead", i+1, account.Name)
 		}
 
 		// Step 2: Determine the currency for the split.
@@ -113,6 +104,21 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 	}
 
 	return newTxID, nil
+}
+
+// checkAccountSelectable returns an error if the account is hidden or has child accounts.
+func (ts *TransactionService) checkAccountSelectable(ctx context.Context, account *model.Account) error {
+	if account.IsHidden {
+		return fmt.Errorf("account %q is hidden", account.Name)
+	}
+	hasChildren, err := ts.accRepo.HasChildAccounts(ctx, account.ID)
+	if err != nil {
+		return err
+	}
+	if hasChildren {
+		return fmt.Errorf("account %q is a parent account; select a leaf account instead", account.Name)
+	}
+	return nil
 }
 
 // CreateSimpleTransaction simplifies the creation of a double-entry transaction by
@@ -278,11 +284,14 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
 	}
 
-	// Validate all accounts exist
+	// Validate all accounts exist and are selectable
 	for _, split := range splits {
-		_, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
+		account, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
 		if err != nil {
 			return fmt.Errorf("account ID %d not found", split.AccountID)
+		}
+		if err := ts.checkAccountSelectable(ctx, account); err != nil {
+			return fmt.Errorf("split (account ID %d): %w", split.AccountID, err)
 		}
 	}
 

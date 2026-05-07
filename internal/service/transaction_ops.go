@@ -49,6 +49,19 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 
+		// Step 1a: Validate account selectability (not hidden, not a parent).
+		if account.IsHidden {
+			return 0, fmt.Errorf("split #%d: account %q is hidden", i+1, account.Name)
+		}
+
+		hasChildren, err := ts.accRepo.HasChildAccounts(ctx, account.ID)
+		if err != nil {
+			return 0, fmt.Errorf("split #%d: %w", i+1, err)
+		}
+		if hasChildren {
+			return 0, fmt.Errorf("split #%d: account %q is a parent account; select a leaf account instead", i+1, account.Name)
+		}
+
 		// Step 2: Determine the currency for the split.
 		// Prioritize the account's specific currency; otherwise, fall back to the system default.
 		splitCurrency := currency

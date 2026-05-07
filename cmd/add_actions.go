@@ -264,8 +264,6 @@ func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, err
 		splits = append(splits, split)
 	}
 
-	// Account name validity and selectability are validated by CreateTransaction
-	// (which calls GetAccountByName per split). Errors propagate with split index context.
 	return addTransactionInput{
 		Splits:      splits,
 		Description: description,

@@ -84,54 +84,54 @@ func TestGetNetWorthAt(t *testing.T) {
 	t.Run("assets only", func(t *testing.T) {
 		txRepo := newMockTransactionRepo()
 		addTxSplits(txRepo.splitsWithAccts, 1,
-			split("Assets:Bank", model.AccountTypeAsset, 10000),
-			split("Equity:Opening", model.AccountTypeEquity, -10000),
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -10000, Currency: "USD"},
 		)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		worth, err := svc.GetNetWorthAt(context.Background(), 0)
+		nw, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(10000), worth)
+		assert.Equal(t, int64(10000), nw["USD"])
 	})
 
 	t.Run("assets minus liabilities", func(t *testing.T) {
 		txRepo := newMockTransactionRepo()
 		addTxSplits(txRepo.splitsWithAccts, 1,
-			split("Assets:Bank", model.AccountTypeAsset, 15000),
-			split("Equity:Opening", model.AccountTypeEquity, -15000),
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 15000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -15000, Currency: "USD"},
 		)
 		addTxSplits(txRepo.splitsWithAccts, 2,
-			split("Liabilities:Card", model.AccountTypeLiability, 5000),
-			split("Assets:Bank", model.AccountTypeAsset, -5000),
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: 5000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -5000, Currency: "USD"},
 		)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		// totalAssets = 15000 + (-5000) = 10000
 		// totalLiabilities = 5000
 		// netWorth = 10000 - 5000 = 5000
-		worth, err := svc.GetNetWorthAt(context.Background(), 0)
+		nw, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(5000), worth)
+		assert.Equal(t, int64(5000), nw["USD"])
 	})
 
 	t.Run("no transactions returns zero net worth", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		worth, err := svc.GetNetWorthAt(context.Background(), 0)
+		nw, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), worth)
+		assert.Empty(t, nw)
 	})
 
 	t.Run("only income/expense splits are excluded from net worth", func(t *testing.T) {
 		txRepo := newMockTransactionRepo()
 		addTxSplits(txRepo.splitsWithAccts, 1,
-			split("Expenses:Food", model.AccountTypeExpense, 500),
-			split("Revenue:Salary", model.AccountTypeRevenue, -500),
+			model.SplitDetail{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+			model.SplitDetail{AccountName: "Revenue:Salary", AccountType: model.AccountTypeRevenue, Amount: -500, Currency: "USD"},
 		)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		worth, err := svc.GetNetWorthAt(context.Background(), 0)
+		nw, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), worth)
+		assert.Empty(t, nw)
 	})
 
 	t.Run("repo failure returns error", func(t *testing.T) {
@@ -141,6 +141,31 @@ func TestGetNetWorthAt(t *testing.T) {
 
 		_, err := svc.GetNetWorthAt(context.Background(), 0)
 		assert.Error(t, err)
+	})
+
+	t.Run("multi-currency keeps totals separate", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Assets:USD_Bank", AccountType: model.AccountTypeAsset, Amount: 10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening_USD", AccountType: model.AccountTypeEquity, Amount: -10000, Currency: "USD"},
+		)
+		addTxSplits(txRepo.splitsWithAccts, 2,
+			model.SplitDetail{AccountName: "Assets:TWD_Bank", AccountType: model.AccountTypeAsset, Amount: 50000, Currency: "TWD"},
+			model.SplitDetail{AccountName: "Equity:Opening_TWD", AccountType: model.AccountTypeEquity, Amount: -50000, Currency: "TWD"},
+		)
+		addTxSplits(txRepo.splitsWithAccts, 3,
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: 2000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Assets:USD_Bank", AccountType: model.AccountTypeAsset, Amount: -2000, Currency: "USD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		nw, err := svc.GetNetWorthAt(context.Background(), 0)
+		require.NoError(t, err)
+		// USD: assets 10000-2000=8000, liabilities 2000 → net 6000
+		assert.Equal(t, int64(6000), nw["USD"])
+		// TWD: assets 50000, liabilities 0 → net 50000
+		assert.Equal(t, int64(50000), nw["TWD"])
+		assert.Len(t, nw, 2)
 	})
 }
 
@@ -160,9 +185,9 @@ func TestGenerateIncomeStatement(t *testing.T) {
 
 		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(2000), result.TotalIncome)
-		assert.Equal(t, int64(0), result.TotalExpense)
-		assert.Equal(t, int64(2000), result.NetAmount)
+		assert.Equal(t, int64(2000), result.TotalIncome["USD"])
+		assert.Empty(t, result.TotalExpense)
+		assert.Equal(t, int64(2000), result.NetAmount["USD"])
 		require.Len(t, result.IncomeRows, 1)
 		assert.Equal(t, "Revenue:Salary", result.IncomeRows[0].AccountName)
 	})
@@ -178,9 +203,9 @@ func TestGenerateIncomeStatement(t *testing.T) {
 
 		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), result.TotalIncome)
-		assert.Equal(t, int64(500), result.TotalExpense)
-		assert.Equal(t, int64(-500), result.NetAmount)
+		assert.Empty(t, result.TotalIncome)
+		assert.Equal(t, int64(500), result.TotalExpense["USD"])
+		assert.Equal(t, int64(-500), result.NetAmount["USD"])
 		require.Len(t, result.ExpenseRows, 1)
 		assert.Equal(t, "Expenses:Food", result.ExpenseRows[0].AccountName)
 	})
@@ -201,9 +226,9 @@ func TestGenerateIncomeStatement(t *testing.T) {
 
 		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(3000), result.TotalIncome)
-		assert.Equal(t, int64(800), result.TotalExpense)
-		assert.Equal(t, int64(2200), result.NetAmount) // 3000 - 800
+		assert.Equal(t, int64(3000), result.TotalIncome["USD"])
+		assert.Equal(t, int64(800), result.TotalExpense["USD"])
+		assert.Equal(t, int64(2200), result.NetAmount["USD"]) // 3000 - 800
 	})
 
 	t.Run("transfer transaction excluded from income statement", func(t *testing.T) {
@@ -217,8 +242,8 @@ func TestGenerateIncomeStatement(t *testing.T) {
 
 		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), result.TotalIncome)
-		assert.Equal(t, int64(0), result.TotalExpense)
+		assert.Empty(t, result.TotalIncome)
+		assert.Empty(t, result.TotalExpense)
 		assert.Empty(t, result.IncomeRows)
 		assert.Empty(t, result.ExpenseRows)
 	})
@@ -227,9 +252,9 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), result.TotalIncome)
-		assert.Equal(t, int64(0), result.TotalExpense)
-		assert.Equal(t, int64(0), result.NetAmount)
+		assert.Empty(t, result.TotalIncome)
+		assert.Empty(t, result.TotalExpense)
+		assert.Empty(t, result.NetAmount)
 	})
 
 	t.Run("IncomeRows sorted by amount descending", func(t *testing.T) {
@@ -268,7 +293,7 @@ func TestGenerateIncomeStatement(t *testing.T) {
 
 		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(500), result.TotalExpense)
+		assert.Equal(t, int64(500), result.TotalExpense["USD"])
 		// two transactions for the same account should be merged into one row
 		require.Len(t, result.ExpenseRows, 1)
 		assert.Equal(t, int64(500), result.ExpenseRows[0].Amount)
@@ -315,7 +340,7 @@ func TestGenerateIncomeBreakdown(t *testing.T) {
 
 		result, err := svc.GenerateIncomeBreakdown(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(2000), result.TotalIncome)
+		assert.Equal(t, int64(2000), result.TotalIncome["USD"])
 		assert.NotEmpty(t, result.IncomeRows)
 		assert.Empty(t, result.ExpenseRows)
 	})
@@ -362,7 +387,7 @@ func TestGenerateExpenseBreakdown(t *testing.T) {
 
 		result, err := svc.GenerateExpenseBreakdown(context.Background(), 0, 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(500), result.TotalExpense)
+		assert.Equal(t, int64(500), result.TotalExpense["USD"])
 		assert.NotEmpty(t, result.ExpenseRows)
 		assert.Empty(t, result.IncomeRows)
 	})
@@ -383,9 +408,9 @@ func TestGenerateBalanceSheet(t *testing.T) {
 
 		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
-		assert.Equal(t, int64(10000), result.TotalAssets)
-		assert.Equal(t, int64(3000), result.TotalLiabilities)
-		assert.Equal(t, int64(7000), result.NetWorth) // 10000 - 3000
+		assert.Equal(t, int64(10000), result.TotalAssets["USD"])
+		assert.Equal(t, int64(3000), result.TotalLiabilities["USD"])
+		assert.Equal(t, int64(7000), result.NetWorth["USD"]) // 10000 - 3000
 		require.Len(t, result.Assets, 1)
 		require.Len(t, result.Liabilities, 1)
 	})
@@ -412,7 +437,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 
 		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
-		assert.Equal(t, int64(5000), result.TotalEquity)
+		assert.Equal(t, int64(5000), result.TotalEquity["USD"])
 		require.Len(t, result.Equity, 1)
 	})
 

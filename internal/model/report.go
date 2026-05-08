@@ -14,27 +14,25 @@ type ReportRow struct {
 
 // ReportResult holds the result of an income statement or expense breakdown report.
 type ReportResult struct {
-	Period            string      `json:"period"`
-	TotalIncome       int64       `json:"total_income"`
-	TotalExpense      int64       `json:"total_expense"`
-	NetAmount         int64       `json:"net_amount"`
-	NetWorth          int64       `json:"net_worth"` // cumulative net worth (assets - liabilities) at report time
-	PreviousNetWorth  *int64      `json:"previous_net_worth"`
-	NetWorthGrowthPct *float64    `json:"net_worth_growth_pct"`
-	Currency          string      `json:"currency"`
-	IncomeRows        []ReportRow `json:"income_rows"`
-	ExpenseRows       []ReportRow `json:"expense_rows"`
+	Period            string             `json:"period"`
+	TotalIncome       map[string]int64   `json:"total_income"`
+	TotalExpense      map[string]int64   `json:"total_expense"`
+	NetAmount         map[string]int64   `json:"net_amount"`
+	NetWorth          map[string]int64   `json:"net_worth"`
+	PreviousNetWorth  map[string]int64   `json:"previous_net_worth"`
+	NetWorthGrowthPct map[string]float64 `json:"net_worth_growth_pct"`
+	IncomeRows        []ReportRow        `json:"income_rows"`
+	ExpenseRows       []ReportRow        `json:"expense_rows"`
 }
 
 // BalanceSheetResult holds the result of a balance sheet report.
 type BalanceSheetResult struct {
-	Assets           []ReportRow `json:"assets"`
-	Liabilities      []ReportRow `json:"liabilities"`
-	Equity           []ReportRow `json:"equity"`
-	TotalAssets      int64       `json:"total_assets"`
-	TotalLiabilities int64       `json:"total_liabilities"`
-	TotalEquity      int64       `json:"total_equity"`
-	NetWorth         int64       `json:"net_worth"`
-	Currency         string      `json:"currency"`
-	AsOf             int64       `json:"as_of"` // Unix timestamp of the snapshot
+	Assets           []ReportRow      `json:"assets"`
+	Liabilities      []ReportRow      `json:"liabilities"`
+	Equity           []ReportRow      `json:"equity"`
+	TotalAssets      map[string]int64 `json:"total_assets"`
+	TotalLiabilities map[string]int64 `json:"total_liabilities"`
+	TotalEquity      map[string]int64 `json:"total_equity"`
+	NetWorth         map[string]int64 `json:"net_worth"`
+	AsOf             int64            `json:"as_of"`
 }

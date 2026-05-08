@@ -93,7 +93,7 @@ func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, en
 			offset := offsetAccountName(details, model.AccountTypeRevenue)
 			for _, split := range details {
 				if split.AccountType == model.AccountTypeRevenue {
-					key := split.AccountName + "|" + offset
+					key := split.AccountName + "|" + offset + "|" + split.Currency
 					row := getOrCreateRowWithOffset(incomeByAccount, key, split.AccountName, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
@@ -105,7 +105,7 @@ func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, en
 			offset := offsetAccountName(details, model.AccountTypeExpense)
 			for _, split := range details {
 				if split.AccountType == model.AccountTypeExpense {
-					key := split.AccountName + "|" + offset
+					key := split.AccountName + "|" + offset + "|" + split.Currency
 					row := getOrCreateRowWithOffset(expenseByAccount, key, split.AccountName, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++

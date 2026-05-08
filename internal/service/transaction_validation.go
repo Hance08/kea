@@ -35,6 +35,19 @@ func (ts *TransactionService) ValidateSplitsBalance(splits []model.Split) error 
 	return nil
 }
 
+// ValidateSplitDetailsCurrency checks that all SplitDetail entries use the same currency.
+func (ts *TransactionService) ValidateSplitDetailsCurrency(splits []model.SplitDetail) error {
+	var firstCurrency string
+	for _, split := range splits {
+		if firstCurrency == "" {
+			firstCurrency = split.Currency
+		} else if split.Currency != firstCurrency {
+			return fmt.Errorf("splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
+		}
+	}
+	return nil
+}
+
 // ValidateTransactionEdit validates a transaction edit without saving
 func (ts *TransactionService) ValidateTransactionEdit(ctx context.Context, splits []model.SplitDetail) error {
 	// Check minimum splits

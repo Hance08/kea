@@ -280,6 +280,11 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		return fmt.Errorf("splits must balance to zero (current sum: %d)", total)
 	}
 
+	// Validate currency consistency
+	if err := ts.ValidateSplitDetailsCurrency(splits); err != nil {
+		return err
+	}
+
 	if err := ts.ValidateSplitsMatchType(ctx, txType, splits); err != nil {
 		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
 	}

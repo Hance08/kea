@@ -317,6 +317,34 @@ func TestGenerateIncomeStatement(t *testing.T) {
 		_, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
 		assert.Error(t, err)
 	})
+
+	t.Run("multi-currency totals are grouped by currency", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Revenue:Salary", AccountType: model.AccountTypeRevenue, Amount: -3000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 3000, Currency: "USD"},
+		)
+		addTxSplits(txRepo.splitsWithAccts, 2,
+			model.SplitDetail{AccountName: "Revenue:Freelance", AccountType: model.AccountTypeRevenue, Amount: -90000, Currency: "TWD"},
+			model.SplitDetail{AccountName: "Assets:TWD_Bank", AccountType: model.AccountTypeAsset, Amount: 90000, Currency: "TWD"},
+		)
+		addTxSplits(txRepo.splitsWithAccts, 3,
+			model.SplitDetail{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Type: model.TxTypeIncome}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 3, Type: model.TxTypeExpense}, nil)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		result, err := svc.GenerateIncomeStatement(context.Background(), 0, 0)
+		require.NoError(t, err)
+		assert.Equal(t, int64(3000), result.TotalIncome["USD"])
+		assert.Equal(t, int64(90000), result.TotalIncome["TWD"])
+		assert.Equal(t, int64(500), result.TotalExpense["USD"])
+		assert.Equal(t, int64(2500), result.NetAmount["USD"])  // 3000 - 500
+		assert.Equal(t, int64(90000), result.NetAmount["TWD"]) // 90000 - 0
+	})
 }
 
 // ──────────────────────────────────────────────
@@ -487,5 +515,24 @@ func TestGenerateBalanceSheet(t *testing.T) {
 
 		_, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		assert.Error(t, err)
+	})
+
+	t.Run("multi-currency totals are grouped by currency", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:USD_Bank", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:TWD_Bank", Type: model.AccountTypeAsset, Currency: "TWD"})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Liabilities:Card", Type: model.AccountTypeLiability, Currency: "USD"})
+		accRepo.balances[1] = 10000
+		accRepo.balances[2] = 50000
+		accRepo.balances[3] = 3000
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
+		require.NoError(t, err)
+		assert.Equal(t, int64(10000), result.TotalAssets["USD"])
+		assert.Equal(t, int64(50000), result.TotalAssets["TWD"])
+		assert.Equal(t, int64(3000), result.TotalLiabilities["USD"])
+		assert.Equal(t, int64(7000), result.NetWorth["USD"])   // 10000 - 3000
+		assert.Equal(t, int64(50000), result.NetWorth["TWD"])  // 50000 - 0
 	})
 }

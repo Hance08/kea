@@ -46,28 +46,26 @@ type jsonReportRow struct {
 }
 
 type jsonReportResult struct {
-	Period            string          `json:"period"`
-	TotalIncome       float64         `json:"total_income"`
-	TotalExpense      float64         `json:"total_expense"`
-	NetAmount         float64         `json:"net_amount"`
-	NetWorth          float64         `json:"net_worth"`
-	PreviousNetWorth  *float64        `json:"previous_net_worth"`
-	NetWorthGrowthPct *float64        `json:"net_worth_growth_pct"`
-	Currency          string          `json:"currency"`
-	IncomeRows        []jsonReportRow `json:"income_rows"`
-	ExpenseRows       []jsonReportRow `json:"expense_rows"`
+	Period            string             `json:"period"`
+	TotalIncome       map[string]float64 `json:"total_income"`
+	TotalExpense      map[string]float64 `json:"total_expense"`
+	NetAmount         map[string]float64 `json:"net_amount"`
+	NetWorth          map[string]float64 `json:"net_worth"`
+	PreviousNetWorth  map[string]float64 `json:"previous_net_worth"`
+	NetWorthGrowthPct map[string]float64 `json:"net_worth_growth_pct"`
+	IncomeRows        []jsonReportRow    `json:"income_rows"`
+	ExpenseRows       []jsonReportRow    `json:"expense_rows"`
 }
 
 type jsonBalanceSheetResult struct {
-	Assets           []jsonReportRow `json:"assets"`
-	Liabilities      []jsonReportRow `json:"liabilities"`
-	Equity           []jsonReportRow `json:"equity"`
-	TotalAssets      float64         `json:"total_assets"`
-	TotalLiabilities float64         `json:"total_liabilities"`
-	TotalEquity      float64         `json:"total_equity"`
-	NetWorth         float64         `json:"net_worth"`
-	Currency         string          `json:"currency"`
-	AsOf             int64           `json:"as_of"`
+	Assets           []jsonReportRow    `json:"assets"`
+	Liabilities      []jsonReportRow    `json:"liabilities"`
+	Equity           []jsonReportRow    `json:"equity"`
+	TotalAssets      map[string]float64 `json:"total_assets"`
+	TotalLiabilities map[string]float64 `json:"total_liabilities"`
+	TotalEquity      map[string]float64 `json:"total_equity"`
+	NetWorth         map[string]float64 `json:"net_worth"`
+	AsOf             int64              `json:"as_of"`
 }
 
 func toJSONRow(r model.ReportRow) jsonReportRow {
@@ -80,6 +78,17 @@ func toJSONRow(r model.ReportRow) jsonReportRow {
 	}
 }
 
+func centsMapToUnitMap(m map[string]int64) map[string]float64 {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]float64, len(m))
+	for k, v := range m {
+		out[k] = CentsToUnit(v)
+	}
+	return out
+}
+
 func toJSONRows(rows []model.ReportRow) []jsonReportRow {
 	out := make([]jsonReportRow, len(rows))
 	for i, r := range rows {
@@ -89,21 +98,14 @@ func toJSONRows(rows []model.ReportRow) []jsonReportRow {
 }
 
 func toJSONReportResult(r *model.ReportResult) jsonReportResult {
-	var previousNetWorth *float64
-	if r.PreviousNetWorth != nil {
-		v := CentsToUnit(*r.PreviousNetWorth)
-		previousNetWorth = &v
-	}
-
 	return jsonReportResult{
 		Period:            r.Period,
-		TotalIncome:       CentsToUnit(r.TotalIncome),
-		TotalExpense:      CentsToUnit(r.TotalExpense),
-		NetAmount:         CentsToUnit(r.NetAmount),
-		NetWorth:          CentsToUnit(r.NetWorth),
-		PreviousNetWorth:  previousNetWorth,
+		TotalIncome:       centsMapToUnitMap(r.TotalIncome),
+		TotalExpense:      centsMapToUnitMap(r.TotalExpense),
+		NetAmount:         centsMapToUnitMap(r.NetAmount),
+		NetWorth:          centsMapToUnitMap(r.NetWorth),
+		PreviousNetWorth:  centsMapToUnitMap(r.PreviousNetWorth),
 		NetWorthGrowthPct: r.NetWorthGrowthPct,
-		Currency:          r.Currency,
 		IncomeRows:        toJSONRows(r.IncomeRows),
 		ExpenseRows:       toJSONRows(r.ExpenseRows),
 	}
@@ -114,11 +116,10 @@ func toJSONBalanceSheetResult(r *model.BalanceSheetResult) jsonBalanceSheetResul
 		Assets:           toJSONRows(r.Assets),
 		Liabilities:      toJSONRows(r.Liabilities),
 		Equity:           toJSONRows(r.Equity),
-		TotalAssets:      CentsToUnit(r.TotalAssets),
-		TotalLiabilities: CentsToUnit(r.TotalLiabilities),
-		TotalEquity:      CentsToUnit(r.TotalEquity),
-		NetWorth:         CentsToUnit(r.NetWorth),
-		Currency:         r.Currency,
+		TotalAssets:      centsMapToUnitMap(r.TotalAssets),
+		TotalLiabilities: centsMapToUnitMap(r.TotalLiabilities),
+		TotalEquity:      centsMapToUnitMap(r.TotalEquity),
+		NetWorth:         centsMapToUnitMap(r.NetWorth),
 		AsOf:             r.AsOf,
 	}
 }

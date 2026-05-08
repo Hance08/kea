@@ -80,8 +80,8 @@ func (v *ReportView) RenderIncomeStatement(result *model.ReportResult) error {
 	}
 
 	// Summary
-	v.renderPerCurrencyTotals("Total Income", result.TotalIncome, pterm.Green)
-	v.renderPerCurrencyTotals("Total Expenses", result.TotalExpense, pterm.Red)
+	v.renderPerCurrencyTotals("Total Income", result.TotalIncome, ptermGreen)
+	v.renderPerCurrencyTotals("Total Expenses", result.TotalExpense, ptermRed)
 
 	for _, ccy := range sortedKeys(result.NetAmount) {
 		net := result.NetAmount[ccy]
@@ -163,7 +163,7 @@ func (v *ReportView) RenderExpenseBreakdown(result *model.ReportResult) error {
 	t.Render()
 	pterm.Println()
 
-	v.renderPerCurrencyTotals("Total Expenses", result.TotalExpense, pterm.Red)
+	v.renderPerCurrencyTotals("Total Expenses", result.TotalExpense, ptermRed)
 	pterm.Println()
 
 	return nil
@@ -202,7 +202,7 @@ func (v *ReportView) RenderIncomeBreakdown(result *model.ReportResult) error {
 	t.Render()
 	pterm.Println()
 
-	v.renderPerCurrencyTotals("Total Income", result.TotalIncome, pterm.Green)
+	v.renderPerCurrencyTotals("Total Income", result.TotalIncome, ptermGreen)
 	pterm.Println()
 
 	return nil
@@ -283,8 +283,8 @@ func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error 
 	pterm.Println()
 
 	// Summary
-	v.renderPerCurrencyTotals("Total Assets", result.TotalAssets, pterm.Green)
-	v.renderPerCurrencyTotals("Total Liabilities", result.TotalLiabilities, pterm.Red)
+	v.renderPerCurrencyTotals("Total Assets", result.TotalAssets, ptermGreen)
+	v.renderPerCurrencyTotals("Total Liabilities", result.TotalLiabilities, ptermRed)
 
 	for _, ccy := range sortedKeys(result.NetWorth) {
 		nw := result.NetWorth[ccy]
@@ -318,6 +318,9 @@ func (v *ReportView) renderSummaryLine(label, value, currency string) {
 func (v *ReportView) renderSummaryLineNoCurrency(label, value string) {
 	pterm.Printf("  %-20s  %s\n", label, value)
 }
+
+func ptermGreen(s string) string { return pterm.Green(s) }
+func ptermRed(s string) string   { return pterm.Red(s) }
 
 func (v *ReportView) renderPerCurrencyTotals(label string, totals map[string]int64, colorFn func(string) string) {
 	currencies := sortedKeys(totals)

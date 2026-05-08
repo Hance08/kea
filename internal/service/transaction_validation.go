@@ -64,6 +64,10 @@ func (ts *TransactionService) ValidateTransactionEdit(ctx context.Context, split
 		return fmt.Errorf("splits do not balance (sum: %s)", utils.FormatAmount(total))
 	}
 
+	if err := ts.ValidateSplitDetailsCurrency(splits); err != nil {
+		return err
+	}
+
 	// Validate accounts exist
 	for i, split := range splits {
 		_, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)

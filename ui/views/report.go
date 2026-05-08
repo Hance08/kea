@@ -6,6 +6,7 @@ package views
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
@@ -79,35 +80,49 @@ func (v *ReportView) RenderIncomeStatement(result *model.ReportResult) error {
 	}
 
 	// Summary
-	v.renderSummaryLine("Total Income", pterm.Green(utils.FormatAmount(result.TotalIncome)), result.Currency)
-	v.renderSummaryLine("Total Expenses", pterm.Red(utils.FormatAmount(result.TotalExpense)), result.Currency)
+	v.renderPerCurrencyTotals("Total Income", result.TotalIncome, ptermGreen)
+	v.renderPerCurrencyTotals("Total Expenses", result.TotalExpense, ptermRed)
 
-	netStr := utils.FormatAmount(utils.AbsInt64(result.NetAmount))
-	if result.NetAmount >= 0 {
-		v.renderSummaryLine("Net", pterm.Green(netStr), result.Currency)
-	} else {
-		v.renderSummaryLine("Net", pterm.Red("-"+netStr), result.Currency)
+	for _, ccy := range sortedKeys(result.NetAmount) {
+		net := result.NetAmount[ccy]
+		netStr := utils.FormatAmount(utils.AbsInt64(net))
+		if net >= 0 {
+			v.renderSummaryLine("Net", pterm.Green(netStr), ccy)
+		} else {
+			v.renderSummaryLine("Net", pterm.Red("-"+netStr), ccy)
+		}
 	}
 
-	// Net Worth: cumulative assets minus liabilities
-	nwStr := utils.FormatAmount(utils.AbsInt64(result.NetWorth))
-	if result.NetWorth >= 0 {
-		v.renderSummaryLine("Net Worth", pterm.Green(nwStr), result.Currency)
-	} else {
-		v.renderSummaryLine("Net Worth", pterm.Red("-"+nwStr), result.Currency)
+	for _, ccy := range sortedKeys(result.NetWorth) {
+		nw := result.NetWorth[ccy]
+		nwStr := utils.FormatAmount(utils.AbsInt64(nw))
+		if nw >= 0 {
+			v.renderSummaryLine("Net Worth", pterm.Green(nwStr), ccy)
+		} else {
+			v.renderSummaryLine("Net Worth", pterm.Red("-"+nwStr), ccy)
+		}
 	}
 
-	if result.NetWorthGrowthPct == nil {
+	growthCurrencies := make([]string, 0, len(result.NetWorthGrowthPct))
+	for ccy := range result.NetWorthGrowthPct {
+		growthCurrencies = append(growthCurrencies, ccy)
+	}
+	sort.Strings(growthCurrencies)
+
+	if len(growthCurrencies) == 0 {
 		v.renderSummaryLineNoCurrency("Net Worth Growth", "N/A")
 	} else {
-		pctText := fmt.Sprintf("%+.2f%%", *result.NetWorthGrowthPct)
-		switch {
-		case *result.NetWorthGrowthPct > 0:
-			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Green(pctText))
-		case *result.NetWorthGrowthPct < 0:
-			v.renderSummaryLineNoCurrency("Net Worth Growth", pterm.Red(pctText))
-		default:
-			v.renderSummaryLineNoCurrency("Net Worth Growth", pctText)
+		for _, ccy := range growthCurrencies {
+			pct := result.NetWorthGrowthPct[ccy]
+			pctText := fmt.Sprintf("%+.2f%%", pct)
+			switch {
+			case pct > 0:
+				v.renderSummaryLine("Net Worth Growth", pterm.Green(pctText), ccy)
+			case pct < 0:
+				v.renderSummaryLine("Net Worth Growth", pterm.Red(pctText), ccy)
+			default:
+				v.renderSummaryLine("Net Worth Growth", pctText, ccy)
+			}
 		}
 	}
 
@@ -148,7 +163,7 @@ func (v *ReportView) RenderExpenseBreakdown(result *model.ReportResult) error {
 	t.Render()
 	pterm.Println()
 
-	v.renderSummaryLine("Total Expenses", pterm.Red(utils.FormatAmount(result.TotalExpense)), result.Currency)
+	v.renderPerCurrencyTotals("Total Expenses", result.TotalExpense, ptermRed)
 	pterm.Println()
 
 	return nil
@@ -187,7 +202,7 @@ func (v *ReportView) RenderIncomeBreakdown(result *model.ReportResult) error {
 	t.Render()
 	pterm.Println()
 
-	v.renderSummaryLine("Total Income", pterm.Green(utils.FormatAmount(result.TotalIncome)), result.Currency)
+	v.renderPerCurrencyTotals("Total Income", result.TotalIncome, ptermGreen)
 	pterm.Println()
 
 	return nil
@@ -268,14 +283,17 @@ func (v *ReportView) RenderBalanceSheet(result *model.BalanceSheetResult) error 
 	pterm.Println()
 
 	// Summary
-	v.renderSummaryLine("Total Assets", pterm.Green(utils.FormatAmount(result.TotalAssets)), result.Currency)
-	v.renderSummaryLine("Total Liabilities", pterm.Red(utils.FormatAmount(result.TotalLiabilities)), result.Currency)
+	v.renderPerCurrencyTotals("Total Assets", result.TotalAssets, ptermGreen)
+	v.renderPerCurrencyTotals("Total Liabilities", result.TotalLiabilities, ptermRed)
 
-	nwStr := utils.FormatAmount(utils.AbsInt64(result.NetWorth))
-	if result.NetWorth >= 0 {
-		v.renderSummaryLine("Net Worth", pterm.Green(nwStr), result.Currency)
-	} else {
-		v.renderSummaryLine("Net Worth", pterm.Red("-"+nwStr), result.Currency)
+	for _, ccy := range sortedKeys(result.NetWorth) {
+		nw := result.NetWorth[ccy]
+		nwStr := utils.FormatAmount(utils.AbsInt64(nw))
+		if nw >= 0 {
+			v.renderSummaryLine("Net Worth", pterm.Green(nwStr), ccy)
+		} else {
+			v.renderSummaryLine("Net Worth", pterm.Red("-"+nwStr), ccy)
+		}
 	}
 
 	pterm.Println()
@@ -299,4 +317,24 @@ func (v *ReportView) renderSummaryLine(label, value, currency string) {
 
 func (v *ReportView) renderSummaryLineNoCurrency(label, value string) {
 	pterm.Printf("  %-20s  %s\n", label, value)
+}
+
+func ptermGreen(s string) string { return pterm.Green(s) }
+func ptermRed(s string) string   { return pterm.Red(s) }
+
+func (v *ReportView) renderPerCurrencyTotals(label string, totals map[string]int64, colorFn func(string) string) {
+	currencies := sortedKeys(totals)
+	for _, ccy := range currencies {
+		amt := totals[ccy]
+		v.renderSummaryLine(label, colorFn(utils.FormatAmount(amt)), ccy)
+	}
+}
+
+func sortedKeys(m map[string]int64) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

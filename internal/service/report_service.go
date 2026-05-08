@@ -11,26 +11,36 @@ import (
 	"github.com/hance08/kea/internal/utils"
 )
 
-// GetNetWorthAt returns net worth (assets - liabilities) using all posted splits up to endTime.
-func (ts *TransactionService) GetNetWorthAt(ctx context.Context, endTime int64) (int64, error) {
+// GetNetWorthAt returns net worth (assets - liabilities) per currency using all posted splits up to endTime.
+func (ts *TransactionService) GetNetWorthAt(ctx context.Context, endTime int64) (map[string]int64, error) {
 	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(ctx, 0, endTime)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	var totalAssets, totalLiabilities int64
+	assets := map[string]int64{}
+	liabilities := map[string]int64{}
 	for _, splits := range txSplitsMap {
 		for _, split := range splits {
 			switch split.AccountType {
 			case model.AccountTypeAsset:
-				totalAssets += split.Amount
+				assets[split.Currency] += split.Amount
 			case model.AccountTypeLiability:
-				totalLiabilities += split.Amount
+				liabilities[split.Currency] += split.Amount
 			}
 		}
 	}
 
-	return totalAssets - totalLiabilities, nil
+	nw := map[string]int64{}
+	for ccy, amt := range assets {
+		nw[ccy] = amt - liabilities[ccy]
+	}
+	for ccy, amt := range liabilities {
+		if _, ok := nw[ccy]; !ok {
+			nw[ccy] = -amt
+		}
+	}
+	return nw, nil
 }
 
 // offsetAccountName inspects the splits of a transaction and returns the name of the
@@ -83,7 +93,7 @@ func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, en
 			offset := offsetAccountName(details, model.AccountTypeRevenue)
 			for _, split := range details {
 				if split.AccountType == model.AccountTypeRevenue {
-					key := split.AccountName + "|" + offset
+					key := split.AccountName + "|" + offset + "|" + split.Currency
 					row := getOrCreateRowWithOffset(incomeByAccount, key, split.AccountName, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
@@ -95,7 +105,7 @@ func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, en
 			offset := offsetAccountName(details, model.AccountTypeExpense)
 			for _, split := range details {
 				if split.AccountType == model.AccountTypeExpense {
-					key := split.AccountName + "|" + offset
+					key := split.AccountName + "|" + offset + "|" + split.Currency
 					row := getOrCreateRowWithOffset(expenseByAccount, key, split.AccountName, offset, split.Currency)
 					row.Amount += utils.AbsInt64(split.Amount)
 					row.TxCount++
@@ -115,17 +125,26 @@ func (ts *TransactionService) GenerateIncomeStatement(ctx context.Context, start
 	}
 
 	result := &model.ReportResult{
-		Currency:    ts.config.Defaults.Currency,
 		IncomeRows:  rowsFromMap(incomeByAccount),
 		ExpenseRows: rowsFromMap(expenseByAccount),
+		TotalIncome:  map[string]int64{},
+		TotalExpense: map[string]int64{},
+		NetAmount:    map[string]int64{},
 	}
 	for _, r := range result.IncomeRows {
-		result.TotalIncome += r.Amount
+		result.TotalIncome[r.Currency] += r.Amount
 	}
 	for _, r := range result.ExpenseRows {
-		result.TotalExpense += r.Amount
+		result.TotalExpense[r.Currency] += r.Amount
 	}
-	result.NetAmount = result.TotalIncome - result.TotalExpense
+	for ccy, inc := range result.TotalIncome {
+		result.NetAmount[ccy] = inc - result.TotalExpense[ccy]
+	}
+	for ccy, exp := range result.TotalExpense {
+		if _, ok := result.NetAmount[ccy]; !ok {
+			result.NetAmount[ccy] = -exp
+		}
+	}
 
 	return result, nil
 }
@@ -140,13 +159,12 @@ func (ts *TransactionService) GenerateIncomeBreakdown(ctx context.Context, start
 	rows := rowsFromMap(incomeByAccount)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Amount > rows[j].Amount })
 
-	var total int64
+	total := map[string]int64{}
 	for _, r := range rows {
-		total += r.Amount
+		total[r.Currency] += r.Amount
 	}
 
 	return &model.ReportResult{
-		Currency:    ts.config.Defaults.Currency,
 		IncomeRows:  rows,
 		TotalIncome: total,
 	}, nil
@@ -162,13 +180,12 @@ func (ts *TransactionService) GenerateExpenseBreakdown(ctx context.Context, star
 	rows := rowsFromMap(expenseByAccount)
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Amount > rows[j].Amount })
 
-	var total int64
+	total := map[string]int64{}
 	for _, r := range rows {
-		total += r.Amount
+		total[r.Currency] += r.Amount
 	}
 
 	return &model.ReportResult{
-		Currency:     ts.config.Defaults.Currency,
 		ExpenseRows:  rows,
 		TotalExpense: total,
 	}, nil
@@ -188,8 +205,11 @@ func (ts *TransactionService) GenerateBalanceSheet(ctx context.Context, asOf int
 	}
 
 	result := &model.BalanceSheetResult{
-		Currency: ts.config.Defaults.Currency,
-		AsOf:     asOf,
+		AsOf:             asOf,
+		TotalAssets:      map[string]int64{},
+		TotalLiabilities: map[string]int64{},
+		TotalEquity:      map[string]int64{},
+		NetWorth:         map[string]int64{},
 	}
 
 	for _, acc := range allAccounts {
@@ -212,17 +232,24 @@ func (ts *TransactionService) GenerateBalanceSheet(ctx context.Context, asOf int
 		switch acc.Type {
 		case model.AccountTypeAsset:
 			result.Assets = append(result.Assets, row)
-			result.TotalAssets += balance
+			result.TotalAssets[currency] += balance
 		case model.AccountTypeLiability:
 			result.Liabilities = append(result.Liabilities, row)
-			result.TotalLiabilities += balance
+			result.TotalLiabilities[currency] += balance
 		case model.AccountTypeEquity:
 			result.Equity = append(result.Equity, row)
-			result.TotalEquity += balance
+			result.TotalEquity[currency] += balance
 		}
 	}
 
-	result.NetWorth = result.TotalAssets - result.TotalLiabilities
+	for ccy, assets := range result.TotalAssets {
+		result.NetWorth[ccy] = assets - result.TotalLiabilities[ccy]
+	}
+	for ccy, liabs := range result.TotalLiabilities {
+		if _, ok := result.NetWorth[ccy]; !ok {
+			result.NetWorth[ccy] = -liabs
+		}
+	}
 
 	sort.Slice(result.Assets, func(i, j int) bool {
 		return result.Assets[i].Amount > result.Assets[j].Amount

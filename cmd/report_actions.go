@@ -57,8 +57,8 @@ func (r *reportRunner) runIncomeStatement(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch net worth for previous period: %w", err)
 	}
-	result.PreviousNetWorth = &previousNetWorth
-	result.NetWorthGrowthPct = computeNetWorthGrowthPct(currentNetWorth, previousNetWorth)
+	result.PreviousNetWorth = previousNetWorth
+	result.NetWorthGrowthPct = computeNetWorthGrowthPctMap(currentNetWorth, previousNetWorth)
 
 	return r.view.RenderIncomeStatement(result)
 }
@@ -191,12 +191,24 @@ func previousPeriodRange(startTime, endTime int64) (prevStart, prevEnd int64) {
 	return
 }
 
-// computeNetWorthGrowthPct returns growth percentage; nil means N/A (previous is zero).
-func computeNetWorthGrowthPct(current, previous int64) *float64 {
-	if previous == 0 {
-		return nil
+// computeNetWorthGrowthPctMap returns per-currency growth percentages; currencies with a
+// zero previous value are omitted (N/A).
+func computeNetWorthGrowthPctMap(current, previous map[string]int64) map[string]float64 {
+	result := map[string]float64{}
+	allCurrencies := map[string]struct{}{}
+	for ccy := range current {
+		allCurrencies[ccy] = struct{}{}
 	}
-
-	growth := (float64(current-previous) / float64(utils.AbsInt64(previous))) * 100
-	return &growth
+	for ccy := range previous {
+		allCurrencies[ccy] = struct{}{}
+	}
+	for ccy := range allCurrencies {
+		prev := previous[ccy]
+		if prev == 0 {
+			continue
+		}
+		cur := current[ccy]
+		result[ccy] = (float64(cur-prev) / float64(utils.AbsInt64(prev))) * 100
+	}
+	return result
 }

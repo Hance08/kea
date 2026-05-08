@@ -24,7 +24,7 @@ type ReportProvider interface {
 	GenerateIncomeBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error)
 	GenerateExpenseBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error)
 	GenerateBalanceSheet(ctx context.Context, asOf int64) (*model.BalanceSheetResult, error)
-	GetNetWorthAt(ctx context.Context, endTime int64) (int64, error)
+	GetNetWorthAt(ctx context.Context, endTime int64) (map[string]int64, error)
 }
 
 // ReportView is the view interface used to render report output.

@@ -213,6 +213,21 @@ func TestValidateTransactionEdit(t *testing.T) {
 		assert.Contains(t, err.Error(), "currency")
 	})
 
+	t.Run("empty currency mixed with explicit currency rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Expenses:Food", Type: model.AccountTypeExpense})
+
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+		splits := []model.SplitDetail{
+			{AccountID: 1, Amount: -1000, Currency: ""},
+			{AccountID: 2, Amount: 1000, Currency: "TWD"},
+		}
+		err := svc.ValidateTransactionEdit(context.Background(), splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "currency")
+	})
+
 	t.Run("same currency splits pass currency check", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})

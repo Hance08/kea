@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/stretchr/testify/assert"
@@ -61,6 +62,23 @@ func TestToJSONTxDetail(t *testing.T) {
 	assert.Equal(t, -5.0, got.Splits[0].Amount)
 	assert.Equal(t, 5.0, got.Splits[1].Amount)
 	assert.Equal(t, "lunch", got.Splits[1].Memo)
+}
+
+func TestToJSONTxDetail_LocalDate(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	origLocal := time.Local
+	time.Local = loc
+	t.Cleanup(func() { time.Local = origLocal })
+
+	// 2026-04-01 00:00:00 UTC+8 = 2026-03-31T16:00:00Z
+	ts := time.Date(2026, time.April, 1, 0, 0, 0, 0, loc).Unix()
+	detail := &model.TransactionDetail{
+		ID:        1,
+		Timestamp: ts,
+		Status:    model.StatusCleared,
+	}
+	got := ToJSONTxDetail(detail)
+	assert.Equal(t, "2026-04-01", got.Date)
 }
 
 func TestToJSONTxListItem(t *testing.T) {

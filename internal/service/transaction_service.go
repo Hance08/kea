@@ -33,13 +33,13 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 		}, nil
 	case model.TxTypeIncome:
 		return model.TransactionRule{
-			TxType:      "income",
+			TxType:      model.TxTypeIncome,
 			SourceTypes: []string{"R"},      // Revenue (Income)
 			DestTypes:   []string{"A", "L"}, // Assets, Liabilities
 		}, nil
 	case model.TxTypeTransfer:
 		return model.TransactionRule{
-			TxType:      "transfer",
+			TxType:      model.TxTypeTransfer,
 			SourceTypes: []string{"A", "L"},
 			DestTypes:   []string{"A", "L"},
 		}, nil

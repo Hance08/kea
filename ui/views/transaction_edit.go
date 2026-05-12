@@ -77,7 +77,7 @@ func (v *TransactionEditView) AskDate(currentTimestamp int64) (int64, error) {
 }
 
 func parseDateLocal(dateStr string) (int64, error) {
-	t, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	t, err := time.ParseInLocation(model.DateFormat, dateStr, time.Local)
 	if err != nil {
 		return 0, fmt.Errorf("unexpected date format error: %w", err)
 	}

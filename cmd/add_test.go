@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/stretchr/testify/assert"
@@ -168,4 +169,29 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "-", input.Description)
 	})
+}
+
+// ──────────────────────────────────────────────
+// TestParseDate_LocalTime
+// ──────────────────────────────────────────────
+
+func TestParseDate_LocalTime(t *testing.T) {
+	runner := &addRunner{}
+
+	// Use a timezone with a negative UTC offset (UTC-5).
+	loc, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+	origLocal := time.Local
+	time.Local = loc
+	t.Cleanup(func() { time.Local = origLocal })
+
+	ts, err := runner.parseDate("2026-04-01")
+	require.NoError(t, err)
+
+	got := time.Unix(ts, 0).In(loc)
+	assert.Equal(t, 2026, got.Year())
+	assert.Equal(t, time.April, got.Month())
+	assert.Equal(t, 1, got.Day())
+	assert.Equal(t, 0, got.Hour())
+	assert.Equal(t, 0, got.Minute())
 }

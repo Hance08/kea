@@ -569,6 +569,25 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("mixed currency splits rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		txRepo.addTransaction(
+			&model.Transaction{ID: 5, Status: model.StatusPending},
+			makeExistingSplits(10, 11),
+		)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -1000, Currency: "USD"},
+			{ID: 11, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 1000, Currency: "TWD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "Mixed", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "currency")
+	})
+
 	t.Run("non-existent account rejected", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		txRepo := newMockTransactionRepo()

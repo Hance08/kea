@@ -178,9 +178,7 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 func TestParseDate_LocalTime(t *testing.T) {
 	runner := &addRunner{}
 
-	// Use a timezone with a negative UTC offset (UTC-5).
-	loc, err := time.LoadLocation("America/New_York")
-	require.NoError(t, err)
+	loc := time.FixedZone("UTC-5", -5*60*60)
 	origLocal := time.Local
 	time.Local = loc
 	t.Cleanup(func() { time.Local = origLocal })

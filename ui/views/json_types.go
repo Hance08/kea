@@ -99,7 +99,7 @@ func ToJSONTxDetail(d *model.TransactionDetail) JSONTxDetail {
 	}
 	return JSONTxDetail{
 		ID:          d.ID,
-		Date:        time.Unix(d.Timestamp, 0).UTC().Format("2006-01-02"),
+		Date:        time.Unix(d.Timestamp, 0).Format(model.DateFormat),
 		Description: d.Description,
 		Status:      d.Status.String(),
 		Splits:      splits,

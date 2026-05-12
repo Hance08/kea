@@ -204,7 +204,7 @@ func (r *addRunner) parseDate(dateStr string) (int64, error) {
 	if dateStr == "" {
 		return time.Now().Unix(), nil
 	}
-	t, err := time.Parse(model.DateFormat, dateStr)
+	t, err := time.ParseInLocation(model.DateFormat, dateStr, time.Local)
 	if err != nil {
 		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
 	}

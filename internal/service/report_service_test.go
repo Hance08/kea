@@ -466,7 +466,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
 		accRepo.addAccount(&model.Account{ID: 2, Name: "Liabilities:Card", Type: model.AccountTypeLiability})
 		accRepo.balances[1] = 10000
-		accRepo.balances[2] = 3000
+		accRepo.balances[2] = -3000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
@@ -476,6 +476,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		assert.Equal(t, int64(7000), result.NetWorth["USD"]) // 10000 - 3000
 		require.Len(t, result.Assets, 1)
 		require.Len(t, result.Liabilities, 1)
+		assert.Equal(t, int64(3000), result.Liabilities[0].Amount)
 	})
 
 	t.Run("accounts with zero balance are excluded from the report", func(t *testing.T) {
@@ -559,7 +560,7 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		accRepo.addAccount(&model.Account{ID: 3, Name: "Liabilities:Card", Type: model.AccountTypeLiability, Currency: "USD"})
 		accRepo.balances[1] = 10000
 		accRepo.balances[2] = 50000
-		accRepo.balances[3] = 3000
+		accRepo.balances[3] = -3000
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)

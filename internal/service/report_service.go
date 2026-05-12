@@ -236,8 +236,14 @@ func (ts *TransactionService) GenerateBalanceSheet(ctx context.Context, asOf int
 			result.Assets = append(result.Assets, row)
 			result.TotalAssets[currency] += balance
 		case model.AccountTypeLiability:
+			displayBalance := utils.AbsInt64(balance)
+			row := model.ReportRow{
+				AccountName: acc.Name,
+				Amount:      displayBalance,
+				Currency:    currency,
+			}
 			result.Liabilities = append(result.Liabilities, row)
-			result.TotalLiabilities[currency] += balance
+			result.TotalLiabilities[currency] += displayBalance
 		case model.AccountTypeEquity:
 			result.Equity = append(result.Equity, row)
 			result.TotalEquity[currency] += balance

@@ -11,7 +11,9 @@ import (
 	"github.com/hance08/kea/internal/utils"
 )
 
-// GetNetWorthAt returns net worth (assets - liabilities) per currency using all posted splits up to endTime.
+// GetNetWorthAt returns net worth (assets + liabilities) per currency using all posted splits up to endTime.
+// Liability splits are stored as negative values (credit-normal accounts), so adding them to assets
+// correctly subtracts the outstanding balance.
 func (ts *TransactionService) GetNetWorthAt(ctx context.Context, endTime int64) (map[string]int64, error) {
 	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(ctx, 0, endTime)
 	if err != nil {
@@ -33,11 +35,11 @@ func (ts *TransactionService) GetNetWorthAt(ctx context.Context, endTime int64) 
 
 	nw := map[string]int64{}
 	for ccy, amt := range assets {
-		nw[ccy] = amt - liabilities[ccy]
+		nw[ccy] = amt + liabilities[ccy]
 	}
 	for ccy, amt := range liabilities {
 		if _, ok := nw[ccy]; !ok {
-			nw[ccy] = -amt
+			nw[ccy] = amt
 		}
 	}
 	return nw, nil
@@ -234,8 +236,14 @@ func (ts *TransactionService) GenerateBalanceSheet(ctx context.Context, asOf int
 			result.Assets = append(result.Assets, row)
 			result.TotalAssets[currency] += balance
 		case model.AccountTypeLiability:
+			displayBalance := -balance
+			row := model.ReportRow{
+				AccountName: acc.Name,
+				Amount:      displayBalance,
+				Currency:    currency,
+			}
 			result.Liabilities = append(result.Liabilities, row)
-			result.TotalLiabilities[currency] += balance
+			result.TotalLiabilities[currency] += displayBalance
 		case model.AccountTypeEquity:
 			result.Equity = append(result.Equity, row)
 			result.TotalEquity[currency] += balance

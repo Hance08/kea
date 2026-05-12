@@ -279,49 +279,6 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
 	}
 
-	// Build a map of existing split ID → AccountID so we can skip the
-	// selectability check for unchanged historical splits (an account may have
-	// been hidden or gained children after the transaction was first created).
-	existingSplits, err := ts.txRepo.GetSplitsByTransaction(ctx, txID)
-	if err != nil {
-		return fmt.Errorf("failed to load existing splits: %w", err)
-	}
-	existingAccountByID := make(map[int64]int64, len(existingSplits))
-	for _, s := range existingSplits {
-		existingAccountByID[s.ID] = s.AccountID
-	}
-
-	// Reject duplicate or foreign split IDs before any mutation.
-	seenSplitIDs := make(map[int64]bool, len(splits))
-	for _, split := range splits {
-		if split.ID == 0 {
-			continue
-		}
-		if seenSplitIDs[split.ID] {
-			return fmt.Errorf("duplicate split ID %d in input", split.ID)
-		}
-		seenSplitIDs[split.ID] = true
-		if _, ok := existingAccountByID[split.ID]; !ok {
-			return fmt.Errorf("split ID %d does not belong to transaction %d", split.ID, txID)
-		}
-	}
-
-	// Validate all accounts exist; enforce selectability only for new splits
-	// or splits whose account is being changed.
-	for _, split := range splits {
-		account, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
-		if err != nil {
-			return fmt.Errorf("account ID %d not found", split.AccountID)
-		}
-		isNew := split.ID == 0
-		accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID
-		if isNew || accountChanged {
-			if err := ts.checkAccountSelectable(ctx, account); err != nil {
-				return fmt.Errorf("split (account ID %d): %w", split.AccountID, err)
-			}
-		}
-	}
-
 	return ts.tm.ExecTx(ctx, func(repo repository.Repository) error {
 		if err := repo.UpdateTransactionBasic(ctx, txID, description, timestamp, status, txType); err != nil {
 			return err
@@ -332,9 +289,42 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 			return err
 		}
 
+		// Build maps from the single GetSplitsByTransaction call inside the transaction.
+		existingAccountByID := make(map[int64]int64, len(existingSplits))
 		existingSplitMap := make(map[int64]*model.Split)
-		for _, split := range existingSplits {
-			existingSplitMap[split.ID] = split
+		for _, s := range existingSplits {
+			existingAccountByID[s.ID] = s.AccountID
+			existingSplitMap[s.ID] = s
+		}
+
+		// Reject duplicate or foreign split IDs.
+		seenSplitIDs := make(map[int64]bool, len(splits))
+		for _, split := range splits {
+			if split.ID == 0 {
+				continue
+			}
+			if seenSplitIDs[split.ID] {
+				return fmt.Errorf("duplicate split ID %d in input", split.ID)
+			}
+			seenSplitIDs[split.ID] = true
+			if _, ok := existingAccountByID[split.ID]; !ok {
+				return fmt.Errorf("split ID %d does not belong to transaction %d", split.ID, txID)
+			}
+		}
+
+		// Validate accounts; enforce selectability only for new or changed splits.
+		for _, split := range splits {
+			account, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
+			if err != nil {
+				return fmt.Errorf("account ID %d not found", split.AccountID)
+			}
+			isNew := split.ID == 0
+			accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID
+			if isNew || accountChanged {
+				if err := ts.checkAccountSelectable(ctx, account); err != nil {
+					return fmt.Errorf("split (account ID %d): %w", split.AccountID, err)
+				}
+			}
 		}
 
 		newSplitMap := make(map[int64]bool)
@@ -356,7 +346,6 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		// Update existing splits or create new ones
 		for _, split := range splits {
 			if split.ID == 0 {
-				// Create new split
 				newSplit := &model.Split{
 					TransactionID: txID,
 					AccountID:     split.AccountID,
@@ -369,7 +358,6 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 					return err
 				}
 			} else {
-				// Update existing split
 				if err := repo.UpdateSplit(ctx, split.ID, split.AccountID, split.Amount, split.Currency, split.Memo); err != nil {
 					return err
 				}

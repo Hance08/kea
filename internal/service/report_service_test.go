@@ -101,17 +101,15 @@ func TestGetNetWorthAt(t *testing.T) {
 			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -15000, Currency: "USD"},
 		)
 		addTxSplits(txRepo.splitsWithAccts, 2,
-			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: 5000, Currency: "USD"},
-			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -5000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: -5000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: 5000, Currency: "USD"},
 		)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
-		// totalAssets = 15000 + (-5000) = 10000
-		// totalLiabilities = 5000
-		// netWorth = 10000 - 5000 = 5000
+		// assets = 15000, liabilities = -5000, net worth = 15000 + (-5000) = 10000
 		nw, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
-		assert.Equal(t, int64(5000), nw["USD"])
+		assert.Equal(t, int64(10000), nw["USD"])
 	})
 
 	t.Run("no transactions returns zero net worth", func(t *testing.T) {
@@ -154,18 +152,55 @@ func TestGetNetWorthAt(t *testing.T) {
 			model.SplitDetail{AccountName: "Equity:Opening_TWD", AccountType: model.AccountTypeEquity, Amount: -50000, Currency: "TWD"},
 		)
 		addTxSplits(txRepo.splitsWithAccts, 3,
-			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: 2000, Currency: "USD"},
-			model.SplitDetail{AccountName: "Assets:USD_Bank", AccountType: model.AccountTypeAsset, Amount: -2000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: -2000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening_USD", AccountType: model.AccountTypeEquity, Amount: 2000, Currency: "USD"},
 		)
 		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
 
 		nw, err := svc.GetNetWorthAt(context.Background(), 0)
 		require.NoError(t, err)
-		// USD: assets 10000-2000=8000, liabilities 2000 → net 6000
-		assert.Equal(t, int64(6000), nw["USD"])
+		// USD: assets 10000, liabilities -2000, net worth 10000 + (-2000) = 8000
+		assert.Equal(t, int64(8000), nw["USD"])
 		// TWD: assets 50000, liabilities 0 → net 50000
 		assert.Equal(t, int64(50000), nw["TWD"])
 		assert.Len(t, nw, 2)
+	})
+
+	t.Run("liability-only currency yields negative net worth", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: -3000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: 3000, Currency: "USD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		nw, err := svc.GetNetWorthAt(context.Background(), 0)
+		require.NoError(t, err)
+		assert.Equal(t, int64(-3000), nw["USD"])
+	})
+
+	t.Run("liability with partial payment", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -10000, Currency: "USD"},
+		)
+		addTxSplits(txRepo.splitsWithAccts, 2,
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: -5000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: 5000, Currency: "USD"},
+		)
+		addTxSplits(txRepo.splitsWithAccts, 3,
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: 3000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -3000, Currency: "USD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		// assets: 10000 - 3000 = 7000
+		// liabilities: -5000 + 3000 = -2000
+		// net worth: 7000 + (-2000) = 5000
+		nw, err := svc.GetNetWorthAt(context.Background(), 0)
+		require.NoError(t, err)
+		assert.Equal(t, int64(5000), nw["USD"])
 	})
 }
 

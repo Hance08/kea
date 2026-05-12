@@ -571,4 +571,21 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		assert.Equal(t, int64(7000), result.NetWorth["USD"])   // 10000 - 3000
 		assert.Equal(t, int64(50000), result.NetWorth["TWD"])  // 50000 - 0
 	})
+
+	t.Run("overpaid liability has negative display balance", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Liabilities:Card", Type: model.AccountTypeLiability})
+		accRepo.balances[1] = 7000
+		accRepo.balances[2] = 1000
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
+		require.NoError(t, err)
+		assert.Equal(t, int64(7000), result.TotalAssets["USD"])
+		assert.Equal(t, int64(-1000), result.TotalLiabilities["USD"])
+		assert.Equal(t, int64(8000), result.NetWorth["USD"]) // 7000 - (-1000)
+		require.Len(t, result.Liabilities, 1)
+		assert.Equal(t, int64(-1000), result.Liabilities[0].Amount)
+	})
 }

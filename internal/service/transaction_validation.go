@@ -34,21 +34,6 @@ func (ts *TransactionService) ValidateSplitsBalance(splits []model.Split) error 
 	return nil
 }
 
-// ValidateSplitDetailsCurrency checks that all SplitDetail entries use the same currency.
-func (ts *TransactionService) ValidateSplitDetailsCurrency(splits []model.SplitDetail) error {
-	var firstCurrency string
-	var initialized bool
-	for _, split := range splits {
-		if !initialized {
-			firstCurrency = split.Currency
-			initialized = true
-		} else if split.Currency != firstCurrency {
-			return fmt.Errorf("splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
-		}
-	}
-	return nil
-}
-
 // ValidateSplitDetailsBalance validates that SplitDetail entries sum to zero
 // and all use the same currency.
 func (ts *TransactionService) ValidateSplitDetailsBalance(splits []model.SplitDetail) error {

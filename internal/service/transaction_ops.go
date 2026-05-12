@@ -271,17 +271,7 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		return fmt.Errorf("transaction must have at least 2 splits for double-entry bookkeeping")
 	}
 
-	// Validate splits balance
-	var total int64
-	for _, split := range splits {
-		total += split.Amount
-	}
-	if total != 0 {
-		return fmt.Errorf("splits must balance to zero (current sum: %d)", total)
-	}
-
-	// Validate currency consistency
-	if err := ts.ValidateSplitDetailsCurrency(splits); err != nil {
+	if err := ts.ValidateSplitDetailsBalance(splits); err != nil {
 		return err
 	}
 

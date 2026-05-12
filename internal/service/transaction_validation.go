@@ -50,6 +50,30 @@ func (ts *TransactionService) ValidateSplitDetailsCurrency(splits []model.SplitD
 	return nil
 }
 
+// ValidateSplitDetailsBalance validates that SplitDetail entries sum to zero
+// and all use the same currency.
+func (ts *TransactionService) ValidateSplitDetailsBalance(splits []model.SplitDetail) error {
+	var total int64
+	var firstCurrency string
+
+	for _, split := range splits {
+		if firstCurrency == "" {
+			firstCurrency = split.Currency
+		} else if split.Currency != firstCurrency {
+			return fmt.Errorf("splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
+		}
+		total += split.Amount
+	}
+
+	if total != 0 {
+		return fmt.Errorf("splits do not balance: total is %d cents (%.2f), must be 0. "+
+			"In double-entry bookkeeping, debits must equal credits",
+			total, float64(total)/100.0)
+	}
+
+	return nil
+}
+
 // ValidateTransactionEdit validates a transaction edit without saving
 func (ts *TransactionService) ValidateTransactionEdit(ctx context.Context, splits []model.SplitDetail) error {
 	// Check minimum splits

@@ -55,10 +55,12 @@ func (ts *TransactionService) ValidateSplitDetailsCurrency(splits []model.SplitD
 func (ts *TransactionService) ValidateSplitDetailsBalance(splits []model.SplitDetail) error {
 	var total int64
 	var firstCurrency string
+	var initialized bool
 
 	for _, split := range splits {
-		if firstCurrency == "" {
+		if !initialized {
 			firstCurrency = split.Currency
+			initialized = true
 		} else if split.Currency != firstCurrency {
 			return fmt.Errorf("splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
 		}

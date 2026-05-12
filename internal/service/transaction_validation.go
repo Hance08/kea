@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/utils"
 )
 
 // ValidateSplitsBalance validates that all splits sum to zero (double-entry principle)
@@ -83,16 +82,7 @@ func (ts *TransactionService) ValidateTransactionEdit(ctx context.Context, split
 		return fmt.Errorf("transaction must have at least 2 splits")
 	}
 
-	// Check balance
-	var total int64
-	for _, split := range splits {
-		total += split.Amount
-	}
-	if total != 0 {
-		return fmt.Errorf("splits do not balance (sum: %s)", utils.FormatAmount(total))
-	}
-
-	if err := ts.ValidateSplitDetailsCurrency(splits); err != nil {
+	if err := ts.ValidateSplitDetailsBalance(splits); err != nil {
 		return err
 	}
 

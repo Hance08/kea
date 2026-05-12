@@ -100,6 +100,89 @@ func TestValidateSplitsBalance(t *testing.T) {
 }
 
 // ──────────────────────────────────────────────
+// ValidateSplitDetailsBalance
+// ──────────────────────────────────────────────
+
+func TestValidateSplitDetailsBalance(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+
+	makeSplitDetails := func(amounts ...int64) []model.SplitDetail {
+		result := make([]model.SplitDetail, len(amounts))
+		for i, a := range amounts {
+			result[i] = model.SplitDetail{Amount: a, Currency: "USD"}
+		}
+		return result
+	}
+
+	t.Run("balanced splits pass", func(t *testing.T) {
+		err := svc.ValidateSplitDetailsBalance(makeSplitDetails(1000, -1000))
+		require.NoError(t, err)
+	})
+
+	t.Run("three splits balance", func(t *testing.T) {
+		err := svc.ValidateSplitDetailsBalance(makeSplitDetails(1000, -600, -400))
+		require.NoError(t, err)
+	})
+
+	t.Run("imbalanced splits rejected", func(t *testing.T) {
+		err := svc.ValidateSplitDetailsBalance(makeSplitDetails(1000, -999))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "splits do not balance")
+	})
+
+	t.Run("single split rejected", func(t *testing.T) {
+		err := svc.ValidateSplitDetailsBalance(makeSplitDetails(100))
+		assert.Error(t, err)
+	})
+
+	t.Run("mixed currencies rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{Amount: 1000, Currency: "TWD"},
+			{Amount: -1000, Currency: "USD"},
+		}
+		err := svc.ValidateSplitDetailsBalance(splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "currency")
+	})
+
+	t.Run("same currency passes", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{Amount: 1000, Currency: "TWD"},
+			{Amount: -1000, Currency: "TWD"},
+		}
+		err := svc.ValidateSplitDetailsBalance(splits)
+		require.NoError(t, err)
+	})
+
+	t.Run("negative imbalance", func(t *testing.T) {
+		err := svc.ValidateSplitDetailsBalance(makeSplitDetails(999, -1000))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "splits do not balance")
+	})
+
+	t.Run("error message contains difference amount", func(t *testing.T) {
+		err := svc.ValidateSplitDetailsBalance(makeSplitDetails(1000, -900))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "100")
+	})
+
+	t.Run("empty slice sums to zero", func(t *testing.T) {
+		err := svc.ValidateSplitDetailsBalance(makeSplitDetails())
+		require.NoError(t, err)
+	})
+
+	t.Run("empty currency mixed with explicit currency rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{Amount: -1000, Currency: ""},
+			{Amount: 1000, Currency: "TWD"},
+		}
+		err := svc.ValidateSplitDetailsBalance(splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "currency")
+	})
+}
+
+// ──────────────────────────────────────────────
 // ValidateTransactionEdit
 // ──────────────────────────────────────────────
 

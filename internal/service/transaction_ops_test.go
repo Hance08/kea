@@ -763,6 +763,54 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "splits do not match transaction type")
 	})
+
+	t.Run("split ID from another transaction rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		txRepo.addTransaction(
+			&model.Transaction{ID: 5, Status: model.StatusPending},
+			makeExistingSplits(10, 11),
+		)
+		txRepo.addTransaction(
+			&model.Transaction{ID: 6, Status: model.StatusPending},
+			[]*model.Split{{ID: 20, AccountID: 1, Amount: 100}, {ID: 21, AccountID: 2, Amount: -100}},
+		)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 20, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{ID: 11, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "cross-tx", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not belong to transaction")
+		assert.Empty(t, txRepo.deleteSplitCalls, "no splits should be deleted")
+		assert.Empty(t, txRepo.updateSplitCalls, "no splits should be updated")
+		assert.Empty(t, txRepo.createSplitCalls, "no splits should be created")
+	})
+
+	t.Run("duplicate split IDs rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		txRepo.addTransaction(
+			&model.Transaction{ID: 5, Status: model.StatusPending},
+			makeExistingSplits(10, 11),
+		)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -500, Currency: "USD"},
+			{ID: 10, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), 5, "dup", 0, model.StatusPending, model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate split ID")
+		assert.Empty(t, txRepo.deleteSplitCalls)
+		assert.Empty(t, txRepo.updateSplitCalls)
+		assert.Empty(t, txRepo.createSplitCalls)
+	})
 }
 
 // ──────────────────────────────────────────────

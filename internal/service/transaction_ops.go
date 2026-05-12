@@ -301,6 +301,21 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		existingAccountByID[s.ID] = s.AccountID
 	}
 
+	// Reject duplicate or foreign split IDs before any mutation.
+	seenSplitIDs := make(map[int64]bool, len(splits))
+	for _, split := range splits {
+		if split.ID == 0 {
+			continue
+		}
+		if seenSplitIDs[split.ID] {
+			return fmt.Errorf("duplicate split ID %d in input", split.ID)
+		}
+		seenSplitIDs[split.ID] = true
+		if _, ok := existingAccountByID[split.ID]; !ok {
+			return fmt.Errorf("split ID %d does not belong to transaction %d", split.ID, txID)
+		}
+	}
+
 	// Validate all accounts exist; enforce selectability only for new splits
 	// or splits whose account is being changed.
 	for _, split := range splits {

@@ -260,8 +260,9 @@ func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) erro
 	}
 
 	_, err = tx.ExecContext(ctx,
-		`UPDATE accounts SET name = replace(name, ?, ?) WHERE name LIKE ? || ':%'`,
-		oldName, newName, oldName,
+		`UPDATE accounts SET name = ? || substr(name, length(?) + 1)
+		 WHERE substr(name, 1, length(? || ':')) = ? || ':'`,
+		newName, oldName, oldName, oldName,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to cascade rename from %q to %q: %w", oldName, newName, err)

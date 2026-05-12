@@ -49,7 +49,7 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 
-		if err := ts.checkAccountSelectable(ctx, account); err != nil {
+		if err := ts.checkAccountSelectable(ctx, ts.accRepo, account); err != nil {
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 
@@ -107,11 +107,11 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 }
 
 // checkAccountSelectable returns an error if the account is hidden or has child accounts.
-func (ts *TransactionService) checkAccountSelectable(ctx context.Context, account *model.Account) error {
+func (ts *TransactionService) checkAccountSelectable(ctx context.Context, accRepo repository.AccountRepository, account *model.Account) error {
 	if account.IsHidden {
 		return fmt.Errorf("account %q is hidden", account.Name)
 	}
-	hasChildren, err := ts.accRepo.HasChildAccounts(ctx, account.ID)
+	hasChildren, err := accRepo.HasChildAccounts(ctx, account.ID)
 	if err != nil {
 		return err
 	}
@@ -314,14 +314,14 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 
 		// Validate accounts; enforce selectability only for new or changed splits.
 		for _, split := range splits {
-			account, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
+			account, err := repo.GetAccountByID(ctx, split.AccountID)
 			if err != nil {
 				return fmt.Errorf("account ID %d not found", split.AccountID)
 			}
 			isNew := split.ID == 0
 			accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID
 			if isNew || accountChanged {
-				if err := ts.checkAccountSelectable(ctx, account); err != nil {
+				if err := ts.checkAccountSelectable(ctx, repo, account); err != nil {
 					return fmt.Errorf("split (account ID %d): %w", split.AccountID, err)
 				}
 			}

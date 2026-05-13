@@ -27,6 +27,7 @@ func (r *createRunner) createAccount(ctx context.Context, input createInput) (*m
 func (r *createRunner) applyTypeSettings(accType, currencyOverride string, input *createInput) error {
 	input.accountType = model.AccountType(accType)
 	if currencyOverride != "" {
+		// Early rejection of invalid codes; normalization happens in CreateAccount.
 		if err := r.accSvc.ValidateCurrency(currencyOverride); err != nil {
 			return err
 		}
@@ -41,6 +42,7 @@ func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverri
 	input.accountType = parent.Type
 	input.parentID = &parent.ID
 	if currencyOverride != "" {
+		// Early rejection of invalid codes; normalization happens in CreateAccount.
 		if err := r.accSvc.ValidateCurrency(currencyOverride); err != nil {
 			return err
 		}

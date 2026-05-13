@@ -231,6 +231,15 @@ func TestCreateAccount(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "USD", acc.Currency)
 	})
+
+	t.Run("currency with surrounding whitespace is trimmed and uppercased", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountTypeAsset, " eur ", "My bank", nil)
+		require.NoError(t, err)
+		assert.Equal(t, "EUR", acc.Currency)
+	})
 }
 
 // ──────────────────────────────────────────────

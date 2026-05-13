@@ -342,9 +342,13 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, txRepo)
 
-		_, err := svc.CreateAccountWithBalance(context.Background(), "Expenses:Food", model.AccountTypeExpense, "USD", "", nil, 500)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), "Expenses:Food", model.AccountTypeExpense, "USD", "", nil, 500)
 		require.Error(t, err)
+		assert.Nil(t, acc, "account should be nil on unsupported type")
 		assert.Contains(t, err.Error(), "opening balance")
+
+		_, lookupErr := accRepo.GetAccountByName(context.Background(), "Expenses:Food")
+		assert.ErrorIs(t, lookupErr, repository.ErrNotFound, "account should not exist after unsupported-type rollback")
 	})
 
 	t.Run("missing Equity:OpeningBalances_USD account is auto-created", func(t *testing.T) {
@@ -360,6 +364,21 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, model.AccountTypeEquity, equityAcc.Type)
 		assert.Equal(t, "USD", equityAcc.Currency)
+	})
+
+	t.Run("opening balance failure rolls back account creation", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		addOpeningBalanceAccount(accRepo)
+		txRepo.createErr = errors.New("forced DB error")
+		svc := newTestAccountService(accRepo, txRepo)
+
+		acc, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil, 5000)
+		require.Error(t, err)
+		assert.Nil(t, acc, "account should be nil on rollback")
+
+		_, lookupErr := accRepo.GetAccountByName(context.Background(), "Assets:Bank")
+		assert.ErrorIs(t, lookupErr, repository.ErrNotFound, "account should not exist after rollback")
 	})
 }
 

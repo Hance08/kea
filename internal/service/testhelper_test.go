@@ -497,11 +497,50 @@ func (m *mockTransactionManager) ExecTx(_ context.Context, fn func(repository.Re
 	if m.failTx {
 		return errors.New("transaction manager: forced failure")
 	}
+
+	// Snapshot account state before the transaction so we can roll back.
+	accSnapshot := make(map[string]*model.Account, len(m.accRepo.accountsByName))
+	for k, v := range m.accRepo.accountsByName {
+		cp := *v
+		accSnapshot[k] = &cp
+	}
+	idSnapshot := make(map[int64]*model.Account, len(m.accRepo.accountsByID))
+	for k, v := range m.accRepo.accountsByID {
+		cp := *v
+		idSnapshot[k] = &cp
+	}
+	nextIDSnapshot := m.accRepo.nextID
+
+	txSnapshot := make(map[int64]*model.Transaction, len(m.txRepo.transactions))
+	for k, v := range m.txRepo.transactions {
+		cp := *v
+		txSnapshot[k] = &cp
+	}
+	splitsSnapshot := make(map[int64][]*model.Split, len(m.txRepo.splits))
+	for k, v := range m.txRepo.splits {
+		cp := make([]*model.Split, len(v))
+		copy(cp, v)
+		splitsSnapshot[k] = cp
+	}
+	nextTxIDSnapshot := m.txRepo.nextTxID
+	nextSplitIDSnapshot := m.txRepo.nextSplitID
+
 	combined := &mockCombinedRepo{
 		mockAccountRepo:     m.accRepo,
 		mockTransactionRepo: m.txRepo,
 	}
-	return fn(combined)
+	if err := fn(combined); err != nil {
+		// Rollback: restore pre-transaction state.
+		m.accRepo.accountsByName = accSnapshot
+		m.accRepo.accountsByID = idSnapshot
+		m.accRepo.nextID = nextIDSnapshot
+		m.txRepo.transactions = txSnapshot
+		m.txRepo.splits = splitsSnapshot
+		m.txRepo.nextTxID = nextTxIDSnapshot
+		m.txRepo.nextSplitID = nextSplitIDSnapshot
+		return err
+	}
+	return nil
 }
 
 // ──────────────────────────────────────────────

@@ -47,30 +47,65 @@ func (as *AccountService) validateParentChain(ctx context.Context, accountID int
 }
 
 func (as *AccountService) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
+	if err := as.validateAccountFields(ctx, name, accType, currency, parentID); err != nil {
+		return nil, err
+	}
+	currency = strings.ToUpper(strings.TrimSpace(currency))
+	return as.createAccountViaRepo(ctx, as.repo, name, accType, currency, description, parentID)
+}
+
+func (as *AccountService) CreateAccountWithBalance(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
+	if err := as.validateAccountFields(ctx, name, accType, currency, parentID); err != nil {
+		return nil, err
+	}
+	currency = strings.ToUpper(strings.TrimSpace(currency))
+
+	if balance == 0 {
+		return as.createAccountViaRepo(ctx, as.repo, name, accType, currency, description, parentID)
+	}
+
+	var account *model.Account
+	err := as.tm.ExecTx(ctx, func(repo repository.Repository) error {
+		acc, createErr := as.createAccountViaRepo(ctx, repo, name, accType, currency, description, parentID)
+		if createErr != nil {
+			return createErr
+		}
+		account = acc
+		return as.createOpeningBalanceInRepo(ctx, repo, account, balance)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
+}
+
+func (as *AccountService) validateAccountFields(ctx context.Context, name string, accType model.AccountType, currency string, parentID *int64) error {
 	if err := as.ValidateFullAccountName(name); err != nil {
-		return nil, fmt.Errorf("invalid account name: %w", err)
+		return fmt.Errorf("invalid account name: %w", err)
 	}
 	currency = strings.ToUpper(strings.TrimSpace(currency))
 	if err := as.ValidateCurrency(currency); err != nil {
-		return nil, fmt.Errorf("invalid currency: %w", err)
+		return fmt.Errorf("invalid currency: %w", err)
 	}
 	if !accType.IsValid() {
-		return nil, fmt.Errorf("invalid account type: %s", accType)
+		return fmt.Errorf("invalid account type: %s", accType)
 	}
 	if parentID != nil {
 		if err := as.validateParentChain(ctx, 0, parentID); err != nil {
-			return nil, err
+			return err
 		}
 	}
+	return nil
+}
 
-	newID, err := as.repo.CreateAccount(ctx, name, accType, currency, description, parentID)
+func (as *AccountService) createAccountViaRepo(ctx context.Context, repo repository.AccountRepository, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
+	newID, err := repo.CreateAccount(ctx, name, accType, currency, description, parentID)
 	if err != nil {
 		if errors.Is(err, repository.ErrAlreadyExists) {
 			return nil, fmt.Errorf("account %q: %w", name, ErrAlreadyExists)
 		}
 		return nil, err
 	}
-
 	return &model.Account{
 		ID:          newID,
 		Name:        name,
@@ -82,22 +117,7 @@ func (as *AccountService) CreateAccount(ctx context.Context, name string, accTyp
 	}, nil
 }
 
-func (as *AccountService) CreateAccountWithBalance(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
-	account, err := as.CreateAccount(ctx, name, accType, currency, description, parentID)
-	if err != nil {
-		return nil, err
-	}
-
-	if balance != 0 {
-		if err := as.createOpeningBalance(ctx, account, balance); err != nil {
-			return account, fmt.Errorf("account created but failed to set opening balance: %w", err)
-		}
-	}
-
-	return account, nil
-}
-
-func (as *AccountService) createOpeningBalance(ctx context.Context, account *model.Account, amountInCents int64) error {
+func (as *AccountService) createOpeningBalanceInRepo(ctx context.Context, repo repository.Repository, account *model.Account, amountInCents int64) error {
 	currency := account.Currency
 	if currency == "" {
 		currency = as.config.Defaults.Currency
@@ -114,7 +134,7 @@ func (as *AccountService) createOpeningBalance(ctx context.Context, account *mod
 		balanceAmount = -amountInCents
 		equityAmount = amountInCents
 	default:
-		return fmt.Errorf("only Assets(A) and Liabilities(L) accounts can set a balance")
+		return fmt.Errorf("only Assets(A) and Liabilities(L) accounts can set an opening balance")
 	}
 
 	tx := model.Transaction{
@@ -124,34 +144,31 @@ func (as *AccountService) createOpeningBalance(ctx context.Context, account *mod
 		Type:        model.TxTypeOpening,
 	}
 
-	return as.tm.ExecTx(ctx, func(repo repository.Repository) error {
-		equityAcc, err := repo.GetAccountByName(ctx, equityAccountName)
-		if err != nil {
-			if !errors.Is(err, repository.ErrNotFound) {
-				return fmt.Errorf("failed to look up %q: %w", equityAccountName, err)
-			}
-			// not found — create it
-			newID, createErr := repo.CreateAccount(
-				ctx,
-				equityAccountName,
-				model.AccountTypeEquity,
-				currency,
-				"Opening Balances (System Account)",
-				nil,
-			)
-			if createErr != nil {
-				return fmt.Errorf("failed to create %q: %w", equityAccountName, createErr)
-			}
-			equityAcc = &model.Account{ID: newID}
+	equityAcc, err := repo.GetAccountByName(ctx, equityAccountName)
+	if err != nil {
+		if !errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("failed to look up %q: %w", equityAccountName, err)
 		}
+		newID, createErr := repo.CreateAccount(
+			ctx,
+			equityAccountName,
+			model.AccountTypeEquity,
+			currency,
+			"Opening Balances (System Account)",
+			nil,
+		)
+		if createErr != nil {
+			return fmt.Errorf("failed to create %q: %w", equityAccountName, createErr)
+		}
+		equityAcc = &model.Account{ID: newID}
+	}
 
-		splits := []model.Split{
-			{AccountID: account.ID, Amount: balanceAmount, Currency: currency, Memo: model.OpeningAccountMemo},
-			{AccountID: equityAcc.ID, Amount: equityAmount, Currency: currency, Memo: model.OpeningAccountMemo},
-		}
-		_, err = repo.CreateTransactionWithSplits(ctx, tx, splits)
-		return err
-	})
+	splits := []model.Split{
+		{AccountID: account.ID, Amount: balanceAmount, Currency: currency, Memo: model.OpeningAccountMemo},
+		{AccountID: equityAcc.ID, Amount: equityAmount, Currency: currency, Memo: model.OpeningAccountMemo},
+	}
+	_, err = repo.CreateTransactionWithSplits(ctx, tx, splits)
+	return err
 }
 
 func (as *AccountService) DeleteAccountByName(ctx context.Context, name string) error {

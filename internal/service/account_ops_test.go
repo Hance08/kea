@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -676,5 +677,107 @@ func TestUpdateAccountMetadata(t *testing.T) {
 
 		err := svc.UpdateAccountMetadata(context.Background(), 1, "desc", false)
 		require.Error(t, err)
+	})
+}
+
+// ──────────────────────────────────────────────
+// Parent chain validation
+// ──────────────────────────────────────────────
+
+func int64Ptr(v int64) *int64 {
+	return &v
+}
+
+func TestCreateAccount_ParentValidation(t *testing.T) {
+	t.Run("valid parent accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		parent := &model.Account{ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"}
+		accRepo.addAccount(parent)
+
+		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(10))
+		require.NoError(t, err)
+		require.NotNil(t, acc.ParentID)
+		assert.Equal(t, int64(10), *acc.ParentID)
+	})
+
+	t.Run("non-existent parent rejected", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(999))
+		require.Error(t, err)
+	})
+
+	t.Run("deep parent chain accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Bank:Savings", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
+
+		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Savings:Sub", model.AccountTypeAsset, "USD", "", int64Ptr(3))
+		require.NoError(t, err)
+		require.NotNil(t, acc.ParentID)
+		assert.Equal(t, int64(3), *acc.ParentID)
+	})
+
+	t.Run("circular parent chain rejected via CreateAccount", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		// Circular: A(1)->C(3), B(2)->A(1), C(3)->B(2)
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:A", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:B", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:C", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
+
+		_, err := svc.CreateAccount(context.Background(), "Assets:C:Child", model.AccountTypeAsset, "USD", "", int64Ptr(3))
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrCircularParent), "expected ErrCircularParent, got: %v", err)
+	})
+}
+
+func TestValidateParentChain(t *testing.T) {
+	t.Run("detects cycle", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		// Circular: A(1)->C(3), B(2)->A(1), C(3)->B(2)
+		accRepo.addAccount(&model.Account{ID: 1, Name: "A", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "B", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "C", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
+
+		err := svc.validateParentChain(context.Background(), 99, int64Ptr(3))
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrCircularParent), "expected ErrCircularParent, got: %v", err)
+	})
+
+	t.Run("nil parent is valid", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		err := svc.validateParentChain(context.Background(), 1, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("repo error propagated", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		accRepo.getByIDErr[50] = repository.ErrNotFound
+
+		err := svc.validateParentChain(context.Background(), 1, int64Ptr(50))
+		require.Error(t, err)
+	})
+
+	t.Run("detects self-parent on reparent", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		accRepo.addAccount(&model.Account{ID: 5, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
+
+		err := svc.validateParentChain(context.Background(), 5, int64Ptr(5))
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrCircularParent))
 	})
 }

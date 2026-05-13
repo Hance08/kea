@@ -361,6 +361,21 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		assert.Equal(t, model.AccountTypeEquity, equityAcc.Type)
 		assert.Equal(t, "USD", equityAcc.Currency)
 	})
+
+	t.Run("opening balance failure rolls back account creation", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		addOpeningBalanceAccount(accRepo)
+		txRepo.createErr = errors.New("forced DB error")
+		svc := newTestAccountService(accRepo, txRepo)
+
+		acc, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil, 5000)
+		require.Error(t, err)
+		assert.Nil(t, acc, "account should be nil on rollback")
+
+		_, lookupErr := accRepo.GetAccountByName(context.Background(), "Assets:Bank")
+		assert.ErrorIs(t, lookupErr, repository.ErrNotFound, "account should not exist after rollback")
+	})
 }
 
 func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {

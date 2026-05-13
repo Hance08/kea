@@ -47,18 +47,18 @@ func (as *AccountService) validateParentChain(ctx context.Context, accountID int
 }
 
 func (as *AccountService) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
+	currency = strings.ToUpper(strings.TrimSpace(currency))
 	if err := as.validateAccountFields(ctx, name, accType, currency, parentID); err != nil {
 		return nil, err
 	}
-	currency = strings.ToUpper(strings.TrimSpace(currency))
 	return as.createAccountViaRepo(ctx, as.repo, name, accType, currency, description, parentID)
 }
 
 func (as *AccountService) CreateAccountWithBalance(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
+	currency = strings.ToUpper(strings.TrimSpace(currency))
 	if err := as.validateAccountFields(ctx, name, accType, currency, parentID); err != nil {
 		return nil, err
 	}
-	currency = strings.ToUpper(strings.TrimSpace(currency))
 
 	if balance == 0 {
 		return as.createAccountViaRepo(ctx, as.repo, name, accType, currency, description, parentID)
@@ -83,7 +83,6 @@ func (as *AccountService) validateAccountFields(ctx context.Context, name string
 	if err := as.ValidateFullAccountName(name); err != nil {
 		return fmt.Errorf("invalid account name: %w", err)
 	}
-	currency = strings.ToUpper(strings.TrimSpace(currency))
 	if err := as.ValidateCurrency(currency); err != nil {
 		return fmt.Errorf("invalid currency: %w", err)
 	}

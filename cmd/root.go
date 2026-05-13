@@ -336,6 +336,25 @@ func capitalize(s string) string {
 	return string(r)
 }
 
+func isLedgerCommand(args []string) bool {
+	skipNext := false
+	for _, a := range args {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		if a == "-c" || a == "--config" {
+			skipNext = true
+			continue
+		}
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		return a == "ledger"
+	}
+	return false
+}
+
 func configureOutput(noColorFlag bool) {
 	if noColorFlag || os.Getenv("NO_COLOR") != "" {
 		pterm.DisableStyling()

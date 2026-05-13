@@ -139,3 +139,28 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to migrate legacy system account")
 	})
 }
+
+func TestIsLedgerCommand(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{"ledger list", []string{"ledger", "list"}, true},
+		{"ledger ls alias", []string{"ledger", "ls"}, true},
+		{"ledger add", []string{"ledger", "add", "work"}, true},
+		{"ledger switch", []string{"ledger", "switch", "work"}, true},
+		{"ledger remove", []string{"ledger", "remove", "old"}, true},
+		{"bare ledger", []string{"ledger"}, true},
+		{"account list", []string{"account", "list"}, false},
+		{"add transaction", []string{"add"}, false},
+		{"no args", []string{}, false},
+		{"ledger with global flags", []string{"--no-color", "ledger", "list"}, true},
+		{"ledger with config flag", []string{"-c", "/tmp/cfg.yaml", "ledger", "add", "x"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isLedgerCommand(tt.args))
+		})
+	}
+}

@@ -77,3 +77,53 @@ func TestBackupOnline_FailsOnBadDest(t *testing.T) {
 	err = backupOnline(context.Background(), srcDB, dstPath)
 	assert.Error(t, err)
 }
+
+func TestBackupOnline_ConsistentDuringWrites(t *testing.T) {
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "src.db")
+
+	srcDB, err := sql.Open("sqlite3", srcPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	require.NoError(t, err)
+	defer srcDB.Close()
+
+	_, err = srcDB.Exec("CREATE TABLE counter (id INTEGER PRIMARY KEY, n INTEGER)")
+	require.NoError(t, err)
+	_, err = srcDB.Exec("INSERT INTO counter (n) VALUES (0)")
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				srcDB.Exec("UPDATE counter SET n = n + 1 WHERE id = 1")
+			}
+		}
+	}()
+
+	dstPath := filepath.Join(dir, "backup.db")
+	err = backupOnline(context.Background(), srcDB, dstPath)
+	cancel()
+	<-done
+	require.NoError(t, err)
+
+	dstDB, err := sql.Open("sqlite3", dstPath)
+	require.NoError(t, err)
+	defer dstDB.Close()
+
+	var n int
+	err = dstDB.QueryRow("SELECT n FROM counter WHERE id = 1").Scan(&n)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, n, 0, "counter should have a valid value")
+
+	var result string
+	err = dstDB.QueryRow("PRAGMA integrity_check").Scan(&result)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", result)
+}

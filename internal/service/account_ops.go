@@ -50,6 +50,7 @@ func (as *AccountService) CreateAccount(ctx context.Context, name string, accTyp
 	if err := as.ValidateFullAccountName(name); err != nil {
 		return nil, fmt.Errorf("invalid account name: %w", err)
 	}
+	currency = strings.ToUpper(strings.TrimSpace(currency))
 	if err := as.ValidateCurrency(currency); err != nil {
 		return nil, fmt.Errorf("invalid currency: %w", err)
 	}

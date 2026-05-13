@@ -163,7 +163,9 @@ func (r *createRunner) runInteractive(ctx context.Context) (createInput, error) 
 		if err != nil {
 			return createInput{}, err
 		}
-		r.applyParentSettings(parentAccount, parentAccount.Currency, &input)
+		if err := r.applyParentSettings(parentAccount, parentAccount.Currency, &input); err != nil {
+			return createInput{}, err
+		}
 		input.fullName = r.accSvc.FormatAccountName(parentAccount.Name, nameInput)
 	} else {
 		accType, err := r.promptType()

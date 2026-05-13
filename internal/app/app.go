@@ -31,7 +31,7 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 		dbPathRaw = filepath.Join(appDir, "kea.db")
 	}
 
-	if err := backup.Run(dbPathRaw); err != nil {
+	if err := backup.Run(dbPathRaw, nil); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: backup failed: %v\n", err)
 	}
 

@@ -4,6 +4,7 @@
 package backup
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // fakeClock lets tests control "now".
@@ -34,7 +37,7 @@ func TestRun_NoDBFile(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "kea.db")
 
-	err := run(dbPath, fakeClock{t: fixedTime("2026-04-14")})
+	err := run(dbPath, fakeClock{t: fixedTime("2026-04-14")}, nil)
 
 	require.NoError(t, err)
 	_, statErr := os.Stat(filepath.Join(dir, "backups"))
@@ -178,7 +181,7 @@ func TestRun_FirstRun_AllThreeTiersCreated(t *testing.T) {
 	mkDB(t, dbPath)
 	clk := fakeClock{t: fixedTime("2026-04-14")}
 
-	require.NoError(t, run(dbPath, clk))
+	require.NoError(t, run(dbPath, clk, nil))
 
 	backupDir := filepath.Join(dir, "backups")
 	assertFileExists(t, backupDir, "kea_daily_2026-04-14.db")
@@ -203,7 +206,7 @@ func TestRun_AlreadyCurrent_NoNewFiles(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(backupDir, name), []byte("old"), 0644))
 	}
 
-	require.NoError(t, run(dbPath, clk))
+	require.NoError(t, run(dbPath, clk, nil))
 
 	// Files should still have "old" contents — not overwritten.
 	for _, name := range []string{
@@ -229,7 +232,7 @@ func TestRun_DailyDue_OtherTiersCurrent(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_weekly_2026-W16.db"), []byte("old"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_monthly_2026-04.db"), []byte("old"), 0644))
 
-	require.NoError(t, run(dbPath, clk))
+	require.NoError(t, run(dbPath, clk, nil))
 
 	assertFileExists(t, backupDir, "kea_daily_2026-04-14.db")
 	// Others untouched.
@@ -249,7 +252,7 @@ func TestRun_WeeklyDue_OtherTiersCurrent(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"), []byte("old"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_monthly_2026-04.db"), []byte("old"), 0644))
 
-	require.NoError(t, run(dbPath, clk))
+	require.NoError(t, run(dbPath, clk, nil))
 
 	assertFileExists(t, backupDir, "kea_weekly_2026-W16.db")
 	daily, _ := os.ReadFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"))
@@ -268,7 +271,7 @@ func TestRun_MonthlyDue_OtherTiersCurrent(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"), []byte("old"), 0644))
 	require.NoError(t, os.WriteFile(filepath.Join(backupDir, "kea_weekly_2026-W16.db"), []byte("old"), 0644))
 
-	require.NoError(t, run(dbPath, clk))
+	require.NoError(t, run(dbPath, clk, nil))
 
 	assertFileExists(t, backupDir, "kea_monthly_2026-04.db")
 	daily, _ := os.ReadFile(filepath.Join(backupDir, "kea_daily_2026-04-14.db"))
@@ -289,7 +292,7 @@ func TestRun_RotationTriggered(t *testing.T) {
 	}
 
 	clk := fakeClock{t: fixedTime("2026-04-14")}
-	require.NoError(t, run(dbPath, clk))
+	require.NoError(t, run(dbPath, clk, nil))
 
 	entries, _ := os.ReadDir(backupDir)
 	var dailyCount int
@@ -316,7 +319,7 @@ func TestRun_CopyFailure_ReturnsError(t *testing.T) {
 	require.NoError(t, os.WriteFile(backupsPath, []byte("not-a-dir"), 0644))
 
 	clk := fakeClock{t: fixedTime("2026-04-14")}
-	err := run(dbPath, clk)
+	err := run(dbPath, clk, nil)
 	assert.Error(t, err)
 }
 
@@ -388,6 +391,35 @@ func TestRotate_PrunesOldestMonthly(t *testing.T) {
 	assert.True(t, errors.Is(err, os.ErrNotExist))
 	_, err = os.Stat(filepath.Join(backupDir, "kea_monthly_2026-02.db"))
 	assert.NoError(t, err)
+}
+
+func TestRun_WithDB_UsesOnlineBackup(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+
+	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY, val TEXT)")
+	require.NoError(t, err)
+	_, err = db.Exec("INSERT INTO test (val) VALUES ('hello')")
+	require.NoError(t, err)
+
+	clk := fakeClock{t: fixedTime("2026-04-14")}
+	err = run(dbPath, clk, db)
+	require.NoError(t, err)
+
+	backupDir := filepath.Join(dir, "backups")
+	backupPath := filepath.Join(backupDir, "kea_daily_2026-04-14.db")
+	backupDB, err := sql.Open("sqlite3", backupPath)
+	require.NoError(t, err)
+	defer backupDB.Close()
+
+	var val string
+	err = backupDB.QueryRow("SELECT val FROM test WHERE id = 1").Scan(&val)
+	require.NoError(t, err)
+	assert.Equal(t, "hello", val)
 }
 
 // assertFileExists is a helper that checks a file exists in dir.

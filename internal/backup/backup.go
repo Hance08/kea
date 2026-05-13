@@ -4,6 +4,8 @@
 package backup
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -23,12 +25,15 @@ type realClock struct{}
 func (realClock) Now() time.Time { return time.Now() }
 
 // Run backs up dbPath if any tier is due. It is a no-op when dbPath does not
-// exist. Errors are non-fatal: the caller should log and continue startup.
-func Run(dbPath string) error {
-	return run(dbPath, realClock{})
+// exist. When db is non-nil, the SQLite online backup API is used for a
+// consistent snapshot; when nil, the DB file is copied directly (CLI startup
+// path where the database is not yet open). Errors are non-fatal: the caller
+// should log and continue startup.
+func Run(dbPath string, db *sql.DB) error {
+	return run(dbPath, realClock{}, db)
 }
 
-func run(dbPath string, clk clock) error {
+func run(dbPath string, clk clock, db *sql.DB) error {
 	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -51,7 +56,7 @@ func run(dbPath string, clk clock) error {
 			continue // backup for this period already exists
 		}
 
-		if err := copyFile(dbPath, dst); err != nil {
+		if err := doBackup(dbPath, dst, db); err != nil {
 			return fmt.Errorf("backup %s: %w", t.name, err)
 		}
 
@@ -121,6 +126,16 @@ func rotate(backupDir, dbBase, tierName, ext string, retention int) error {
 	}
 
 	return nil
+}
+
+// doBackup dispatches to the appropriate backup strategy. When db is non-nil
+// the SQLite online backup API is used for a consistent snapshot; otherwise
+// the source file is copied directly.
+func doBackup(dbPath, dst string, db *sql.DB) error {
+	if db != nil {
+		return backupOnline(context.Background(), db, dst)
+	}
+	return copyFile(dbPath, dst)
 }
 
 // copyFile copies src to dst atomically via a .tmp intermediate file.

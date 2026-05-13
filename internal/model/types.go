@@ -3,7 +3,10 @@
 
 package model
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	CentsPerUnit = 100
@@ -112,4 +115,24 @@ func OpeningBalancesAccountName(currency string) string {
 
 func IsOpeningBalancesAccount(name string) bool {
 	return strings.HasPrefix(name, "Equity:OpeningBalances_")
+}
+
+func ParseTransactionType(s string) (TransactionType, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "expense":
+		return TxTypeExpense, nil
+	case "income":
+		return TxTypeIncome, nil
+	case "transfer":
+		return TxTypeTransfer, nil
+	default:
+		return "", fmt.Errorf("invalid transaction type %q: must be expense, income, or transfer", s)
+	}
+}
+
+func ParseTransactionStatus(s string) TransactionStatus {
+	if strings.ToLower(s) == "pending" {
+		return StatusPending
+	}
+	return StatusCleared
 }

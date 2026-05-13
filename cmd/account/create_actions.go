@@ -6,7 +6,6 @@ package account
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
@@ -31,21 +30,25 @@ func (r *createRunner) applyTypeSettings(accType, currencyOverride string, input
 		if err := r.accSvc.ValidateCurrency(currencyOverride); err != nil {
 			return err
 		}
-		input.currency = strings.ToUpper(strings.TrimSpace(currencyOverride))
+		input.currency = currencyOverride
 	} else {
 		input.currency = r.defaultCurrency
 	}
 	return nil
 }
 
-func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverride string, input *createInput) {
+func (r *createRunner) applyParentSettings(parent *model.Account, currencyOverride string, input *createInput) error {
 	input.accountType = parent.Type
 	input.parentID = &parent.ID
 	if currencyOverride != "" {
+		if err := r.accSvc.ValidateCurrency(currencyOverride); err != nil {
+			return err
+		}
 		input.currency = currencyOverride
 	} else {
 		input.currency = parent.Currency
 	}
+	return nil
 }
 
 func (r *createRunner) buildFromParentName(ctx context.Context, parentName, currency string, input *createInput) error {
@@ -53,7 +56,9 @@ func (r *createRunner) buildFromParentName(ctx context.Context, parentName, curr
 	if err != nil {
 		return err
 	}
-	r.applyParentSettings(parentAccount, currency, input)
+	if err := r.applyParentSettings(parentAccount, currency, input); err != nil {
+		return err
+	}
 	input.fullName = parentAccount.Name // prefix for FormatAccountName in runFromFlags
 	return nil
 }

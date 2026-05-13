@@ -501,21 +501,26 @@ func (m *mockTransactionManager) ExecTx(_ context.Context, fn func(repository.Re
 	// Snapshot account state before the transaction so we can roll back.
 	accSnapshot := make(map[string]*model.Account, len(m.accRepo.accountsByName))
 	for k, v := range m.accRepo.accountsByName {
-		accSnapshot[k] = v
+		cp := *v
+		accSnapshot[k] = &cp
 	}
 	idSnapshot := make(map[int64]*model.Account, len(m.accRepo.accountsByID))
 	for k, v := range m.accRepo.accountsByID {
-		idSnapshot[k] = v
+		cp := *v
+		idSnapshot[k] = &cp
 	}
 	nextIDSnapshot := m.accRepo.nextID
 
 	txSnapshot := make(map[int64]*model.Transaction, len(m.txRepo.transactions))
 	for k, v := range m.txRepo.transactions {
-		txSnapshot[k] = v
+		cp := *v
+		txSnapshot[k] = &cp
 	}
 	splitsSnapshot := make(map[int64][]*model.Split, len(m.txRepo.splits))
 	for k, v := range m.txRepo.splits {
-		splitsSnapshot[k] = v
+		cp := make([]*model.Split, len(v))
+		copy(cp, v)
+		splitsSnapshot[k] = cp
 	}
 	nextTxIDSnapshot := m.txRepo.nextTxID
 	nextSplitIDSnapshot := m.txRepo.nextSplitID

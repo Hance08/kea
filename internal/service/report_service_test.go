@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,169 @@ import (
 // addTxSplits inserts a set of SplitDetails for a transaction into the map.
 func addTxSplits(m map[int64][]model.SplitDetail, txID int64, splits ...model.SplitDetail) {
 	m[txID] = splits
+}
+
+// ──────────────────────────────────────────────
+// ResolveDateRange
+// ──────────────────────────────────────────────
+
+func TestResolveDateRange(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+
+	t.Run("month format parses correctly", func(t *testing.T) {
+		start, end, period, err := svc.ResolveDateRange(DateRangeParams{Month: "2025-03"})
+		require.NoError(t, err)
+
+		startT := time.Unix(start, 0)
+		endT := time.Unix(end, 0)
+		assert.Equal(t, 2025, startT.Year())
+		assert.Equal(t, time.March, startT.Month())
+		assert.Equal(t, 1, startT.Day())
+		assert.Equal(t, 2025, endT.Year())
+		assert.Equal(t, time.March, endT.Month())
+		assert.Equal(t, 31, endT.Day())
+		assert.Equal(t, "March 2025", period)
+	})
+
+	t.Run("invalid month format returns error", func(t *testing.T) {
+		_, _, _, err := svc.ResolveDateRange(DateRangeParams{Month: "2025/03"})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "YYYY-MM")
+	})
+
+	t.Run("from and to date range", func(t *testing.T) {
+		start, end, period, err := svc.ResolveDateRange(DateRangeParams{
+			From: "2025-01-15",
+			To:   "2025-02-15",
+		})
+		require.NoError(t, err)
+		assert.Greater(t, end, start)
+		assert.Contains(t, period, "2025-01-15")
+		assert.Contains(t, period, "2025-02-15")
+	})
+
+	t.Run("from only defaults to epoch start", func(t *testing.T) {
+		_, _, _, err := svc.ResolveDateRange(DateRangeParams{From: "2025-01-15"})
+		require.NoError(t, err)
+	})
+
+	t.Run("to only defaults from epoch", func(t *testing.T) {
+		start, _, _, err := svc.ResolveDateRange(DateRangeParams{To: "2025-06-15"})
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), start)
+	})
+
+	t.Run("to before from returns error", func(t *testing.T) {
+		_, _, _, err := svc.ResolveDateRange(DateRangeParams{
+			From: "2025-06-15",
+			To:   "2025-01-01",
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "on or after")
+	})
+
+	t.Run("invalid from format returns error", func(t *testing.T) {
+		_, _, _, err := svc.ResolveDateRange(DateRangeParams{From: "not-a-date"})
+		assert.Error(t, err)
+	})
+
+	t.Run("invalid to format returns error", func(t *testing.T) {
+		_, _, _, err := svc.ResolveDateRange(DateRangeParams{To: "not-a-date"})
+		assert.Error(t, err)
+	})
+
+	t.Run("empty params defaults to current month", func(t *testing.T) {
+		start, end, period, err := svc.ResolveDateRange(DateRangeParams{})
+		require.NoError(t, err)
+
+		now := time.Now()
+		startT := time.Unix(start, 0)
+		assert.Equal(t, now.Year(), startT.Year())
+		assert.Equal(t, now.Month(), startT.Month())
+		assert.Equal(t, 1, startT.Day())
+		assert.Greater(t, end, start)
+		assert.NotEmpty(t, period)
+	})
+
+	t.Run("month takes priority over from/to", func(t *testing.T) {
+		start, _, period, err := svc.ResolveDateRange(DateRangeParams{
+			Month: "2025-06",
+			From:  "2024-01-01",
+			To:    "2024-12-31",
+		})
+		require.NoError(t, err)
+		startT := time.Unix(start, 0)
+		assert.Equal(t, 2025, startT.Year())
+		assert.Equal(t, time.June, startT.Month())
+		assert.Equal(t, "June 2025", period)
+	})
+}
+
+// ──────────────────────────────────────────────
+// previousPeriodRange (white-box)
+// ──────────────────────────────────────────────
+
+func TestPreviousPeriodRange(t *testing.T) {
+	t.Run("30-day period", func(t *testing.T) {
+		start := int64(1000)
+		end := int64(1000 + 30*86400 - 1)
+		prevStart, prevEnd := previousPeriodRange(start, end)
+		assert.Equal(t, start-1, prevEnd)
+		assert.Equal(t, end-start, prevEnd-prevStart)
+	})
+
+	t.Run("single-day period", func(t *testing.T) {
+		start := int64(86400)
+		end := int64(86400)
+		prevStart, prevEnd := previousPeriodRange(start, end)
+		assert.Equal(t, start-1, prevEnd)
+		assert.Equal(t, prevStart, prevEnd)
+	})
+}
+
+// ──────────────────────────────────────────────
+// computeNetWorthGrowthPctMap (white-box)
+// ──────────────────────────────────────────────
+
+func TestComputeNetWorthGrowthPctMap(t *testing.T) {
+	t.Run("basic growth", func(t *testing.T) {
+		current := map[string]int64{"USD": 11000}
+		previous := map[string]int64{"USD": 10000}
+		result := computeNetWorthGrowthPctMap(current, previous)
+		assert.InDelta(t, 10.0, result["USD"], 0.01)
+	})
+
+	t.Run("zero previous is omitted", func(t *testing.T) {
+		current := map[string]int64{"USD": 5000}
+		previous := map[string]int64{"USD": 0}
+		result := computeNetWorthGrowthPctMap(current, previous)
+		_, exists := result["USD"]
+		assert.False(t, exists)
+	})
+
+	t.Run("negative previous uses absolute value", func(t *testing.T) {
+		current := map[string]int64{"USD": -500}
+		previous := map[string]int64{"USD": -1000}
+		result := computeNetWorthGrowthPctMap(current, previous)
+		assert.InDelta(t, 50.0, result["USD"], 0.01)
+	})
+
+	t.Run("multi-currency", func(t *testing.T) {
+		current := map[string]int64{"USD": 12000, "TWD": 60000}
+		previous := map[string]int64{"USD": 10000, "TWD": 50000}
+		result := computeNetWorthGrowthPctMap(current, previous)
+		assert.InDelta(t, 20.0, result["USD"], 0.01)
+		assert.InDelta(t, 20.0, result["TWD"], 0.01)
+	})
+
+	t.Run("currency only in current is omitted", func(t *testing.T) {
+		current := map[string]int64{"USD": 5000, "TWD": 10000}
+		previous := map[string]int64{"USD": 4000}
+		result := computeNetWorthGrowthPctMap(current, previous)
+		assert.InDelta(t, 25.0, result["USD"], 0.01)
+		_, exists := result["TWD"]
+		assert.False(t, exists)
+	})
 }
 
 // ──────────────────────────────────────────────

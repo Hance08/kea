@@ -12,7 +12,6 @@ import (
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
-	"github.com/hance08/kea/internal/store"
 	"github.com/hance08/kea/internal/utils"
 )
 
@@ -33,7 +32,7 @@ func (as *AccountService) GetAllAccounts(ctx context.Context) ([]*model.Account,
 func (as *AccountService) GetAccountByName(ctx context.Context, name string) (*model.Account, error) {
 	acc, err := as.repo.GetAccountByName(ctx, name)
 	if err != nil {
-		if errors.Is(err, store.ErrRecordNotFound) {
+		if errors.Is(err, repository.ErrNotFound) {
 			return nil, fmt.Errorf("account %q: %w", name, ErrNotFound)
 		}
 		return nil, err

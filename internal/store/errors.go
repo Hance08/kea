@@ -3,10 +3,14 @@
 
 package store
 
-import "errors"
+import (
+	"fmt"
+
+	"github.com/hance08/kea/internal/repository"
+)
 
 var (
-	ErrAccountExists       = errors.New("account already exists")
-	ErrRecordNotFound      = errors.New("record not found")
-	ErrConstraintViolation = errors.New("database constraint violation")
+	ErrAccountExists       = fmt.Errorf("account already exists: %w", repository.ErrAlreadyExists)
+	ErrRecordNotFound      = fmt.Errorf("record not found: %w", repository.ErrNotFound)
+	ErrConstraintViolation = fmt.Errorf("database constraint violation")
 )

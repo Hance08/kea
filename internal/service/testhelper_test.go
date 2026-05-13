@@ -14,7 +14,6 @@ import (
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
-	"github.com/hance08/kea/internal/store"
 )
 
 // ──────────────────────────────────────────────
@@ -72,7 +71,7 @@ func (m *mockAccountRepo) CreateAccount(_ context.Context, name string, accType 
 		return 0, m.createErr
 	}
 	if _, exists := m.accountsByName[name]; exists {
-		return 0, fmt.Errorf("account %q already exists: %w", name, store.ErrAccountExists)
+		return 0, fmt.Errorf("account %q already exists: %w", name, repository.ErrAlreadyExists)
 	}
 	id := m.nextID
 	m.nextID++
@@ -103,7 +102,7 @@ func (m *mockAccountRepo) GetAccountByName(_ context.Context, name string) (*mod
 	}
 	acc, ok := m.accountsByName[name]
 	if !ok {
-		return nil, fmt.Errorf("account %q not found: %w", name, store.ErrRecordNotFound)
+		return nil, fmt.Errorf("account %q not found: %w", name, repository.ErrNotFound)
 	}
 	return acc, nil
 }

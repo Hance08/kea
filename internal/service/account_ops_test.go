@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -677,4 +678,107 @@ func TestUpdateAccountMetadata(t *testing.T) {
 		err := svc.UpdateAccountMetadata(context.Background(), 1, "desc", false)
 		require.Error(t, err)
 	})
+}
+
+// ──────────────────────────────────────────────
+// Parent chain validation
+// ──────────────────────────────────────────────
+
+func int64Ptr(v int64) *int64 {
+	return &v
+}
+
+func TestCreateAccount_ValidParent(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestAccountService(accRepo, txRepo)
+
+	parent := &model.Account{ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"}
+	accRepo.addAccount(parent)
+
+	acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(10))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if acc.ParentID == nil || *acc.ParentID != 10 {
+		t.Fatalf("expected ParentID=10, got %v", acc.ParentID)
+	}
+}
+
+func TestCreateAccount_ParentNotFound(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestAccountService(accRepo, txRepo)
+
+	_, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(999))
+	if err == nil {
+		t.Fatal("expected error for non-existent parent, got nil")
+	}
+}
+
+func TestCreateAccount_DeepParentChain(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestAccountService(accRepo, txRepo)
+
+	a := &model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD", ParentID: nil}
+	b := &model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)}
+	c := &model.Account{ID: 3, Name: "Assets:Bank:Savings", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)}
+	accRepo.addAccount(a)
+	accRepo.addAccount(b)
+	accRepo.addAccount(c)
+
+	acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Savings:Sub", model.AccountTypeAsset, "USD", "", int64Ptr(3))
+	if err != nil {
+		t.Fatalf("deep chain should succeed: %v", err)
+	}
+	if acc.ParentID == nil || *acc.ParentID != 3 {
+		t.Fatalf("expected ParentID=3, got %v", acc.ParentID)
+	}
+}
+
+func TestValidateParentChain_DetectsCycle(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestAccountService(accRepo, txRepo)
+
+	// Circular chain: A(1)->C(3), B(2)->A(1), C(3)->B(2)
+	a := &model.Account{ID: 1, Name: "A", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)}
+	b := &model.Account{ID: 2, Name: "B", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)}
+	c := &model.Account{ID: 3, Name: "C", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)}
+	accRepo.addAccount(a)
+	accRepo.addAccount(b)
+	accRepo.addAccount(c)
+
+	err := svc.validateParentChain(context.Background(), 99, int64Ptr(3))
+	if err == nil {
+		t.Fatal("expected ErrCircularParent, got nil")
+	}
+	if !errors.Is(err, ErrCircularParent) {
+		t.Fatalf("expected ErrCircularParent, got: %v", err)
+	}
+}
+
+func TestValidateParentChain_NilParent(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestAccountService(accRepo, txRepo)
+
+	err := svc.validateParentChain(context.Background(), 1, nil)
+	if err != nil {
+		t.Fatalf("nil parentID should be valid: %v", err)
+	}
+}
+
+func TestValidateParentChain_RepoError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestAccountService(accRepo, txRepo)
+
+	accRepo.getByIDErr[50] = repository.ErrNotFound
+
+	err := svc.validateParentChain(context.Background(), 1, int64Ptr(50))
+	if err == nil {
+		t.Fatal("expected error when parent not found")
+	}
 }

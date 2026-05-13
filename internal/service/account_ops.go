@@ -12,7 +12,6 @@ import (
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
-	"github.com/hance08/kea/internal/store"
 )
 
 func (as *AccountService) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
@@ -28,7 +27,7 @@ func (as *AccountService) CreateAccount(ctx context.Context, name string, accTyp
 
 	newID, err := as.repo.CreateAccount(ctx, name, accType, currency, description, parentID)
 	if err != nil {
-		if errors.Is(err, store.ErrAccountExists) {
+		if errors.Is(err, repository.ErrAlreadyExists) {
 			return nil, fmt.Errorf("account %q: %w", name, ErrAlreadyExists)
 		}
 		return nil, err
@@ -88,11 +87,9 @@ func (as *AccountService) createOpeningBalance(ctx context.Context, account *mod
 	}
 
 	return as.tm.ExecTx(ctx, func(repo repository.Repository) error {
-		// repo is the raw repository.Repository passed by ExecTx, not AccountService,
-		// so GetAccountByName here returns store.ErrRecordNotFound directly (no service translation).
 		equityAcc, err := repo.GetAccountByName(ctx, equityAccountName)
 		if err != nil {
-			if !errors.Is(err, store.ErrRecordNotFound) {
+			if !errors.Is(err, repository.ErrNotFound) {
 				return fmt.Errorf("failed to look up %q: %w", equityAccountName, err)
 			}
 			// not found — create it

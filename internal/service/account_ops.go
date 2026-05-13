@@ -14,6 +14,32 @@ import (
 	"github.com/hance08/kea/internal/repository"
 )
 
+func (as *AccountService) validateParentChain(ctx context.Context, accountID int64, parentID *int64) error {
+	if parentID == nil {
+		return nil
+	}
+
+	visited := make(map[int64]bool)
+	visited[accountID] = true
+	currentID := *parentID
+
+	for {
+		if visited[currentID] {
+			return fmt.Errorf("account %d would create a cycle via parent %d: %w", accountID, currentID, ErrCircularParent)
+		}
+		visited[currentID] = true
+
+		acc, err := as.repo.GetAccountByID(ctx, currentID)
+		if err != nil {
+			return fmt.Errorf("failed to look up parent account %d: %w", currentID, err)
+		}
+		if acc.ParentID == nil {
+			return nil
+		}
+		currentID = *acc.ParentID
+	}
+}
+
 func (as *AccountService) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
 	if err := as.ValidateFullAccountName(name); err != nil {
 		return nil, fmt.Errorf("invalid account name: %w", err)
@@ -23,6 +49,11 @@ func (as *AccountService) CreateAccount(ctx context.Context, name string, accTyp
 	}
 	if !accType.IsValid() {
 		return nil, fmt.Errorf("invalid account type: %s", accType)
+	}
+	if parentID != nil {
+		if err := as.validateParentChain(ctx, 0, parentID); err != nil {
+			return nil, err
+		}
 	}
 
 	newID, err := as.repo.CreateAccount(ctx, name, accType, currency, description, parentID)

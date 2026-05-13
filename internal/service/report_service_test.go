@@ -621,6 +621,45 @@ func TestGenerateExpenseBreakdown(t *testing.T) {
 }
 
 // ──────────────────────────────────────────────
+// GenerateFullIncomeStatement
+// ──────────────────────────────────────────────
+
+func TestGenerateFullIncomeStatement(t *testing.T) {
+	t.Run("populates period, net worth, and growth", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			split("Revenue:Salary", model.AccountTypeRevenue, -3000),
+			split("Assets:Bank", model.AccountTypeAsset, 3000),
+		)
+		txRepo.addTransaction(&model.Transaction{ID: 1, Type: model.TxTypeIncome}, nil)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		result, err := svc.GenerateFullIncomeStatement(context.Background(), DateRangeParams{Month: "2025-03"})
+		require.NoError(t, err)
+		assert.Equal(t, "March 2025", result.Period)
+		assert.NotNil(t, result.NetWorth)
+		assert.NotNil(t, result.PreviousNetWorth)
+		assert.NotNil(t, result.NetWorthGrowthPct)
+		assert.Equal(t, int64(3000), result.TotalIncome["USD"])
+	})
+
+	t.Run("invalid date params returns error", func(t *testing.T) {
+		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		_, err := svc.GenerateFullIncomeStatement(context.Background(), DateRangeParams{Month: "bad"})
+		assert.Error(t, err)
+	})
+
+	t.Run("income statement error propagates", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.splitsRangeErr = assert.AnError
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		_, err := svc.GenerateFullIncomeStatement(context.Background(), DateRangeParams{Month: "2025-03"})
+		assert.Error(t, err)
+	})
+}
+
+// ──────────────────────────────────────────────
 // GenerateBalanceSheet
 // ──────────────────────────────────────────────
 

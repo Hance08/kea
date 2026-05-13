@@ -6,13 +6,10 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"github.com/hance08/kea/internal/model"
-	"github.com/hance08/kea/internal/utils"
+	"github.com/hance08/kea/internal/service"
 )
 
-// run is the main entry point called by the cobra command.
 func (r *reportRunner) run(ctx context.Context) error {
 	reportType := r.flags.Type
 	if reportType == "" {
@@ -33,68 +30,40 @@ func (r *reportRunner) run(ctx context.Context) error {
 	}
 }
 
+func (r *reportRunner) dateRangeParams() service.DateRangeParams {
+	return service.DateRangeParams{
+		Month: r.flags.Month,
+		From:  r.flags.From,
+		To:    r.flags.To,
+	}
+}
+
 func (r *reportRunner) runIncomeStatement(ctx context.Context) error {
-	start, end, period, err := r.resolveDateRange()
+	result, err := r.provider.GenerateFullIncomeStatement(ctx, r.dateRangeParams())
 	if err != nil {
 		return err
 	}
-
-	result, err := r.provider.GenerateIncomeStatement(ctx, start, end)
-	if err != nil {
-		return fmt.Errorf("failed to generate income statement: %w", err)
-	}
-
-	result.Period = period
-
-	currentNetWorth, err := r.provider.GetNetWorthAt(ctx, end)
-	if err != nil {
-		return fmt.Errorf("failed to fetch net worth for current period: %w", err)
-	}
-	result.NetWorth = currentNetWorth
-
-	_, prevEnd := previousPeriodRange(start, end)
-	previousNetWorth, err := r.provider.GetNetWorthAt(ctx, prevEnd)
-	if err != nil {
-		return fmt.Errorf("failed to fetch net worth for previous period: %w", err)
-	}
-	result.PreviousNetWorth = previousNetWorth
-	result.NetWorthGrowthPct = computeNetWorthGrowthPctMap(currentNetWorth, previousNetWorth)
-
 	return r.view.RenderIncomeStatement(result)
 }
 
 func (r *reportRunner) runExpenseBreakdown(ctx context.Context) error {
-	start, end, period, err := r.resolveDateRange()
+	result, err := r.provider.GenerateFullExpenseBreakdown(ctx, r.dateRangeParams())
 	if err != nil {
 		return err
 	}
-
-	result, err := r.provider.GenerateExpenseBreakdown(ctx, start, end)
-	if err != nil {
-		return fmt.Errorf("failed to generate expense breakdown: %w", err)
-	}
-
-	result.Period = period
 	return r.view.RenderExpenseBreakdown(result)
 }
 
 func (r *reportRunner) runIncomeBreakdown(ctx context.Context) error {
-	start, end, period, err := r.resolveDateRange()
+	result, err := r.provider.GenerateFullIncomeBreakdown(ctx, r.dateRangeParams())
 	if err != nil {
 		return err
 	}
-
-	result, err := r.provider.GenerateIncomeBreakdown(ctx, start, end)
-	if err != nil {
-		return fmt.Errorf("failed to generate income breakdown: %w", err)
-	}
-
-	result.Period = period
 	return r.view.RenderIncomeBreakdown(result)
 }
 
 func (r *reportRunner) runBalanceSheet(ctx context.Context) error {
-	_, end, _, err := r.resolveDateRange()
+	_, end, _, err := r.provider.ResolveDateRange(r.dateRangeParams())
 	if err != nil {
 		return err
 	}
@@ -105,110 +74,4 @@ func (r *reportRunner) runBalanceSheet(ctx context.Context) error {
 	}
 
 	return r.view.RenderBalanceSheet(result)
-}
-
-// resolveDateRange converts the --month / --from / --to flags into Unix timestamps and a
-// human-readable period label. Defaults to the current calendar month.
-func (r *reportRunner) resolveDateRange() (startTime, endTime int64, period string, err error) {
-	switch {
-	case r.flags.Month != "":
-		return parseMonth(r.flags.Month)
-
-	case r.flags.From != "" || r.flags.To != "":
-		return parseDateRange(r.flags.From, r.flags.To)
-
-	default:
-		// Default: current calendar month
-		now := time.Now()
-		return parseMonth(now.Format("2006-01"))
-	}
-}
-
-// parseMonth converts "YYYY-MM" into the start/end Unix timestamps of that month.
-func parseMonth(month string) (startTime, endTime int64, period string, err error) {
-	loc := time.Local
-	t, parseErr := time.ParseInLocation("2006-01", month, loc)
-	if parseErr != nil {
-		err = fmt.Errorf("invalid --month format %q, expected YYYY-MM", month)
-		return
-	}
-
-	start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, loc)
-	end := start.AddDate(0, 1, 0).Add(-time.Second) // last second of the month
-
-	startTime = start.Unix()
-	endTime = end.Unix()
-	period = start.Format("January 2006")
-	return
-}
-
-// parseDateRange converts "YYYY-MM-DD" strings into Unix timestamps.
-// Either value may be empty — if From is empty it defaults to Unix epoch,
-// if To is empty it defaults to now.
-func parseDateRange(from, to string) (startTime, endTime int64, period string, err error) {
-	loc := time.Local
-
-	var startDate, endDate time.Time
-
-	if from == "" {
-		startDate = time.Unix(0, 0)
-	} else {
-		startDate, err = time.ParseInLocation(model.DateFormat, from, loc)
-		if err != nil {
-			err = fmt.Errorf("invalid --from format %q, expected YYYY-MM-DD", from)
-			return
-		}
-	}
-
-	if to == "" {
-		endDate = time.Now()
-	} else {
-		endDate, err = time.ParseInLocation(model.DateFormat, to, loc)
-		if err != nil {
-			err = fmt.Errorf("invalid --to format %q, expected YYYY-MM-DD", to)
-			return
-		}
-		// Include the entire end day.
-		endDate = endDate.Add(24*time.Hour - time.Second)
-	}
-
-	if endDate.Before(startDate) {
-		err = fmt.Errorf("--to date must be on or after --from date")
-		return
-	}
-
-	startTime = startDate.Unix()
-	endTime = endDate.Unix()
-	period = fmt.Sprintf("%s – %s", startDate.Format(model.DateFormat), endDate.Format(model.DateFormat))
-	return
-}
-
-// previousPeriodRange returns the immediate prior period with the same inclusive duration.
-func previousPeriodRange(startTime, endTime int64) (prevStart, prevEnd int64) {
-	duration := endTime - startTime + 1
-	prevEnd = startTime - 1
-	prevStart = prevEnd - duration + 1
-	return
-}
-
-// computeNetWorthGrowthPctMap returns per-currency growth percentages; currencies with a
-// zero previous value are omitted (N/A).
-func computeNetWorthGrowthPctMap(current, previous map[string]int64) map[string]float64 {
-	result := map[string]float64{}
-	allCurrencies := map[string]struct{}{}
-	for ccy := range current {
-		allCurrencies[ccy] = struct{}{}
-	}
-	for ccy := range previous {
-		allCurrencies[ccy] = struct{}{}
-	}
-	for ccy := range allCurrencies {
-		prev := previous[ccy]
-		if prev == 0 {
-			continue
-		}
-		cur := current[ccy]
-		result[ccy] = (float64(cur-prev) / float64(utils.AbsInt64(prev))) * 100
-	}
-	return result
 }

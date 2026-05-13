@@ -34,6 +34,72 @@ func (ts *TransactionService) ResolveDateRange(params DateRangeParams) (startTim
 	}
 }
 
+// GenerateFullIncomeStatement resolves the date range from params, generates an income statement,
+// and enriches it with period label, current and previous net worth, and growth percentage.
+func (ts *TransactionService) GenerateFullIncomeStatement(ctx context.Context, params DateRangeParams) (*model.ReportResult, error) {
+	start, end, period, err := ts.ResolveDateRange(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := ts.GenerateIncomeStatement(ctx, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate income statement: %w", err)
+	}
+
+	result.Period = period
+
+	currentNetWorth, err := ts.GetNetWorthAt(ctx, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch net worth for current period: %w", err)
+	}
+	result.NetWorth = currentNetWorth
+
+	_, prevEnd := previousPeriodRange(start, end)
+	previousNetWorth, err := ts.GetNetWorthAt(ctx, prevEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch net worth for previous period: %w", err)
+	}
+	result.PreviousNetWorth = previousNetWorth
+	result.NetWorthGrowthPct = computeNetWorthGrowthPctMap(currentNetWorth, previousNetWorth)
+
+	return result, nil
+}
+
+// GenerateFullIncomeBreakdown resolves the date range from params, generates a detailed income breakdown,
+// and sets the period label on the result.
+func (ts *TransactionService) GenerateFullIncomeBreakdown(ctx context.Context, params DateRangeParams) (*model.ReportResult, error) {
+	start, end, period, err := ts.ResolveDateRange(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := ts.GenerateIncomeBreakdown(ctx, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate income breakdown: %w", err)
+	}
+
+	result.Period = period
+	return result, nil
+}
+
+// GenerateFullExpenseBreakdown resolves the date range from params, generates a detailed expense breakdown,
+// and sets the period label on the result.
+func (ts *TransactionService) GenerateFullExpenseBreakdown(ctx context.Context, params DateRangeParams) (*model.ReportResult, error) {
+	start, end, period, err := ts.ResolveDateRange(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := ts.GenerateExpenseBreakdown(ctx, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate expense breakdown: %w", err)
+	}
+
+	result.Period = period
+	return result, nil
+}
+
 // GetNetWorthAt returns net worth (assets + liabilities) per currency using all posted splits up to endTime.
 // Liability splits are stored as negative values (credit-normal accounts), so adding them to assets
 // correctly subtracts the outstanding balance.

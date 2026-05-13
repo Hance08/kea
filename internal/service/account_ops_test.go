@@ -688,97 +688,96 @@ func int64Ptr(v int64) *int64 {
 	return &v
 }
 
-func TestCreateAccount_ValidParent(t *testing.T) {
-	accRepo := newMockAccountRepo()
-	txRepo := newMockTransactionRepo()
-	svc := newTestAccountService(accRepo, txRepo)
+func TestCreateAccount_ParentValidation(t *testing.T) {
+	t.Run("valid parent accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-	parent := &model.Account{ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"}
-	accRepo.addAccount(parent)
+		parent := &model.Account{ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"}
+		accRepo.addAccount(parent)
 
-	acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(10))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if acc.ParentID == nil || *acc.ParentID != 10 {
-		t.Fatalf("expected ParentID=10, got %v", acc.ParentID)
-	}
+		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(10))
+		require.NoError(t, err)
+		require.NotNil(t, acc.ParentID)
+		assert.Equal(t, int64(10), *acc.ParentID)
+	})
+
+	t.Run("non-existent parent rejected", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(999))
+		require.Error(t, err)
+	})
+
+	t.Run("deep parent chain accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Bank:Savings", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
+
+		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Savings:Sub", model.AccountTypeAsset, "USD", "", int64Ptr(3))
+		require.NoError(t, err)
+		require.NotNil(t, acc.ParentID)
+		assert.Equal(t, int64(3), *acc.ParentID)
+	})
+
+	t.Run("circular parent chain rejected via CreateAccount", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		// Circular: A(1)->C(3), B(2)->A(1), C(3)->B(2)
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:A", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:B", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:C", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
+
+		_, err := svc.CreateAccount(context.Background(), "Assets:C:Child", model.AccountTypeAsset, "USD", "", int64Ptr(3))
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrCircularParent), "expected ErrCircularParent, got: %v", err)
+	})
 }
 
-func TestCreateAccount_ParentNotFound(t *testing.T) {
-	accRepo := newMockAccountRepo()
-	txRepo := newMockTransactionRepo()
-	svc := newTestAccountService(accRepo, txRepo)
+func TestValidateParentChain(t *testing.T) {
+	t.Run("detects cycle", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-	_, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(999))
-	if err == nil {
-		t.Fatal("expected error for non-existent parent, got nil")
-	}
-}
+		// Circular: A(1)->C(3), B(2)->A(1), C(3)->B(2)
+		accRepo.addAccount(&model.Account{ID: 1, Name: "A", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "B", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "C", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
 
-func TestCreateAccount_DeepParentChain(t *testing.T) {
-	accRepo := newMockAccountRepo()
-	txRepo := newMockTransactionRepo()
-	svc := newTestAccountService(accRepo, txRepo)
+		err := svc.validateParentChain(context.Background(), 99, int64Ptr(3))
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrCircularParent), "expected ErrCircularParent, got: %v", err)
+	})
 
-	a := &model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD", ParentID: nil}
-	b := &model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)}
-	c := &model.Account{ID: 3, Name: "Assets:Bank:Savings", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)}
-	accRepo.addAccount(a)
-	accRepo.addAccount(b)
-	accRepo.addAccount(c)
+	t.Run("nil parent is valid", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
 
-	acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Savings:Sub", model.AccountTypeAsset, "USD", "", int64Ptr(3))
-	if err != nil {
-		t.Fatalf("deep chain should succeed: %v", err)
-	}
-	if acc.ParentID == nil || *acc.ParentID != 3 {
-		t.Fatalf("expected ParentID=3, got %v", acc.ParentID)
-	}
-}
+		err := svc.validateParentChain(context.Background(), 1, nil)
+		require.NoError(t, err)
+	})
 
-func TestValidateParentChain_DetectsCycle(t *testing.T) {
-	accRepo := newMockAccountRepo()
-	txRepo := newMockTransactionRepo()
-	svc := newTestAccountService(accRepo, txRepo)
+	t.Run("repo error propagated", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-	// Circular chain: A(1)->C(3), B(2)->A(1), C(3)->B(2)
-	a := &model.Account{ID: 1, Name: "A", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)}
-	b := &model.Account{ID: 2, Name: "B", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)}
-	c := &model.Account{ID: 3, Name: "C", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)}
-	accRepo.addAccount(a)
-	accRepo.addAccount(b)
-	accRepo.addAccount(c)
+		accRepo.getByIDErr[50] = repository.ErrNotFound
 
-	err := svc.validateParentChain(context.Background(), 99, int64Ptr(3))
-	if err == nil {
-		t.Fatal("expected ErrCircularParent, got nil")
-	}
-	if !errors.Is(err, ErrCircularParent) {
-		t.Fatalf("expected ErrCircularParent, got: %v", err)
-	}
-}
+		err := svc.validateParentChain(context.Background(), 1, int64Ptr(50))
+		require.Error(t, err)
+	})
 
-func TestValidateParentChain_NilParent(t *testing.T) {
-	accRepo := newMockAccountRepo()
-	txRepo := newMockTransactionRepo()
-	svc := newTestAccountService(accRepo, txRepo)
+	t.Run("detects self-parent on reparent", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-	err := svc.validateParentChain(context.Background(), 1, nil)
-	if err != nil {
-		t.Fatalf("nil parentID should be valid: %v", err)
-	}
-}
+		accRepo.addAccount(&model.Account{ID: 5, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
 
-func TestValidateParentChain_RepoError(t *testing.T) {
-	accRepo := newMockAccountRepo()
-	txRepo := newMockTransactionRepo()
-	svc := newTestAccountService(accRepo, txRepo)
-
-	accRepo.getByIDErr[50] = repository.ErrNotFound
-
-	err := svc.validateParentChain(context.Background(), 1, int64Ptr(50))
-	if err == nil {
-		t.Fatal("expected error when parent not found")
-	}
+		err := svc.validateParentChain(context.Background(), 5, int64Ptr(5))
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrCircularParent))
+	})
 }

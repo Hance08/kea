@@ -14,18 +14,22 @@ import (
 	"github.com/hance08/kea/internal/repository"
 )
 
+const maxParentDepth = 100
+
 func (as *AccountService) validateParentChain(ctx context.Context, accountID int64, parentID *int64) error {
 	if parentID == nil {
 		return nil
 	}
 
 	visited := make(map[int64]bool)
-	visited[accountID] = true
+	if accountID != 0 {
+		visited[accountID] = true
+	}
 	currentID := *parentID
 
-	for {
+	for range maxParentDepth {
 		if visited[currentID] {
-			return fmt.Errorf("account %d would create a cycle via parent %d: %w", accountID, currentID, ErrCircularParent)
+			return fmt.Errorf("parent chain contains a cycle at account %d: %w", currentID, ErrCircularParent)
 		}
 		visited[currentID] = true
 
@@ -38,6 +42,8 @@ func (as *AccountService) validateParentChain(ctx context.Context, accountID int
 		}
 		currentID = *acc.ParentID
 	}
+
+	return fmt.Errorf("parent chain exceeds maximum depth (%d): %w", maxParentDepth, ErrCircularParent)
 }
 
 func (as *AccountService) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {

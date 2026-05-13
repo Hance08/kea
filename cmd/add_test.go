@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -40,6 +41,17 @@ func (m *mockTransactionProvider) CreateTransactionFromSplits(_ context.Context,
 		return model.TransactionDetail{}, m.createSplitsErr
 	}
 	return model.TransactionDetail{ID: 1}, nil
+}
+
+func (m *mockTransactionProvider) ParseTransactionDate(dateStr string) (int64, error) {
+	if dateStr == "" {
+		return time.Now().Unix(), nil
+	}
+	t, err := time.ParseInLocation(model.DateFormat, dateStr, time.Local)
+	if err != nil {
+		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
+	}
+	return t.Unix(), nil
 }
 
 var _ TransactionProvider = (*mockTransactionProvider)(nil)
@@ -92,7 +104,7 @@ func TestParseSplitFlag(t *testing.T) {
 // ──────────────────────────────────────────────
 
 func TestRunFromFlags_SplitMode(t *testing.T) {
-	runner := &addRunner{}
+	runner := &addRunner{txSvc: &mockTransactionProvider{}}
 
 	t.Run("valid two-split expense", func(t *testing.T) {
 		flags := &addFlags{
@@ -176,14 +188,14 @@ func TestRunFromFlags_SplitMode(t *testing.T) {
 // ──────────────────────────────────────────────
 
 func TestParseDate_LocalTime(t *testing.T) {
-	runner := &addRunner{}
+	runner := &addRunner{txSvc: &mockTransactionProvider{}}
 
 	loc := time.FixedZone("UTC-5", -5*60*60)
 	origLocal := time.Local
 	time.Local = loc
 	t.Cleanup(func() { time.Local = origLocal })
 
-	ts, err := runner.parseDate("2026-04-01")
+	ts, err := runner.txSvc.ParseTransactionDate("2026-04-01")
 	require.NoError(t, err)
 
 	got := time.Unix(ts, 0).In(loc)

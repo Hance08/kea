@@ -5,11 +5,100 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"sort"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
 )
+
+// DateRangeParams holds the optional date range inputs for report queries.
+type DateRangeParams struct {
+	Month string
+	From  string
+	To    string
+}
+
+// ResolveDateRange resolves a DateRangeParams into concrete Unix timestamps and a human-readable period string.
+// Month takes priority; if neither Month nor From/To are set, defaults to the current calendar month.
+func (ts *TransactionService) ResolveDateRange(params DateRangeParams) (startTime, endTime int64, period string, err error) {
+	switch {
+	case params.Month != "":
+		return parseMonth(params.Month)
+	case params.From != "" || params.To != "":
+		return parseDateRange(params.From, params.To)
+	default:
+		now := time.Now()
+		return parseMonth(now.Format("2006-01"))
+	}
+}
+
+// GenerateFullIncomeStatement resolves the date range from params, generates an income statement,
+// and enriches it with period label, current and previous net worth, and growth percentage.
+func (ts *TransactionService) GenerateFullIncomeStatement(ctx context.Context, params DateRangeParams) (*model.ReportResult, error) {
+	start, end, period, err := ts.ResolveDateRange(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := ts.GenerateIncomeStatement(ctx, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate income statement: %w", err)
+	}
+
+	result.Period = period
+
+	currentNetWorth, err := ts.GetNetWorthAt(ctx, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch net worth for current period: %w", err)
+	}
+	result.NetWorth = currentNetWorth
+
+	_, prevEnd := previousPeriodRange(start, end)
+	previousNetWorth, err := ts.GetNetWorthAt(ctx, prevEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch net worth for previous period: %w", err)
+	}
+	result.PreviousNetWorth = previousNetWorth
+	result.NetWorthGrowthPct = computeNetWorthGrowthPctMap(currentNetWorth, previousNetWorth)
+
+	return result, nil
+}
+
+// GenerateFullIncomeBreakdown resolves the date range from params, generates a detailed income breakdown,
+// and sets the period label on the result.
+func (ts *TransactionService) GenerateFullIncomeBreakdown(ctx context.Context, params DateRangeParams) (*model.ReportResult, error) {
+	start, end, period, err := ts.ResolveDateRange(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := ts.GenerateIncomeBreakdown(ctx, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate income breakdown: %w", err)
+	}
+
+	result.Period = period
+	return result, nil
+}
+
+// GenerateFullExpenseBreakdown resolves the date range from params, generates a detailed expense breakdown,
+// and sets the period label on the result.
+func (ts *TransactionService) GenerateFullExpenseBreakdown(ctx context.Context, params DateRangeParams) (*model.ReportResult, error) {
+	start, end, period, err := ts.ResolveDateRange(params)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := ts.GenerateExpenseBreakdown(ctx, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate expense breakdown: %w", err)
+	}
+
+	result.Period = period
+	return result, nil
+}
 
 // GetNetWorthAt returns net worth (assets + liabilities) per currency using all posted splits up to endTime.
 // Liability splits are stored as negative values (credit-normal accounts), so adding them to assets
@@ -291,4 +380,85 @@ func rowsFromMap(m map[string]*model.ReportRow) []model.ReportRow {
 		return rows[i].Amount > rows[j].Amount
 	})
 	return rows
+}
+
+func parseMonth(month string) (startTime, endTime int64, period string, err error) {
+	loc := time.Local
+	t, parseErr := time.ParseInLocation("2006-01", month, loc)
+	if parseErr != nil {
+		err = fmt.Errorf("invalid month format %q, expected YYYY-MM", month)
+		return
+	}
+
+	start := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, loc)
+	end := start.AddDate(0, 1, 0).Add(-time.Second)
+
+	startTime = start.Unix()
+	endTime = end.Unix()
+	period = start.Format("January 2006")
+	return
+}
+
+func parseDateRange(from, to string) (startTime, endTime int64, period string, err error) {
+	loc := time.Local
+
+	var startDate, endDate time.Time
+
+	if from == "" {
+		startDate = time.Unix(0, 0)
+	} else {
+		startDate, err = time.ParseInLocation(model.DateFormat, from, loc)
+		if err != nil {
+			err = fmt.Errorf("invalid from-date format %q, expected YYYY-MM-DD", from)
+			return
+		}
+	}
+
+	if to == "" {
+		endDate = time.Now()
+	} else {
+		endDate, err = time.ParseInLocation(model.DateFormat, to, loc)
+		if err != nil {
+			err = fmt.Errorf("invalid to-date format %q, expected YYYY-MM-DD", to)
+			return
+		}
+		endDate = endDate.Add(24*time.Hour - time.Second)
+	}
+
+	if endDate.Before(startDate) {
+		err = fmt.Errorf("end date must be on or after start date")
+		return
+	}
+
+	startTime = startDate.Unix()
+	endTime = endDate.Unix()
+	period = fmt.Sprintf("%s – %s", startDate.Format(model.DateFormat), endDate.Format(model.DateFormat))
+	return
+}
+
+func previousPeriodRange(startTime, endTime int64) (prevStart, prevEnd int64) {
+	duration := endTime - startTime + 1
+	prevEnd = startTime - 1
+	prevStart = prevEnd - duration + 1
+	return
+}
+
+func computeNetWorthGrowthPctMap(current, previous map[string]int64) map[string]float64 {
+	result := map[string]float64{}
+	allCurrencies := map[string]struct{}{}
+	for ccy := range current {
+		allCurrencies[ccy] = struct{}{}
+	}
+	for ccy := range previous {
+		allCurrencies[ccy] = struct{}{}
+	}
+	for ccy := range allCurrencies {
+		prev := previous[ccy]
+		if prev == 0 {
+			continue
+		}
+		cur := current[ccy]
+		result[ccy] = (float64(cur-prev) / float64(utils.AbsInt64(prev))) * 100
+	}
+	return result
 }

@@ -887,3 +887,40 @@ func TestCreateTransactionFromSplits(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// ──────────────────────────────────────────────
+// ParseTransactionDate
+// ──────────────────────────────────────────────
+
+func TestParseTransactionDate(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+
+	t.Run("empty string returns current time", func(t *testing.T) {
+		before := time.Now().Unix()
+		got, err := svc.ParseTransactionDate("")
+		after := time.Now().Unix()
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, got, before)
+		assert.LessOrEqual(t, got, after)
+	})
+
+	t.Run("valid date string parses correctly", func(t *testing.T) {
+		got, err := svc.ParseTransactionDate("2025-06-15")
+		require.NoError(t, err)
+		parsed := time.Unix(got, 0)
+		assert.Equal(t, 2025, parsed.Year())
+		assert.Equal(t, time.June, parsed.Month())
+		assert.Equal(t, 15, parsed.Day())
+	})
+
+	t.Run("invalid format returns error", func(t *testing.T) {
+		_, err := svc.ParseTransactionDate("15/06/2025")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "2006-01-02")
+	})
+
+	t.Run("partial date returns error", func(t *testing.T) {
+		_, err := svc.ParseTransactionDate("2025-06")
+		assert.Error(t, err)
+	})
+}

@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/service"
 )
 
 // reportFlags holds the parsed CLI flags for the report command.
@@ -20,11 +21,11 @@ type reportFlags struct {
 
 // ReportProvider is the service interface required by the report command.
 type ReportProvider interface {
-	GenerateIncomeStatement(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error)
-	GenerateIncomeBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error)
-	GenerateExpenseBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error)
+	GenerateFullIncomeStatement(ctx context.Context, params service.DateRangeParams) (*model.ReportResult, error)
+	GenerateFullIncomeBreakdown(ctx context.Context, params service.DateRangeParams) (*model.ReportResult, error)
+	GenerateFullExpenseBreakdown(ctx context.Context, params service.DateRangeParams) (*model.ReportResult, error)
 	GenerateBalanceSheet(ctx context.Context, asOf int64) (*model.BalanceSheetResult, error)
-	GetNetWorthAt(ctx context.Context, endTime int64) (map[string]int64, error)
+	ResolveDateRange(params service.DateRangeParams) (start, end int64, period string, err error)
 }
 
 // ReportView is the view interface used to render report output.

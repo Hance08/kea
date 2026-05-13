@@ -7,11 +7,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
+	ledgercmd "github.com/hance08/kea/cmd/ledger"
 	"github.com/hance08/kea/internal/config"
+	internalled "github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -138,4 +143,62 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to migrate legacy system account")
 	})
+}
+
+func TestLedgerCommand_SkipsDBInit(t *testing.T) {
+	appDir := t.TempDir()
+	registry, err := internalled.Load(appDir)
+	require.NoError(t, err)
+
+	// Register a ledger pointing to a nonexistent DB file.
+	// If DB init runs, it would fail or create the file.
+	bogusPath := filepath.Join(appDir, "does-not-exist.db")
+	require.NoError(t, registry.Add("phantom", bogusPath))
+	require.NoError(t, registry.Switch("phantom"))
+
+	// Build the same command tree that Execute builds.
+	rootCmd := &cobra.Command{
+		Use:           "kea",
+		SilenceErrors: true,
+	}
+	rootCmd.AddCommand(ledgercmd.NewLedgerCmd(registry, nil, appDir))
+
+	// Simulate: the guard detects "ledger list" and short-circuits.
+	args := []string{"ledger", "list"}
+	require.True(t, isLedgerCommand(args), "should detect ledger command")
+
+	rootCmd.SetArgs(args)
+	err = rootCmd.Execute()
+	require.NoError(t, err)
+
+	// The bogus DB file must not have been created or opened.
+	_, statErr := os.Stat(bogusPath)
+	assert.True(t, os.IsNotExist(statErr), "DB file should not exist — DB init must not have run")
+}
+
+func TestIsLedgerCommand(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{"ledger list", []string{"ledger", "list"}, true},
+		{"ledger ls alias", []string{"ledger", "ls"}, true},
+		{"ledger add", []string{"ledger", "add", "work"}, true},
+		{"ledger switch", []string{"ledger", "switch", "work"}, true},
+		{"ledger remove", []string{"ledger", "remove", "old"}, true},
+		{"bare ledger", []string{"ledger"}, true},
+		{"account list", []string{"account", "list"}, false},
+		{"add transaction", []string{"add"}, false},
+		{"no args", []string{}, false},
+		{"ledger with global flags", []string{"--no-color", "ledger", "list"}, true},
+		{"ledger with config flag", []string{"-c", "/tmp/cfg.yaml", "ledger", "add", "x"}, true},
+		{"config with equals", []string{"--config=/tmp/cfg.yaml", "ledger", "list"}, true},
+		{"double-dash before ledger", []string{"--", "ledger", "list"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isLedgerCommand(tt.args))
+		})
+	}
 }

@@ -87,6 +87,14 @@ func Execute(migrations fs.FS) {
 		// Ledger management commands are always available.
 		rootCmd.AddCommand(ledgercmd.NewLedgerCmd(registry, migrations, appDir))
 
+		if isLedgerCommand(os.Args[1:]) {
+			if err := rootCmd.Execute(); err != nil {
+				pterm.Error.Println(capitalize(err.Error()))
+				return 1
+			}
+			return 0
+		}
+
 		activePath, err := registry.Active()
 		if err != nil {
 			// No active ledger — only ledger commands are useful.
@@ -334,6 +342,28 @@ func capitalize(s string) string {
 	r := []rune(s)
 	r[0] = unicode.ToUpper(r[0])
 	return string(r)
+}
+
+// isLedgerCommand reports whether args represent a ledger management command.
+// Only -c/--config consumes the next token as its value.
+// If new value-consuming flags are added to rootCmd, update this list.
+func isLedgerCommand(args []string) bool {
+	skipNext := false
+	for _, a := range args {
+		if skipNext {
+			skipNext = false
+			continue
+		}
+		if a == "-c" || a == "--config" {
+			skipNext = true
+			continue
+		}
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		return a == "ledger"
+	}
+	return false
 }
 
 func configureOutput(noColorFlag bool) {

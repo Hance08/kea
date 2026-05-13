@@ -342,9 +342,13 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, txRepo)
 
-		_, err := svc.CreateAccountWithBalance(context.Background(), "Expenses:Food", model.AccountTypeExpense, "USD", "", nil, 500)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), "Expenses:Food", model.AccountTypeExpense, "USD", "", nil, 500)
 		require.Error(t, err)
+		assert.Nil(t, acc, "account should be nil on unsupported type")
 		assert.Contains(t, err.Error(), "opening balance")
+
+		_, lookupErr := accRepo.GetAccountByName(context.Background(), "Expenses:Food")
+		assert.ErrorIs(t, lookupErr, repository.ErrNotFound, "account should not exist after unsupported-type rollback")
 	})
 
 	t.Run("missing Equity:OpeningBalances_USD account is auto-created", func(t *testing.T) {

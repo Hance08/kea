@@ -37,7 +37,7 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 		return nil, fmt.Errorf("can not create database directory %s: %w", dbDir, err)
 	}
 
-	db, err := sql.Open("sqlite3", dbPath+"?_foreign_keys=on")
+	db, err := sql.Open("sqlite3", dbPath+"?_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000")
 	success := false
 	defer func() {
 		if !success {
@@ -48,6 +48,9 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can not open database : %w", err)
 	}
+
+	db.SetMaxOpenConns(1)
+
 	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("can not connect with database : %w", err)
 	}

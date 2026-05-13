@@ -19,8 +19,11 @@ func backupOnline(ctx context.Context, srcDB *sql.DB, dstPath string) error {
 	if err != nil {
 		return fmt.Errorf("open destination: %w", err)
 	}
+	closed := false
 	defer func() {
-		dstDB.Close()
+		if !closed {
+			dstDB.Close()
+		}
 		if err != nil {
 			os.Remove(tmpPath)
 		}
@@ -78,6 +81,7 @@ func backupOnline(ctx context.Context, srcDB *sql.DB, dstPath string) error {
 	}
 
 	dstDB.Close()
+	closed = true
 	if err = os.Rename(tmpPath, dstPath); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("rename backup: %w", err)

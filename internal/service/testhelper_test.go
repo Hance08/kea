@@ -113,7 +113,7 @@ func (m *mockAccountRepo) GetAccountByID(_ context.Context, id int64) (*model.Ac
 	}
 	acc, ok := m.accountsByID[id]
 	if !ok {
-		return nil, fmt.Errorf("account ID %d not found", id)
+		return nil, fmt.Errorf("account ID %d not found: %w", id, repository.ErrNotFound)
 	}
 	return acc, nil
 }

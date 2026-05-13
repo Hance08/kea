@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
@@ -39,7 +38,7 @@ func (r *addRunner) runFromFlags(ctx context.Context, flags *addFlags) (addTrans
 	status := model.ParseTransactionStatus(flags.Status)
 
 	// Parse timestamp
-	timestamp, err := r.parseDate(flags.Timestamp)
+	timestamp, err := r.txSvc.ParseTransactionDate(flags.Timestamp)
 	if err != nil {
 		return addTransactionInput{}, err
 	}
@@ -155,7 +154,7 @@ func (r *addRunner) runInteractive(ctx context.Context) (addTransactionInput, er
 		return addTransactionInput{}, err
 	}
 
-	timestamp, err := r.parseDate(dateStr)
+	timestamp, err := r.txSvc.ParseTransactionDate(dateStr)
 	if err != nil {
 		return addTransactionInput{}, err
 	}
@@ -200,17 +199,6 @@ func (r *addRunner) determineMode(rawInput string) model.TransactionType {
 	return model.TxTypeTransfer
 }
 
-func (r *addRunner) parseDate(dateStr string) (int64, error) {
-	if dateStr == "" {
-		return time.Now().Unix(), nil
-	}
-	t, err := time.ParseInLocation(model.DateFormat, dateStr, time.Local)
-	if err != nil {
-		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
-	}
-	return t.Unix(), nil
-}
-
 var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
 	model.ModeExpense:  {"Payment Source:", "Expense Type:"},
 	model.ModeIncome:   {"Revenue Type:", "Deposit To:"},
@@ -237,7 +225,7 @@ func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, err
 
 	status := model.ParseTransactionStatus(flags.Status)
 
-	timestamp, err := r.parseDate(flags.Timestamp)
+	timestamp, err := r.txSvc.ParseTransactionDate(flags.Timestamp)
 	if err != nil {
 		return addTransactionInput{}, err
 	}

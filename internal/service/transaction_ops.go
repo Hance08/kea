@@ -387,3 +387,16 @@ func (ts *TransactionService) IsEditable(detail *model.TransactionDetail) (bool,
 
 	return true, EditableOK
 }
+
+// ParseTransactionDate parses a date string in the format "2006-01-02" into a Unix timestamp.
+// If dateStr is empty, it returns the current time as a Unix timestamp.
+func (ts *TransactionService) ParseTransactionDate(dateStr string) (int64, error) {
+	if dateStr == "" {
+		return time.Now().Unix(), nil
+	}
+	t, err := time.ParseInLocation(model.DateFormat, dateStr, time.Local)
+	if err != nil {
+		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
+	}
+	return t.Unix(), nil
+}

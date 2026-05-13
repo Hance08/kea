@@ -92,6 +92,10 @@ func (s *Store) Close() error {
 	return nil
 }
 
+func (s *Store) DB() *sql.DB {
+	return s.rawDB
+}
+
 func runMigrations(db *sql.DB, migrationsFS fs.FS) error {
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {

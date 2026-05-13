@@ -193,6 +193,8 @@ func TestIsLedgerCommand(t *testing.T) {
 		{"no args", []string{}, false},
 		{"ledger with global flags", []string{"--no-color", "ledger", "list"}, true},
 		{"ledger with config flag", []string{"-c", "/tmp/cfg.yaml", "ledger", "add", "x"}, true},
+		{"config with equals", []string{"--config=/tmp/cfg.yaml", "ledger", "list"}, true},
+		{"double-dash before ledger", []string{"--", "ledger", "list"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

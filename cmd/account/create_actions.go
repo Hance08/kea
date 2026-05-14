@@ -13,15 +13,14 @@ import (
 )
 
 func (r *createRunner) createAccount(ctx context.Context, input createInput) (*model.Account, error) {
-	return r.accSvc.CreateAccountWithBalance(
-		ctx,
-		input.fullName,
-		input.accountType,
-		input.currency,
-		input.description,
-		input.parentID,
-		input.balanceCents,
-	)
+	return r.accSvc.CreateAccountWithBalance(ctx, model.CreateAccountInput{
+		Name:        input.fullName,
+		Type:        input.accountType,
+		Currency:    input.currency,
+		Description: input.description,
+		ParentID:    input.parentID,
+		Balance:     input.balanceCents,
+	})
 }
 
 func (r *createRunner) applyTypeSettings(accType, currencyOverride string, input *createInput) error {

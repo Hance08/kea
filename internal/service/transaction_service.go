@@ -44,7 +44,7 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 			DestTypes:   []string{"A", "L"},
 		}, nil
 	default:
-		return model.TransactionRule{}, fmt.Errorf("unknown transaction mode: %s", txType)
+		return model.TransactionRule{}, validationErrorf("type", "unknown transaction mode: %s", txType)
 	}
 }
 

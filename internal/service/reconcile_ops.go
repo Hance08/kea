@@ -38,7 +38,7 @@ func (ts *TransactionService) GetUnreconciledByAccount(ctx context.Context, acco
 //	statementBalance − (lastReconciledBalance + clearedBalance)
 func (ts *TransactionService) PreviewReconcile(ctx context.Context, accountID int64, statementBalance int64, txIDs []int64) (int64, error) {
 	if len(txIDs) == 0 {
-		return 0, fmt.Errorf("no transactions selected for reconciliation")
+		return 0, validationErrorf("transactions", "no transactions selected for reconciliation")
 	}
 
 	if _, err := ts.accRepo.GetAccountByID(ctx, accountID); err != nil {
@@ -64,7 +64,7 @@ func (ts *TransactionService) PreviewReconcile(ctx context.Context, accountID in
 	for _, id := range txIDs {
 		amount, ok := validAmounts[id]
 		if !ok {
-			return 0, fmt.Errorf("transaction ID %d is not in the unreconciled set for this account", id)
+			return 0, validationErrorf("transactions", "transaction ID %d is not in the unreconciled set for this account", id)
 		}
 		clearedBalance += amount
 	}
@@ -89,7 +89,7 @@ func (ts *TransactionService) PreviewReconcile(ctx context.Context, accountID in
 // difference is zero. The caller decides whether to warn on a non-zero diff.
 func (ts *TransactionService) ReconcileTransactions(ctx context.Context, accountID int64, statementBalance int64, txIDs []int64) (int64, error) {
 	if len(txIDs) == 0 {
-		return 0, fmt.Errorf("no transactions selected for reconciliation")
+		return 0, validationErrorf("transactions", "no transactions selected for reconciliation")
 	}
 
 	// 1. Verify account exists.
@@ -119,7 +119,7 @@ func (ts *TransactionService) ReconcileTransactions(ctx context.Context, account
 	for _, id := range txIDs {
 		amount, ok := validAmounts[id]
 		if !ok {
-			return 0, fmt.Errorf("transaction ID %d is not in the unreconciled set for this account", id)
+			return 0, validationErrorf("transactions", "transaction ID %d is not in the unreconciled set for this account", id)
 		}
 		clearedBalance += amount
 	}

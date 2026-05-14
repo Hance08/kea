@@ -365,3 +365,55 @@ func TestValidateSplitsMatchType_BadExpense_ReturnsValidationError(t *testing.T)
 	var ve *ValidationError
 	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
 }
+
+func TestPreviewReconcile_EmptyTxIDs_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	_, err := svc.PreviewReconcile(context.Background(), 1, 0, nil)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "transactions", ve.Field)
+}
+
+func TestReconcile_InvalidTxID_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	_, err := svc.ReconcileTransactions(context.Background(), 1, 0, []int64{999})
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "transactions", ve.Field)
+}
+
+func TestParseMonth_Invalid_ReturnsValidationError(t *testing.T) {
+	_, _, _, err := parseMonth("bad")
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "month", ve.Field)
+}
+
+func TestParseDateRange_Invalid_ReturnsValidationError(t *testing.T) {
+	_, _, _, err := parseDateRange("bad", "")
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+}
+
+func TestParseDateRange_EndBeforeStart_ReturnsValidationError(t *testing.T) {
+	_, _, _, err := parseDateRange("2026-01-15", "2026-01-01")
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+}

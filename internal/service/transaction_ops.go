@@ -316,7 +316,7 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		for _, split := range splits {
 			account, err := repo.GetAccountByID(ctx, split.AccountID)
 			if err != nil {
-				return fmt.Errorf("account ID %d not found", split.AccountID)
+				return validationErrorf("splits", "account ID %d not found", split.AccountID)
 			}
 			isNew := split.ID == 0
 			accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID

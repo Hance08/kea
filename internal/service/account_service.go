@@ -84,7 +84,7 @@ func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name st
 			}
 		}
 		if !allowed {
-			return fmt.Errorf("account %q has type %q, not allowed for this transaction type (allowed: %v)", name, acc.Type, allowedTypes)
+			return validationErrorf("type", "account %q has type %q, not allowed for this transaction type (allowed: %v)", name, acc.Type, allowedTypes)
 		}
 	}
 

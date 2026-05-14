@@ -60,3 +60,78 @@ func TestAccount_JSON_OmitsNullParentID(t *testing.T) {
 	_, exists := m["parent_id"]
 	assert.False(t, exists, "parent_id should be omitted when nil")
 }
+
+func TestTransaction_JSONKeys(t *testing.T) {
+	extID := "ext-123"
+	tx := model.Transaction{
+		ID:          10,
+		Timestamp:   1700000000,
+		Description: "Groceries",
+		Status:      model.StatusCleared,
+		Type:        model.TxTypeExpense,
+		ExternalID:  &extID,
+	}
+
+	data, err := json.Marshal(tx)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	assert.Contains(t, m, "id")
+	assert.Contains(t, m, "timestamp")
+	assert.Contains(t, m, "description")
+	assert.Contains(t, m, "status")
+	assert.Contains(t, m, "type")
+	assert.Contains(t, m, "external_id")
+
+	assert.NotContains(t, m, "ID")
+	assert.NotContains(t, m, "ExternalID")
+}
+
+func TestTransaction_JSON_OmitsNullExternalID(t *testing.T) {
+	tx := model.Transaction{
+		ID:          10,
+		Timestamp:   1700000000,
+		Description: "Groceries",
+		Status:      model.StatusCleared,
+		Type:        model.TxTypeExpense,
+	}
+
+	data, err := json.Marshal(tx)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	_, exists := m["external_id"]
+	assert.False(t, exists, "external_id should be omitted when nil")
+}
+
+func TestTransactionDetail_JSONKeys(t *testing.T) {
+	td := model.TransactionDetail{
+		ID:          10,
+		Timestamp:   1700000000,
+		Description: "Groceries",
+		Status:      model.StatusCleared,
+		Type:        model.TxTypeExpense,
+		Splits: []model.SplitDetail{
+			{ID: 1, AccountID: 2, AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 1000, Currency: "USD"},
+		},
+	}
+
+	data, err := json.Marshal(td)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	assert.Contains(t, m, "id")
+	assert.Contains(t, m, "timestamp")
+	assert.Contains(t, m, "description")
+	assert.Contains(t, m, "status")
+	assert.Contains(t, m, "type")
+	assert.Contains(t, m, "splits")
+
+	assert.NotContains(t, m, "Splits")
+}

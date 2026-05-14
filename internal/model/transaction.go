@@ -6,21 +6,21 @@ package model
 import "errors"
 
 type Transaction struct {
-	ID          int64
-	Timestamp   int64
-	Description string
-	Status      TransactionStatus
-	Type        TransactionType
-	ExternalID  *string
+	ID          int64             `json:"id"`
+	Timestamp   int64             `json:"timestamp"`
+	Description string            `json:"description"`
+	Status      TransactionStatus `json:"status"`
+	Type        TransactionType   `json:"type"`
+	ExternalID  *string           `json:"external_id,omitempty"`
 }
 
 type TransactionDetail struct {
-	ID          int64
-	Timestamp   int64
-	Description string
-	Status      TransactionStatus
-	Type        TransactionType
-	Splits      []SplitDetail
+	ID          int64             `json:"id"`
+	Timestamp   int64             `json:"timestamp"`
+	Description string            `json:"description"`
+	Status      TransactionStatus `json:"status"`
+	Type        TransactionType   `json:"type"`
+	Splits      []SplitDetail     `json:"splits"`
 }
 
 type TransactionRule struct {

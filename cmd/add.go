@@ -88,18 +88,25 @@ func (r *addRunner) Run(ctx context.Context, flags *addFlags, cmd *cobra.Command
 	var result model.TransactionDetail
 	if len(input.Splits) > 0 {
 		result, err = r.txSvc.CreateTransactionFromSplits(
-			ctx, input.Splits, input.Description, input.Timestamp, input.Status, input.Type,
+			ctx, model.CreateTransactionFromSplitsInput{
+				Splits:      input.Splits,
+				Description: input.Description,
+				Timestamp:   input.Timestamp,
+				Status:      input.Status,
+				Type:        input.Type,
+			},
 		)
 	} else {
 		result, err = r.txSvc.CreateSimpleTransaction(
-			ctx,
-			input.FromAccountID,
-			input.ToAccountID,
-			input.AmountCents,
-			input.Description,
-			input.Timestamp,
-			input.Status,
-			input.Type,
+			ctx, model.CreateSimpleTransactionInput{
+				FromAccount: input.FromAccountID,
+				ToAccount:   input.ToAccountID,
+				Amount:      input.AmountCents,
+				Description: input.Description,
+				Timestamp:   input.Timestamp,
+				Status:      input.Status,
+				Type:        input.Type,
+			},
 		)
 	}
 	if err != nil {

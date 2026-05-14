@@ -37,7 +37,7 @@ type EditProvider interface {
 	GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account
 	ValidateTransactionEdit(ctx context.Context, splits []model.SplitDetail) error
 	ValidateSplitsMatchType(ctx context.Context, txType model.TransactionType, splits []model.SplitDetail) error
-	UpdateTransactionComplete(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error
+	UpdateTransactionComplete(ctx context.Context, input model.UpdateTransactionInput) error
 }
 
 type AccountProvider interface {

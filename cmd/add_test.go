@@ -28,15 +28,15 @@ func (m *mockTransactionProvider) GetTransactionRule(mode model.TransactionType)
 	return model.TransactionRule{}, nil
 }
 
-func (m *mockTransactionProvider) CreateSimpleTransaction(_ context.Context, fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
+func (m *mockTransactionProvider) CreateSimpleTransaction(_ context.Context, input model.CreateSimpleTransactionInput) (model.TransactionDetail, error) {
 	if m.createSimpleErr != nil {
 		return model.TransactionDetail{}, m.createSimpleErr
 	}
 	return model.TransactionDetail{}, nil
 }
 
-func (m *mockTransactionProvider) CreateTransactionFromSplits(_ context.Context, splits []model.SplitDetail, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
-	m.lastSplitsInput = splits
+func (m *mockTransactionProvider) CreateTransactionFromSplits(_ context.Context, input model.CreateTransactionFromSplitsInput) (model.TransactionDetail, error) {
+	m.lastSplitsInput = input.Splits
 	if m.createSplitsErr != nil {
 		return model.TransactionDetail{}, m.createSplitsErr
 	}

@@ -285,7 +285,14 @@ func (r *editRunner) actionSave(ctx context.Context, detail *model.TransactionDe
 
 	// Execute Update
 	if err := r.txSvc.UpdateTransactionComplete(
-		ctx, r.txID, detail.Description, detail.Timestamp, detail.Status, detail.Type, splits,
+		ctx, model.UpdateTransactionInput{
+			ID:          r.txID,
+			Description: detail.Description,
+			Timestamp:   detail.Timestamp,
+			Status:      detail.Status,
+			Type:        detail.Type,
+			Splits:      splits,
+		},
 	); err != nil {
 		return err
 	}

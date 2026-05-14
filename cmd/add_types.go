@@ -22,8 +22,8 @@ type AddProvider interface {
 
 type TransactionProvider interface {
 	GetTransactionRule(mode model.TransactionType) (model.TransactionRule, error)
-	CreateSimpleTransaction(ctx context.Context, fromAccount string, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
-	CreateTransactionFromSplits(ctx context.Context, splits []model.SplitDetail, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error)
+	CreateSimpleTransaction(ctx context.Context, input model.CreateSimpleTransactionInput) (model.TransactionDetail, error)
+	CreateTransactionFromSplits(ctx context.Context, input model.CreateTransactionFromSplitsInput) (model.TransactionDetail, error)
 	ParseTransactionDate(dateStr string) (int64, error)
 }
 

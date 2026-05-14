@@ -81,13 +81,13 @@ func (as *AccountService) CreateAccountWithBalance(ctx context.Context, name str
 
 func (as *AccountService) validateAccountFields(ctx context.Context, name string, accType model.AccountType, currency string, parentID *int64) error {
 	if err := as.ValidateFullAccountName(name); err != nil {
-		return fmt.Errorf("invalid account name: %w", err)
+		return validationWrap("name", "invalid account name", err)
 	}
 	if err := as.ValidateCurrency(currency); err != nil {
-		return fmt.Errorf("invalid currency: %w", err)
+		return validationWrap("currency", "invalid currency", err)
 	}
 	if !accType.IsValid() {
-		return fmt.Errorf("invalid account type: %s", accType)
+		return validationErrorf("type", "invalid account type: %s", accType)
 	}
 	if parentID != nil {
 		if err := as.validateParentChain(ctx, 0, parentID); err != nil {
@@ -133,7 +133,7 @@ func (as *AccountService) createOpeningBalanceInRepo(ctx context.Context, repo r
 		balanceAmount = -amountInCents
 		equityAmount = amountInCents
 	default:
-		return fmt.Errorf("only Assets(A) and Liabilities(L) accounts can set an opening balance")
+		return validationErrorf("type", "only Assets(A) and Liabilities(L) accounts can set an opening balance")
 	}
 
 	tx := model.Transaction{
@@ -185,7 +185,7 @@ func (as *AccountService) DeleteAccountByName(ctx context.Context, name string) 
 		return err
 	}
 	if hasChildren {
-		return fmt.Errorf("account %q has child accounts; delete or move them first", acc.Name)
+		return validationErrorf("", "account %q has child accounts; delete or move them first", acc.Name)
 	}
 
 	hasTransactions, err := as.repo.AccountHasTransactions(ctx, acc.ID)
@@ -193,7 +193,7 @@ func (as *AccountService) DeleteAccountByName(ctx context.Context, name string) 
 		return err
 	}
 	if hasTransactions {
-		return fmt.Errorf("account %q has transactions and cannot be deleted", acc.Name)
+		return validationErrorf("", "account %q has transactions and cannot be deleted", acc.Name)
 	}
 
 	return as.repo.DeleteAccount(ctx, acc.ID)
@@ -217,7 +217,7 @@ func (as *AccountService) RenameAccount(ctx context.Context, oldName, newSegment
 	}
 
 	if err := as.ValidateAccountName(newSegment); err != nil {
-		return fmt.Errorf("invalid account name: %w", err)
+		return validationWrap("name", "invalid account name", err)
 	}
 
 	var newFullName string
@@ -232,7 +232,7 @@ func (as *AccountService) RenameAccount(ctx context.Context, oldName, newSegment
 		return err
 	}
 	if exists {
-		return fmt.Errorf("account %q already exists", newFullName)
+		return validationErrorf("name", "account %q already exists", newFullName)
 	}
 
 	return as.repo.RenameAccount(ctx, acc.Name, newFullName)

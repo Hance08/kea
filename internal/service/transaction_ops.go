@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,11 +27,11 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 	// Validate: According to double-entry bookkeeping principles,
 	// a transaction must consist of at least 2 splits.
 	if len(input.Splits) < 2 {
-		return 0, fmt.Errorf("transaction must have at least 2 splits (got %d)", len(input.Splits))
+		return 0, validationErrorf("splits", "transaction must have at least 2 splits (got %d)", len(input.Splits))
 	}
 
 	if input.Type == "" {
-		return 0, fmt.Errorf("transaction type is required")
+		return 0, validationErrorf("type", "transaction type is required")
 	}
 
 	// Set default timestamp: Use current system time if not provided.
@@ -109,14 +110,14 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 // checkAccountSelectable returns an error if the account is hidden or has child accounts.
 func (ts *TransactionService) checkAccountSelectable(ctx context.Context, accRepo repository.AccountRepository, account *model.Account) error {
 	if account.IsHidden {
-		return fmt.Errorf("account %q is hidden", account.Name)
+		return validationErrorf("account", "account %q is hidden", account.Name)
 	}
 	hasChildren, err := accRepo.HasChildAccounts(ctx, account.ID)
 	if err != nil {
 		return err
 	}
 	if hasChildren {
-		return fmt.Errorf("account %q is a parent account; select a leaf account instead", account.Name)
+		return validationErrorf("account", "account %q is a parent account; select a leaf account instead", account.Name)
 	}
 	return nil
 }
@@ -132,10 +133,10 @@ func (ts *TransactionService) checkAccountSelectable(ctx context.Context, accRep
 // Returns the constructed TransactionDetail (useful for UI rendering).
 func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
 	if fromAccount == toAccount {
-		return model.TransactionDetail{}, fmt.Errorf("source and destination accounts cannot be the same")
+		return model.TransactionDetail{}, validationErrorf("account", "source and destination accounts cannot be the same")
 	}
 	if amount <= 0 {
-		return model.TransactionDetail{}, fmt.Errorf("amount must be positive")
+		return model.TransactionDetail{}, validationErrorf("amount", "amount must be positive")
 	}
 
 	// If no type provided, infer from account types.
@@ -226,7 +227,7 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 
 	// Business Rule: Restrict status updates to valid enum constant to ensure data integrity.
 	if status != model.StatusPending && status != model.StatusCleared {
-		return fmt.Errorf("invalid status: must be 0 (Pending) or 1 (Cleared)")
+		return validationErrorf("status", "invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
 
 	if txID == model.SystemTransactionID {
@@ -250,7 +251,7 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error {
 	// Validate status
 	if status != model.StatusPending && status != model.StatusCleared && status != model.StatusReconciled {
-		return fmt.Errorf("invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
+		return validationErrorf("status", "invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
 	}
 
 	if txID == model.SystemTransactionID {
@@ -268,7 +269,7 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 
 	// Validate that we have at least 2 splits
 	if len(splits) < 2 {
-		return fmt.Errorf("transaction must have at least 2 splits for double-entry bookkeeping")
+		return validationErrorf("splits", "transaction must have at least 2 splits for double-entry bookkeeping")
 	}
 
 	if err := ts.ValidateSplitDetailsBalance(splits); err != nil {
@@ -304,11 +305,11 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 				continue
 			}
 			if seenSplitIDs[split.ID] {
-				return fmt.Errorf("duplicate split ID %d in input", split.ID)
+				return validationErrorf("splits", "duplicate split ID %d in input", split.ID)
 			}
 			seenSplitIDs[split.ID] = true
 			if _, ok := existingAccountByID[split.ID]; !ok {
-				return fmt.Errorf("split ID %d does not belong to transaction %d", split.ID, txID)
+				return validationErrorf("splits", "split ID %d does not belong to transaction %d", split.ID, txID)
 			}
 		}
 
@@ -316,7 +317,10 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		for _, split := range splits {
 			account, err := repo.GetAccountByID(ctx, split.AccountID)
 			if err != nil {
-				return fmt.Errorf("account ID %d not found", split.AccountID)
+				if errors.Is(err, repository.ErrNotFound) {
+					return validationErrorf("splits", "account ID %d not found", split.AccountID)
+				}
+				return err
 			}
 			isNew := split.ID == 0
 			accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID
@@ -396,7 +400,7 @@ func (ts *TransactionService) ParseTransactionDate(dateStr string) (int64, error
 	}
 	t, err := time.ParseInLocation(model.DateFormat, dateStr, time.Local)
 	if err != nil {
-		return 0, fmt.Errorf("invalid date format, use %s: %w", model.DateFormat, err)
+		return 0, validationWrap("date", fmt.Sprintf("invalid date format, use %s", model.DateFormat), err)
 	}
 	return t.Unix(), nil
 }

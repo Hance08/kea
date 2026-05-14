@@ -386,7 +386,7 @@ func parseMonth(month string) (startTime, endTime int64, period string, err erro
 	loc := time.Local
 	t, parseErr := time.ParseInLocation("2006-01", month, loc)
 	if parseErr != nil {
-		err = fmt.Errorf("invalid month format %q, expected YYYY-MM", month)
+		err = validationErrorf("month", "invalid month format %q, expected YYYY-MM", month)
 		return
 	}
 
@@ -409,7 +409,7 @@ func parseDateRange(from, to string) (startTime, endTime int64, period string, e
 	} else {
 		startDate, err = time.ParseInLocation(model.DateFormat, from, loc)
 		if err != nil {
-			err = fmt.Errorf("invalid from-date format %q, expected YYYY-MM-DD", from)
+			err = validationErrorf("from", "invalid from-date format %q, expected YYYY-MM-DD", from)
 			return
 		}
 	}
@@ -419,14 +419,14 @@ func parseDateRange(from, to string) (startTime, endTime int64, period string, e
 	} else {
 		endDate, err = time.ParseInLocation(model.DateFormat, to, loc)
 		if err != nil {
-			err = fmt.Errorf("invalid to-date format %q, expected YYYY-MM-DD", to)
+			err = validationErrorf("to", "invalid to-date format %q, expected YYYY-MM-DD", to)
 			return
 		}
 		endDate = endDate.Add(24*time.Hour - time.Second)
 	}
 
 	if endDate.Before(startDate) {
-		err = fmt.Errorf("end date must be on or after start date")
+		err = validationErrorf("to", "end date must be on or after start date")
 		return
 	}
 

@@ -72,3 +72,80 @@ func TestValidationError_NotMatchSentinels(t *testing.T) {
 	assert.False(t, errors.Is(ve, ErrNotFound))
 	assert.False(t, errors.Is(ve, ErrNotEditable))
 }
+
+func TestValidateAccountName_ReturnsValidationError(t *testing.T) {
+	svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+	tests := []struct {
+		name  string
+		input string
+		field string
+	}{
+		{"empty name", "", "name"},
+		{"has colon", "foo:bar", "name"},
+		{"too long", string(make([]byte, 256)), "name"},
+		{"leading space", " foo", "name"},
+		{"reserved name", "assets", "name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := svc.ValidateAccountName(tt.input)
+			assert.Error(t, err)
+
+			var ve *ValidationError
+			assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+			assert.Equal(t, tt.field, ve.Field)
+		})
+	}
+}
+
+func TestValidateCurrency_ReturnsValidationError(t *testing.T) {
+	svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+	tests := []struct {
+		name  string
+		input string
+		field string
+	}{
+		{"too short", "US", "currency"},
+		{"has digits", "U2D", "currency"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := svc.ValidateCurrency(tt.input)
+			assert.Error(t, err)
+
+			var ve *ValidationError
+			assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+			assert.Equal(t, tt.field, ve.Field)
+		})
+	}
+}
+
+func TestValidateFullAccountName_ReturnsValidationError(t *testing.T) {
+	svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+	tests := []struct {
+		name  string
+		input string
+		field string
+	}{
+		{"empty", "", "name"},
+		{"bad root", "Foo:Bar", "name"},
+		{"empty segment", "Assets::Checking", "name"},
+		{"reserved in segment", "Assets:Equity", "name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := svc.ValidateFullAccountName(tt.input)
+			assert.Error(t, err)
+
+			var ve *ValidationError
+			assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+			assert.Equal(t, tt.field, ve.Field)
+		})
+	}
+}

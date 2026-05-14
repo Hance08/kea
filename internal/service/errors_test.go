@@ -4,10 +4,12 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/hance08/kea/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -148,4 +150,79 @@ func TestValidateFullAccountName_ReturnsValidationError(t *testing.T) {
 			assert.Equal(t, tt.field, ve.Field)
 		})
 	}
+}
+
+func TestCreateAccount_ValidationErrors(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+	tests := []struct {
+		name    string
+		accName string
+		accType model.AccountType
+		field   string
+	}{
+		{"invalid name", "", model.AccountTypeAsset, "name"},
+		{"invalid type", "Assets:Cash", model.AccountType("X"), "type"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := svc.CreateAccount(context.Background(), tt.accName, tt.accType, "USD", "", nil)
+			assert.Error(t, err)
+
+			var ve *ValidationError
+			assert.True(t, errors.As(err, &ve), "expected ValidationError for %s, got: %T: %v", tt.name, err, err)
+		})
+	}
+}
+
+func TestDeleteAccount_HasChildren_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	accRepo.childMap[1] = true
+
+	svc := newTestAccountService(accRepo, newMockTransactionRepo())
+	err := svc.DeleteAccountByName(context.Background(), "Assets:Bank")
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+}
+
+func TestDeleteAccount_HasTransactions_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	accRepo.txExistsMap[1] = true
+
+	svc := newTestAccountService(accRepo, newMockTransactionRepo())
+	err := svc.DeleteAccountByName(context.Background(), "Assets:Bank")
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+}
+
+func TestRenameAccount_DuplicateName_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Old", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Existing", Type: model.AccountTypeAsset})
+
+	svc := newTestAccountService(accRepo, newMockTransactionRepo())
+	err := svc.RenameAccount(context.Background(), "Assets:Old", "Existing")
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+}
+
+func TestCreateAccountWithBalance_NonAL_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+	_, err := svc.CreateAccountWithBalance(context.Background(), "Revenue:Sales", model.AccountTypeRevenue, "USD", "", nil, 1000)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
 }

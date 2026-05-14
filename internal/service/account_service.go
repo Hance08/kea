@@ -60,7 +60,7 @@ func (as *AccountService) GetRootNameByType(accType string) (string, error) {
 	at := model.AccountType(strings.ToUpper(accType))
 	name, ok := at.RootName()
 	if !ok {
-		return "", fmt.Errorf("invalid account type '%s' (must be A, L, C, R, E)", accType)
+		return "", validationErrorf("type", "invalid account type '%s' (must be A, L, C, R, E)", accType)
 	}
 	return name, nil
 }
@@ -89,7 +89,7 @@ func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name st
 	}
 
 	if acc.IsHidden {
-		return fmt.Errorf("account %q is hidden", name)
+		return validationErrorf("account", "account %q is hidden", name)
 	}
 
 	hasChildren, err := as.repo.HasChildAccounts(ctx, acc.ID)
@@ -97,7 +97,7 @@ func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name st
 		return err
 	}
 	if hasChildren {
-		return fmt.Errorf("account %q is a parent account; select a leaf account instead", name)
+		return validationErrorf("account", "account %q is a parent account; select a leaf account instead", name)
 	}
 
 	return nil

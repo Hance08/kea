@@ -34,7 +34,7 @@ func TestListRecentTransactions(t *testing.T) {
 		assert.Equal(t, 3, result.TotalCount)
 	})
 
-	t.Run("default limit applied", func(t *testing.T) {
+	t.Run("zero limit uses repo default", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		txRepo := newMockTransactionRepo()
 		svc := newTestTransactionService(accRepo, txRepo)

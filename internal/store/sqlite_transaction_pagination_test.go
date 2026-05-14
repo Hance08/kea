@@ -113,6 +113,7 @@ func TestListTransactions(t *testing.T) {
 
 		result, err := s.ListTransactions(ctx, model.ListOptions{Limit: 10, Offset: 100, IncludeCount: true})
 		require.NoError(t, err)
+		assert.NotNil(t, result.Items)
 		assert.Empty(t, result.Items)
 		assert.Equal(t, 5, result.TotalCount)
 	})
@@ -131,7 +132,6 @@ func TestListTransactionsByAccount(t *testing.T) {
 		// Third account not touched by any tx
 		otherID, err := s.CreateAccount(ctx, "Expenses:Other", model.AccountTypeExpense, "USD", "", nil)
 		require.NoError(t, err)
-		_ = otherID
 
 		// 3 txs touch assetID + expenseID
 		for i := 0; i < 3; i++ {

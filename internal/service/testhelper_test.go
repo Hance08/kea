@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
@@ -250,6 +251,10 @@ type mockTransactionRepo struct {
 		balance   int64
 	}
 	setLastReconciledBalErr map[int64]error
+
+	// pagination support
+	listTxErr          error
+	listTxByAccountErr error
 }
 
 func newMockTransactionRepo() *mockTransactionRepo {
@@ -473,6 +478,9 @@ func (m *mockTransactionRepo) SetLastReconciledBalance(_ context.Context, accoun
 }
 
 func (m *mockTransactionRepo) ListTransactions(_ context.Context, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	if m.listTxErr != nil {
+		return nil, m.listTxErr
+	}
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 20
@@ -485,6 +493,7 @@ func (m *mockTransactionRepo) ListTransactions(_ context.Context, opts model.Lis
 	for _, tx := range m.transactions {
 		all = append(all, tx)
 	}
+	sort.Slice(all, func(i, j int) bool { return all[i].ID > all[j].ID })
 	result := &model.ListResult[*model.Transaction]{}
 	if opts.IncludeCount {
 		result.TotalCount = len(all)
@@ -503,6 +512,9 @@ func (m *mockTransactionRepo) ListTransactions(_ context.Context, opts model.Lis
 }
 
 func (m *mockTransactionRepo) ListTransactionsByAccount(_ context.Context, accountID int64, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	if m.listTxByAccountErr != nil {
+		return nil, m.listTxByAccountErr
+	}
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 20
@@ -522,6 +534,7 @@ func (m *mockTransactionRepo) ListTransactionsByAccount(_ context.Context, accou
 			}
 		}
 	}
+	sort.Slice(matching, func(i, j int) bool { return matching[i].ID > matching[j].ID })
 	result := &model.ListResult[*model.Transaction]{}
 	if opts.IncludeCount {
 		result.TotalCount = len(matching)

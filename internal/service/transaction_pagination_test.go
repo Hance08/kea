@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -54,6 +55,17 @@ func TestListRecentTransactions(t *testing.T) {
 		assert.NotNil(t, result.Items)
 		assert.Empty(t, result.Items)
 		assert.Equal(t, 0, result.TotalCount)
+	})
+
+	t.Run("repo error propagates", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		txRepo.listTxErr = errors.New("db connection lost")
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		_, err := svc.ListRecentTransactions(context.Background(), model.ListOptions{Limit: 10})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db connection lost")
 	})
 }
 
@@ -109,6 +121,18 @@ func TestListTransactionHistory(t *testing.T) {
 		_, err := svc.ListTransactionHistory(context.Background(), "Nonexistent:Account", model.ListOptions{Limit: 10})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "account not found")
+	})
+
+	t.Run("repo error propagates", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		txRepo.listTxByAccountErr = errors.New("db connection lost")
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		_, err := svc.ListTransactionHistory(context.Background(), "Assets:Bank", model.ListOptions{Limit: 10})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "db connection lost")
 	})
 
 	t.Run("with offset", func(t *testing.T) {

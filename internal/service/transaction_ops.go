@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -316,7 +317,10 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		for _, split := range splits {
 			account, err := repo.GetAccountByID(ctx, split.AccountID)
 			if err != nil {
-				return validationErrorf("splits", "account ID %d not found", split.AccountID)
+				if errors.Is(err, repository.ErrNotFound) {
+					return validationErrorf("splits", "account ID %d not found", split.AccountID)
+				}
+				return err
 			}
 			isNew := split.ID == 0
 			accountChanged := split.ID != 0 && existingAccountByID[split.ID] != split.AccountID
@@ -396,7 +400,7 @@ func (ts *TransactionService) ParseTransactionDate(dateStr string) (int64, error
 	}
 	t, err := time.ParseInLocation(model.DateFormat, dateStr, time.Local)
 	if err != nil {
-		return 0, &ValidationError{Field: "date", Message: fmt.Sprintf("invalid date format, use %s: %s", model.DateFormat, err), Err: err}
+		return 0, validationWrap("date", fmt.Sprintf("invalid date format, use %s", model.DateFormat), err)
 	}
 	return t.Unix(), nil
 }

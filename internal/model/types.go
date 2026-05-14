@@ -89,7 +89,11 @@ func (s TransactionStatus) String() string {
 }
 
 func (s TransactionStatus) MarshalJSON() ([]byte, error) {
-	return json.Marshal(s.String())
+	str := s.String()
+	if str == "Unknown" {
+		return nil, fmt.Errorf("cannot marshal invalid transaction status %d", int(s))
+	}
+	return json.Marshal(str)
 }
 
 func (s *TransactionStatus) UnmarshalJSON(data []byte) error {

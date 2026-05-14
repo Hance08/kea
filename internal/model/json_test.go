@@ -278,6 +278,12 @@ func TestTransactionStatus_JSONRoundTrip(t *testing.T) {
 	assert.Equal(t, model.StatusReconciled, tx2.Status)
 }
 
+func TestTransactionStatus_JSONMarshal_Invalid(t *testing.T) {
+	invalid := model.TransactionStatus(99)
+	_, err := json.Marshal(invalid)
+	assert.Error(t, err)
+}
+
 func TestTransactionStatus_JSONUnmarshal_Invalid(t *testing.T) {
 	tests := []struct {
 		name  string

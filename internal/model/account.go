@@ -4,11 +4,11 @@
 package model
 
 type Account struct {
-	ID          int64
-	Name        string
-	Type        AccountType
-	ParentID    *int64
-	Currency    string
-	Description string
-	IsHidden    bool
+	ID          int64       `json:"id"`
+	Name        string      `json:"name"`
+	Type        AccountType `json:"type"`
+	ParentID    *int64      `json:"parent_id,omitempty"`
+	Currency    string      `json:"currency"`
+	Description string      `json:"description"`
+	IsHidden    bool        `json:"is_hidden"`
 }

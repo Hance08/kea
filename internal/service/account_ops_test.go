@@ -172,7 +172,7 @@ func TestCreateAccount(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "My bank", nil)
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", Description: "My bank"})
 		require.NoError(t, err)
 		require.NotNil(t, acc)
 		assert.Greater(t, acc.ID, int64(0))
@@ -185,21 +185,21 @@ func TestCreateAccount(t *testing.T) {
 
 	t.Run("invalid account name (non-reserved root) rejected", func(t *testing.T) {
 		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
-		_, err := svc.CreateAccount(context.Background(), "Money:Bank", model.AccountTypeAsset, "USD", "", nil)
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Money:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid account name")
 	})
 
 	t.Run("invalid currency code rejected", func(t *testing.T) {
 		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
-		_, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountTypeAsset, "US", "", nil)
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "US"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid currency")
 	})
 
 	t.Run("invalid account type rejected", func(t *testing.T) {
 		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
-		_, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountType("X"), "USD", "", nil)
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountType("X"), Currency: "USD"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid account type")
 	})
@@ -209,7 +209,7 @@ func TestCreateAccount(t *testing.T) {
 		accRepo.createErr = errors.New("db error")
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		_, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
 		require.Error(t, err)
 	})
 
@@ -218,7 +218,7 @@ func TestCreateAccount(t *testing.T) {
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
 
-		_, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrAlreadyExists), "expected ErrAlreadyExists, got: %v", err)
 	})
@@ -227,7 +227,7 @@ func TestCreateAccount(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountTypeAsset, "usd", "My bank", nil)
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "usd", Description: "My bank"})
 		require.NoError(t, err)
 		assert.Equal(t, "USD", acc.Currency)
 	})
@@ -236,7 +236,7 @@ func TestCreateAccount(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank", model.AccountTypeAsset, " eur ", "My bank", nil)
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: " eur ", Description: "My bank"})
 		require.NoError(t, err)
 		assert.Equal(t, "EUR", acc.Currency)
 	})
@@ -254,7 +254,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, txRepo)
 
-		acc, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil, 5000)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", Balance: 5000})
 		require.NoError(t, err)
 
 		splits := txRepo.splits[1] // first transaction ID=1
@@ -283,7 +283,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, txRepo)
 
-		acc, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Loan", model.AccountTypeAsset, "USD", "", nil, -3000)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:Loan", Type: model.AccountTypeAsset, Currency: "USD", Balance: -3000})
 		require.NoError(t, err)
 
 		splits := txRepo.splits[1]
@@ -307,7 +307,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, txRepo)
 
-		acc, err := svc.CreateAccountWithBalance(context.Background(), "Liabilities:CreditCard", model.AccountTypeLiability, "USD", "", nil, 2000)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Liabilities:CreditCard", Type: model.AccountTypeLiability, Currency: "USD", Balance: 2000})
 		require.NoError(t, err)
 
 		splits := txRepo.splits[1]
@@ -331,7 +331,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, txRepo)
 
-		_, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil, 0)
+		_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", Balance: 0})
 		require.NoError(t, err)
 		assert.Empty(t, txRepo.transactions, "no transaction should be created for zero balance")
 	})
@@ -342,7 +342,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, txRepo)
 
-		acc, err := svc.CreateAccountWithBalance(context.Background(), "Expenses:Food", model.AccountTypeExpense, "USD", "", nil, 500)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Expenses:Food", Type: model.AccountTypeExpense, Currency: "USD", Balance: 500})
 		require.Error(t, err)
 		assert.Nil(t, acc, "account should be nil on unsupported type")
 		assert.Contains(t, err.Error(), "opening balance")
@@ -356,7 +356,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		// intentionally omit the opening balance account
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		_, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil, 1000)
+		_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", Balance: 1000})
 		require.NoError(t, err)
 
 		equityName := model.OpeningBalancesAccountName("USD")
@@ -373,7 +373,7 @@ func TestCreateAccountWithBalance_SplitDirection(t *testing.T) {
 		txRepo.createErr = errors.New("forced DB error")
 		svc := newTestAccountService(accRepo, txRepo)
 
-		acc, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Bank", model.AccountTypeAsset, "USD", "", nil, 5000)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", Balance: 5000})
 		require.Error(t, err)
 		assert.Nil(t, acc, "account should be nil on rollback")
 
@@ -389,7 +389,7 @@ func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {
 		addOpeningBalancesForCurrency(accRepo, "TWD")
 		svc := newTestAccountService(accRepo, txRepo)
 
-		acc, err := svc.CreateAccountWithBalance(context.Background(), "Assets:TWDBank", model.AccountTypeAsset, "TWD", "", nil, 30000)
+		acc, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:TWDBank", Type: model.AccountTypeAsset, Currency: "TWD", Balance: 30000})
 		require.NoError(t, err)
 
 		splits := txRepo.splits[1]
@@ -415,7 +415,7 @@ func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {
 		addOpeningBalancesForCurrency(accRepo, "USD")
 		svc := newTestAccountService(accRepo, txRepo)
 
-		_, err := svc.CreateAccountWithBalance(context.Background(), "Assets:Bank", model.AccountTypeAsset, "", "", nil, 5000)
+		_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "", Balance: 5000})
 		require.NoError(t, err)
 
 		splits := txRepo.splits[1]
@@ -431,7 +431,7 @@ func TestCreateAccountWithBalance_CurrencyRouting(t *testing.T) {
 		// no TWD equity account pre-seeded
 		svc := newTestAccountService(accRepo, txRepo)
 
-		_, err := svc.CreateAccountWithBalance(context.Background(), "Assets:TWDBank", model.AccountTypeAsset, "TWD", "", nil, 30000)
+		_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Assets:TWDBank", Type: model.AccountTypeAsset, Currency: "TWD", Balance: 30000})
 		require.NoError(t, err)
 
 		// equity account should now exist
@@ -733,7 +733,7 @@ func TestCreateAccount_ParentValidation(t *testing.T) {
 		parent := &model.Account{ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"}
 		accRepo.addAccount(parent)
 
-		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(10))
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank:Checking", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(10)})
 		require.NoError(t, err)
 		require.NotNil(t, acc.ParentID)
 		assert.Equal(t, int64(10), *acc.ParentID)
@@ -742,7 +742,7 @@ func TestCreateAccount_ParentValidation(t *testing.T) {
 	t.Run("non-existent parent rejected", func(t *testing.T) {
 		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
 
-		_, err := svc.CreateAccount(context.Background(), "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", int64Ptr(999))
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank:Checking", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(999)})
 		require.Error(t, err)
 	})
 
@@ -754,7 +754,7 @@ func TestCreateAccount_ParentValidation(t *testing.T) {
 		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
 		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Bank:Savings", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
 
-		acc, err := svc.CreateAccount(context.Background(), "Assets:Bank:Savings:Sub", model.AccountTypeAsset, "USD", "", int64Ptr(3))
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:Bank:Savings:Sub", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)})
 		require.NoError(t, err)
 		require.NotNil(t, acc.ParentID)
 		assert.Equal(t, int64(3), *acc.ParentID)
@@ -769,7 +769,7 @@ func TestCreateAccount_ParentValidation(t *testing.T) {
 		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:B", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(1)})
 		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:C", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(2)})
 
-		_, err := svc.CreateAccount(context.Background(), "Assets:C:Child", model.AccountTypeAsset, "USD", "", int64Ptr(3))
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: "Assets:C:Child", Type: model.AccountTypeAsset, Currency: "USD", ParentID: int64Ptr(3)})
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrCircularParent), "expected ErrCircularParent, got: %v", err)
 	})

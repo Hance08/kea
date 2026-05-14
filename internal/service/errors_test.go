@@ -168,7 +168,7 @@ func TestCreateAccount_ValidationErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := svc.CreateAccount(context.Background(), tt.accName, tt.accType, "USD", "", nil)
+			_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: tt.accName, Type: tt.accType, Currency: "USD"})
 			assert.Error(t, err)
 
 			var ve *ValidationError
@@ -220,7 +220,7 @@ func TestCreateAccountWithBalance_NonAL_ReturnsValidationError(t *testing.T) {
 	accRepo := newMockAccountRepo()
 	svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-	_, err := svc.CreateAccountWithBalance(context.Background(), "Revenue:Sales", model.AccountTypeRevenue, "USD", "", nil, 1000)
+	_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Revenue:Sales", Type: model.AccountTypeRevenue, Currency: "USD", Balance: 1000})
 	assert.Error(t, err)
 
 	var ve *ValidationError
@@ -268,7 +268,7 @@ func TestCreateSimpleTransaction_SameAccount_ReturnsValidationError(t *testing.T
 	txRepo := newMockTransactionRepo()
 	svc := newTestTransactionService(accRepo, txRepo)
 
-	_, err := svc.CreateSimpleTransaction(context.Background(), "Assets:Cash", "Assets:Cash", 100, "test", 0, 0, model.TxTypeTransfer)
+	_, err := svc.CreateSimpleTransaction(context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Cash", ToAccount: "Assets:Cash", Amount: 100, Description: "test", Timestamp: 0, Status: 0, Type: model.TxTypeTransfer})
 	assert.Error(t, err)
 
 	var ve *ValidationError
@@ -280,7 +280,7 @@ func TestCreateSimpleTransaction_NegativeAmount_ReturnsValidationError(t *testin
 	txRepo := newMockTransactionRepo()
 	svc := newTestTransactionService(accRepo, txRepo)
 
-	_, err := svc.CreateSimpleTransaction(context.Background(), "A", "B", -5, "test", 0, 0, model.TxTypeTransfer)
+	_, err := svc.CreateSimpleTransaction(context.Background(), model.CreateSimpleTransactionInput{FromAccount: "A", ToAccount: "B", Amount: -5, Description: "test", Timestamp: 0, Status: 0, Type: model.TxTypeTransfer})
 	assert.Error(t, err)
 
 	var ve *ValidationError

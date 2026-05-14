@@ -159,11 +159,12 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 
 	_, err = svc.Account().CreateAccount(
 		context.Background(),
-		targetName,
-		model.AccountTypeEquity,
-		cfg.Defaults.Currency,
-		"Opening Balances (System Account)",
-		nil,
+		model.CreateAccountInput{
+			Name:        targetName,
+			Type:        model.AccountTypeEquity,
+			Currency:    cfg.Defaults.Currency,
+			Description: "Opening Balances (System Account)",
+		},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create system account: %w", err)

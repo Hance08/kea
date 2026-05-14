@@ -5,7 +5,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
@@ -308,10 +307,10 @@ func (ts *TransactionService) ValidateSplitsMatchType(ctx context.Context, txTyp
 			}
 		}
 		if !hasExpense {
-			return fmt.Errorf("expense transaction requires at least one Expense account")
+			return validationErrorf("type", "expense transaction requires at least one Expense account")
 		}
 		if !hasAssetOrLiab {
-			return fmt.Errorf("expense transaction requires at least one Asset or Liability account")
+			return validationErrorf("type", "expense transaction requires at least one Asset or Liability account")
 		}
 
 	case model.TxTypeIncome:
@@ -329,10 +328,10 @@ func (ts *TransactionService) ValidateSplitsMatchType(ctx context.Context, txTyp
 			}
 		}
 		if !hasRevenue {
-			return fmt.Errorf("income transaction requires at least one Revenue account")
+			return validationErrorf("type", "income transaction requires at least one Revenue account")
 		}
 		if !hasAssetOrLiab {
-			return fmt.Errorf("income transaction requires at least one Asset or Liability account")
+			return validationErrorf("type", "income transaction requires at least one Asset or Liability account")
 		}
 
 	case model.TxTypeTransfer:
@@ -342,12 +341,12 @@ func (ts *TransactionService) ValidateSplitsMatchType(ctx context.Context, txTyp
 				return err
 			}
 			if accType != model.AccountTypeAsset && accType != model.AccountTypeLiability {
-				return fmt.Errorf("transfer transaction must only contain Asset and Liability accounts (found account type %q)", accType)
+				return validationErrorf("type", "transfer transaction must only contain Asset and Liability accounts (found account type %q)", accType)
 			}
 		}
 
 	default:
-		return fmt.Errorf("unknown transaction type %q", txType)
+		return validationErrorf("type", "unknown transaction type %q", txType)
 	}
 
 	return nil

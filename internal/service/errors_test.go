@@ -313,3 +313,55 @@ func TestParseTransactionDate_InvalidFormat_ReturnsValidationError(t *testing.T)
 	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
 	assert.Equal(t, "date", ve.Field)
 }
+
+func TestValidateSplitsBalance_ReturnsValidationError(t *testing.T) {
+	txRepo := newMockTransactionRepo()
+	accRepo := newMockAccountRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	splits := []model.Split{
+		{AccountID: 1, Amount: 100, Currency: "USD"},
+		{AccountID: 2, Amount: -50, Currency: "USD"},
+	}
+	err := svc.ValidateSplitsBalance(splits)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "splits", ve.Field)
+}
+
+func TestValidateSplitsBalance_MixedCurrency_ReturnsValidationError(t *testing.T) {
+	txRepo := newMockTransactionRepo()
+	accRepo := newMockAccountRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	splits := []model.Split{
+		{AccountID: 1, Amount: 100, Currency: "USD"},
+		{AccountID: 2, Amount: -100, Currency: "EUR"},
+	}
+	err := svc.ValidateSplitsBalance(splits)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "splits", ve.Field)
+}
+
+func TestValidateSplitsMatchType_BadExpense_ReturnsValidationError(t *testing.T) {
+	txRepo := newMockTransactionRepo()
+	accRepo := newMockAccountRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Cash", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	splits := []model.SplitDetail{
+		{AccountName: "Assets:Cash", AccountID: 1, Amount: 100},
+		{AccountName: "Assets:Bank", AccountID: 2, Amount: -100},
+	}
+	err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeExpense, splits)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+}

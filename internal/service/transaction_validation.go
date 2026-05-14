@@ -5,7 +5,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hance08/kea/internal/model"
 )
@@ -20,15 +19,14 @@ func (ts *TransactionService) ValidateSplitsBalance(splits []model.Split) error 
 		if firstCurrency == "" {
 			firstCurrency = split.Currency
 		} else if split.Currency != firstCurrency {
-			return fmt.Errorf("splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
+			return validationErrorf("splits", "splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
 		}
 		total += split.Amount
 	}
 
 	if total != 0 {
-		return fmt.Errorf("splits do not balance: total is %d cents (%.2f), must be 0. "+
-			"In double-entry bookkeeping, debits must equal credits",
-			total, float64(total)/100.0)
+		return validationErrorf("splits", "splits do not balance: total is %d cents (%.2f), must be 0. In double-entry bookkeeping, debits must equal credits",
+			total, float64(total)/100)
 	}
 
 	return nil
@@ -46,15 +44,14 @@ func (ts *TransactionService) ValidateSplitDetailsBalance(splits []model.SplitDe
 			firstCurrency = split.Currency
 			initialized = true
 		} else if split.Currency != firstCurrency {
-			return fmt.Errorf("splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
+			return validationErrorf("splits", "splits must all use the same currency (got %q and %q)", firstCurrency, split.Currency)
 		}
 		total += split.Amount
 	}
 
 	if total != 0 {
-		return fmt.Errorf("splits do not balance: total is %d cents (%.2f), must be 0. "+
-			"In double-entry bookkeeping, debits must equal credits",
-			total, float64(total)/100.0)
+		return validationErrorf("splits", "splits do not balance: total is %d cents (%.2f), must be 0. In double-entry bookkeeping, debits must equal credits",
+			total, float64(total)/100)
 	}
 
 	return nil
@@ -64,7 +61,7 @@ func (ts *TransactionService) ValidateSplitDetailsBalance(splits []model.SplitDe
 func (ts *TransactionService) ValidateTransactionEdit(ctx context.Context, splits []model.SplitDetail) error {
 	// Check minimum splits
 	if len(splits) < model.MinSplitsCount {
-		return fmt.Errorf("transaction must have at least 2 splits")
+		return validationErrorf("splits", "transaction must have at least 2 splits")
 	}
 
 	if err := ts.ValidateSplitDetailsBalance(splits); err != nil {
@@ -75,7 +72,7 @@ func (ts *TransactionService) ValidateTransactionEdit(ctx context.Context, split
 	for i, split := range splits {
 		_, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
 		if err != nil {
-			return fmt.Errorf("split #%d: account ID %d not found", i+1, split.AccountID)
+			return validationErrorf("splits", "split #%d: account ID %d not found", i+1, split.AccountID)
 		}
 	}
 

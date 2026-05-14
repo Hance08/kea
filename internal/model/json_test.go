@@ -135,3 +135,60 @@ func TestTransactionDetail_JSONKeys(t *testing.T) {
 
 	assert.NotContains(t, m, "Splits")
 }
+
+func TestSplit_JSONKeys(t *testing.T) {
+	s := model.Split{
+		ID:            1,
+		TransactionID: 10,
+		AccountID:     2,
+		Amount:        1000,
+		Currency:      "USD",
+		Memo:          "test",
+	}
+
+	data, err := json.Marshal(s)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	assert.Contains(t, m, "id")
+	assert.Contains(t, m, "transaction_id")
+	assert.Contains(t, m, "account_id")
+	assert.Contains(t, m, "amount")
+	assert.Contains(t, m, "currency")
+	assert.Contains(t, m, "memo")
+
+	assert.NotContains(t, m, "TransactionID")
+	assert.NotContains(t, m, "AccountID")
+}
+
+func TestSplitDetail_JSONKeys(t *testing.T) {
+	sd := model.SplitDetail{
+		ID:          1,
+		AccountID:   2,
+		AccountName: "Assets:Bank",
+		AccountType: model.AccountTypeAsset,
+		Amount:      1000,
+		Currency:    "USD",
+		Memo:        "test",
+	}
+
+	data, err := json.Marshal(sd)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	assert.Contains(t, m, "id")
+	assert.Contains(t, m, "account_id")
+	assert.Contains(t, m, "account_name")
+	assert.Contains(t, m, "account_type")
+	assert.Contains(t, m, "amount")
+	assert.Contains(t, m, "currency")
+	assert.Contains(t, m, "memo")
+
+	assert.NotContains(t, m, "AccountID")
+	assert.NotContains(t, m, "AccountName")
+	assert.NotContains(t, m, "AccountType")
+}

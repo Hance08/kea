@@ -61,22 +61,22 @@ func (d *TransactionDetail) UpdateAmountPreservingBalance(newAbsAmount int64) er
 }
 
 type Split struct {
-	ID            int64
-	TransactionID int64
-	AccountID     int64
-	Amount        int64
-	Currency      string
-	Memo          string
+	ID            int64  `json:"id"`
+	TransactionID int64  `json:"transaction_id"`
+	AccountID     int64  `json:"account_id"`
+	Amount        int64  `json:"amount"`
+	Currency      string `json:"currency"`
+	Memo          string `json:"memo"`
 }
 
 type SplitDetail struct {
-	ID          int64
-	AccountID   int64
-	AccountName string
-	AccountType AccountType
-	Amount      int64
-	Currency    string
-	Memo        string
+	ID          int64       `json:"id"`
+	AccountID   int64       `json:"account_id"`
+	AccountName string      `json:"account_name"`
+	AccountType AccountType `json:"account_type"`
+	Amount      int64       `json:"amount"`
+	Currency    string      `json:"currency"`
+	Memo        string      `json:"memo"`
 }
 
 // ReconcileEntry is a read-only projection used by the reconciliation workflow.

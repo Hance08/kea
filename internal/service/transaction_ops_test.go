@@ -281,7 +281,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		detail, err := svc.CreateSimpleTransaction(
-			context.Background(), "Assets:Bank", "Expenses:Food", 1000, "Dinner", 0, model.StatusPending, model.TxTypeExpense,
+			context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Bank", ToAccount: "Expenses:Food", Amount: 1000, Description: "Dinner", Timestamp: 0, Status: model.StatusPending, Type: model.TxTypeExpense},
 		)
 		require.NoError(t, err)
 		assert.Greater(t, detail.ID, int64(0))
@@ -303,7 +303,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		detail, err := svc.CreateSimpleTransaction(
-			context.Background(), "Assets:Bank", "Expenses:Food", 750, "Coffee", 0, model.StatusPending, model.TxTypeExpense,
+			context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Bank", ToAccount: "Expenses:Food", Amount: 750, Description: "Coffee", Timestamp: 0, Status: model.StatusPending, Type: model.TxTypeExpense},
 		)
 		require.NoError(t, err)
 
@@ -317,7 +317,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 	t.Run("same account rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		_, err := svc.CreateSimpleTransaction(
-			context.Background(), "Assets:Bank", "Assets:Bank", 1000, "Self", 0, model.StatusPending, model.TxTypeExpense,
+			context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Bank", ToAccount: "Assets:Bank", Amount: 1000, Description: "Self", Timestamp: 0, Status: model.StatusPending, Type: model.TxTypeExpense},
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "same")
@@ -326,7 +326,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 	t.Run("zero amount rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		_, err := svc.CreateSimpleTransaction(
-			context.Background(), "Assets:Bank", "Expenses:Food", 0, "Zero", 0, model.StatusPending, model.TxTypeExpense,
+			context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Bank", ToAccount: "Expenses:Food", Amount: 0, Description: "Zero", Timestamp: 0, Status: model.StatusPending, Type: model.TxTypeExpense},
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "positive")
@@ -335,7 +335,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 	t.Run("negative amount rejected", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		_, err := svc.CreateSimpleTransaction(
-			context.Background(), "Assets:Bank", "Expenses:Food", -100, "Negative", 0, model.StatusPending, model.TxTypeExpense,
+			context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Bank", ToAccount: "Expenses:Food", Amount: -100, Description: "Negative", Timestamp: 0, Status: model.StatusPending, Type: model.TxTypeExpense},
 		)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "positive")
@@ -348,7 +348,7 @@ func TestCreateSimpleTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		detail, err := svc.CreateSimpleTransaction(
-			context.Background(), "Assets:Bank", "Expenses:Food", 500, "Inferred", 0, model.StatusPending, "",
+			context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Bank", ToAccount: "Expenses:Food", Amount: 500, Description: "Inferred", Timestamp: 0, Status: model.StatusPending, Type: ""},
 		)
 		require.NoError(t, err)
 		assert.Equal(t, model.TxTypeExpense, detail.Type)
@@ -864,7 +864,7 @@ func TestCreateTransactionFromSplits(t *testing.T) {
 			{AccountName: "Assets:Bank", Amount: -200000},
 			{AccountName: "Expenses:Food", Amount: 200000},
 		}
-		result, err := svc.CreateTransactionFromSplits(context.Background(), splits, "team lunch", 0, model.StatusCleared, model.TxTypeExpense)
+		result, err := svc.CreateTransactionFromSplits(context.Background(), model.CreateTransactionFromSplitsInput{Splits: splits, Description: "team lunch", Timestamp: 0, Status: model.StatusCleared, Type: model.TxTypeExpense})
 		require.NoError(t, err)
 		assert.Greater(t, result.ID, int64(0))
 		assert.Equal(t, "team lunch", result.Description)
@@ -883,7 +883,7 @@ func TestCreateTransactionFromSplits(t *testing.T) {
 			{AccountName: "Assets:Bank", Amount: -200000},
 			{AccountName: "Expenses:Food", Amount: 200000},
 		}
-		_, err := svc.CreateTransactionFromSplits(context.Background(), splits, "team lunch", 0, model.StatusCleared, model.TxTypeExpense)
+		_, err := svc.CreateTransactionFromSplits(context.Background(), model.CreateTransactionFromSplitsInput{Splits: splits, Description: "team lunch", Timestamp: 0, Status: model.StatusCleared, Type: model.TxTypeExpense})
 		require.Error(t, err)
 	})
 }

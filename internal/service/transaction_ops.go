@@ -129,29 +129,32 @@ func (ts *TransactionService) checkAccountSelectable(ctx context.Context, accRep
 //   - A Credit (negative) to the fromAccount (Source).
 //   - A Debit (positive) to the toAccount (Destination).
 //
-// If txType is empty, it is inferred from the account types via DetermineType.
+// If input.Type is empty, it is inferred from the account types via DetermineType.
 // Returns the constructed TransactionDetail (useful for UI rendering).
-func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, fromAccount, toAccount string, amount int64, desc string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) (model.TransactionDetail, error) {
-	if fromAccount == toAccount {
+func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, input model.CreateSimpleTransactionInput) (model.TransactionDetail, error) {
+	if input.FromAccount == input.ToAccount {
 		return model.TransactionDetail{}, validationErrorf("account", "source and destination accounts cannot be the same")
 	}
-	if amount <= 0 {
+	if input.Amount <= 0 {
 		return model.TransactionDetail{}, validationErrorf("amount", "amount must be positive")
 	}
 
+	// The local txType may be overwritten by type inference.
+	txType := input.Type
+
 	// If no type provided, infer from account types.
 	if txType == "" {
-		fromAcc, err := ts.accRepo.GetAccountByName(ctx, fromAccount)
+		fromAcc, err := ts.accRepo.GetAccountByName(ctx, input.FromAccount)
 		if err != nil {
 			return model.TransactionDetail{}, fmt.Errorf("failed to resolve from account: %w", err)
 		}
-		toAcc, err := ts.accRepo.GetAccountByName(ctx, toAccount)
+		toAcc, err := ts.accRepo.GetAccountByName(ctx, input.ToAccount)
 		if err != nil {
 			return model.TransactionDetail{}, fmt.Errorf("failed to resolve to account: %w", err)
 		}
 		inferred, err := ts.DetermineType(ctx, []model.SplitDetail{
-			{AccountType: toAcc.Type, Amount: amount},
-			{AccountType: fromAcc.Type, Amount: -amount},
+			{AccountType: toAcc.Type, Amount: input.Amount},
+			{AccountType: fromAcc.Type, Amount: -input.Amount},
 		})
 		if err != nil {
 			return model.TransactionDetail{}, err
@@ -160,22 +163,22 @@ func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, fromA
 	}
 
 	splits := []model.SplitDetail{
-		{AccountName: toAccount, Amount: amount},
-		{AccountName: fromAccount, Amount: -amount},
+		{AccountName: input.ToAccount, Amount: input.Amount},
+		{AccountName: input.FromAccount, Amount: -input.Amount},
 	}
-	input := model.TransactionDetail{
-		Timestamp:   timestamp,
-		Description: desc,
-		Status:      status,
+	txDetail := model.TransactionDetail{
+		Timestamp:   input.Timestamp,
+		Description: input.Description,
+		Status:      input.Status,
 		Type:        txType,
 		Splits:      splits,
 	}
-	id, err := ts.CreateTransaction(ctx, input)
+	id, err := ts.CreateTransaction(ctx, txDetail)
 	if err != nil {
 		return model.TransactionDetail{}, err
 	}
-	input.ID = id
-	return input, nil
+	txDetail.ID = id
+	return txDetail, nil
 }
 
 // CreateTransactionFromSplits creates a transaction from an explicit slice of splits.
@@ -183,25 +186,21 @@ func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, fromA
 // by CreateTransaction.
 func (ts *TransactionService) CreateTransactionFromSplits(
 	ctx context.Context,
-	splits []model.SplitDetail,
-	desc string,
-	timestamp int64,
-	status model.TransactionStatus,
-	txType model.TransactionType,
+	input model.CreateTransactionFromSplitsInput,
 ) (model.TransactionDetail, error) {
-	input := model.TransactionDetail{
-		Timestamp:   timestamp,
-		Description: desc,
-		Status:      status,
-		Type:        txType,
-		Splits:      splits,
+	txDetail := model.TransactionDetail{
+		Timestamp:   input.Timestamp,
+		Description: input.Description,
+		Status:      input.Status,
+		Type:        input.Type,
+		Splits:      input.Splits,
 	}
-	id, err := ts.CreateTransaction(ctx, input)
+	id, err := ts.CreateTransaction(ctx, txDetail)
 	if err != nil {
 		return model.TransactionDetail{}, err
 	}
-	input.ID = id
-	return input, nil
+	txDetail.ID = id
+	return txDetail, nil
 }
 
 // DeleteTransaction deletes a transaction

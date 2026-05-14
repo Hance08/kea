@@ -268,7 +268,7 @@ func TestCreateSimpleTransaction_SameAccount_ReturnsValidationError(t *testing.T
 	txRepo := newMockTransactionRepo()
 	svc := newTestTransactionService(accRepo, txRepo)
 
-	_, err := svc.CreateSimpleTransaction(context.Background(), "Assets:Cash", "Assets:Cash", 100, "test", 0, 0, model.TxTypeTransfer)
+	_, err := svc.CreateSimpleTransaction(context.Background(), model.CreateSimpleTransactionInput{FromAccount: "Assets:Cash", ToAccount: "Assets:Cash", Amount: 100, Description: "test", Timestamp: 0, Status: 0, Type: model.TxTypeTransfer})
 	assert.Error(t, err)
 
 	var ve *ValidationError
@@ -280,7 +280,7 @@ func TestCreateSimpleTransaction_NegativeAmount_ReturnsValidationError(t *testin
 	txRepo := newMockTransactionRepo()
 	svc := newTestTransactionService(accRepo, txRepo)
 
-	_, err := svc.CreateSimpleTransaction(context.Background(), "A", "B", -5, "test", 0, 0, model.TxTypeTransfer)
+	_, err := svc.CreateSimpleTransaction(context.Background(), model.CreateSimpleTransactionInput{FromAccount: "A", ToAccount: "B", Amount: -5, Description: "test", Timestamp: 0, Status: 0, Type: model.TxTypeTransfer})
 	assert.Error(t, err)
 
 	var ve *ValidationError

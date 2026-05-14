@@ -247,44 +247,44 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
-func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, splits []model.SplitDetail) error {
+func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, input model.UpdateTransactionInput) error {
 	// Validate status
-	if status != model.StatusPending && status != model.StatusCleared && status != model.StatusReconciled {
+	if input.Status != model.StatusPending && input.Status != model.StatusCleared && input.Status != model.StatusReconciled {
 		return validationErrorf("status", "invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
 	}
 
-	if txID == model.SystemTransactionID {
+	if input.ID == model.SystemTransactionID {
 		return fmt.Errorf("cannot modify the initial opening transaction: %w", ErrNotEditable)
 	}
 
-	oldTx, err := ts.txRepo.GetTransactionByID(ctx, txID)
+	oldTx, err := ts.txRepo.GetTransactionByID(ctx, input.ID)
 	if err != nil {
 		return fmt.Errorf("transaction not found: %w", err)
 	}
 
 	if oldTx.Status == model.StatusReconciled {
-		return fmt.Errorf("transaction #%d cannot be modified: %w", txID, ErrReconciled)
+		return fmt.Errorf("transaction #%d cannot be modified: %w", input.ID, ErrReconciled)
 	}
 
 	// Validate that we have at least 2 splits
-	if len(splits) < 2 {
+	if len(input.Splits) < 2 {
 		return validationErrorf("splits", "transaction must have at least 2 splits for double-entry bookkeeping")
 	}
 
-	if err := ts.ValidateSplitDetailsBalance(splits); err != nil {
+	if err := ts.ValidateSplitDetailsBalance(input.Splits); err != nil {
 		return err
 	}
 
-	if err := ts.ValidateSplitsMatchType(ctx, txType, splits); err != nil {
-		return fmt.Errorf("splits do not match transaction type %q: %w", txType, err)
+	if err := ts.ValidateSplitsMatchType(ctx, input.Type, input.Splits); err != nil {
+		return fmt.Errorf("splits do not match transaction type %q: %w", input.Type, err)
 	}
 
 	return ts.tm.ExecTx(ctx, func(repo repository.Repository) error {
-		if err := repo.UpdateTransactionBasic(ctx, txID, description, timestamp, status, txType); err != nil {
+		if err := repo.UpdateTransactionBasic(ctx, input.ID, input.Description, input.Timestamp, input.Status, input.Type); err != nil {
 			return err
 		}
 
-		existingSplits, err := repo.GetSplitsByTransaction(ctx, txID)
+		existingSplits, err := repo.GetSplitsByTransaction(ctx, input.ID)
 		if err != nil {
 			return err
 		}
@@ -298,8 +298,8 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		}
 
 		// Reject duplicate or foreign split IDs.
-		seenSplitIDs := make(map[int64]bool, len(splits))
-		for _, split := range splits {
+		seenSplitIDs := make(map[int64]bool, len(input.Splits))
+		for _, split := range input.Splits {
 			if split.ID == 0 {
 				continue
 			}
@@ -308,12 +308,12 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 			}
 			seenSplitIDs[split.ID] = true
 			if _, ok := existingAccountByID[split.ID]; !ok {
-				return validationErrorf("splits", "split ID %d does not belong to transaction %d", split.ID, txID)
+				return validationErrorf("splits", "split ID %d does not belong to transaction %d", split.ID, input.ID)
 			}
 		}
 
 		// Validate accounts; enforce selectability only for new or changed splits.
-		for _, split := range splits {
+		for _, split := range input.Splits {
 			account, err := repo.GetAccountByID(ctx, split.AccountID)
 			if err != nil {
 				if errors.Is(err, repository.ErrNotFound) {
@@ -331,7 +331,7 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		}
 
 		newSplitMap := make(map[int64]bool)
-		for _, split := range splits {
+		for _, split := range input.Splits {
 			if split.ID != 0 {
 				newSplitMap[split.ID] = true
 			}
@@ -347,16 +347,16 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, txI
 		}
 
 		// Update existing splits or create new ones
-		for _, split := range splits {
+		for _, split := range input.Splits {
 			if split.ID == 0 {
 				newSplit := &model.Split{
-					TransactionID: txID,
+					TransactionID: input.ID,
 					AccountID:     split.AccountID,
 					Amount:        split.Amount,
 					Currency:      split.Currency,
 					Memo:          split.Memo,
 				}
-				_, err := repo.CreateSplit(ctx, txID, newSplit)
+				_, err := repo.CreateSplit(ctx, input.ID, newSplit)
 				if err != nil {
 					return err
 				}

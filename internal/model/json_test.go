@@ -277,3 +277,22 @@ func TestTransactionStatus_JSONRoundTrip(t *testing.T) {
 	require.NoError(t, json.Unmarshal(data, &tx2))
 	assert.Equal(t, model.StatusReconciled, tx2.Status)
 }
+
+func TestTransactionStatus_JSONUnmarshal_Invalid(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"unknown string", `"Unknown"`},
+		{"garbage string", `"garbage"`},
+		{"out of range int", `99`},
+		{"negative int", `-1`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var s model.TransactionStatus
+			err := json.Unmarshal([]byte(tt.input), &s)
+			assert.Error(t, err)
+		})
+	}
+}

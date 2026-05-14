@@ -99,7 +99,11 @@ func (s *TransactionStatus) UnmarshalJSON(data []byte) error {
 		if err2 := json.Unmarshal(data, &num); err2 != nil {
 			return err
 		}
-		*s = TransactionStatus(num)
+		ts := TransactionStatus(num)
+		if ts != StatusPending && ts != StatusCleared && ts != StatusReconciled {
+			return fmt.Errorf("unknown transaction status %d", num)
+		}
+		*s = ts
 		return nil
 	}
 	switch str {

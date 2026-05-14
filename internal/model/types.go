@@ -4,6 +4,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -85,6 +86,33 @@ func (s TransactionStatus) String() string {
 	default:
 		return "Unknown"
 	}
+}
+
+func (s TransactionStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+func (s *TransactionStatus) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		var num int
+		if err2 := json.Unmarshal(data, &num); err2 != nil {
+			return err
+		}
+		*s = TransactionStatus(num)
+		return nil
+	}
+	switch str {
+	case "Pending":
+		*s = StatusPending
+	case "Cleared":
+		*s = StatusCleared
+	case "Reconciled":
+		*s = StatusReconciled
+	default:
+		return fmt.Errorf("unknown transaction status %q", str)
+	}
+	return nil
 }
 
 const (

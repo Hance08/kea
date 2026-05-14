@@ -218,3 +218,62 @@ func TestReconcileEntry_JSONKeys(t *testing.T) {
 
 	assert.NotContains(t, m, "OffsetAccount")
 }
+
+func TestTransactionStatus_JSONMarshal(t *testing.T) {
+	tests := []struct {
+		status model.TransactionStatus
+		want   string
+	}{
+		{model.StatusPending, `"Pending"`},
+		{model.StatusCleared, `"Cleared"`},
+		{model.StatusReconciled, `"Reconciled"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			data, err := json.Marshal(tt.status)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(data))
+		})
+	}
+}
+
+func TestTransactionStatus_JSONUnmarshal(t *testing.T) {
+	tests := []struct {
+		input string
+		want  model.TransactionStatus
+	}{
+		{`"Pending"`, model.StatusPending},
+		{`"Cleared"`, model.StatusCleared},
+		{`"Reconciled"`, model.StatusReconciled},
+		{`0`, model.StatusPending},
+		{`1`, model.StatusCleared},
+		{`2`, model.StatusReconciled},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			var s model.TransactionStatus
+			err := json.Unmarshal([]byte(tt.input), &s)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, s)
+		})
+	}
+}
+
+func TestTransactionStatus_JSONRoundTrip(t *testing.T) {
+	tx := model.Transaction{
+		ID:     1,
+		Status: model.StatusReconciled,
+		Type:   model.TxTypeExpense,
+	}
+
+	data, err := json.Marshal(tx)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+	assert.Equal(t, "Reconciled", m["status"])
+
+	var tx2 model.Transaction
+	require.NoError(t, json.Unmarshal(data, &tx2))
+	assert.Equal(t, model.StatusReconciled, tx2.Status)
+}

@@ -485,17 +485,19 @@ func (m *mockTransactionRepo) ListTransactions(_ context.Context, opts model.Lis
 	for _, tx := range m.transactions {
 		all = append(all, tx)
 	}
-	result := &model.ListResult[*model.Transaction]{Limit: limit, Offset: offset}
+	result := &model.ListResult[*model.Transaction]{}
 	if opts.IncludeCount {
 		result.TotalCount = len(all)
 	}
-	end := offset + limit
 	if offset > len(all) {
 		offset = len(all)
 	}
+	end := offset + limit
 	if end > len(all) {
 		end = len(all)
 	}
+	result.Limit = limit
+	result.Offset = offset
 	result.Items = all[offset:end]
 	return result, nil
 }
@@ -520,17 +522,19 @@ func (m *mockTransactionRepo) ListTransactionsByAccount(_ context.Context, accou
 			}
 		}
 	}
-	result := &model.ListResult[*model.Transaction]{Limit: limit, Offset: offset}
+	result := &model.ListResult[*model.Transaction]{}
 	if opts.IncludeCount {
 		result.TotalCount = len(matching)
 	}
-	end := offset + limit
 	if offset > len(matching) {
 		offset = len(matching)
 	}
+	end := offset + limit
 	if end > len(matching) {
 		end = len(matching)
 	}
+	result.Limit = limit
+	result.Offset = offset
 	result.Items = matching[offset:end]
 	return result, nil
 }

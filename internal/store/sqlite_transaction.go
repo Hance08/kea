@@ -405,6 +405,9 @@ func (s *Store) ListTransactions(ctx context.Context, opts model.ListOptions) (*
 	if err != nil {
 		return nil, err
 	}
+	if items == nil {
+		items = []*model.Transaction{}
+	}
 	result.Items = items
 	return result, nil
 }
@@ -444,6 +447,9 @@ func (s *Store) ListTransactionsByAccount(ctx context.Context, accountID int64, 
 	items, err := s.scanTransactions(rows)
 	if err != nil {
 		return nil, err
+	}
+	if items == nil {
+		items = []*model.Transaction{}
 	}
 	result.Items = items
 	return result, nil

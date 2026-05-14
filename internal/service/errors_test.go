@@ -226,3 +226,90 @@ func TestCreateAccountWithBalance_NonAL_ReturnsValidationError(t *testing.T) {
 	var ve *ValidationError
 	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
 }
+
+func TestCreateTransaction_TooFewSplits_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	input := model.TransactionDetail{
+		Type:   model.TxTypeExpense,
+		Splits: []model.SplitDetail{{AccountName: "A", Amount: 100}},
+	}
+	_, err := svc.CreateTransaction(context.Background(), input)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "splits", ve.Field)
+}
+
+func TestCreateTransaction_EmptyType_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	input := model.TransactionDetail{
+		Splits: []model.SplitDetail{
+			{AccountName: "A", Amount: 100},
+			{AccountName: "B", Amount: -100},
+		},
+	}
+	_, err := svc.CreateTransaction(context.Background(), input)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "type", ve.Field)
+}
+
+func TestCreateSimpleTransaction_SameAccount_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	_, err := svc.CreateSimpleTransaction(context.Background(), "Assets:Cash", "Assets:Cash", 100, "test", 0, 0, model.TxTypeTransfer)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve))
+}
+
+func TestCreateSimpleTransaction_NegativeAmount_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	_, err := svc.CreateSimpleTransaction(context.Background(), "A", "B", -5, "test", 0, 0, model.TxTypeTransfer)
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve))
+	assert.Equal(t, "amount", ve.Field)
+}
+
+func TestUpdateTransactionStatus_InvalidStatus_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	err := svc.UpdateTransactionStatus(context.Background(), 5, model.TransactionStatus(99))
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "status", ve.Field)
+}
+
+func TestParseTransactionDate_InvalidFormat_ReturnsValidationError(t *testing.T) {
+	txRepo := newMockTransactionRepo()
+	accRepo := newMockAccountRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	_, err := svc.ParseTransactionDate("not-a-date")
+	assert.Error(t, err)
+
+	var ve *ValidationError
+	assert.True(t, errors.As(err, &ve), "expected ValidationError, got: %T: %v", err, err)
+	assert.Equal(t, "date", ve.Field)
+}

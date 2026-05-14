@@ -192,3 +192,29 @@ func TestSplitDetail_JSONKeys(t *testing.T) {
 	assert.NotContains(t, m, "AccountName")
 	assert.NotContains(t, m, "AccountType")
 }
+
+func TestReconcileEntry_JSONKeys(t *testing.T) {
+	re := model.ReconcileEntry{
+		ID:            1,
+		Timestamp:     1700000000,
+		Description:   "Payment",
+		Status:        model.StatusCleared,
+		Amount:        5000,
+		OffsetAccount: "Expenses:Rent",
+	}
+
+	data, err := json.Marshal(re)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	assert.Contains(t, m, "id")
+	assert.Contains(t, m, "timestamp")
+	assert.Contains(t, m, "description")
+	assert.Contains(t, m, "status")
+	assert.Contains(t, m, "amount")
+	assert.Contains(t, m, "offset_account")
+
+	assert.NotContains(t, m, "OffsetAccount")
+}

@@ -84,10 +84,10 @@ type SplitDetail struct {
 // so the TUI can display amounts and the service can compute the cleared balance
 // without issuing per-transaction queries.
 type ReconcileEntry struct {
-	ID            int64
-	Timestamp     int64
-	Description   string
-	Status        TransactionStatus
-	Amount        int64  // net split amount for the reconciled account
-	OffsetAccount string // other-side account name; "(split)" for multi-split transactions
+	ID            int64             `json:"id"`
+	Timestamp     int64             `json:"timestamp"`
+	Description   string            `json:"description"`
+	Status        TransactionStatus `json:"status"`
+	Amount        int64             `json:"amount"`
+	OffsetAccount string            `json:"offset_account"`
 }

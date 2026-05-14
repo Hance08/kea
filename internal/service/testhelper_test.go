@@ -472,6 +472,69 @@ func (m *mockTransactionRepo) SetLastReconciledBalance(_ context.Context, accoun
 	return nil
 }
 
+func (m *mockTransactionRepo) ListTransactions(_ context.Context, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := opts.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	all := make([]*model.Transaction, 0, len(m.transactions))
+	for _, tx := range m.transactions {
+		all = append(all, tx)
+	}
+	result := &model.ListResult[*model.Transaction]{Limit: limit, Offset: offset}
+	if opts.IncludeCount {
+		result.TotalCount = len(all)
+	}
+	end := offset + limit
+	if offset > len(all) {
+		offset = len(all)
+	}
+	if end > len(all) {
+		end = len(all)
+	}
+	result.Items = all[offset:end]
+	return result, nil
+}
+
+func (m *mockTransactionRepo) ListTransactionsByAccount(_ context.Context, accountID int64, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := opts.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	var matching []*model.Transaction
+	for _, splits := range m.splits {
+		for _, sp := range splits {
+			if sp.AccountID == accountID {
+				if tx, ok := m.transactions[sp.TransactionID]; ok {
+					matching = append(matching, tx)
+				}
+				break
+			}
+		}
+	}
+	result := &model.ListResult[*model.Transaction]{Limit: limit, Offset: offset}
+	if opts.IncludeCount {
+		result.TotalCount = len(matching)
+	}
+	end := offset + limit
+	if offset > len(matching) {
+		offset = len(matching)
+	}
+	if end > len(matching) {
+		end = len(matching)
+	}
+	result.Items = matching[offset:end]
+	return result, nil
+}
+
 // ──────────────────────────────────────────────
 // mockCombinedRepo (implements repository.Repository)
 // ──────────────────────────────────────────────

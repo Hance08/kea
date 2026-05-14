@@ -73,6 +73,17 @@ type TransactionRepository interface {
 	// SetLastReconciledBalance persists the new running reconciled balance for
 	// accountID. Uses an upsert so the first call creates the row.
 	SetLastReconciledBalance(ctx context.Context, accountID int64, balance int64) error
+
+	// ListTransactions returns a paginated list of all transactions ordered by
+	// timestamp DESC, id DESC. When opts.IncludeCount is true the result also
+	// carries the total row count.
+	ListTransactions(ctx context.Context, opts model.ListOptions) (*model.ListResult[*model.Transaction], error)
+
+	// ListTransactionsByAccount returns a paginated list of transactions that
+	// have at least one split touching accountID, ordered by timestamp DESC,
+	// id DESC. When opts.IncludeCount is true the result also carries the total
+	// distinct transaction count.
+	ListTransactionsByAccount(ctx context.Context, accountID int64, opts model.ListOptions) (*model.ListResult[*model.Transaction], error)
 }
 
 type Repository interface {

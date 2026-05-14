@@ -79,6 +79,20 @@ func (ts *TransactionService) GetRecentTransactions(ctx context.Context, limit i
 	return transactions, nil
 }
 
+// ListRecentTransactions returns a paginated list of all transactions.
+func (ts *TransactionService) ListRecentTransactions(ctx context.Context, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	return ts.txRepo.ListTransactions(ctx, opts)
+}
+
+// ListTransactionHistory returns a paginated transaction history for the named account.
+func (ts *TransactionService) ListTransactionHistory(ctx context.Context, accountName string, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	account, err := ts.accRepo.GetAccountByName(ctx, accountName)
+	if err != nil {
+		return nil, fmt.Errorf("account not found: %w", err)
+	}
+	return ts.txRepo.ListTransactionsByAccount(ctx, account.ID, opts)
+}
+
 // GetTransactionHistory retrieves transaction history for a specific account
 func (ts *TransactionService) GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error) {
 	// Get account by name

@@ -46,32 +46,32 @@ func (as *AccountService) validateParentChain(ctx context.Context, accountID int
 	return fmt.Errorf("parent chain exceeds maximum depth (%d): %w", maxParentDepth, ErrCircularParent)
 }
 
-func (as *AccountService) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
-	currency = strings.ToUpper(strings.TrimSpace(currency))
-	if err := as.validateAccountFields(ctx, name, accType, currency, parentID); err != nil {
+func (as *AccountService) CreateAccount(ctx context.Context, input model.CreateAccountInput) (*model.Account, error) {
+	input.Currency = strings.ToUpper(strings.TrimSpace(input.Currency))
+	if err := as.validateAccountFields(ctx, input.Name, input.Type, input.Currency, input.ParentID); err != nil {
 		return nil, err
 	}
-	return as.createAccountViaRepo(ctx, as.repo, name, accType, currency, description, parentID)
+	return as.createAccountViaRepo(ctx, as.repo, input)
 }
 
-func (as *AccountService) CreateAccountWithBalance(ctx context.Context, name string, accType model.AccountType, currency, description string, parentID *int64, balance int64) (*model.Account, error) {
-	currency = strings.ToUpper(strings.TrimSpace(currency))
-	if err := as.validateAccountFields(ctx, name, accType, currency, parentID); err != nil {
+func (as *AccountService) CreateAccountWithBalance(ctx context.Context, input model.CreateAccountInput) (*model.Account, error) {
+	input.Currency = strings.ToUpper(strings.TrimSpace(input.Currency))
+	if err := as.validateAccountFields(ctx, input.Name, input.Type, input.Currency, input.ParentID); err != nil {
 		return nil, err
 	}
 
-	if balance == 0 {
-		return as.createAccountViaRepo(ctx, as.repo, name, accType, currency, description, parentID)
+	if input.Balance == 0 {
+		return as.createAccountViaRepo(ctx, as.repo, input)
 	}
 
 	var account *model.Account
 	err := as.tm.ExecTx(ctx, func(repo repository.Repository) error {
-		acc, createErr := as.createAccountViaRepo(ctx, repo, name, accType, currency, description, parentID)
+		acc, createErr := as.createAccountViaRepo(ctx, repo, input)
 		if createErr != nil {
 			return createErr
 		}
 		account = acc
-		return as.createOpeningBalanceInRepo(ctx, repo, account, balance)
+		return as.createOpeningBalanceInRepo(ctx, repo, account, input.Balance)
 	})
 	if err != nil {
 		return nil, err
@@ -97,21 +97,21 @@ func (as *AccountService) validateAccountFields(ctx context.Context, name string
 	return nil
 }
 
-func (as *AccountService) createAccountViaRepo(ctx context.Context, repo repository.AccountRepository, name string, accType model.AccountType, currency, description string, parentID *int64) (*model.Account, error) {
-	newID, err := repo.CreateAccount(ctx, name, accType, currency, description, parentID)
+func (as *AccountService) createAccountViaRepo(ctx context.Context, repo repository.AccountRepository, input model.CreateAccountInput) (*model.Account, error) {
+	newID, err := repo.CreateAccount(ctx, input.Name, input.Type, input.Currency, input.Description, input.ParentID)
 	if err != nil {
 		if errors.Is(err, repository.ErrAlreadyExists) {
-			return nil, fmt.Errorf("account %q: %w", name, ErrAlreadyExists)
+			return nil, fmt.Errorf("account %q: %w", input.Name, ErrAlreadyExists)
 		}
 		return nil, err
 	}
 	return &model.Account{
 		ID:          newID,
-		Name:        name,
-		Type:        accType,
-		Currency:    currency,
-		Description: description,
-		ParentID:    parentID,
+		Name:        input.Name,
+		Type:        input.Type,
+		Currency:    input.Currency,
+		Description: input.Description,
+		ParentID:    input.ParentID,
 		IsHidden:    false,
 	}, nil
 }

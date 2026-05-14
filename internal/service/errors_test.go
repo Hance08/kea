@@ -168,7 +168,7 @@ func TestCreateAccount_ValidationErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := svc.CreateAccount(context.Background(), tt.accName, tt.accType, "USD", "", nil)
+			_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{Name: tt.accName, Type: tt.accType, Currency: "USD"})
 			assert.Error(t, err)
 
 			var ve *ValidationError
@@ -220,7 +220,7 @@ func TestCreateAccountWithBalance_NonAL_ReturnsValidationError(t *testing.T) {
 	accRepo := newMockAccountRepo()
 	svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-	_, err := svc.CreateAccountWithBalance(context.Background(), "Revenue:Sales", model.AccountTypeRevenue, "USD", "", nil, 1000)
+	_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{Name: "Revenue:Sales", Type: model.AccountTypeRevenue, Currency: "USD", Balance: 1000})
 	assert.Error(t, err)
 
 	var ve *ValidationError

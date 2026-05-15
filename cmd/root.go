@@ -183,16 +183,16 @@ type accountMigrator interface {
 // "Equity:OpeningBalances_<currency>" the first time a user upgrades.
 // It is a no-op when the legacy account does not exist.
 func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
-	return migrateLegacySysAccWith(svc.Account(), cfg)
+	return migrateLegacySysAccWith(context.Background(), svc.Account(), cfg)
 }
 
-func migrateLegacySysAccWith(acc accountMigrator, cfg *config.Config) error {
+func migrateLegacySysAccWith(ctx context.Context, acc accountMigrator, cfg *config.Config) error {
 	fullTargetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
 	idx := strings.LastIndex(fullTargetName, ":")
 	leafSegment := fullTargetName[idx+1:]
 
 	// Nothing to migrate if legacy account is already gone.
-	_, err := acc.GetAccountByName(context.Background(), model.LegacyOpeningBalancesName)
+	_, err := acc.GetAccountByName(ctx, model.LegacyOpeningBalancesName)
 	if errors.Is(err, service.ErrNotFound) {
 		return nil
 	}
@@ -202,9 +202,9 @@ func migrateLegacySysAccWith(acc accountMigrator, cfg *config.Config) error {
 
 	// Both accounts exist: the target was created independently. Remove the
 	// empty legacy account, or error if it still holds transactions.
-	_, err = acc.GetAccountByName(context.Background(), fullTargetName)
+	_, err = acc.GetAccountByName(ctx, fullTargetName)
 	if err == nil {
-		if err := acc.DeleteAccountByName(context.Background(), model.LegacyOpeningBalancesName); err != nil {
+		if err := acc.DeleteAccountByName(ctx, model.LegacyOpeningBalancesName); err != nil {
 			return fmt.Errorf(
 				"legacy system account %q and target %q both exist; "+
 					"remove or reconcile the legacy account manually: %w",
@@ -217,7 +217,7 @@ func migrateLegacySysAccWith(acc accountMigrator, cfg *config.Config) error {
 		return fmt.Errorf("failed to check target system account: %w", err)
 	}
 
-	if err := acc.RenameAccount(context.Background(), model.LegacyOpeningBalancesName, leafSegment); err != nil {
+	if err := acc.RenameAccount(ctx, model.LegacyOpeningBalancesName, leafSegment); err != nil {
 		return fmt.Errorf("failed to migrate legacy system account: %w", err)
 	}
 

@@ -90,7 +90,7 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 		mock := newMockAccountMigrator()
 		mock.add(model.LegacyOpeningBalancesName)
 
-		err := migrateLegacySysAccWith(mock, usdConfig())
+		err := migrateLegacySysAccWith(context.Background(), mock, usdConfig())
 		require.NoError(t, err)
 
 		require.Len(t, mock.renameCalls, 1)
@@ -102,7 +102,7 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 	t.Run("no-op when legacy account does not exist", func(t *testing.T) {
 		mock := newMockAccountMigrator()
 
-		err := migrateLegacySysAccWith(mock, usdConfig())
+		err := migrateLegacySysAccWith(context.Background(), mock, usdConfig())
 		require.NoError(t, err)
 		assert.Empty(t, mock.renameCalls)
 		assert.Empty(t, mock.deleteCalls)
@@ -113,7 +113,7 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 		mock.add(model.LegacyOpeningBalancesName)
 		mock.add(model.OpeningBalancesAccountName("USD"))
 
-		err := migrateLegacySysAccWith(mock, usdConfig())
+		err := migrateLegacySysAccWith(context.Background(), mock, usdConfig())
 		require.NoError(t, err)
 		assert.Empty(t, mock.renameCalls)
 		require.Len(t, mock.deleteCalls, 1)
@@ -126,7 +126,7 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 		mock.add(model.OpeningBalancesAccountName("USD"))
 		mock.hasTx[model.LegacyOpeningBalancesName] = true
 
-		err := migrateLegacySysAccWith(mock, usdConfig())
+		err := migrateLegacySysAccWith(context.Background(), mock, usdConfig())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), model.LegacyOpeningBalancesName)
 		assert.Contains(t, err.Error(), model.OpeningBalancesAccountName("USD"))
@@ -139,7 +139,7 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 		mock.add(model.LegacyOpeningBalancesName)
 		mock.renameErr = errors.New("db error")
 
-		err := migrateLegacySysAccWith(mock, usdConfig())
+		err := migrateLegacySysAccWith(context.Background(), mock, usdConfig())
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to migrate legacy system account")
 	})

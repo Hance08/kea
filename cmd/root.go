@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -122,7 +123,10 @@ func Execute(migrations fs.FS) {
 			return 1
 		}
 
-		if err := initSysAcc(application.Service, cfg); err != nil {
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		defer stop()
+
+		if err := initSysAcc(ctx, application.Service, cfg); err != nil {
 			pterm.Error.Println(err)
 			return 1
 		}
@@ -143,13 +147,13 @@ func Execute(migrations fs.FS) {
 	os.Exit(exitCode)
 }
 
-func initSysAcc(svc *service.Service, cfg *config.Config) error {
-	if err := migrateLegacySysAcc(svc, cfg); err != nil {
+func initSysAcc(ctx context.Context, svc *service.Service, cfg *config.Config) error {
+	if err := migrateLegacySysAcc(ctx, svc, cfg); err != nil {
 		return err
 	}
 
 	targetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
-	_, err := svc.Account().GetAccountByName(context.Background(), targetName)
+	_, err := svc.Account().GetAccountByName(ctx, targetName)
 	if err == nil {
 		return nil
 	}
@@ -158,7 +162,7 @@ func initSysAcc(svc *service.Service, cfg *config.Config) error {
 	}
 
 	_, err = svc.Account().CreateAccount(
-		context.Background(),
+		ctx,
 		model.CreateAccountInput{
 			Name:        targetName,
 			Type:        model.AccountTypeEquity,
@@ -182,17 +186,17 @@ type accountMigrator interface {
 // migrateLegacySysAcc renames the legacy "Equity:OpeningBalances" account to
 // "Equity:OpeningBalances_<currency>" the first time a user upgrades.
 // It is a no-op when the legacy account does not exist.
-func migrateLegacySysAcc(svc *service.Service, cfg *config.Config) error {
-	return migrateLegacySysAccWith(svc.Account(), cfg)
+func migrateLegacySysAcc(ctx context.Context, svc *service.Service, cfg *config.Config) error {
+	return migrateLegacySysAccWith(ctx, svc.Account(), cfg)
 }
 
-func migrateLegacySysAccWith(acc accountMigrator, cfg *config.Config) error {
+func migrateLegacySysAccWith(ctx context.Context, acc accountMigrator, cfg *config.Config) error {
 	fullTargetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
 	idx := strings.LastIndex(fullTargetName, ":")
 	leafSegment := fullTargetName[idx+1:]
 
 	// Nothing to migrate if legacy account is already gone.
-	_, err := acc.GetAccountByName(context.Background(), model.LegacyOpeningBalancesName)
+	_, err := acc.GetAccountByName(ctx, model.LegacyOpeningBalancesName)
 	if errors.Is(err, service.ErrNotFound) {
 		return nil
 	}
@@ -202,9 +206,9 @@ func migrateLegacySysAccWith(acc accountMigrator, cfg *config.Config) error {
 
 	// Both accounts exist: the target was created independently. Remove the
 	// empty legacy account, or error if it still holds transactions.
-	_, err = acc.GetAccountByName(context.Background(), fullTargetName)
+	_, err = acc.GetAccountByName(ctx, fullTargetName)
 	if err == nil {
-		if err := acc.DeleteAccountByName(context.Background(), model.LegacyOpeningBalancesName); err != nil {
+		if err := acc.DeleteAccountByName(ctx, model.LegacyOpeningBalancesName); err != nil {
 			return fmt.Errorf(
 				"legacy system account %q and target %q both exist; "+
 					"remove or reconcile the legacy account manually: %w",
@@ -217,7 +221,7 @@ func migrateLegacySysAccWith(acc accountMigrator, cfg *config.Config) error {
 		return fmt.Errorf("failed to check target system account: %w", err)
 	}
 
-	if err := acc.RenameAccount(context.Background(), model.LegacyOpeningBalancesName, leafSegment); err != nil {
+	if err := acc.RenameAccount(ctx, model.LegacyOpeningBalancesName, leafSegment); err != nil {
 		return fmt.Errorf("failed to migrate legacy system account: %w", err)
 	}
 

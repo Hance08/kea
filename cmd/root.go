@@ -89,7 +89,7 @@ func Execute(migrations fs.FS) {
 		rootCmd.AddCommand(ledgercmd.NewLedgerCmd(registry, migrations, appDir))
 
 		if isLedgerCommand(os.Args[1:]) {
-			if err := rootCmd.Execute(); err != nil {
+			if err := rootCmd.ExecuteContext(context.Background()); err != nil {
 				pterm.Error.Println(capitalize(err.Error()))
 				return 1
 			}
@@ -100,7 +100,7 @@ func Execute(migrations fs.FS) {
 		if err != nil {
 			// No active ledger — only ledger commands are useful.
 			pterm.Warning.Println("No ledger configured. Run: kea ledger add <name>")
-			if err := rootCmd.Execute(); err != nil {
+			if err := rootCmd.ExecuteContext(context.Background()); err != nil {
 				pterm.Error.Println(capitalize(err.Error()))
 				return 1
 			}
@@ -138,7 +138,7 @@ func Execute(migrations fs.FS) {
 		rootCmd.AddCommand(NewReportCmd(application.Service))
 		rootCmd.AddCommand(NewReconcileCmd(application.Service))
 
-		if err := rootCmd.Execute(); err != nil {
+		if err := rootCmd.ExecuteContext(ctx); err != nil {
 			pterm.Error.Println(capitalize(err.Error()))
 			return 1
 		}

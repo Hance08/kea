@@ -52,7 +52,7 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 func (ts *TransactionService) GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error) {
 	tx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve transaction %d: %w", txID, err)
 	}
 
 	splits, err := ts.txRepo.GetSplitsWithAccountsByTransaction(ctx, txID)

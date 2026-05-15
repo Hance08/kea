@@ -364,6 +364,97 @@ func (s *Store) GetSplitsWithAccountsByTransaction(ctx context.Context, txID int
 	return result, nil
 }
 
+// normalizeListOpts applies defaults: limit defaults to 20 when ≤0, offset is
+// clamped to 0 when negative.
+func normalizeListOpts(opts model.ListOptions) model.ListOptions {
+	if opts.Limit <= 0 {
+		opts.Limit = 20
+	}
+	if opts.Offset < 0 {
+		opts.Offset = 0
+	}
+	return opts
+}
+
+func (s *Store) ListTransactions(ctx context.Context, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	opts = normalizeListOpts(opts)
+
+	result := &model.ListResult[*model.Transaction]{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+	}
+
+	if opts.IncludeCount {
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM transactions`).Scan(&result.TotalCount); err != nil {
+			return nil, fmt.Errorf("failed to count transactions: %w", err)
+		}
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+        SELECT id, timestamp, description, status, external_id, type
+        FROM transactions
+        ORDER BY timestamp DESC, id DESC
+        LIMIT ? OFFSET ?
+    `, opts.Limit, opts.Offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	items, err := s.scanTransactions(rows)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []*model.Transaction{}
+	}
+	result.Items = items
+	return result, nil
+}
+
+func (s *Store) ListTransactionsByAccount(ctx context.Context, accountID int64, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	opts = normalizeListOpts(opts)
+
+	result := &model.ListResult[*model.Transaction]{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+	}
+
+	if opts.IncludeCount {
+		if err := s.db.QueryRowContext(ctx, `
+            SELECT COUNT(DISTINCT t.id)
+            FROM transactions t
+            INNER JOIN splits s ON t.id = s.transaction_id
+            WHERE s.account_id = ?
+        `, accountID).Scan(&result.TotalCount); err != nil {
+			return nil, fmt.Errorf("failed to count transactions by account: %w", err)
+		}
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+        SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id, t.type
+        FROM transactions t
+        INNER JOIN splits s ON t.id = s.transaction_id
+        WHERE s.account_id = ?
+        ORDER BY t.timestamp DESC, t.id DESC
+        LIMIT ? OFFSET ?
+    `, accountID, opts.Limit, opts.Offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions by account: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	items, err := s.scanTransactions(rows)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []*model.Transaction{}
+	}
+	result.Items = items
+	return result, nil
+}
+
 func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
 	var transactions []*model.Transaction
 	for rows.Next() {

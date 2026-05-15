@@ -138,7 +138,7 @@ func Execute(migrations fs.FS) {
 		rootCmd.AddCommand(NewReportCmd(application.Service))
 		rootCmd.AddCommand(NewReconcileCmd(application.Service))
 
-		if err := rootCmd.Execute(); err != nil {
+		if err := rootCmd.ExecuteContext(ctx); err != nil {
 			pterm.Error.Println(capitalize(err.Error()))
 			return 1
 		}

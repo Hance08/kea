@@ -14,8 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//TODO: Efficiency optimize
-
 type ListView interface {
 	ShowWarning(format string, a ...any)
 	Render(items []views.TransactionListItem, limit int) error
@@ -25,6 +23,7 @@ type ListProvider interface {
 	GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error)
 	GetRecentTransactions(ctx context.Context, limit int) ([]*model.Transaction, error)
 	GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error)
+	GetTransactionDetailsByIDs(ctx context.Context, txs []*model.Transaction) (map[int64]*model.TransactionDetail, error)
 	GetDisplayAccount(ctx context.Context, splits []model.SplitDetail, txType string) (string, error)
 	GetDisplayOffsetAccount(ctx context.Context, splits []model.SplitDetail, txType string, primaryAccount string) (string, error)
 	GetDisplayAmount(splits []model.SplitDetail) (int64, string)
@@ -99,18 +98,17 @@ func (r *listRunner) fetchTransactions(ctx context.Context) ([]*model.Transactio
 }
 
 func (r *listRunner) buildViewItems(ctx context.Context, transactions []*model.Transaction) []views.TransactionListItem {
-	var viewItems []views.TransactionListItem
-
-	for _, tx := range transactions {
-		detail, err := r.svc.GetTransactionByID(ctx, tx.ID)
-		if err != nil {
-			if !r.flags.JSON {
-				r.view.ShowWarning("Skipping transaction %d: %v\n", tx.ID, err)
-			}
-			continue
+	detailsMap, err := r.svc.GetTransactionDetailsByIDs(ctx, transactions)
+	if err != nil {
+		if !r.flags.JSON {
+			r.view.ShowWarning("Failed to load transaction details: %v\n", err)
 		}
+		return nil
+	}
 
-		viewItems = append(viewItems, r.convertToViewItem(ctx, tx, detail))
+	viewItems := make([]views.TransactionListItem, 0, len(transactions))
+	for _, tx := range transactions {
+		viewItems = append(viewItems, r.convertToViewItem(ctx, tx, detailsMap[tx.ID]))
 	}
 	return viewItems
 }

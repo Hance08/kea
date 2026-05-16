@@ -220,8 +220,9 @@ type mockTransactionRepo struct {
 	getByIDErr map[int64]error
 
 	// default return for GetSplitsWithAccountsByDateRange
-	splitsWithAccts map[int64][]model.SplitDetail
-	splitsRangeErr  error
+	splitsWithAccts  map[int64][]model.SplitDetail
+	splitsRangeErr   error
+	splitsByTxIDsErr error
 
 	// default return for GetTransactionsByDateRange
 	txsByDateRangeErr error
@@ -416,6 +417,19 @@ func (m *mockTransactionRepo) GetSplitsWithAccountsByTransaction(_ context.Conte
 			Currency:  s.Currency,
 			Memo:      s.Memo,
 		})
+	}
+	return result, nil
+}
+
+func (m *mockTransactionRepo) GetSplitsWithAccountsByTransactionIDs(_ context.Context, txIDs []int64) (map[int64][]model.SplitDetail, error) {
+	if m.splitsByTxIDsErr != nil {
+		return nil, m.splitsByTxIDsErr
+	}
+	result := make(map[int64][]model.SplitDetail)
+	for _, id := range txIDs {
+		if splits, ok := m.splitsWithAccts[id]; ok {
+			result[id] = splits
+		}
 	}
 	return result, nil
 }

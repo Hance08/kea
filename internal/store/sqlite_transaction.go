@@ -364,6 +364,9 @@ func (s *Store) GetSplitsWithAccountsByTransaction(ctx context.Context, txID int
 	return result, nil
 }
 
+// GetSplitsWithAccountsByTransactionIDs assumes len(txIDs) is bounded by the
+// list command's --limit flag (default 20). SQLite's SQLITE_MAX_VARIABLE_NUMBER
+// is 999 by default, so this is safe for practical list sizes.
 func (s *Store) GetSplitsWithAccountsByTransactionIDs(ctx context.Context, txIDs []int64) (map[int64][]model.SplitDetail, error) {
 	if len(txIDs) == 0 {
 		return make(map[int64][]model.SplitDetail), nil

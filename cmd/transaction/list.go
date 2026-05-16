@@ -22,6 +22,7 @@ type ListView interface {
 type ListProvider interface {
 	GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error)
 	GetRecentTransactions(ctx context.Context, limit int) ([]*model.Transaction, error)
+	GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error)
 	GetTransactionDetailsByIDs(ctx context.Context, txs []*model.Transaction) (map[int64]*model.TransactionDetail, error)
 	GetDisplayAccount(ctx context.Context, splits []model.SplitDetail, txType string) (string, error)
 	GetDisplayOffsetAccount(ctx context.Context, splits []model.SplitDetail, txType string, primaryAccount string) (string, error)
@@ -105,16 +106,9 @@ func (r *listRunner) buildViewItems(ctx context.Context, transactions []*model.T
 		return nil
 	}
 
-	var viewItems []views.TransactionListItem
+	viewItems := make([]views.TransactionListItem, 0, len(transactions))
 	for _, tx := range transactions {
-		detail, ok := detailsMap[tx.ID]
-		if !ok {
-			if !r.flags.JSON {
-				r.view.ShowWarning("Skipping transaction %d: no details found\n", tx.ID)
-			}
-			continue
-		}
-		viewItems = append(viewItems, r.convertToViewItem(ctx, tx, detail))
+		viewItems = append(viewItems, r.convertToViewItem(ctx, tx, detailsMap[tx.ID]))
 	}
 	return viewItems
 }

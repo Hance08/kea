@@ -50,6 +50,10 @@ type TransactionRepository interface {
 	// a single transaction in one JOIN query.
 	GetSplitsWithAccountsByTransaction(ctx context.Context, txID int64) ([]model.SplitDetail, error)
 
+	// GetSplitsWithAccountsByTransactionIDs returns all splits (with account info)
+	// for the given transaction IDs in a single query, keyed by transaction ID.
+	GetSplitsWithAccountsByTransactionIDs(ctx context.Context, txIDs []int64) (map[int64][]model.SplitDetail, error)
+
 	// GetUnreconciledTransactionsByAccount returns all Pending and Cleared
 	// transactions that have a split touching accountID, together with the
 	// net split amount for that account. Ordered by timestamp ASC.

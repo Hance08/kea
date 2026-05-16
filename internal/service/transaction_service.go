@@ -70,6 +70,36 @@ func (ts *TransactionService) GetTransactionByID(ctx context.Context, txID int64
 	}, nil
 }
 
+// GetTransactionDetailsByIDs fetches TransactionDetail for each transaction in txs using a single bulk repo call.
+func (ts *TransactionService) GetTransactionDetailsByIDs(ctx context.Context, txs []*model.Transaction) (map[int64]*model.TransactionDetail, error) {
+	if len(txs) == 0 {
+		return make(map[int64]*model.TransactionDetail), nil
+	}
+
+	ids := make([]int64, len(txs))
+	for i, tx := range txs {
+		ids[i] = tx.ID
+	}
+
+	splitsMap, err := ts.txRepo.GetSplitsWithAccountsByTransactionIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to bulk-fetch splits: %w", err)
+	}
+
+	result := make(map[int64]*model.TransactionDetail, len(txs))
+	for _, tx := range txs {
+		result[tx.ID] = &model.TransactionDetail{
+			ID:          tx.ID,
+			Timestamp:   tx.Timestamp,
+			Description: tx.Description,
+			Status:      tx.Status,
+			Type:        tx.Type,
+			Splits:      splitsMap[tx.ID],
+		}
+	}
+	return result, nil
+}
+
 // GetRecentTransactions retrieves recent transactions across all accounts
 func (ts *TransactionService) GetRecentTransactions(ctx context.Context, limit int) ([]*model.Transaction, error) {
 	transactions, err := ts.txRepo.GetAllTransactions(ctx, limit)

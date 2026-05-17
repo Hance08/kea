@@ -200,9 +200,9 @@ func (r *addRunner) determineMode(rawInput string) model.TransactionType {
 }
 
 var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
-	model.ModeExpense:  {"Payment Source:", "Expense Type:"},
-	model.ModeIncome:   {"Revenue Type:", "Deposit To:"},
-	model.ModeTransfer: {"From Account:", "To Account:"},
+	model.TxTypeExpense:  {"Payment Source:", "Expense Type:"},
+	model.TxTypeIncome:   {"Revenue Type:", "Deposit To:"},
+	model.TxTypeTransfer: {"From Account:", "To Account:"},
 }
 
 func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, error) {

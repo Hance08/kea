@@ -5,16 +5,59 @@ package utils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
-	"github.com/dustin/go-humanize"
 	"github.com/hance08/kea/internal/model"
 )
 
 func FormatAmount(cents int64) string {
-	amountVal := float64(cents) / float64(model.CentsPerUnit)
-	return humanize.CommafWithDigits(amountVal, 2)
+	if cents == math.MinInt64 {
+		panic("utils.FormatAmount: undefined for math.MinInt64 (overflow)")
+	}
+	negative := cents < 0
+	if negative {
+		cents = -cents
+	}
+
+	whole := cents / int64(model.CentsPerUnit)
+	frac := cents % int64(model.CentsPerUnit)
+
+	wholeStr := insertCommas(strconv.FormatInt(whole, 10))
+
+	var result string
+	if frac == 0 {
+		result = wholeStr
+	} else if frac%10 == 0 {
+		result = fmt.Sprintf("%s.%d", wholeStr, frac/10)
+	} else {
+		result = fmt.Sprintf("%s.%02d", wholeStr, frac)
+	}
+
+	if negative {
+		return "-" + result
+	}
+	return result
+}
+
+func insertCommas(s string) string {
+	n := len(s)
+	if n <= 3 {
+		return s
+	}
+
+	var buf strings.Builder
+	firstGroup := n % 3
+	if firstGroup == 0 {
+		firstGroup = 3
+	}
+	buf.WriteString(s[:firstGroup])
+	for i := firstGroup; i < n; i += 3 {
+		buf.WriteByte(',')
+		buf.WriteString(s[i : i+3])
+	}
+	return buf.String()
 }
 
 func ParseAmount(amountStr string) (int64, error) {

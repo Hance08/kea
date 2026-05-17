@@ -682,18 +682,45 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		assert.Equal(t, int64(3000), result.Liabilities[0].Amount)
 	})
 
-	t.Run("accounts with zero balance are excluded from the report", func(t *testing.T) {
+	t.Run("accounts with zero balance are included in the report", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
 		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Empty", Type: model.AccountTypeAsset})
 		accRepo.balances[1] = 5000
-		accRepo.balances[2] = 0 // zero balance
+		accRepo.balances[2] = 0
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
 		require.NoError(t, err)
-		assert.Len(t, result.Assets, 1)
+		assert.Len(t, result.Assets, 2)
 		assert.Equal(t, "Assets:Bank", result.Assets[0].AccountName)
+		assert.Equal(t, int64(5000), result.Assets[0].Amount)
+		assert.Equal(t, "Assets:Empty", result.Assets[1].AccountName)
+		assert.Equal(t, int64(0), result.Assets[1].Amount)
+	})
+
+	t.Run("zero-balance liability is included", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Liabilities:Empty", Type: model.AccountTypeLiability})
+		accRepo.balances[1] = 0
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
+		require.NoError(t, err)
+		assert.Len(t, result.Liabilities, 1)
+		assert.Equal(t, int64(0), result.Liabilities[0].Amount)
+	})
+
+	t.Run("zero-balance equity is included", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Equity:Empty", Type: model.AccountTypeEquity})
+		accRepo.balances[1] = 0
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
+		require.NoError(t, err)
+		assert.Len(t, result.Equity, 1)
+		assert.Equal(t, int64(0), result.Equity[0].Amount)
 	})
 
 	t.Run("equity accounts are classified correctly", func(t *testing.T) {

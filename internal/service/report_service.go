@@ -305,9 +305,6 @@ func (ts *TransactionService) GenerateBalanceSheet(ctx context.Context, asOf int
 
 	for _, acc := range allAccounts {
 		balance := balances[acc.ID]
-		if balance == 0 {
-			continue
-		}
 
 		currency := acc.Currency
 		if currency == "" {

@@ -134,10 +134,6 @@ const (
 )
 
 const (
-	ModeExpense  = "Expense"
-	ModeIncome   = "Income"
-	ModeTransfer = "Transfer"
-
 	DateFormat                = "2006-01-02"
 	SystemTransactionID int64 = 1
 	MinSplitsCount            = 2

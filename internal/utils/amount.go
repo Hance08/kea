@@ -5,6 +5,7 @@ package utils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,9 @@ import (
 )
 
 func FormatAmount(cents int64) string {
+	if cents == math.MinInt64 {
+		panic("utils.FormatAmount: undefined for math.MinInt64 (overflow)")
+	}
 	negative := cents < 0
 	if negative {
 		cents = -cents

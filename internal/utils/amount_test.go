@@ -4,6 +4,7 @@
 package utils_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/hance08/kea/internal/utils"
@@ -15,7 +16,7 @@ import (
 // FormatAmount
 // ──────────────────────────────────────────────
 
-// Note: humanize.CommafWithDigits trims trailing zeros.
+// FormatAmount trims trailing zeros.
 // e.g. 100 cents (1.00) → "1", 150 cents (1.50) → "1.5"
 func TestFormatAmount(t *testing.T) {
 	tests := []struct {
@@ -43,6 +44,12 @@ func TestFormatAmount(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestFormatAmount_MinInt64_Panics(t *testing.T) {
+	assert.Panics(t, func() {
+		utils.FormatAmount(math.MinInt64)
+	})
 }
 
 // ──────────────────────────────────────────────

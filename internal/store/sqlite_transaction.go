@@ -71,7 +71,7 @@ func (s *Store) GetTransactionByID(ctx context.Context, txID int64) (*model.Tran
     `, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID, &tx.Type)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("transaction with ID %d not found", txID)
+			return nil, fmt.Errorf("transaction with ID %d not found: %w", txID, ErrRecordNotFound)
 		}
 		return nil, fmt.Errorf("failed to query transaction: %w", err)
 	}
@@ -155,7 +155,7 @@ func (s *Store) UpdateTransactionStatus(ctx context.Context, txID int64, status 
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("transaction with ID %d not found", txID)
+		return fmt.Errorf("transaction with ID %d not found: %w", txID, ErrRecordNotFound)
 	}
 
 	return nil
@@ -176,7 +176,7 @@ func (s *Store) DeleteTransaction(ctx context.Context, txID int64) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("transaction with ID %d not found", txID)
+		return fmt.Errorf("transaction with ID %d not found: %w", txID, ErrRecordNotFound)
 	}
 
 	return nil
@@ -198,7 +198,7 @@ func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, descript
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("transaction with ID %d not found", txID)
+		return fmt.Errorf("transaction with ID %d not found: %w", txID, ErrRecordNotFound)
 	}
 
 	return nil
@@ -220,7 +220,7 @@ func (s *Store) UpdateSplit(ctx context.Context, splitID int64, accountID int64,
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("split with ID %d not found", splitID)
+		return fmt.Errorf("split with ID %d not found: %w", splitID, ErrRecordNotFound)
 	}
 
 	return nil
@@ -241,7 +241,7 @@ func (s *Store) DeleteSplit(ctx context.Context, splitID int64) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("split with ID %d not found", splitID)
+		return fmt.Errorf("split with ID %d not found: %w", splitID, ErrRecordNotFound)
 	}
 
 	return nil

@@ -275,12 +275,40 @@ func TestDeleteAccount(t *testing.T) {
 	assert.False(t, exists)
 }
 
+func TestDeleteAccount_BlockedByTransactions(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	assetID, err := s.CreateAccount(ctx, "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+	require.NoError(t, err)
+	expenseID, err := s.CreateAccount(ctx, "Expenses:Food", model.AccountTypeExpense, "USD", "", nil)
+	require.NoError(t, err)
+
+	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
+		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+	}, []model.Split{
+		{AccountID: assetID, Amount: -500, Currency: "USD"},
+		{AccountID: expenseID, Amount: 500, Currency: "USD"},
+	})
+	require.NoError(t, err)
+
+	// FK RESTRICT should prevent deletion while splits reference this account
+	err = s.DeleteAccount(ctx, assetID)
+	require.Error(t, err)
+
+	// Account should still exist
+	exists, err := s.AccountExists(ctx, "Assets:Bank")
+	require.NoError(t, err)
+	assert.True(t, exists)
+}
+
 func TestDeleteAccount_NotFound(t *testing.T) {
 	s := setupTestDB(t)
 	ctx := context.Background()
 
 	err := s.DeleteAccount(ctx, 99999)
 	require.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
 }
 
 func TestUpdateAccountMetadata(t *testing.T) {
@@ -305,6 +333,7 @@ func TestUpdateAccountMetadata_NotFound(t *testing.T) {
 
 	err := s.UpdateAccountMetadata(ctx, 99999, "desc", false)
 	require.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
 }
 
 func TestAccountHasTransactions(t *testing.T) {

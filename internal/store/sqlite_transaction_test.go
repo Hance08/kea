@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,6 +53,7 @@ func TestGetTransactionByID_NotFound(t *testing.T) {
 
 	_, err := s.GetTransactionByID(ctx, 99999)
 	require.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
 }
 
 func TestGetTransactionsByAccount(t *testing.T) {
@@ -143,9 +145,11 @@ func TestGetAllTransactions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, txs, 3)
 
+	// limit=0 maps to default cap of 100; all 5 fit within that cap
 	txs, err = s.GetAllTransactions(ctx, 0)
 	require.NoError(t, err)
 	assert.Len(t, txs, 5)
+	assert.LessOrEqual(t, len(txs), 100)
 }
 
 func TestUpdateTransactionStatus(t *testing.T) {
@@ -179,6 +183,7 @@ func TestUpdateTransactionStatus_NotFound(t *testing.T) {
 
 	err := s.UpdateTransactionStatus(ctx, 99999, model.StatusCleared)
 	require.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
 }
 
 func TestUpdateTransactionBasic(t *testing.T) {
@@ -233,12 +238,43 @@ func TestDeleteTransaction(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDeleteTransaction_CascadeDeletesSplits(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	assetID, err := s.CreateAccount(ctx, "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+	require.NoError(t, err)
+	expenseID, err := s.CreateAccount(ctx, "Expenses:Food", model.AccountTypeExpense, "USD", "", nil)
+	require.NoError(t, err)
+
+	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
+		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+	}, []model.Split{
+		{AccountID: assetID, Amount: -100, Currency: "USD"},
+		{AccountID: expenseID, Amount: 100, Currency: "USD"},
+	})
+	require.NoError(t, err)
+
+	splits, err := s.GetSplitsByTransaction(ctx, txID)
+	require.NoError(t, err)
+	assert.Len(t, splits, 2)
+
+	err = s.DeleteTransaction(ctx, txID)
+	require.NoError(t, err)
+
+	// ON DELETE CASCADE should remove associated splits
+	splits, err = s.GetSplitsByTransaction(ctx, txID)
+	require.NoError(t, err)
+	assert.Empty(t, splits)
+}
+
 func TestDeleteTransaction_NotFound(t *testing.T) {
 	s := setupTestDB(t)
 	ctx := context.Background()
 
 	err := s.DeleteTransaction(ctx, 99999)
 	require.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
 }
 
 func TestSplitCRUD(t *testing.T) {
@@ -305,6 +341,7 @@ func TestUpdateSplit_NotFound(t *testing.T) {
 
 	err := s.UpdateSplit(ctx, 99999, 1, 100, "USD", "")
 	require.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
 }
 
 func TestDeleteSplit_NotFound(t *testing.T) {
@@ -313,6 +350,7 @@ func TestDeleteSplit_NotFound(t *testing.T) {
 
 	err := s.DeleteSplit(ctx, 99999)
 	require.Error(t, err)
+	assert.ErrorIs(t, err, repository.ErrNotFound)
 }
 
 func TestGetSplitsWithAccountsByDateRange(t *testing.T) {

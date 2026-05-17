@@ -256,7 +256,7 @@ func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) erro
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("account %q not found", oldName)
+		return fmt.Errorf("account %q not found: %w", oldName, ErrRecordNotFound)
 	}
 
 	_, err = tx.ExecContext(ctx,
@@ -284,7 +284,7 @@ func (s *Store) DeleteAccount(ctx context.Context, accountID int64) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("account with ID %d not found", accountID)
+		return fmt.Errorf("account with ID %d not found: %w", accountID, ErrRecordNotFound)
 	}
 
 	return nil
@@ -304,7 +304,7 @@ func (s *Store) UpdateAccountMetadata(ctx context.Context, accountID int64, desc
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("account with ID %d not found", accountID)
+		return fmt.Errorf("account with ID %d not found: %w", accountID, ErrRecordNotFound)
 	}
 	return nil
 }

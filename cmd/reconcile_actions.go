@@ -23,13 +23,19 @@ func (r *reconcileRunner) Run(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	accountName := args[0]
 
-	// Resolve account.
 	acc, err := r.accSvc.GetAccountByName(ctx, accountName)
 	if err != nil {
 		return fmt.Errorf("account %q not found: %w", accountName, err)
 	}
 
-	nonInteractive := cmd.Flags().Changed("balance") && cmd.Flags().Changed("ids")
+	nonInteractive, err := resolveMode(
+		cmd.Flags().Changed("balance"),
+		cmd.Flags().Changed("ids"),
+		cmd.Flags().Changed("force"),
+	)
+	if err != nil {
+		return err
+	}
 
 	if nonInteractive {
 		return r.runNonInteractive(ctx, acc)
@@ -148,6 +154,27 @@ func (r *reconcileRunner) runInteractive(ctx context.Context, acc *model.Account
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+func resolveMode(balanceSet, idsSet, forceSet bool) (bool, error) {
+	if !balanceSet && !idsSet && !forceSet {
+		return false, nil
+	}
+
+	var missing []string
+	if !balanceSet {
+		missing = append(missing, "--balance")
+	}
+	if !idsSet {
+		missing = append(missing, "--ids")
+	}
+	if len(missing) > 0 {
+		return false, fmt.Errorf(
+			"non-interactive mode requires both --balance and --ids; missing: %s",
+			strings.Join(missing, ", "),
+		)
+	}
+	return true, nil
+}
 
 func parseIDs(s string) ([]int64, error) {
 	if strings.TrimSpace(s) == "" {

@@ -44,24 +44,24 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 		}
 
 		switch accType {
-		case "E":
+		case model.AccountTypeExpense:
 			hasExpense = true
 			totalExpenseAmount += utils.AbsInt64(split.Amount)
-		case "R":
+		case model.AccountTypeRevenue:
 			hasRevenue = true
 			totalRevenueAmount += utils.AbsInt64(split.Amount)
-		case "A":
+		case model.AccountTypeAsset:
 			assetOrLiabCnt++
 			if split.Amount > 0 {
 				isAssetIncrease = true
 				totalPositiveAssetLiabAmount += split.Amount
 			}
-		case "L":
+		case model.AccountTypeLiability:
 			assetOrLiabCnt++
 			if split.Amount > 0 {
 				totalPositiveAssetLiabAmount += split.Amount
 			}
-		case "C":
+		case model.AccountTypeEquity:
 			hasEquity = true
 		}
 	}

@@ -49,8 +49,9 @@ matching transactions as reconciled.
 Interactive mode (default):
   kea reconcile "Assets:Checking"
 
-Non-interactive / agent mode (all flags required):
-  kea reconcile "Assets:Checking" --balance 2450.00 --ids 12,15,18 --json`,
+Non-interactive / agent mode (--balance and --ids required):
+  kea reconcile "Assets:Checking" --balance 2450.00 --ids 12,15,18
+  kea reconcile "Assets:Checking" --balance 2450.00 --ids 12,15,18 --force --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := &reconcileRunner{
@@ -64,8 +65,8 @@ Non-interactive / agent mode (all flags required):
 
 	cmd.Flags().StringVar(&flags.Balance, "balance", "", "statement ending balance (e.g. 2450.00)")
 	cmd.Flags().StringVar(&flags.IDs, "ids", "", "comma-separated transaction IDs to reconcile (non-interactive)")
-	cmd.Flags().BoolVar(&flags.Force, "force", false, "skip balance-mismatch warning (non-interactive mode)")
-	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output result as JSON")
+	cmd.Flags().BoolVar(&flags.Force, "force", false, "skip balance-mismatch warning; implies non-interactive mode")
+	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output result as JSON (works in both modes)")
 
 	return cmd
 }

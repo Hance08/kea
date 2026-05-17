@@ -32,6 +32,9 @@ func TestFormatAmount(t *testing.T) {
 		{"one million whole", 100000000, "1,000,000"},
 		{"negative whole", -500, "-5"},
 		{"negative with decimal", -150, "-1.5"},
+		{"large amount near float64 precision limit", 9007199254740993, "90,071,992,547,409.93"},
+		{"max practical (90 trillion)", 9000000000000000, "90,000,000,000,000"},
+		{"negative large", -9007199254740993, "-90,071,992,547,409.93"},
 	}
 
 	for _, tt := range tests {

@@ -44,24 +44,24 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 		}
 
 		switch accType {
-		case "E":
+		case model.AccountTypeExpense:
 			hasExpense = true
 			totalExpenseAmount += utils.AbsInt64(split.Amount)
-		case "R":
+		case model.AccountTypeRevenue:
 			hasRevenue = true
 			totalRevenueAmount += utils.AbsInt64(split.Amount)
-		case "A":
+		case model.AccountTypeAsset:
 			assetOrLiabCnt++
 			if split.Amount > 0 {
 				isAssetIncrease = true
 				totalPositiveAssetLiabAmount += split.Amount
 			}
-		case "L":
+		case model.AccountTypeLiability:
 			assetOrLiabCnt++
 			if split.Amount > 0 {
 				totalPositiveAssetLiabAmount += split.Amount
 			}
-		case "C":
+		case model.AccountTypeEquity:
 			hasEquity = true
 		}
 	}
@@ -257,19 +257,19 @@ func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, split
 func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account {
 	switch txType {
 	case model.TxTypeExpense:
-		if currentAccountType == "E" {
-			return ts.filterAccountsByTypes(allAccounts, []string{"E"})
+		if currentAccountType == model.AccountTypeExpense {
+			return ts.filterAccountsByTypes(allAccounts, []model.AccountType{model.AccountTypeExpense})
 		}
-		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
+		return ts.filterAccountsByTypes(allAccounts, []model.AccountType{model.AccountTypeAsset, model.AccountTypeLiability})
 
 	case model.TxTypeIncome:
-		if currentAccountType == "R" {
-			return ts.filterAccountsByTypes(allAccounts, []string{"R"})
+		if currentAccountType == model.AccountTypeRevenue {
+			return ts.filterAccountsByTypes(allAccounts, []model.AccountType{model.AccountTypeRevenue})
 		}
-		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
+		return ts.filterAccountsByTypes(allAccounts, []model.AccountType{model.AccountTypeAsset, model.AccountTypeLiability})
 
 	case model.TxTypeTransfer:
-		return ts.filterAccountsByTypes(allAccounts, []string{"A", "L"})
+		return ts.filterAccountsByTypes(allAccounts, []model.AccountType{model.AccountTypeAsset, model.AccountTypeLiability})
 
 	default:
 		return allAccounts
@@ -352,16 +352,16 @@ func (ts *TransactionService) ValidateSplitsMatchType(ctx context.Context, txTyp
 	return nil
 }
 
-func (ts *TransactionService) filterAccountsByTypes(accounts []*model.Account, allowedTypes []string) []*model.Account {
+func (ts *TransactionService) filterAccountsByTypes(accounts []*model.Account, allowedTypes []model.AccountType) []*model.Account {
 	var filtered []*model.Account
 
-	typeMap := make(map[string]bool)
+	typeMap := make(map[model.AccountType]bool)
 	for _, t := range allowedTypes {
 		typeMap[t] = true
 	}
 
 	for _, acc := range accounts {
-		if typeMap[string(acc.Type)] {
+		if typeMap[acc.Type] {
 			filtered = append(filtered, acc)
 		}
 	}

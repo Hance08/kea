@@ -190,6 +190,7 @@ func TestSetCurrency(t *testing.T) {
 	require.NoError(t, os.WriteFile(cfgPath, []byte("defaults:\n  currency: \"\"\n"), 0o644))
 
 	viper.Reset()
+	t.Cleanup(viper.Reset)
 	viper.SetConfigFile(cfgPath)
 	require.NoError(t, viper.ReadInConfig())
 
@@ -199,6 +200,10 @@ func TestSetCurrency(t *testing.T) {
 
 	assert.Equal(t, "EUR", cfg.Defaults.Currency)
 	assert.Equal(t, "EUR", viper.GetString("defaults.currency"))
+
+	contents, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(contents), "EUR")
 }
 
 func TestIsLedgerCommand(t *testing.T) {

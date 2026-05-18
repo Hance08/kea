@@ -230,11 +230,25 @@ func migrateLegacySysAccWith(ctx context.Context, acc accountMigrator, cfg *conf
 }
 
 func ensureCurrency(cfg *config.Config) error {
+	return ensureCurrencyWith(cfg, isInteractive())
+}
+
+func ensureCurrencyWith(cfg *config.Config, interactive bool) error {
 	if cfg.Defaults.Currency != "" {
 		return nil
 	}
 
-	return initWizard(cfg)
+	if interactive {
+		return initWizard(cfg)
+	}
+
+	if err := setCurrency(cfg, "USD"); err != nil {
+		return err
+	}
+
+	pterm.Warning.Println("No default currency configured; defaulting to USD.")
+
+	return nil
 }
 
 func isInteractive() bool {

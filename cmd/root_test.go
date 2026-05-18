@@ -206,6 +206,23 @@ func TestSetCurrency(t *testing.T) {
 	assert.Contains(t, string(contents), "EUR")
 }
 
+func TestEnsureCurrency_NonInteractiveFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("defaults:\n  currency: \"\"\n"), 0o644))
+
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	viper.SetConfigFile(cfgPath)
+	require.NoError(t, viper.ReadInConfig())
+
+	cfg := &config.Config{}
+	err := ensureCurrencyWith(cfg, false)
+	require.NoError(t, err)
+	assert.Equal(t, "USD", cfg.Defaults.Currency)
+	assert.Equal(t, "USD", viper.GetString("defaults.currency"))
+}
+
 func TestIsLedgerCommand(t *testing.T) {
 	tests := []struct {
 		name string

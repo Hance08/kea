@@ -34,6 +34,10 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		return 0, validationErrorf("type", "transaction type is required")
 	}
 
+	if input.Status != model.StatusPending && input.Status != model.StatusCleared {
+		return 0, validationErrorf("status", "invalid status: new transactions must be Pending or Cleared")
+	}
+
 	// Set default timestamp: Use current system time if not provided.
 	if input.Timestamp == 0 {
 		input.Timestamp = time.Now().Unix()
@@ -248,9 +252,8 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 // UpdateTransactionComplete performs a complete update of a transaction including splits
 // This operation is atomic - either all changes succeed or all fail
 func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, input model.UpdateTransactionInput) error {
-	// Validate status
-	if input.Status != model.StatusPending && input.Status != model.StatusCleared && input.Status != model.StatusReconciled {
-		return validationErrorf("status", "invalid status: must be 0 (Pending), 1 (Cleared) or 2 (Reconciled)")
+	if input.Status != model.StatusPending && input.Status != model.StatusCleared {
+		return validationErrorf("status", "invalid status: must be Pending or Cleared")
 	}
 
 	if input.ID == model.SystemTransactionID {

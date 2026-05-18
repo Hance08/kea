@@ -100,6 +100,24 @@ func (p *accountProviderSecondCallFails) GetAllAccounts(ctx context.Context) ([]
 	return result, nil
 }
 
+// --- stub: AccountProvider (GetAccountByName always fails) ---
+
+// stubAccountProviderFailsOnGetByName succeeds on GetAllAccounts but always
+// returns an error from GetAccountByName. Used by actionAddSplit and
+// actionEditSplit tests where only one GetAccountByName call is made.
+type stubAccountProviderFailsOnGetByName struct {
+	allAccounts []*model.Account
+	err         error
+}
+
+func (p *stubAccountProviderFailsOnGetByName) GetAccountByName(_ context.Context, _ string) (*model.Account, error) {
+	return nil, p.err
+}
+
+func (p *stubAccountProviderFailsOnGetByName) GetAllAccounts(_ context.Context) ([]*model.Account, error) {
+	return p.allAccounts, nil
+}
+
 // --- test ---
 
 // TestActionQuickChangeAccount_GetAccountByNameError verifies that when the
@@ -155,5 +173,73 @@ func TestActionQuickChangeAccount_GetAccountByNameError(t *testing.T) {
 	err := runner.actionQuickChangeAccount(context.Background(), detail)
 	if err == nil {
 		t.Fatal("expected an error from the failed GetAccountByName call, got nil")
+	}
+}
+
+// TestActionAddSplit_GetAccountByNameError verifies that when GetAccountByName
+// returns an error inside actionAddSplit (line 182 of edit_actions.go), the
+// error is propagated rather than causing a nil-pointer panic at line 183.
+//
+// Currently the bug exists: line 182 uses `acc, _ := ...` which discards the
+// error and then immediately dereferences the nil pointer at line 183, causing
+// a panic. This test is expected to PANIC until the bug is fixed.
+func TestActionAddSplit_GetAccountByNameError(t *testing.T) {
+	lookupErr := errors.New("account deleted")
+	r := &editRunner{
+		txSvc: &stubEditProvider{},
+		accSvc: &stubAccountProviderFailsOnGetByName{
+			allAccounts: []*model.Account{{ID: 1, Name: "Assets:Bank"}},
+			err:         lookupErr,
+		},
+		view: &stubEditView{},
+	}
+
+	detail := &model.TransactionDetail{
+		Splits: []model.SplitDetail{
+			{AccountID: 1, AccountName: "Assets:Bank", Amount: -100},
+			{AccountID: 2, AccountName: "Expenses:Food", Amount: 100},
+		},
+	}
+
+	err := r.actionAddSplit(context.Background(), detail)
+	if err == nil {
+		t.Fatal("expected error from GetAccountByName, got nil")
+	}
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("expected lookupErr to be wrapped, got: %v", err)
+	}
+}
+
+// TestActionEditSplit_GetAccountByNameError verifies that when GetAccountByName
+// returns an error inside actionEditSplit (line 221 of edit_actions.go), the
+// error is propagated rather than causing a nil-pointer panic at line 222.
+//
+// Currently the bug exists: line 221 uses `acc, _ := ...` which discards the
+// error and then immediately dereferences the nil pointer at line 222, causing
+// a panic. This test is expected to PANIC until the bug is fixed.
+func TestActionEditSplit_GetAccountByNameError(t *testing.T) {
+	lookupErr := errors.New("account deleted")
+	r := &editRunner{
+		txSvc: &stubEditProvider{},
+		accSvc: &stubAccountProviderFailsOnGetByName{
+			allAccounts: []*model.Account{{ID: 1, Name: "Assets:Bank"}},
+			err:         lookupErr,
+		},
+		view: &stubEditView{},
+	}
+
+	detail := &model.TransactionDetail{
+		Splits: []model.SplitDetail{
+			{AccountID: 1, AccountName: "Assets:Bank", Amount: -100},
+			{AccountID: 2, AccountName: "Expenses:Food", Amount: 100},
+		},
+	}
+
+	err := r.actionEditSplit(context.Background(), detail)
+	if err == nil {
+		t.Fatal("expected error from GetAccountByName, got nil")
+	}
+	if !errors.Is(err, lookupErr) {
+		t.Fatalf("expected lookupErr to be wrapped, got: %v", err)
 	}
 }

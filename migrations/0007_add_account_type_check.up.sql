@@ -1,5 +1,7 @@
 PRAGMA foreign_keys = OFF;
 
+BEGIN;
+
 CREATE TABLE accounts_new (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT NOT NULL UNIQUE,
@@ -18,5 +20,7 @@ DROP TABLE accounts;
 ALTER TABLE accounts_new RENAME TO accounts;
 
 CREATE INDEX IF NOT EXISTS idx_accounts_name ON accounts (name);
+
+COMMIT;
 
 PRAGMA foreign_keys = ON;

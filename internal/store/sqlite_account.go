@@ -14,6 +14,9 @@ import (
 )
 
 func (s *Store) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency string, description string, parentID *int64) (int64, error) {
+	if !accType.IsValid() {
+		return 0, fmt.Errorf("account type %q: %w", accType, ErrInvalidAccountType)
+	}
 	stmt, err := s.db.PrepareContext(ctx, `
         INSERT INTO accounts (name, type, currency, description, parent_id)
         VALUES (?, ?, ?, ?, ?)

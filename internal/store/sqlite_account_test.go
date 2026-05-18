@@ -392,6 +392,15 @@ func TestGetAccountBalance(t *testing.T) {
 	assert.Equal(t, int64(2000), bal)
 }
 
+func TestCreateAccount_RejectsInvalidAccountType(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	_, err := s.CreateAccount(ctx, "Assets:Test", model.AccountType("X"), "USD", "", nil)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, store.ErrInvalidAccountType)
+}
+
 func TestGetAllAccountBalances(t *testing.T) {
 	s := setupTestDB(t)
 	ctx := context.Background()

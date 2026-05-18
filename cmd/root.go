@@ -26,6 +26,7 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/term"
 )
 
 var cfgFile string
@@ -236,6 +237,21 @@ func ensureCurrency(cfg *config.Config) error {
 	return initWizard(cfg)
 }
 
+func isInteractive() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
+func setCurrency(cfg *config.Config, currency string) error {
+	cfg.Defaults.Currency = currency
+	viper.Set("defaults.currency", currency)
+
+	if err := viper.WriteConfig(); err != nil {
+		return fmt.Errorf("failed to save config to file: %w", err)
+	}
+
+	return nil
+}
+
 func initConfig(cfgFile string) (*config.Config, error) {
 	var appDir string
 	if cfgFile != "" {
@@ -290,11 +306,8 @@ func initWizard(cfg *config.Config) error {
 		return err
 	}
 
-	cfg.Defaults.Currency = currency
-	viper.Set("defaults.currency", currency)
-
-	if err := viper.WriteConfig(); err != nil {
-		return fmt.Errorf("failed to save config to file: %w", err)
+	if err := setCurrency(cfg, currency); err != nil {
+		return err
 	}
 
 	pterm.Success.Printf("Configuration saved. Default currency set to: %s\n", currency)

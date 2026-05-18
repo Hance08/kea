@@ -17,6 +17,7 @@ import (
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,6 +175,30 @@ func TestLedgerCommand_SkipsDBInit(t *testing.T) {
 	// The bogus DB file must not have been created or opened.
 	_, statErr := os.Stat(bogusPath)
 	assert.True(t, os.IsNotExist(statErr), "DB file should not exist — DB init must not have run")
+}
+
+func TestEnsureCurrency_AlreadySet(t *testing.T) {
+	cfg := &config.Config{Defaults: config.DefaultsConfig{Currency: "TWD"}}
+	err := ensureCurrency(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "TWD", cfg.Defaults.Currency)
+}
+
+func TestSetCurrency(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("defaults:\n  currency: \"\"\n"), 0o644))
+
+	viper.Reset()
+	viper.SetConfigFile(cfgPath)
+	require.NoError(t, viper.ReadInConfig())
+
+	cfg := &config.Config{}
+	err := setCurrency(cfg, "EUR")
+	require.NoError(t, err)
+
+	assert.Equal(t, "EUR", cfg.Defaults.Currency)
+	assert.Equal(t, "EUR", viper.GetString("defaults.currency"))
 }
 
 func TestIsLedgerCommand(t *testing.T) {

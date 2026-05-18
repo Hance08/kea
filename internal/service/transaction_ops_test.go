@@ -569,6 +569,32 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid status")
 	})
 
+	t.Run("setting status to reconciled(2) rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		txRepo.addTransaction(
+			&model.Transaction{ID: 5, Status: model.StatusPending},
+			makeExistingSplits(10, 11),
+		)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		splits := []model.SplitDetail{
+			{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -800, Currency: "USD"},
+			{ID: 11, AccountID: 2, AccountType: model.AccountTypeExpense, Amount: 800, Currency: "USD"},
+		}
+		err := svc.UpdateTransactionComplete(context.Background(), model.UpdateTransactionInput{
+			ID: 5, Description: "Trying reconciled", Timestamp: 0,
+			Status: model.StatusReconciled, Type: model.TxTypeExpense, Splits: splits,
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+
+		var ve *ValidationError
+		assert.True(t, errors.As(err, &ve))
+		assert.Equal(t, "status", ve.Field)
+	})
+
 	t.Run("non-existent transaction returns error", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		err := svc.UpdateTransactionComplete(context.Background(), model.UpdateTransactionInput{ID: 999, Description: "", Timestamp: 0, Status: model.StatusPending, Type: model.TxTypeExpense,

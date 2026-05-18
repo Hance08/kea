@@ -86,7 +86,10 @@ func (r *editRunner) actionQuickChangeAccount(ctx context.Context, detail *model
 		return err
 	}
 
-	newAcc, _ := r.accSvc.GetAccountByName(ctx, newAccName)
+	newAcc, err := r.accSvc.GetAccountByName(ctx, newAccName)
+	if err != nil {
+		return fmt.Errorf("account %q not found: %w", newAccName, err)
+	}
 
 	// Apply Change
 	targetSplit.AccountID = newAcc.ID
@@ -179,7 +182,10 @@ func (r *editRunner) actionAddSplit(ctx context.Context, detail *model.Transacti
 	}
 
 	// Update Model
-	acc, _ := r.accSvc.GetAccountByName(ctx, accName)
+	acc, err := r.accSvc.GetAccountByName(ctx, accName)
+	if err != nil {
+		return fmt.Errorf("account %q not found: %w", accName, err)
+	}
 	detail.Splits = append(detail.Splits, model.SplitDetail{
 		AccountID: acc.ID, AccountName: acc.Name, Currency: acc.Currency,
 		Amount: amount, Memo: memo,
@@ -218,7 +224,10 @@ func (r *editRunner) actionEditSplit(ctx context.Context, detail *model.Transact
 	}
 
 	// Update Model
-	acc, _ := r.accSvc.GetAccountByName(ctx, newAccName)
+	acc, err := r.accSvc.GetAccountByName(ctx, newAccName)
+	if err != nil {
+		return fmt.Errorf("account %q not found: %w", newAccName, err)
+	}
 	split.AccountID = acc.ID
 	split.AccountName = acc.Name
 	split.Currency = acc.Currency

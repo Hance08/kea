@@ -34,6 +34,10 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		return 0, validationErrorf("type", "transaction type is required")
 	}
 
+	if input.Status != model.StatusPending && input.Status != model.StatusCleared {
+		return 0, validationErrorf("status", "invalid status: new transactions must be Pending or Cleared")
+	}
+
 	// Set default timestamp: Use current system time if not provided.
 	if input.Timestamp == 0 {
 		input.Timestamp = time.Now().Unix()

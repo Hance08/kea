@@ -98,7 +98,7 @@ func (s *Store) DB() *sql.DB {
 }
 
 func runMigrations(db *sql.DB, migrationsFS fs.FS) error {
-	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{NoTxWrap: true})
 	if err != nil {
 		return fmt.Errorf("failed to set up migrate driver : %w", err)
 	}

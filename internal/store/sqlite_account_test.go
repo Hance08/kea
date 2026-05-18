@@ -392,6 +392,15 @@ func TestGetAccountBalance(t *testing.T) {
 	assert.Equal(t, int64(2000), bal)
 }
 
+func TestCreateAccount_RejectsInvalidAccountType(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	_, err := s.CreateAccount(ctx, "Assets:Test", model.AccountType("X"), "USD", "", nil)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, store.ErrInvalidAccountType)
+}
+
 func TestGetAllAccountBalances(t *testing.T) {
 	s := setupTestDB(t)
 	ctx := context.Background()
@@ -426,4 +435,14 @@ func TestGetAllAccountBalances(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(-800), balances[assetID])
 	assert.Equal(t, int64(800), balances[expenseID])
+}
+
+func TestAccountTypeCheckConstraint_RejectsInvalidTypeAtDBLevel(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	_, err := s.DB().ExecContext(ctx,
+		`INSERT INTO accounts (name, type, currency, description) VALUES (?, ?, ?, ?)`,
+		"Test:Invalid", "X", "USD", "")
+	require.Error(t, err, "DB should reject invalid account type")
 }

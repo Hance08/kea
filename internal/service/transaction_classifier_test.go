@@ -562,3 +562,93 @@ func TestValidateSplitsMatchType(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildTransactionListItems(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Expenses:Food", Type: model.AccountTypeExpense})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+
+	txs := []*model.Transaction{
+		{ID: 10, Timestamp: 1700000000, Description: "Lunch", Status: model.StatusCleared, Type: model.TxTypeExpense},
+	}
+	details := map[int64]*model.TransactionDetail{
+		10: {
+			ID: 10, Timestamp: 1700000000, Description: "Lunch",
+			Status: model.StatusCleared, Type: model.TxTypeExpense,
+			Splits: []model.SplitDetail{
+				split("Expenses:Food", model.AccountTypeExpense, 1500),
+				split("Assets:Bank", model.AccountTypeAsset, -1500),
+			},
+		},
+	}
+
+	items := svc.BuildTransactionListItems(context.Background(), txs, details)
+
+	require.Len(t, items, 1)
+	item := items[0]
+	assert.Equal(t, int64(10), item.ID)
+	assert.Equal(t, "2023-11-14", item.Date)
+	assert.Equal(t, "Expense", item.Type)
+	assert.Equal(t, "Expenses:Food", item.Account)
+	assert.Equal(t, "Assets:Bank", item.OffsetAccount)
+	assert.Equal(t, "Lunch", item.Description)
+	assert.Equal(t, int64(1500), item.Amount)
+	assert.Equal(t, "USD", item.Currency)
+	assert.Equal(t, "Cleared", item.Status)
+}
+
+func TestBuildTransactionListItems_SkipsMissingDetail(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+
+	txs := []*model.Transaction{
+		{ID: 10, Timestamp: 1700000000, Description: "Lunch", Status: model.StatusCleared, Type: model.TxTypeExpense},
+	}
+	details := map[int64]*model.TransactionDetail{}
+
+	items := svc.BuildTransactionListItems(context.Background(), txs, details)
+	assert.Empty(t, items)
+}
+
+func TestBuildTransactionListItems_MultipleTransactions(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Expenses:Food", Type: model.AccountTypeExpense})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 3, Name: "Revenue:Salary", Type: model.AccountTypeRevenue})
+
+	txs := []*model.Transaction{
+		{ID: 10, Timestamp: 1700000000, Description: "Lunch", Status: model.StatusCleared, Type: model.TxTypeExpense},
+		{ID: 11, Timestamp: 1700086400, Description: "Paycheck", Status: model.StatusPending, Type: model.TxTypeIncome},
+	}
+	details := map[int64]*model.TransactionDetail{
+		10: {
+			ID: 10, Timestamp: 1700000000, Description: "Lunch",
+			Status: model.StatusCleared, Type: model.TxTypeExpense,
+			Splits: []model.SplitDetail{
+				split("Expenses:Food", model.AccountTypeExpense, 1500),
+				split("Assets:Bank", model.AccountTypeAsset, -1500),
+			},
+		},
+		11: {
+			ID: 11, Timestamp: 1700086400, Description: "Paycheck",
+			Status: model.StatusPending, Type: model.TxTypeIncome,
+			Splits: []model.SplitDetail{
+				split("Revenue:Salary", model.AccountTypeRevenue, -500000),
+				split("Assets:Bank", model.AccountTypeAsset, 500000),
+			},
+		},
+	}
+
+	items := svc.BuildTransactionListItems(context.Background(), txs, details)
+
+	require.Len(t, items, 2)
+	assert.Equal(t, "Expense", items[0].Type)
+	assert.Equal(t, "Income", items[1].Type)
+	assert.Equal(t, "Revenue:Salary", items[1].Account)
+	assert.Equal(t, "Assets:Bank", items[1].OffsetAccount)
+}

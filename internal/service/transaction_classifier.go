@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
@@ -252,6 +253,43 @@ func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, split
 	}
 
 	return "(multiple)", nil
+}
+
+func (ts *TransactionService) BuildTransactionListItems(ctx context.Context, txs []*model.Transaction, details map[int64]*model.TransactionDetail) []model.TransactionListItem {
+	items := make([]model.TransactionListItem, 0, len(txs))
+	for _, tx := range txs {
+		detail, ok := details[tx.ID]
+		if !ok {
+			continue
+		}
+
+		txType := string(detail.Type)
+
+		accountName, err := ts.GetDisplayAccount(ctx, detail.Splits, txType)
+		if err != nil {
+			accountName = "-"
+		}
+
+		offsetAccount, err := ts.GetDisplayOffsetAccount(ctx, detail.Splits, txType, accountName)
+		if err != nil {
+			offsetAccount = "-"
+		}
+
+		amountCents, currency := ts.GetDisplayAmount(detail.Splits)
+
+		items = append(items, model.TransactionListItem{
+			ID:            tx.ID,
+			Date:          time.Unix(tx.Timestamp, 0).UTC().Format(model.DateFormat),
+			Type:          txType,
+			Account:       accountName,
+			OffsetAccount: offsetAccount,
+			Description:   tx.Description,
+			Amount:        amountCents,
+			Currency:      currency,
+			Status:        tx.Status.String(),
+		})
+	}
+	return items
 }
 
 func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, currentAccountType model.AccountType, allAccounts []*model.Account) []*model.Account {

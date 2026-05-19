@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
@@ -29,6 +30,7 @@ type DBTX interface {
 type Store struct {
 	db    DBTX
 	rawDB *sql.DB
+	mu    sync.RWMutex
 }
 
 func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
@@ -64,7 +66,9 @@ func NewStore(dbPath string, migrationsFS fs.FS) (*Store, error) {
 }
 
 func (s *Store) ExecTx(ctx context.Context, fn func(repository.Repository) error) error {
+	s.mu.RLock()
 	db, ok := s.db.(*sql.DB)
+	s.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("store is already in a transaction")
 	}
@@ -87,7 +91,10 @@ func (s *Store) ExecTx(ctx context.Context, fn func(repository.Repository) error
 }
 
 func (s *Store) Close() error {
-	if db, ok := s.db.(*sql.DB); ok {
+	s.mu.RLock()
+	db, ok := s.db.(*sql.DB)
+	s.mu.RUnlock()
+	if ok {
 		return db.Close()
 	}
 	return nil
@@ -95,6 +102,8 @@ func (s *Store) Close() error {
 
 // DB returns the underlying *sql.DB. Returns nil for transaction-scoped Stores.
 func (s *Store) DB() *sql.DB {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.rawDB
 }
 

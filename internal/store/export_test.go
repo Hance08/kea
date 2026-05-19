@@ -9,5 +9,7 @@ import (
 )
 
 func (s *Store) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.db.QueryRowContext(ctx, query, args...)
 }

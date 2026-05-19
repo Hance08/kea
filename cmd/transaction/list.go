@@ -6,7 +6,6 @@ package transaction
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
@@ -22,11 +21,8 @@ type ListView interface {
 type ListProvider interface {
 	GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error)
 	GetRecentTransactions(ctx context.Context, limit int) ([]*model.Transaction, error)
-	GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error)
 	GetTransactionDetailsByIDs(ctx context.Context, txs []*model.Transaction) (map[int64]*model.TransactionDetail, error)
-	GetDisplayAccount(ctx context.Context, splits []model.SplitDetail, txType string) (string, error)
-	GetDisplayOffsetAccount(ctx context.Context, splits []model.SplitDetail, txType string, primaryAccount string) (string, error)
-	GetDisplayAmount(splits []model.SplitDetail) (int64, string)
+	BuildTransactionListItems(ctx context.Context, txs []*model.Transaction, details map[int64]*model.TransactionDetail) []model.TransactionListItem
 }
 
 type listFlags struct {
@@ -106,43 +102,22 @@ func (r *listRunner) buildViewItems(ctx context.Context, transactions []*model.T
 		return nil
 	}
 
-	viewItems := make([]views.TransactionListItem, 0, len(transactions))
-	for _, tx := range transactions {
-		viewItems = append(viewItems, r.convertToViewItem(ctx, tx, detailsMap[tx.ID]))
+	items := r.svc.BuildTransactionListItems(ctx, transactions, detailsMap)
+
+	viewItems := make([]views.TransactionListItem, len(items))
+	for i, item := range items {
+		amountFloat := float64(item.Amount) / 100.0
+		viewItems[i] = views.TransactionListItem{
+			ID:          item.ID,
+			Date:        item.Date,
+			Type:        item.Type,
+			Account:     item.Account,
+			Offset:      item.OffsetAccount,
+			Description: item.Description,
+			Amount:      fmt.Sprintf("%.2f", amountFloat),
+			Currency:    item.Currency,
+			Status:      item.Status,
+		}
 	}
 	return viewItems
-}
-
-func (r *listRunner) convertToViewItem(ctx context.Context, tx *model.Transaction, detail *model.TransactionDetail) views.TransactionListItem {
-	txType := string(detail.Type)
-
-	accountName, err := r.svc.GetDisplayAccount(ctx, detail.Splits, txType)
-	if err != nil {
-		accountName = "-"
-	}
-
-	offsetAccount, err := r.svc.GetDisplayOffsetAccount(ctx, detail.Splits, txType, accountName)
-	if err != nil {
-		offsetAccount = "-"
-	}
-
-	amountCents, currency := r.svc.GetDisplayAmount(detail.Splits)
-	amountFloat := float64(amountCents) / 100.0
-	amountStr := fmt.Sprintf("%.2f", amountFloat)
-
-	date := time.Unix(tx.Timestamp, 0).Format("2006-01-02")
-
-	status := tx.Status.String()
-
-	return views.TransactionListItem{
-		ID:          tx.ID,
-		Date:        date,
-		Type:        txType,
-		Account:     accountName,
-		Offset:      offsetAccount,
-		Description: tx.Description,
-		Amount:      amountStr,
-		Currency:    currency,
-		Status:      status,
-	}
 }

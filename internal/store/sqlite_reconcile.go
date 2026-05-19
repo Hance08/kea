@@ -19,6 +19,8 @@ import (
 // ensures multi-account transactions remain visible for other accounts after one
 // account has already been reconciled. Results are ordered by timestamp ASC.
 func (s *Store) GetUnreconciledTransactionsByAccount(ctx context.Context, accountID int64) ([]*model.ReconcileEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	rows, err := s.db.QueryContext(ctx, `
         SELECT
             t.id, t.timestamp, t.description, t.status,
@@ -78,6 +80,8 @@ func (s *Store) GetUnreconciledTransactionsByAccount(ctx context.Context, accoun
 // transaction Reconciled here does not hide it from other accounts that still
 // need to reconcile their own splits.
 func (s *Store) MarkSplitsReconciledByAccount(ctx context.Context, accountID int64, txIDs []int64) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	if len(txIDs) == 0 {
 		return 0, nil
 	}
@@ -112,6 +116,8 @@ func (s *Store) MarkSplitsReconciledByAccount(ctx context.Context, accountID int
 // in a single UPDATE statement. Returns an error if the affected row count
 // does not match len(txIDs) — indicating one or more IDs did not exist.
 func (s *Store) BulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, status model.TransactionStatus) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	if len(txIDs) == 0 {
 		return nil
 	}
@@ -149,6 +155,8 @@ func (s *Store) BulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, 
 // accountID. Returns 0 if the account has never been reconciled (no row in
 // account_reconcile_state for this account yet).
 func (s *Store) GetLastReconciledBalance(ctx context.Context, accountID int64) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var balance int64
 	err := s.db.QueryRowContext(ctx,
 		"SELECT last_reconciled_balance FROM account_reconcile_state WHERE account_id = ?",
@@ -167,6 +175,8 @@ func (s *Store) GetLastReconciledBalance(ctx context.Context, accountID int64) (
 // accountID. An upsert is used so that the first reconcile for an account
 // inserts a row; subsequent reconciles update it.
 func (s *Store) SetLastReconciledBalance(ctx context.Context, accountID int64, balance int64) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	_, err := s.db.ExecContext(ctx, `
         INSERT INTO account_reconcile_state (account_id, last_reconciled_balance)
         VALUES (?, ?)

@@ -100,6 +100,25 @@ func (s *Store) Close() error {
 	return nil
 }
 
+func (s *Store) Swap(newPath string, migrationsFS fs.FS) error {
+	newStore, err := NewStore(newPath, migrationsFS)
+	if err != nil {
+		return fmt.Errorf("open new database: %w", err)
+	}
+
+	s.mu.Lock()
+	oldDB := s.rawDB
+	s.rawDB = newStore.rawDB
+	s.db = newStore.db
+	s.mu.Unlock()
+
+	if oldDB != nil {
+		_ = oldDB.Close()
+	}
+
+	return nil
+}
+
 // DB returns the underlying *sql.DB. Returns nil for transaction-scoped Stores.
 func (s *Store) DB() *sql.DB {
 	s.mu.RLock()

@@ -114,15 +114,19 @@ func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name st
 	return nil
 }
 
-func (as *AccountService) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) error {
+func (as *AccountService) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) (*model.Account, error) {
 	acc, err := as.repo.GetAccountByID(ctx, accountID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if model.IsOpeningBalancesAccount(acc.Name) {
-		return fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
+		return nil, fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
 	}
 
-	return as.repo.UpdateAccountMetadata(ctx, accountID, description, isHidden)
+	if err := as.repo.UpdateAccountMetadata(ctx, accountID, description, isHidden); err != nil {
+		return nil, err
+	}
+
+	return as.repo.GetAccountByID(ctx, accountID)
 }

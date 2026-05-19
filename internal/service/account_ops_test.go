@@ -573,49 +573,65 @@ func TestGetAccountBalance(t *testing.T) {
 // ──────────────────────────────────────────────
 
 func TestRenameAccount(t *testing.T) {
-	t.Run("leaf account renamed with correct full name constructed", func(t *testing.T) {
+	t.Run("leaf account renamed to new full name", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.RenameAccount(context.Background(), "Assets:Bank", "Savings")
+		got, err := svc.RenameAccount(context.Background(), "Assets:Bank", "Assets:Savings")
 		require.NoError(t, err)
 
 		require.Len(t, accRepo.renameCalls, 1)
 		assert.Equal(t, "Assets:Bank", accRepo.renameCalls[0].old)
 		assert.Equal(t, "Assets:Savings", accRepo.renameCalls[0].new)
+
+		assert.Equal(t, "Assets:Savings", got.Name)
+		assert.Equal(t, int64(1), got.ID)
 	})
 
-	t.Run("repo called with old full name and new full name (not bare segment)", func(t *testing.T) {
+	t.Run("repo called with old full name and new full name", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank:Checking", Type: model.AccountTypeAsset})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.RenameAccount(context.Background(), "Assets:Bank:Checking", "Current")
+		got, err := svc.RenameAccount(context.Background(), "Assets:Bank:Checking", "Assets:Bank:Current")
 		require.NoError(t, err)
 
 		require.Len(t, accRepo.renameCalls, 1)
 		assert.Equal(t, "Assets:Bank:Checking", accRepo.renameCalls[0].old)
 		assert.Equal(t, "Assets:Bank:Current", accRepo.renameCalls[0].new)
+
+		assert.Equal(t, "Assets:Bank:Current", got.Name)
 	})
 
-	t.Run("segment containing colon rejected", func(t *testing.T) {
+	t.Run("empty trailing segment rejected", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.RenameAccount(context.Background(), "Assets:Bank", "Bad:Name")
+		_, err := svc.RenameAccount(context.Background(), "Assets:Bank", "Assets:")
 		require.Error(t, err)
 		assert.Empty(t, accRepo.renameCalls)
 	})
 
-	t.Run("empty segment rejected", func(t *testing.T) {
+	t.Run("empty name rejected", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.RenameAccount(context.Background(), "Assets:Bank", "")
+		_, err := svc.RenameAccount(context.Background(), "Assets:Bank", "")
 		require.Error(t, err)
+		assert.Empty(t, accRepo.renameCalls)
+	})
+
+	t.Run("rename changing parent path is rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.RenameAccount(context.Background(), "Assets:Bank", "Liabilities:Bank")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rename cannot change parent path")
 		assert.Empty(t, accRepo.renameCalls)
 	})
 
@@ -625,7 +641,7 @@ func TestRenameAccount(t *testing.T) {
 		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Savings", Type: model.AccountTypeAsset})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.RenameAccount(context.Background(), "Assets:Bank", "Savings")
+		_, err := svc.RenameAccount(context.Background(), "Assets:Bank", "Assets:Savings")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 		assert.Empty(t, accRepo.renameCalls)
@@ -636,7 +652,7 @@ func TestRenameAccount(t *testing.T) {
 		addOpeningBalanceAccount(accRepo)
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.RenameAccount(context.Background(), model.OpeningBalancesAccountName("USD"), "Other")
+		_, err := svc.RenameAccount(context.Background(), model.OpeningBalancesAccountName("USD"), "Equity:Other")
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrNotEditable))
 		assert.Empty(t, accRepo.renameCalls)
@@ -644,11 +660,11 @@ func TestRenameAccount(t *testing.T) {
 
 	t.Run("account not found returns error", func(t *testing.T) {
 		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.RenameAccount(context.Background(), "Assets:Ghost", "NewName")
+		_, err := svc.RenameAccount(context.Background(), "Assets:Ghost", "Assets:NewName")
 		require.Error(t, err)
 	})
 
-	t.Run("legacy opening-balances account migrated to currency-suffixed full path", func(t *testing.T) {
+	t.Run("legacy opening-balances account renamed to currency-suffixed full path", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{
 			ID:   1,
@@ -657,15 +673,14 @@ func TestRenameAccount(t *testing.T) {
 		})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.RenameAccount(context.Background(), model.LegacyOpeningBalancesName, "OpeningBalances_USD")
+		got, err := svc.RenameAccount(context.Background(), model.LegacyOpeningBalancesName, model.OpeningBalancesAccountName("USD"))
 		require.NoError(t, err)
 
 		require.Len(t, accRepo.renameCalls, 1)
 		assert.Equal(t, model.LegacyOpeningBalancesName, accRepo.renameCalls[0].old)
 		assert.Equal(t, model.OpeningBalancesAccountName("USD"), accRepo.renameCalls[0].new)
 
-		_, err = accRepo.GetAccountByName(context.Background(), model.OpeningBalancesAccountName("USD"))
-		require.NoError(t, err)
+		assert.Equal(t, model.OpeningBalancesAccountName("USD"), got.Name)
 	})
 }
 
@@ -679,7 +694,7 @@ func TestUpdateAccountMetadata(t *testing.T) {
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Description: "old desc", IsHidden: false})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.UpdateAccountMetadata(context.Background(), 1, "new desc", true)
+		got, err := svc.UpdateAccountMetadata(context.Background(), 1, "new desc", true)
 		require.NoError(t, err)
 
 		require.Len(t, accRepo.updateMetadataCalls, 1)
@@ -687,6 +702,10 @@ func TestUpdateAccountMetadata(t *testing.T) {
 		assert.Equal(t, int64(1), call.id)
 		assert.Equal(t, "new desc", call.description)
 		assert.True(t, call.isHidden)
+
+		assert.Equal(t, "new desc", got.Description)
+		assert.True(t, got.IsHidden)
+		assert.Equal(t, int64(1), got.ID)
 	})
 
 	t.Run("system account is rejected", func(t *testing.T) {
@@ -694,7 +713,7 @@ func TestUpdateAccountMetadata(t *testing.T) {
 		accRepo.addAccount(&model.Account{ID: 99, Name: model.OpeningBalancesAccountName("USD"), Type: model.AccountTypeEquity})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.UpdateAccountMetadata(context.Background(), 99, "desc", false)
+		_, err := svc.UpdateAccountMetadata(context.Background(), 99, "desc", false)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrNotEditable))
 		assert.Empty(t, accRepo.updateMetadataCalls)
@@ -702,7 +721,7 @@ func TestUpdateAccountMetadata(t *testing.T) {
 
 	t.Run("account not found returns error", func(t *testing.T) {
 		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.UpdateAccountMetadata(context.Background(), 999, "desc", false)
+		_, err := svc.UpdateAccountMetadata(context.Background(), 999, "desc", false)
 		require.Error(t, err)
 	})
 
@@ -712,7 +731,7 @@ func TestUpdateAccountMetadata(t *testing.T) {
 		accRepo.updateMetadataErr = errors.New("db error")
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-		err := svc.UpdateAccountMetadata(context.Background(), 1, "desc", false)
+		_, err := svc.UpdateAccountMetadata(context.Background(), 1, "desc", false)
 		require.Error(t, err)
 	})
 }

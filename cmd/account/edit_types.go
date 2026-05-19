@@ -13,8 +13,8 @@ import (
 type EditProvider interface {
 	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
 	GetAccountBalance(ctx context.Context, id int64) (int64, error)
-	RenameAccount(ctx context.Context, oldName, newSegment string) error
-	UpdateAccountMetadata(ctx context.Context, id int64, description string, isHidden bool) error
+	RenameAccount(ctx context.Context, oldName, newFullName string) (*model.Account, error)
+	UpdateAccountMetadata(ctx context.Context, id int64, description string, isHidden bool) (*model.Account, error)
 	ValidateAccountName(name string) error
 	CheckAccountExists(ctx context.Context, name string) (bool, error)
 }

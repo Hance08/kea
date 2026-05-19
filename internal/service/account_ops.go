@@ -206,34 +206,47 @@ func (as *AccountService) FormatAccountName(prefix, name string) string {
 	return prefix + ":" + name
 }
 
-func (as *AccountService) RenameAccount(ctx context.Context, oldName, newSegment string) error {
+func (as *AccountService) RenameAccount(ctx context.Context, oldName, newFullName string) (*model.Account, error) {
 	acc, err := as.repo.GetAccountByName(ctx, oldName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if model.IsOpeningBalancesAccount(acc.Name) {
-		return fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
+		return nil, fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
 	}
 
-	if err := as.ValidateAccountName(newSegment); err != nil {
-		return validationWrap("name", "invalid account name", err)
-	}
-
-	var newFullName string
+	oldPrefix := ""
 	if idx := strings.LastIndex(acc.Name, ":"); idx >= 0 {
-		newFullName = acc.Name[:idx+1] + newSegment
-	} else {
-		newFullName = newSegment
+		oldPrefix = acc.Name[:idx+1]
+	}
+
+	newPrefix := ""
+	segment := newFullName
+	if idx := strings.LastIndex(newFullName, ":"); idx >= 0 {
+		newPrefix = newFullName[:idx+1]
+		segment = newFullName[idx+1:]
+	}
+
+	if newPrefix != oldPrefix {
+		return nil, validationErrorf("name", "rename cannot change parent path")
+	}
+
+	if err := as.ValidateAccountName(segment); err != nil {
+		return nil, validationWrap("name", "invalid account name", err)
 	}
 
 	exists, err := as.repo.AccountExists(ctx, newFullName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if exists {
-		return validationErrorf("name", "account %q already exists", newFullName)
+		return nil, validationErrorf("name", "account %q already exists", newFullName)
 	}
 
-	return as.repo.RenameAccount(ctx, acc.Name, newFullName)
+	if err := as.repo.RenameAccount(ctx, acc.Name, newFullName); err != nil {
+		return nil, err
+	}
+
+	return as.repo.GetAccountByName(ctx, newFullName)
 }

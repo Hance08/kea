@@ -54,16 +54,16 @@ func (m *mockAccountMigrator) GetAccountByName(_ context.Context, name string) (
 	return acc, nil
 }
 
-func (m *mockAccountMigrator) RenameAccount(_ context.Context, oldName, newSegment string) error {
+func (m *mockAccountMigrator) RenameAccount(_ context.Context, oldName, newFullName string) (*model.Account, error) {
 	if m.renameErr != nil {
-		return m.renameErr
+		return nil, m.renameErr
 	}
-	m.renameCalls = append(m.renameCalls, struct{ old, new string }{oldName, newSegment})
+	m.renameCalls = append(m.renameCalls, struct{ old, new string }{oldName, newFullName})
 	acc := m.accounts[oldName]
 	delete(m.accounts, oldName)
-	acc.Name = newSegment
-	m.accounts[newSegment] = acc
-	return nil
+	acc.Name = newFullName
+	m.accounts[newFullName] = acc
+	return acc, nil
 }
 
 func (m *mockAccountMigrator) DeleteAccountByName(_ context.Context, name string) error {
@@ -87,7 +87,7 @@ func usdConfig() *config.Config {
 }
 
 func TestMigrateLegacySysAccWith(t *testing.T) {
-	t.Run("renames legacy account to currency-suffixed leaf segment", func(t *testing.T) {
+	t.Run("renames legacy account to currency-suffixed full path", func(t *testing.T) {
 		mock := newMockAccountMigrator()
 		mock.add(model.LegacyOpeningBalancesName)
 
@@ -96,7 +96,7 @@ func TestMigrateLegacySysAccWith(t *testing.T) {
 
 		require.Len(t, mock.renameCalls, 1)
 		assert.Equal(t, model.LegacyOpeningBalancesName, mock.renameCalls[0].old)
-		assert.Equal(t, "OpeningBalances_USD", mock.renameCalls[0].new)
+		assert.Equal(t, "Equity:OpeningBalances_USD", mock.renameCalls[0].new)
 		assert.Empty(t, mock.deleteCalls)
 	})
 

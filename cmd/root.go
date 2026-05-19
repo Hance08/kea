@@ -180,7 +180,7 @@ func initSysAcc(ctx context.Context, svc *service.Service, cfg *config.Config) e
 
 type accountMigrator interface {
 	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
-	RenameAccount(ctx context.Context, oldName, newSegment string) error
+	RenameAccount(ctx context.Context, oldName, newFullName string) (*model.Account, error)
 	DeleteAccountByName(ctx context.Context, name string) error
 }
 
@@ -193,8 +193,6 @@ func migrateLegacySysAcc(ctx context.Context, svc *service.Service, cfg *config.
 
 func migrateLegacySysAccWith(ctx context.Context, acc accountMigrator, cfg *config.Config) error {
 	fullTargetName := model.OpeningBalancesAccountName(cfg.Defaults.Currency)
-	idx := strings.LastIndex(fullTargetName, ":")
-	leafSegment := fullTargetName[idx+1:]
 
 	// Nothing to migrate if legacy account is already gone.
 	_, err := acc.GetAccountByName(ctx, model.LegacyOpeningBalancesName)
@@ -222,7 +220,7 @@ func migrateLegacySysAccWith(ctx context.Context, acc accountMigrator, cfg *conf
 		return fmt.Errorf("failed to check target system account: %w", err)
 	}
 
-	if err := acc.RenameAccount(ctx, model.LegacyOpeningBalancesName, leafSegment); err != nil {
+	if _, err := acc.RenameAccount(ctx, model.LegacyOpeningBalancesName, fullTargetName); err != nil {
 		return fmt.Errorf("failed to migrate legacy system account: %w", err)
 	}
 

@@ -209,7 +209,7 @@ func TestRenameAccount_DuplicateName_ReturnsValidationError(t *testing.T) {
 	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Existing", Type: model.AccountTypeAsset})
 
 	svc := newTestAccountService(accRepo, newMockTransactionRepo())
-	err := svc.RenameAccount(context.Background(), "Assets:Old", "Existing")
+	_, err := svc.RenameAccount(context.Background(), "Assets:Old", "Assets:Existing")
 	assert.Error(t, err)
 
 	var ve *ValidationError

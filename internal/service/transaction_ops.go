@@ -215,6 +215,9 @@ func (ts *TransactionService) DeleteTransaction(ctx context.Context, txID int64)
 
 	tx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("transaction #%d: %w", txID, ErrNotFound)
+		}
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 

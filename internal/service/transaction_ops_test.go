@@ -432,10 +432,11 @@ func TestDeleteTransaction(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrNotEditable), "expected ErrNotEditable, got: %v", err)
 	})
 
-	t.Run("non-existent transaction returns error", func(t *testing.T) {
+	t.Run("non-existent transaction returns ErrNotFound", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		err := svc.DeleteTransaction(context.Background(), 999)
 		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound), "expected ErrNotFound, got: %v", err)
 	})
 
 	t.Run("reconciled transaction rejected", func(t *testing.T) {

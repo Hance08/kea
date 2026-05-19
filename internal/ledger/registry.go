@@ -217,27 +217,30 @@ func (r *Registry) Watch(ctx context.Context) error {
 	r.watcher = w
 	r.mu.Unlock()
 
-	defer w.Close()
+	defer func() {
+		r.mu.Lock()
+		r.watcher = nil
+		r.mu.Unlock()
+		_ = w.Close()
+	}()
 
 	if err := w.Add(r.filePath); err != nil {
 		return fmt.Errorf("watch %s: %w", r.filePath, err)
 	}
 
-	var (
-		debounce *time.Timer
-		wg       sync.WaitGroup
-	)
+	var debounce *time.Timer
 	for {
 		select {
 		case <-ctx.Done():
 			if debounce != nil {
 				debounce.Stop()
 			}
-			wg.Wait()
 			return ctx.Err()
 		case event, ok := <-w.Events:
 			if !ok {
-				wg.Wait()
+				if debounce != nil {
+					debounce.Stop()
+				}
 				return nil
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create) == 0 {
@@ -246,14 +249,14 @@ func (r *Registry) Watch(ctx context.Context) error {
 			if debounce != nil {
 				debounce.Stop()
 			}
-			wg.Add(1)
 			debounce = time.AfterFunc(debounceDuration, func() {
-				defer wg.Done()
 				r.reload()
 			})
 		case err, ok := <-w.Errors:
 			if !ok {
-				wg.Wait()
+				if debounce != nil {
+					debounce.Stop()
+				}
 				return nil
 			}
 			fmt.Fprintf(os.Stderr, "ledger watcher error: %v\n", err)

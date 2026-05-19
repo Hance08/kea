@@ -381,10 +381,10 @@ func TestWatch_DebouncesRapidWrites(t *testing.T) {
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	watchDone := make(chan struct{})
 	go func() {
 		_ = r.Watch(ctx)
+		close(watchDone)
 	}()
 
 	time.Sleep(200 * time.Millisecond)
@@ -408,4 +408,7 @@ func TestWatch_DebouncesRapidWrites(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for OnSwitch callback")
 	}
+
+	cancel()
+	<-watchDone
 }

@@ -116,8 +116,6 @@ func (s *Store) MarkSplitsReconciledByAccount(ctx context.Context, accountID int
 // in a single UPDATE statement. Returns an error if the affected row count
 // does not match len(txIDs) — indicating one or more IDs did not exist.
 func (s *Store) BulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, status model.TransactionStatus) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	if len(txIDs) == 0 {
 		return nil
 	}

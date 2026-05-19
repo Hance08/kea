@@ -217,8 +217,6 @@ func (s *Store) GetAccountBalance(ctx context.Context, accountID int64) (int64, 
 }
 
 func (s *Store) scanAccounts(rows *sql.Rows) ([]*model.Account, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	var accounts []*model.Account
 	for rows.Next() {
 		acc := &model.Account{}

@@ -558,9 +558,6 @@ func (s *Store) ListTransactionsByAccount(ctx context.Context, accountID int64, 
 }
 
 func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
 	var transactions []*model.Transaction
 	for rows.Next() {
 		tx := &model.Transaction{}

@@ -40,6 +40,17 @@ func (as *AccountService) GetAccountByName(ctx context.Context, name string) (*m
 	return acc, nil
 }
 
+func (as *AccountService) GetAccountByID(ctx context.Context, id int64) (*model.Account, error) {
+	acc, err := as.repo.GetAccountByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, fmt.Errorf("account #%d: %w", id, ErrNotFound)
+		}
+		return nil, err
+	}
+	return acc, nil
+}
+
 func (as *AccountService) GetAccountsByType(ctx context.Context, accType model.AccountType) ([]*model.Account, error) {
 	return as.repo.GetAccountsByType(ctx, accType)
 }

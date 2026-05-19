@@ -109,13 +109,19 @@ func (s *Store) MarkSplitsReconciledByAccount(ctx context.Context, accountID int
 	}
 
 	// 2. Upgrade all affected transactions to StatusReconciled.
-	return rowsAffected, s.BulkUpdateTransactionStatus(ctx, txIDs, model.StatusReconciled)
+	return rowsAffected, s.bulkUpdateTransactionStatus(ctx, txIDs, model.StatusReconciled)
 }
 
 // BulkUpdateTransactionStatus sets the status of all listed transaction IDs
 // in a single UPDATE statement. Returns an error if the affected row count
 // does not match len(txIDs) — indicating one or more IDs did not exist.
 func (s *Store) BulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, status model.TransactionStatus) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.bulkUpdateTransactionStatus(ctx, txIDs, status)
+}
+
+func (s *Store) bulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, status model.TransactionStatus) error {
 	if len(txIDs) == 0 {
 		return nil
 	}

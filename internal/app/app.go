@@ -50,6 +50,7 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 			return
 		}
 		cfg.ActiveLedger = name
+		cfg.Database.Path = path
 	})
 
 	cleanup := func() {

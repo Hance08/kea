@@ -20,8 +20,7 @@ type listFlags struct {
 }
 
 type AccountListProvider interface {
-	GetAccountsByType(ctx context.Context, accType model.AccountType) ([]*model.Account, error)
-	GetAllAccounts(ctx context.Context) ([]*model.Account, error)
+	ListAccounts(ctx context.Context, opts service.ListAccountsOptions) ([]*model.Account, error)
 	GetAccountBalance(ctx context.Context, id int64) (int64, error)
 	GetAccountBalanceFormatted(ctx context.Context, id int64) (string, error)
 }
@@ -57,22 +56,17 @@ You can filter by account type or show hidden accounts.`,
 }
 
 func (r *listRunner) Run(ctx context.Context) error {
-
-	var accounts []*model.Account
-	var err error
-
+	opts := service.ListAccountsOptions{
+		ShowHidden: r.flags.ShowHidden,
+	}
 	if r.flags.Type != "" {
-		accounts, err = r.svc.GetAccountsByType(ctx, model.AccountType(r.flags.Type))
-	} else {
-		accounts, err = r.svc.GetAllAccounts(ctx)
+		at := model.AccountType(r.flags.Type)
+		opts.Type = &at
 	}
 
+	accounts, err := r.svc.ListAccounts(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to get accounts: %w", err)
-	}
-
-	if !r.flags.ShowHidden {
-		accounts = r.filterHiddenAccounts(accounts)
 	}
 
 	if r.flags.JSON {
@@ -89,14 +83,4 @@ func (r *listRunner) Run(ctx context.Context) error {
 	return views.NewAccountListView().Render(accounts, func(id int64) (string, error) {
 		return r.svc.GetAccountBalanceFormatted(ctx, id)
 	})
-}
-
-func (r *listRunner) filterHiddenAccounts(accounts []*model.Account) []*model.Account {
-	var filtered []*model.Account
-	for _, acc := range accounts {
-		if !acc.IsHidden {
-			filtered = append(filtered, acc)
-		}
-	}
-	return filtered
 }

@@ -25,6 +25,37 @@ func NewAccountService(repo repository.AccountRepository, cfg *config.Config, tm
 	return &AccountService{repo: repo, config: cfg, tm: tm}
 }
 
+type ListAccountsOptions struct {
+	Type       *model.AccountType
+	ShowHidden bool
+}
+
+func (as *AccountService) ListAccounts(ctx context.Context, opts ListAccountsOptions) ([]*model.Account, error) {
+	var accounts []*model.Account
+	var err error
+
+	if opts.Type != nil {
+		accounts, err = as.repo.GetAccountsByType(ctx, *opts.Type)
+	} else {
+		accounts, err = as.repo.GetAllAccounts(ctx)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if !opts.ShowHidden {
+		filtered := make([]*model.Account, 0, len(accounts))
+		for _, acc := range accounts {
+			if !acc.IsHidden {
+				filtered = append(filtered, acc)
+			}
+		}
+		accounts = filtered
+	}
+
+	return accounts, nil
+}
+
 func (as *AccountService) GetAllAccounts(ctx context.Context) ([]*model.Account, error) {
 	return as.repo.GetAllAccounts(ctx)
 }

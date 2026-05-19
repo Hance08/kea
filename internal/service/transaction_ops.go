@@ -268,7 +268,10 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, input.ID)
 	if err != nil {
-		return fmt.Errorf("transaction not found: %w", err)
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("transaction #%d: %w", input.ID, ErrNotFound)
+		}
+		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 
 	if oldTx.Status == model.StatusReconciled {

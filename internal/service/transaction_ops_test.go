@@ -597,11 +597,18 @@ func TestUpdateTransactionComplete(t *testing.T) {
 		assert.Equal(t, "status", ve.Field)
 	})
 
-	t.Run("non-existent transaction returns error", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.UpdateTransactionComplete(context.Background(), model.UpdateTransactionInput{ID: 999, Description: "", Timestamp: 0, Status: model.StatusPending, Type: model.TxTypeExpense,
-			Splits: []model.SplitDetail{{AccountID: 1, Amount: 0}, {AccountID: 2, Amount: 0}}})
+	t.Run("non-existent transaction returns ErrNotFound", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		err := svc.UpdateTransactionComplete(context.Background(), model.UpdateTransactionInput{
+			ID:     999,
+			Status: model.StatusPending,
+			Splits: []model.SplitDetail{{AccountID: 1, Amount: 100}, {AccountID: 2, Amount: -100}},
+		})
 		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound), "expected ErrNotFound, got: %v", err)
 	})
 
 	t.Run("reconciled transaction rejected", func(t *testing.T) {

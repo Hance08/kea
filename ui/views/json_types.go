@@ -39,6 +39,7 @@ type JSONTxDetail struct {
 	ID          int64             `json:"id"`
 	Date        string            `json:"date"`
 	Description string            `json:"description"`
+	Type        string            `json:"type"`
 	Status      string            `json:"status"`
 	Splits      []JSONSplitDetail `json:"splits"`
 }
@@ -101,6 +102,7 @@ func ToJSONTxDetail(d *model.TransactionDetail) JSONTxDetail {
 		ID:          d.ID,
 		Date:        time.Unix(d.Timestamp, 0).Format(model.DateFormat),
 		Description: d.Description,
+		Type:        string(d.Type),
 		Status:      d.Status.String(),
 		Splits:      splits,
 	}

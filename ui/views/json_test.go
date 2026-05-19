@@ -50,6 +50,7 @@ func TestToJSONTxDetail(t *testing.T) {
 		Timestamp:   1711238400, // 2024-03-24
 		Description: "Buy coffee",
 		Status:      model.StatusCleared,
+		Type:        model.TxTypeExpense,
 		Splits: []model.SplitDetail{
 			{ID: 1, AccountID: 10, AccountName: "Assets:Cash", AccountType: model.AccountTypeAsset, Amount: -500, Currency: "TWD", Memo: ""},
 			{ID: 2, AccountID: 20, AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500, Currency: "TWD", Memo: "lunch"},
@@ -58,6 +59,7 @@ func TestToJSONTxDetail(t *testing.T) {
 	got := ToJSONTxDetail(detail)
 	assert.Equal(t, int64(42), got.ID)
 	assert.Equal(t, "Cleared", got.Status)
+	assert.Equal(t, "Expense", got.Type)
 	assert.Len(t, got.Splits, 2)
 	assert.Equal(t, -5.0, got.Splits[0].Amount)
 	assert.Equal(t, 5.0, got.Splits[1].Amount)

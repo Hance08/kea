@@ -4,10 +4,13 @@
 package ledger
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -244,4 +247,156 @@ func TestRemove_PersistsToDisk(t *testing.T) {
 	r2, err := Load(dir)
 	require.NoError(t, err)
 	assert.NotContains(t, r2.Ledgers, "personal")
+}
+
+func TestWatch_FiresOnSwitch(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+
+	var gotName, gotPath string
+	done := make(chan struct{})
+	r.OnSwitch(func(name, path string) {
+		gotName = name
+		gotPath = path
+		close(done)
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		_ = r.Watch(ctx)
+	}()
+
+	// Give the watcher time to start.
+	time.Sleep(200 * time.Millisecond)
+
+	// Simulate an external process switching the ledger.
+	r2, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r2.Switch("work"))
+
+	select {
+	case <-done:
+		assert.Equal(t, "work", gotName)
+		assert.Equal(t, "/tmp/work.db", gotPath)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for OnSwitch callback")
+	}
+}
+
+func TestWatch_NoCallbackWhenActiveUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+
+	called := make(chan struct{}, 1)
+	r.OnSwitch(func(name, path string) {
+		called <- struct{}{}
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		_ = r.Watch(ctx)
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	// Write the same active ledger — should NOT fire callback.
+	r2, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r2.Switch("default"))
+
+	select {
+	case <-called:
+		t.Fatal("callback should not fire when active ledger is unchanged")
+	case <-time.After(500 * time.Millisecond):
+		// OK — no callback fired.
+	}
+}
+
+func TestWatch_StopWatchPreventsCallbacks(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+
+	called := make(chan struct{}, 1)
+	r.OnSwitch(func(name, path string) {
+		called <- struct{}{}
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	watchDone := make(chan struct{})
+	go func() {
+		_ = r.Watch(ctx)
+		close(watchDone)
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	// Stop the watcher.
+	r.StopWatch()
+	cancel()
+	<-watchDone
+
+	// Switch after stop — no callback should fire.
+	r2, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r2.Switch("work"))
+
+	select {
+	case <-called:
+		t.Fatal("callback should not fire after StopWatch")
+	case <-time.After(500 * time.Millisecond):
+		// OK.
+	}
+}
+
+func TestWatch_DebouncesRapidWrites(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
+
+	var callCount int32
+	var lastName string
+	done := make(chan struct{}, 10)
+	r.OnSwitch(func(name, path string) {
+		atomic.AddInt32(&callCount, 1)
+		lastName = name
+		done <- struct{}{}
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		_ = r.Watch(ctx)
+	}()
+
+	time.Sleep(200 * time.Millisecond)
+
+	// Rapid-fire switches: default → work → personal (within debounce window).
+	r2, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r2.Switch("work"))
+	require.NoError(t, r2.Switch("personal"))
+
+	select {
+	case <-done:
+		// Wait a bit more to see if extra callbacks arrive.
+		time.Sleep(300 * time.Millisecond)
+		count := atomic.LoadInt32(&callCount)
+		assert.Equal(t, int32(1), count, "debounce should coalesce rapid writes into a single callback")
+		assert.Equal(t, "personal", lastName, "should reflect the final state")
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for OnSwitch callback")
+	}
 }

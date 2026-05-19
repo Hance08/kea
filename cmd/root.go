@@ -112,7 +112,7 @@ func Execute(migrations fs.FS) {
 		cfg.Database.Path = activePath
 		cfg.ActiveLedger = registry.ActiveName()
 
-		application, cleanup, err := app.NewApp(cfg, migrations)
+		application, cleanup, err := app.NewApp(cfg, registry, migrations)
 		if err != nil {
 			pterm.Error.Println(err)
 			return 1

@@ -150,14 +150,18 @@ func (r *editRunner) applyChanges(ctx context.Context, acc *model.Account, input
 	finalName := acc.Name
 
 	if input.newName != nil {
-		if err := r.svc.RenameAccount(ctx, acc.Name, *input.newName); err != nil {
+		var newFullName string
+		if idx := strings.LastIndex(acc.Name, ":"); idx >= 0 {
+			newFullName = acc.Name[:idx+1] + *input.newName
+		} else {
+			newFullName = *input.newName
+		}
+		renamed, err := r.svc.RenameAccount(ctx, acc.Name, newFullName)
+		if err != nil {
 			return "", fmt.Errorf("failed to rename account: %w", err)
 		}
-		if idx := strings.LastIndex(acc.Name, ":"); idx >= 0 {
-			finalName = acc.Name[:idx+1] + *input.newName
-		} else {
-			finalName = *input.newName
-		}
+		finalName = renamed.Name
+		acc = renamed
 	}
 
 	if input.description != nil || input.isHidden != nil {
@@ -169,7 +173,7 @@ func (r *editRunner) applyChanges(ctx context.Context, acc *model.Account, input
 		if input.isHidden != nil {
 			hidden = *input.isHidden
 		}
-		if err := r.svc.UpdateAccountMetadata(ctx, acc.ID, desc, hidden); err != nil {
+		if _, err := r.svc.UpdateAccountMetadata(ctx, acc.ID, desc, hidden); err != nil {
 			return "", fmt.Errorf("failed to update account: %w", err)
 		}
 	}

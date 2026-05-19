@@ -522,10 +522,11 @@ func TestUpdateTransactionStatus(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrNotEditable), "expected ErrNotEditable, got: %v", err)
 	})
 
-	t.Run("non-existent transaction returns error", func(t *testing.T) {
+	t.Run("non-existent transaction returns ErrNotFound", func(t *testing.T) {
 		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 		err := svc.UpdateTransactionStatus(context.Background(), 999, model.StatusCleared)
 		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound), "expected ErrNotFound, got: %v", err)
 	})
 }
 

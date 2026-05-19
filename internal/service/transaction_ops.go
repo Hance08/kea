@@ -242,7 +242,10 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
-		return fmt.Errorf("transaction not found: %w", err)
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("transaction #%d: %w", txID, ErrNotFound)
+		}
+		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 
 	if oldTx.Status == model.StatusReconciled {

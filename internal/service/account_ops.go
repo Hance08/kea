@@ -216,9 +216,20 @@ func (as *AccountService) RenameAccount(ctx context.Context, oldName, newFullNam
 		return nil, fmt.Errorf("account %q is a system account and cannot be edited: %w", acc.Name, ErrNotEditable)
 	}
 
+	oldPrefix := ""
+	if idx := strings.LastIndex(acc.Name, ":"); idx >= 0 {
+		oldPrefix = acc.Name[:idx+1]
+	}
+
+	newPrefix := ""
 	segment := newFullName
 	if idx := strings.LastIndex(newFullName, ":"); idx >= 0 {
+		newPrefix = newFullName[:idx+1]
 		segment = newFullName[idx+1:]
+	}
+
+	if newPrefix != oldPrefix {
+		return nil, validationErrorf("name", "rename cannot change parent path")
 	}
 
 	if err := as.ValidateAccountName(segment); err != nil {

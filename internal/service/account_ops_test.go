@@ -573,7 +573,7 @@ func TestGetAccountBalance(t *testing.T) {
 // ──────────────────────────────────────────────
 
 func TestRenameAccount(t *testing.T) {
-	t.Run("leaf account renamed with correct full name constructed", func(t *testing.T) {
+	t.Run("leaf account renamed to new full name", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
 		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
 		svc := newTestAccountService(accRepo, newMockTransactionRepo())
@@ -621,6 +621,17 @@ func TestRenameAccount(t *testing.T) {
 
 		_, err := svc.RenameAccount(context.Background(), "Assets:Bank", "")
 		require.Error(t, err)
+		assert.Empty(t, accRepo.renameCalls)
+	})
+
+	t.Run("rename changing parent path is rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.RenameAccount(context.Background(), "Assets:Bank", "Liabilities:Bank")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "rename cannot change parent path")
 		assert.Empty(t, accRepo.renameCalls)
 	})
 

@@ -83,7 +83,7 @@ func (r *addRunner) runInteractive(ctx context.Context) (addTransactionInput, er
 		return addTransactionInput{}, err
 	}
 
-	mode := r.determineMode(rawType)
+	mode := model.ParseTransactionTypeLabel(rawType)
 
 	// Step 2: Get description (optional)
 	description, err := prompts.PromptDescription("Transaction description (optional):", false)
@@ -188,16 +188,6 @@ func (r *addRunner) validateAccountSelectable(ctx context.Context, accountName s
 	return nil
 }
 
-func (r *addRunner) determineMode(rawInput string) model.TransactionType {
-	lower := strings.ToLower(rawInput)
-	if strings.Contains(lower, "expense") {
-		return model.TxTypeExpense
-	}
-	if strings.Contains(lower, "income") {
-		return model.TxTypeIncome
-	}
-	return model.TxTypeTransfer
-}
 
 var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
 	model.TxTypeExpense:  {"Payment Source:", "Expense Type:"},

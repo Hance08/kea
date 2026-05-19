@@ -173,6 +173,9 @@ func (as *AccountService) createOpeningBalanceInRepo(ctx context.Context, repo r
 func (as *AccountService) DeleteAccountByName(ctx context.Context, name string) error {
 	acc, err := as.repo.GetAccountByName(ctx, name)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("account %q: %w", name, ErrNotFound)
+		}
 		return err
 	}
 

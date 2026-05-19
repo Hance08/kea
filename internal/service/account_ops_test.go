@@ -521,6 +521,15 @@ func TestDeleteAccountByName(t *testing.T) {
 		err := svc.DeleteAccountByName(context.Background(), "Assets:NonExistent")
 		require.Error(t, err)
 	})
+
+	t.Run("non-existent account returns ErrNotFound", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		err := svc.DeleteAccountByName(context.Background(), "Assets:DoesNotExist")
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound), "expected ErrNotFound, got: %v", err)
+	})
 }
 
 // ──────────────────────────────────────────────

@@ -215,6 +215,9 @@ func (ts *TransactionService) DeleteTransaction(ctx context.Context, txID int64)
 
 	tx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("transaction #%d: %w", txID, ErrNotFound)
+		}
 		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 
@@ -239,7 +242,10 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
-		return fmt.Errorf("transaction not found: %w", err)
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("transaction #%d: %w", txID, ErrNotFound)
+		}
+		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 
 	if oldTx.Status == model.StatusReconciled {
@@ -262,7 +268,10 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, input.ID)
 	if err != nil {
-		return fmt.Errorf("transaction not found: %w", err)
+		if errors.Is(err, repository.ErrNotFound) {
+			return fmt.Errorf("transaction #%d: %w", input.ID, ErrNotFound)
+		}
+		return fmt.Errorf("failed to get transaction: %w", err)
 	}
 
 	if oldTx.Status == model.StatusReconciled {

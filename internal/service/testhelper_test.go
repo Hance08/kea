@@ -307,7 +307,7 @@ func (m *mockTransactionRepo) GetTransactionByID(_ context.Context, txID int64) 
 	}
 	tx, ok := m.transactions[txID]
 	if !ok {
-		return nil, fmt.Errorf("transaction ID %d not found", txID)
+		return nil, fmt.Errorf("transaction ID %d not found: %w", txID, repository.ErrNotFound)
 	}
 	return tx, nil
 }

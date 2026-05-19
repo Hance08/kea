@@ -87,7 +87,7 @@ func usdConfig() *config.Config {
 }
 
 func TestMigrateLegacySysAccWith(t *testing.T) {
-	t.Run("renames legacy account to currency-suffixed leaf segment", func(t *testing.T) {
+	t.Run("renames legacy account to currency-suffixed full path", func(t *testing.T) {
 		mock := newMockAccountMigrator()
 		mock.add(model.LegacyOpeningBalancesName)
 

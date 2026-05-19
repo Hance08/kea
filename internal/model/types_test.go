@@ -55,6 +55,30 @@ func TestParseTransactionType(t *testing.T) {
 	}
 }
 
+func TestParseTransactionTypeLabel(t *testing.T) {
+	tests := []struct {
+		input string
+		want  TransactionType
+	}{
+		{"Expense (pay a bill...)", TxTypeExpense},
+		{"expense", TxTypeExpense},
+		{"EXPENSE", TxTypeExpense},
+		{"Income (receive payment...)", TxTypeIncome},
+		{"income", TxTypeIncome},
+		{"Transfer (move between accounts)", TxTypeTransfer},
+		{"transfer", TxTypeTransfer},
+		{"something else", TxTypeTransfer},
+		{"", TxTypeTransfer},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := ParseTransactionTypeLabel(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestParseTransactionStatus(t *testing.T) {
 	tests := []struct {
 		input string

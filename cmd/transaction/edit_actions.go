@@ -6,7 +6,6 @@ package transaction
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/utils"
@@ -261,7 +260,7 @@ func (r *editRunner) actionEditType(ctx context.Context, detail *model.Transacti
 		return err
 	}
 
-	newType := r.determineMode(rawType)
+	newType := model.ParseTransactionTypeLabel(rawType)
 
 	if err := r.txSvc.ValidateSplitsMatchType(ctx, newType, detail.Splits); err != nil {
 		r.view.ShowWarning(fmt.Sprintf("Cannot change type to %s: %s", newType, err.Error()))
@@ -274,16 +273,6 @@ func (r *editRunner) actionEditType(ctx context.Context, detail *model.Transacti
 	return nil
 }
 
-func (r *editRunner) determineMode(rawInput string) model.TransactionType {
-	lower := strings.ToLower(rawInput)
-	if strings.Contains(lower, "expense") {
-		return model.TxTypeExpense
-	}
-	if strings.Contains(lower, "income") {
-		return model.TxTypeIncome
-	}
-	return model.TxTypeTransfer
-}
 
 func (r *editRunner) actionSave(ctx context.Context, detail *model.TransactionDetail) error {
 	// Validate via Service

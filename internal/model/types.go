@@ -162,6 +162,17 @@ func ParseTransactionType(s string) (TransactionType, error) {
 	}
 }
 
+func ParseTransactionTypeLabel(s string) TransactionType {
+	lower := strings.ToLower(s)
+	if strings.Contains(lower, "expense") {
+		return TxTypeExpense
+	}
+	if strings.Contains(lower, "income") {
+		return TxTypeIncome
+	}
+	return TxTypeTransfer
+}
+
 func ParseTransactionStatus(s string) TransactionStatus {
 	if strings.ToLower(s) == "pending" {
 		return StatusPending

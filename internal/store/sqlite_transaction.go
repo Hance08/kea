@@ -16,6 +16,9 @@ import (
 // CreateTransactionWithSplits inserts a transaction and its splits.
 // It relies on the caller (Service layer) to wrap it in ExecTx for atomicity.
 func (s *Store) CreateTransactionWithSplits(ctx context.Context, tx model.Transaction, splits []model.Split) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	stmtTx, err := s.db.PrepareContext(ctx, `
         INSERT INTO transactions (timestamp, description, status, external_id, type)
         VALUES (?, ?, ?, ?, ?)
@@ -63,6 +66,9 @@ func (s *Store) CreateTransactionWithSplits(ctx context.Context, tx model.Transa
 }
 
 func (s *Store) GetTransactionByID(ctx context.Context, txID int64) (*model.Transaction, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	var tx model.Transaction
 	err := s.db.QueryRowContext(ctx, `
         SELECT id, timestamp, description, status, external_id, type
@@ -79,6 +85,9 @@ func (s *Store) GetTransactionByID(ctx context.Context, txID int64) (*model.Tran
 }
 
 func (s *Store) GetTransactionsByAccount(ctx context.Context, accountID int64, limit int) ([]*model.Transaction, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if limit <= 0 {
 		limit = 100
 	}
@@ -102,6 +111,9 @@ func (s *Store) GetTransactionsByAccount(ctx context.Context, accountID int64, l
 }
 
 func (s *Store) GetTransactionsByDateRange(ctx context.Context, startTime, endTime int64) ([]*model.Transaction, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	rows, err := s.db.QueryContext(ctx, `
         SELECT id, timestamp, description, status, external_id, type
         FROM transactions
@@ -119,6 +131,9 @@ func (s *Store) GetTransactionsByDateRange(ctx context.Context, startTime, endTi
 }
 
 func (s *Store) GetAllTransactions(ctx context.Context, limit int) ([]*model.Transaction, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if limit <= 0 {
 		limit = 100
 	}
@@ -140,6 +155,9 @@ func (s *Store) GetAllTransactions(ctx context.Context, limit int) ([]*model.Tra
 }
 
 func (s *Store) UpdateTransactionStatus(ctx context.Context, txID int64, status model.TransactionStatus) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	result, err := s.db.ExecContext(ctx, `
         UPDATE transactions
         SET status = ?
@@ -162,6 +180,9 @@ func (s *Store) UpdateTransactionStatus(ctx context.Context, txID int64, status 
 }
 
 func (s *Store) DeleteTransaction(ctx context.Context, txID int64) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	result, err := s.db.ExecContext(ctx, `
         DELETE FROM transactions
         WHERE id = ?
@@ -183,6 +204,9 @@ func (s *Store) DeleteTransaction(ctx context.Context, txID int64) error {
 }
 
 func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	result, err := s.db.ExecContext(ctx, `
         UPDATE transactions
         SET description = ?, timestamp = ?, status = ?, type = ?
@@ -205,6 +229,9 @@ func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, descript
 }
 
 func (s *Store) UpdateSplit(ctx context.Context, splitID int64, accountID int64, amount int64, currency string, memo string) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	result, err := s.db.ExecContext(ctx, `
         UPDATE splits
         SET account_id = ?, amount = ?, currency = ?, memo = ?
@@ -227,6 +254,9 @@ func (s *Store) UpdateSplit(ctx context.Context, splitID int64, accountID int64,
 }
 
 func (s *Store) DeleteSplit(ctx context.Context, splitID int64) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	result, err := s.db.ExecContext(ctx, `
         DELETE FROM splits
         WHERE id = ?
@@ -248,6 +278,9 @@ func (s *Store) DeleteSplit(ctx context.Context, splitID int64) error {
 }
 
 func (s *Store) CreateSplit(ctx context.Context, txID int64, split *model.Split) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	result, err := s.db.ExecContext(ctx, `
         INSERT INTO splits (transaction_id, account_id, amount, currency, memo)
         VALUES (?, ?, ?, ?, ?)
@@ -265,6 +298,9 @@ func (s *Store) CreateSplit(ctx context.Context, txID int64, split *model.Split)
 }
 
 func (s *Store) GetSplitsByTransaction(ctx context.Context, txID int64) ([]*model.Split, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	rows, err := s.db.QueryContext(ctx, `
         SELECT id, transaction_id, account_id, amount, currency, memo
         FROM splits
@@ -299,6 +335,9 @@ func (s *Store) GetSplitsByTransaction(ctx context.Context, txID int64) ([]*mode
 }
 
 func (s *Store) GetSplitsWithAccountsByDateRange(ctx context.Context, startTime, endTime int64) (map[int64][]model.SplitDetail, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	rows, err := s.db.QueryContext(ctx, `
         SELECT
             s.id, s.transaction_id, s.account_id, s.amount, s.currency, s.memo,
@@ -333,6 +372,9 @@ func (s *Store) GetSplitsWithAccountsByDateRange(ctx context.Context, startTime,
 }
 
 func (s *Store) GetSplitsWithAccountsByTransaction(ctx context.Context, txID int64) ([]model.SplitDetail, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	rows, err := s.db.QueryContext(ctx, `
         SELECT
             s.id, s.account_id, s.amount, s.currency, s.memo,
@@ -368,6 +410,9 @@ func (s *Store) GetSplitsWithAccountsByTransaction(ctx context.Context, txID int
 // list command's --limit flag (default 20). SQLite's SQLITE_MAX_VARIABLE_NUMBER
 // is 999 by default, so this is safe for practical list sizes.
 func (s *Store) GetSplitsWithAccountsByTransactionIDs(ctx context.Context, txIDs []int64) (map[int64][]model.SplitDetail, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if len(txIDs) == 0 {
 		return make(map[int64][]model.SplitDetail), nil
 	}
@@ -428,6 +473,9 @@ func normalizeListOpts(opts model.ListOptions) model.ListOptions {
 }
 
 func (s *Store) ListTransactions(ctx context.Context, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	opts = normalizeListOpts(opts)
 
 	result := &model.ListResult[*model.Transaction]{
@@ -464,6 +512,9 @@ func (s *Store) ListTransactions(ctx context.Context, opts model.ListOptions) (*
 }
 
 func (s *Store) ListTransactionsByAccount(ctx context.Context, accountID int64, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	opts = normalizeListOpts(opts)
 
 	result := &model.ListResult[*model.Transaction]{
@@ -507,6 +558,9 @@ func (s *Store) ListTransactionsByAccount(ctx context.Context, accountID int64, 
 }
 
 func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	var transactions []*model.Transaction
 	for rows.Next() {
 		tx := &model.Transaction{}

@@ -255,6 +255,7 @@ func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, split
 	return "(multiple)", nil
 }
 
+// BuildTransactionListItems assembles display-ready list items from transactions and their details.
 func (ts *TransactionService) BuildTransactionListItems(ctx context.Context, txs []*model.Transaction, details map[int64]*model.TransactionDetail) []model.TransactionListItem {
 	items := make([]model.TransactionListItem, 0, len(txs))
 	for _, tx := range txs {
@@ -279,7 +280,7 @@ func (ts *TransactionService) BuildTransactionListItems(ctx context.Context, txs
 
 		items = append(items, model.TransactionListItem{
 			ID:            tx.ID,
-			Date:          time.Unix(tx.Timestamp, 0).UTC().Format(model.DateFormat),
+			Date:          time.Unix(tx.Timestamp, 0).Format(model.DateFormat),
 			Type:          txType,
 			Account:       accountName,
 			OffsetAccount: offsetAccount,

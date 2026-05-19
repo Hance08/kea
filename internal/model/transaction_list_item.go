@@ -3,6 +3,7 @@
 
 package model
 
+// TransactionListItem is a display-ready projection of a transaction for list views.
 type TransactionListItem struct {
 	ID            int64
 	Date          string

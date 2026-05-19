@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/stretchr/testify/assert"
@@ -590,7 +591,7 @@ func TestBuildTransactionListItems(t *testing.T) {
 	require.Len(t, items, 1)
 	item := items[0]
 	assert.Equal(t, int64(10), item.ID)
-	assert.Equal(t, "2023-11-14", item.Date)
+	assert.Equal(t, time.Unix(1700000000, 0).Format(model.DateFormat), item.Date)
 	assert.Equal(t, "Expense", item.Type)
 	assert.Equal(t, "Expenses:Food", item.Account)
 	assert.Equal(t, "Assets:Bank", item.OffsetAccount)

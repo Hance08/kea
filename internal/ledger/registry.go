@@ -192,16 +192,28 @@ func (r *Registry) OnSwitch(fn func(name, path string)) {
 	r.callbacks = append(r.callbacks, fn)
 }
 
+const debounceDuration = 100 * time.Millisecond
+
+// ErrWatcherAlreadyRunning is returned by Watch when a watcher is already active.
+var ErrWatcherAlreadyRunning = errors.New("watcher already running")
+
 // Watch monitors ledgers.yaml for changes and fires registered OnSwitch
 // callbacks when the active ledger changes. It blocks until ctx is cancelled
-// or the watcher is stopped via StopWatch. Includes a 100ms debounce to
-// coalesce rapid writes into a single callback.
+// or the watcher is stopped via StopWatch. Includes a debounce to coalesce
+// rapid writes into a single callback. Returns ErrWatcherAlreadyRunning if
+// Watch has already been called without a subsequent StopWatch.
 func (r *Registry) Watch(ctx context.Context) error {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("create watcher: %w", err)
 	}
+
 	r.mu.Lock()
+	if r.watcher != nil {
+		r.mu.Unlock()
+		_ = w.Close()
+		return ErrWatcherAlreadyRunning
+	}
 	r.watcher = w
 	r.mu.Unlock()
 
@@ -211,16 +223,21 @@ func (r *Registry) Watch(ctx context.Context) error {
 		return fmt.Errorf("watch %s: %w", r.filePath, err)
 	}
 
-	var debounce *time.Timer
+	var (
+		debounce *time.Timer
+		wg       sync.WaitGroup
+	)
 	for {
 		select {
 		case <-ctx.Done():
 			if debounce != nil {
 				debounce.Stop()
 			}
+			wg.Wait()
 			return ctx.Err()
 		case event, ok := <-w.Events:
 			if !ok {
+				wg.Wait()
 				return nil
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create) == 0 {
@@ -229,11 +246,14 @@ func (r *Registry) Watch(ctx context.Context) error {
 			if debounce != nil {
 				debounce.Stop()
 			}
-			debounce = time.AfterFunc(100*time.Millisecond, func() {
+			wg.Add(1)
+			debounce = time.AfterFunc(debounceDuration, func() {
+				defer wg.Done()
 				r.reload()
 			})
 		case err, ok := <-w.Errors:
 			if !ok {
+				wg.Wait()
 				return nil
 			}
 			fmt.Fprintf(os.Stderr, "ledger watcher error: %v\n", err)
@@ -265,30 +285,29 @@ func (r *Registry) reload() {
 		fmt.Fprintf(os.Stderr, "parse ledgers.yaml: %v\n", err)
 		return
 	}
-
-	prev := r.ActiveLedger
-	if fresh.ActiveLedger == prev {
-		return
-	}
-
-	r.ActiveLedger = fresh.ActiveLedger
-	r.Ledgers = fresh.Ledgers
-	if r.Ledgers == nil {
-		r.Ledgers = make(map[string]Entry)
-	}
-
-	entry, exists := r.Ledgers[r.ActiveLedger]
-	if !exists {
-		fmt.Fprintf(os.Stderr, "reloaded active ledger %q not found in registry\n", r.ActiveLedger)
-		return
+	if fresh.Ledgers == nil {
+		fresh.Ledgers = make(map[string]Entry)
 	}
 
 	r.mu.Lock()
+	prev := r.ActiveLedger
+	if fresh.ActiveLedger == prev {
+		r.mu.Unlock()
+		return
+	}
+	r.ActiveLedger = fresh.ActiveLedger
+	r.Ledgers = fresh.Ledgers
+	entry, exists := r.Ledgers[r.ActiveLedger]
 	cbs := make([]func(string, string), len(r.callbacks))
 	copy(cbs, r.callbacks)
 	r.mu.Unlock()
 
+	if !exists {
+		fmt.Fprintf(os.Stderr, "reloaded active ledger %q not found in registry\n", fresh.ActiveLedger)
+		return
+	}
+
 	for _, fn := range cbs {
-		fn(r.ActiveLedger, entry.Path)
+		fn(fresh.ActiveLedger, entry.Path)
 	}
 }

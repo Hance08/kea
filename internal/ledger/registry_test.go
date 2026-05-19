@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -366,11 +367,16 @@ func TestWatch_DebouncesRapidWrites(t *testing.T) {
 	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
 
 	var callCount int32
-	var lastName string
+	var (
+		lastNameMu sync.Mutex
+		lastName   string
+	)
 	done := make(chan struct{}, 10)
 	r.OnSwitch(func(name, path string) {
 		atomic.AddInt32(&callCount, 1)
+		lastNameMu.Lock()
 		lastName = name
+		lastNameMu.Unlock()
 		done <- struct{}{}
 	})
 
@@ -394,8 +400,11 @@ func TestWatch_DebouncesRapidWrites(t *testing.T) {
 		// Wait a bit more to see if extra callbacks arrive.
 		time.Sleep(300 * time.Millisecond)
 		count := atomic.LoadInt32(&callCount)
+		lastNameMu.Lock()
+		last := lastName
+		lastNameMu.Unlock()
 		assert.Equal(t, int32(1), count, "debounce should coalesce rapid writes into a single callback")
-		assert.Equal(t, "personal", lastName, "should reflect the final state")
+		assert.Equal(t, "personal", last, "should reflect the final state")
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for OnSwitch callback")
 	}

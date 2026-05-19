@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hance08/kea/internal/config"
@@ -52,6 +53,9 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 func (ts *TransactionService) GetTransactionByID(ctx context.Context, txID int64) (*model.TransactionDetail, error) {
 	tx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, fmt.Errorf("transaction #%d: %w", txID, ErrNotFound)
+		}
 		return nil, fmt.Errorf("failed to retrieve transaction %d: %w", txID, err)
 	}
 

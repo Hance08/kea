@@ -348,9 +348,10 @@ func expandPath(path string) (string, error) {
 }
 
 func setServerDefaults(v *viper.Viper) {
-	v.SetDefault("server.host", "localhost")
-	v.SetDefault("server.port", 8080)
-	v.SetDefault("server.cors_origins", []string{"http://localhost:5173"})
+	def := config.NewDefault()
+	v.SetDefault("server.host", def.Server.Host)
+	v.SetDefault("server.port", def.Server.Port)
+	v.SetDefault("server.cors_origins", def.Server.CORSOrigins)
 }
 
 func createDefaultConfig(appDir string) error {

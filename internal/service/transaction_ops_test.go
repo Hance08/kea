@@ -425,11 +425,13 @@ func TestDeleteTransaction(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("opening balance transaction (ID=1) rejected", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.DeleteTransaction(context.Background(), model.SystemTransactionID)
-		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrNotEditable), "expected ErrNotEditable, got: %v", err)
+	t.Run("transaction ID=1 is deletable when not reconciled", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Status: model.StatusCleared}, nil)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		err := svc.DeleteTransaction(context.Background(), 1)
+		require.NoError(t, err)
 	})
 
 	t.Run("non-existent transaction returns ErrNotFound", func(t *testing.T) {
@@ -515,11 +517,14 @@ func TestUpdateTransactionStatus(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrReconciled))
 	})
 
-	t.Run("system transaction (ID=1) rejected", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
-		err := svc.UpdateTransactionStatus(context.Background(), model.SystemTransactionID, model.StatusCleared)
-		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrNotEditable), "expected ErrNotEditable, got: %v", err)
+	t.Run("transaction ID=1 status can be updated", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Status: model.StatusPending}, nil)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		err := svc.UpdateTransactionStatus(context.Background(), 1, model.StatusCleared)
+		require.NoError(t, err)
+		assert.Equal(t, model.StatusCleared, txRepo.transactions[1].Status)
 	})
 
 	t.Run("non-existent transaction returns ErrNotFound", func(t *testing.T) {
@@ -906,15 +911,8 @@ func TestIsEditable(t *testing.T) {
 		assert.Equal(t, EditableOK, reason)
 	})
 
-	t.Run("opening balance transaction (ID=1) is not editable", func(t *testing.T) {
-		detail := &model.TransactionDetail{ID: model.SystemTransactionID}
-		editable, reason := svc.IsEditable(detail)
-		assert.False(t, editable)
-		assert.Equal(t, NotEditableSystemTx, reason)
-	})
-
-	t.Run("ID=2 is editable", func(t *testing.T) {
-		detail := &model.TransactionDetail{ID: 2}
+	t.Run("transaction ID=1 is editable", func(t *testing.T) {
+		detail := &model.TransactionDetail{ID: 1}
 		editable, reason := svc.IsEditable(detail)
 		assert.True(t, editable)
 		assert.Equal(t, EditableOK, reason)

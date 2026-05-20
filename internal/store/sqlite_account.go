@@ -349,10 +349,10 @@ func (s *Store) SearchAccounts(ctx context.Context, filter model.AccountFilter, 
 	var whereClauses []string
 	var args []any
 
-	if filter.Query != nil {
+	if filter.Query != nil && *filter.Query != "" {
 		escaped := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(*filter.Query)
-		whereClauses = append(whereClauses, `LOWER(name) LIKE '%' || LOWER(?) || '%' ESCAPE '\'`)
-		args = append(args, escaped)
+		whereClauses = append(whereClauses, `name LIKE ? ESCAPE '\'`)
+		args = append(args, "%"+escaped+"%")
 	}
 	if filter.Type != nil {
 		whereClauses = append(whereClauses, "type = ?")
@@ -362,6 +362,8 @@ func (s *Store) SearchAccounts(ctx context.Context, filter model.AccountFilter, 
 		whereClauses = append(whereClauses, "currency = ?")
 		args = append(args, *filter.Currency)
 	}
+	whereClauses = append(whereClauses, "is_hidden = 0")
+	whereClauses = append(whereClauses, "name NOT LIKE 'Equity:OpeningBalances_%'")
 
 	whereSQL := ""
 	if len(whereClauses) > 0 {

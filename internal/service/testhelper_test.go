@@ -219,7 +219,13 @@ func (m *mockAccountRepo) SearchAccounts(_ context.Context, filter model.Account
 	}
 	var items []*model.Account
 	for _, acc := range m.accountsByID {
-		if filter.Query != nil && !strings.Contains(strings.ToLower(acc.Name), strings.ToLower(*filter.Query)) {
+		if acc.IsHidden {
+			continue
+		}
+		if model.IsOpeningBalancesAccount(acc.Name) {
+			continue
+		}
+		if filter.Query != nil && *filter.Query != "" && !strings.Contains(strings.ToLower(acc.Name), strings.ToLower(*filter.Query)) {
 			continue
 		}
 		if filter.Type != nil && acc.Type != *filter.Type {

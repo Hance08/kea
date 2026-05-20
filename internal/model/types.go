@@ -58,6 +58,22 @@ func (at AccountType) RootName() (string, bool) {
 	return "", false
 }
 
+func AccountTypeFromRootName(root string) (AccountType, bool) {
+	switch strings.ToLower(root) {
+	case "assets":
+		return AccountTypeAsset, true
+	case "liabilities":
+		return AccountTypeLiability, true
+	case "equity":
+		return AccountTypeEquity, true
+	case "revenue":
+		return AccountTypeRevenue, true
+	case "expenses":
+		return AccountTypeExpense, true
+	}
+	return "", false
+}
+
 func (at AccountType) IsValid() bool {
 	switch at {
 	case AccountTypeAsset, AccountTypeLiability, AccountTypeEquity, AccountTypeRevenue, AccountTypeExpense:

@@ -243,6 +243,83 @@ func TestCreateAccount(t *testing.T) {
 }
 
 // ──────────────────────────────────────────────
+// Account type vs root-segment validation
+// ──────────────────────────────────────────────
+
+func TestCreateAccount_RootTypeMismatch(t *testing.T) {
+	t.Run("Expenses name with Asset type rejected", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Expenses:Food",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "type", ve.Field)
+		assert.Contains(t, err.Error(), "conflicts")
+	})
+
+	t.Run("Assets name with Expense type rejected", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Cash",
+			Type:     model.AccountTypeExpense,
+			Currency: "USD",
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "type", ve.Field)
+	})
+
+	t.Run("Liabilities name with Revenue type rejected", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Liabilities:Loan",
+			Type:     model.AccountTypeRevenue,
+			Currency: "USD",
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "type", ve.Field)
+	})
+
+	t.Run("matching root and type accepted", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Expenses:Food",
+			Type:     model.AccountTypeExpense,
+			Currency: "USD",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "Expenses:Food", acc.Name)
+		assert.Equal(t, model.AccountTypeExpense, acc.Type)
+	})
+
+	t.Run("case-insensitive root matching accepted", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "assets:Cash",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, model.AccountTypeAsset, acc.Type)
+	})
+}
+
+// ──────────────────────────────────────────────
 // createOpeningBalance (tested via CreateAccountWithBalance)
 // Verifies split direction — the most critical financial correctness test.
 // ──────────────────────────────────────────────
@@ -844,5 +921,82 @@ func TestValidateParentChain(t *testing.T) {
 		err := svc.validateParentChain(context.Background(), 5, int64Ptr(5))
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, ErrCircularParent))
+	})
+}
+
+// ──────────────────────────────────────────────
+// Account type vs parent type validation
+// ──────────────────────────────────────────────
+
+func TestCreateAccount_ParentTypeMismatch(t *testing.T) {
+	t.Run("child type differs from parent type rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Dining",
+			Type:     model.AccountTypeExpense,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "type", ve.Field)
+	})
+
+	t.Run("child type matches parent type accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Savings",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, model.AccountTypeAsset, acc.Type)
+	})
+
+	t.Run("parent type mismatch rejected via CreateAccountWithBalance", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		addOpeningBalanceAccount(accRepo)
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Dining",
+			Type:     model.AccountTypeExpense,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+			Balance:  1000,
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "type", ve.Field)
+	})
+
+	t.Run("nil parent skips parent type check", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Revenue:Sales",
+			Type:     model.AccountTypeRevenue,
+			Currency: "USD",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, model.AccountTypeRevenue, acc.Type)
 	})
 }

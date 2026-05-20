@@ -40,6 +40,15 @@ database:
 defaults:
   # Default currency code (ISO 4217), e.g. USD, TWD, JPY, EUR
   currency: ""
+
+server:
+  # Host to bind the web server to
+  host: "localhost"
+  # Port to listen on
+  port: 8080
+  # Allowed CORS origins
+  cors_origins:
+    - "http://localhost:5173"
 `
 
 func Execute(migrations fs.FS) {
@@ -284,6 +293,8 @@ func initConfig(cfgFile string) (*config.Config, error) {
 		}
 	}
 
+	setServerDefaults(viper.GetViper())
+
 	viper.SetEnvPrefix("KEA")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv() // allow using environment variables to override
@@ -343,6 +354,13 @@ func expandPath(path string) (string, error) {
 		return "", fmt.Errorf("unsupported path format %q: ~username syntax is not supported, use an absolute path or ~/", path)
 	}
 	return path, nil
+}
+
+func setServerDefaults(v *viper.Viper) {
+	def := config.NewDefault()
+	v.SetDefault("server.host", def.Server.Host)
+	v.SetDefault("server.port", def.Server.Port)
+	v.SetDefault("server.cors_origins", def.Server.CORSOrigins)
 }
 
 func createDefaultConfig(appDir string) error {

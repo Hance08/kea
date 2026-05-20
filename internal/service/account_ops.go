@@ -89,6 +89,10 @@ func (as *AccountService) validateAccountFields(ctx context.Context, name string
 	if !accType.IsValid() {
 		return validationErrorf("type", "invalid account type: %s", accType)
 	}
+	root := strings.SplitN(name, ":", 2)[0]
+	if expected, ok := model.AccountTypeFromRootName(root); ok && expected != accType {
+		return validationErrorf("type", "account type %q conflicts with root %q (expected %q)", accType, root, expected)
+	}
 	if parentID != nil {
 		if err := as.validateParentChain(ctx, 0, parentID); err != nil {
 			return err

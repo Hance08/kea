@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hance08/kea/internal/model"
 	sqlite "github.com/mattn/go-sqlite3"
@@ -337,4 +338,67 @@ func (s *Store) UpdateAccountMetadata(ctx context.Context, accountID int64, desc
 		return fmt.Errorf("account with ID %d not found: %w", accountID, ErrRecordNotFound)
 	}
 	return nil
+}
+
+func (s *Store) SearchAccounts(ctx context.Context, filter model.AccountFilter, opts model.ListOptions) (*model.ListResult[*model.Account], error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	opts = normalizeListOpts(opts)
+
+	var whereClauses []string
+	var args []any
+
+	if filter.Query != nil {
+		escaped := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(*filter.Query)
+		whereClauses = append(whereClauses, `LOWER(name) LIKE '%' || LOWER(?) || '%' ESCAPE '\'`)
+		args = append(args, escaped)
+	}
+	if filter.Type != nil {
+		whereClauses = append(whereClauses, "type = ?")
+		args = append(args, string(*filter.Type))
+	}
+	if filter.Currency != nil {
+		whereClauses = append(whereClauses, "currency = ?")
+		args = append(args, *filter.Currency)
+	}
+
+	whereSQL := ""
+	if len(whereClauses) > 0 {
+		whereSQL = "WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	result := &model.ListResult[*model.Account]{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+	}
+
+	if opts.IncludeCount {
+		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM accounts %s", whereSQL)
+		if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&result.TotalCount); err != nil {
+			return nil, fmt.Errorf("failed to count search results: %w", err)
+		}
+	}
+
+	query := fmt.Sprintf(
+		"SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts %s ORDER BY name LIMIT ? OFFSET ?",
+		whereSQL,
+	)
+	queryArgs := append(args, opts.Limit, opts.Offset)
+
+	rows, err := s.db.QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search accounts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	items, err := s.scanAccounts(rows)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []*model.Account{}
+	}
+	result.Items = items
+	return result, nil
 }

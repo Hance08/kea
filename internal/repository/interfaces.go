@@ -88,6 +88,12 @@ type TransactionRepository interface {
 	// id DESC. When opts.IncludeCount is true the result also carries the total
 	// distinct transaction count.
 	ListTransactionsByAccount(ctx context.Context, accountID int64, opts model.ListOptions) (*model.ListResult[*model.Transaction], error)
+
+	// FilterTransactions returns a paginated list of transactions matching the
+	// given filter criteria. Nil filter fields are ignored (no filtering on
+	// that dimension). When filter.AccountID is set the query joins on splits.
+	// Results are ordered by timestamp DESC, id DESC.
+	FilterTransactions(ctx context.Context, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error)
 }
 
 type Repository interface {

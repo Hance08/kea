@@ -56,7 +56,7 @@ Hidden accounts and system accounts are excluded from results.`,
 	}
 
 	cmd.Flags().StringVarP(&flags.Type, "type", "t", "", "Filter by account type (A, L, C, R, E)")
-	cmd.Flags().StringVarP(&flags.Currency, "currency", "c", "", "Filter by currency code")
+	cmd.Flags().StringVar(&flags.Currency, "currency", "", "Filter by currency code")
 	cmd.Flags().IntVarP(&flags.Limit, "limit", "n", 20, "Maximum number of results")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
 

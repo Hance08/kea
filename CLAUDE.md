@@ -65,7 +65,7 @@ migrations/       golang-migrate SQL files embedded via FS
 - Asset account: asset split = +amount, equity split = -amount
 - Liability account: liability split = -amount, equity split = +amount
 
-**Protected records:** Transaction ID 1 (`model.SystemTransactionID`) and reconciled transactions are immutable. Operations on them return `ErrNotEditable` or `ErrReconciled` (both wrapped with `%w` — check with `errors.Is`).
+**Protected records:** Reconciled transactions are immutable. Operations on them return `ErrReconciled` (wrapped with `%w` — check with `errors.Is`).
 
 **System account:** per-currency, named `Equity:OpeningBalances_<CCY>` (e.g. `Equity:OpeningBalances_USD`). Use `model.OpeningBalancesAccountName(currency)` to build the name and `model.IsOpeningBalancesAccount(name)` to detect one. The legacy single name `Equity:OpeningBalances` is auto-renamed at startup by `migrateLegacySysAcc` (`cmd/root.go`). System accounts must not be deleted.
 

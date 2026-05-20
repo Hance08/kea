@@ -150,9 +150,8 @@ const (
 )
 
 const (
-	DateFormat                = "2006-01-02"
-	SystemTransactionID int64 = 1
-	MinSplitsCount            = 2
+	DateFormat  = "2006-01-02"
+	MinSplitsCount = 2
 
 	LegacyOpeningBalancesName = "Equity:OpeningBalances"
 )

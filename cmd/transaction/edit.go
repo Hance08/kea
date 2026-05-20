@@ -57,8 +57,6 @@ func (r *editRunner) Run(ctx context.Context, args []string) error {
 	isEditable, reason := r.txSvc.IsEditable(detail)
 	if !isEditable {
 		switch reason {
-		case service.NotEditableSystemTx:
-			r.view.ShowWarning("This transaction cannot be edited (System Transaction)")
 		case service.NotEditableReconciled:
 			r.view.ShowWarning("This transaction cannot be edited (Reconciled Transaction)")
 		}

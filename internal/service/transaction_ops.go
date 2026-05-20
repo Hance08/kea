@@ -209,10 +209,6 @@ func (ts *TransactionService) CreateTransactionFromSplits(
 
 // DeleteTransaction deletes a transaction
 func (ts *TransactionService) DeleteTransaction(ctx context.Context, txID int64) error {
-	if txID == model.SystemTransactionID {
-		return fmt.Errorf("cannot delete the initial opening transaction: %w", ErrNotEditable)
-	}
-
 	tx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -236,10 +232,6 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 		return validationErrorf("status", "invalid status: must be 0 (Pending) or 1 (Cleared)")
 	}
 
-	if txID == model.SystemTransactionID {
-		return fmt.Errorf("transaction #%d cannot be modified: %w", txID, ErrNotEditable)
-	}
-
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, txID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -260,10 +252,6 @@ func (ts *TransactionService) UpdateTransactionStatus(ctx context.Context, txID 
 func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, input model.UpdateTransactionInput) error {
 	if input.Status != model.StatusPending && input.Status != model.StatusCleared {
 		return validationErrorf("status", "invalid status: must be Pending or Cleared")
-	}
-
-	if input.ID == model.SystemTransactionID {
-		return fmt.Errorf("cannot modify the initial opening transaction: %w", ErrNotEditable)
 	}
 
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, input.ID)
@@ -387,19 +375,13 @@ type NotEditableReason int
 
 const (
 	EditableOK            NotEditableReason = 0 // transaction may be edited
-	NotEditableSystemTx   NotEditableReason = 1 // opening-balance system transaction
-	NotEditableReconciled NotEditableReason = 2 // already reconciled
+	NotEditableReconciled NotEditableReason = 1 // already reconciled
 )
 
 func (ts *TransactionService) IsEditable(detail *model.TransactionDetail) (bool, NotEditableReason) {
-	if detail.ID == model.SystemTransactionID {
-		return false, NotEditableSystemTx
-	}
-
 	if detail.Status == model.StatusReconciled {
 		return false, NotEditableReconciled
 	}
-
 	return true, EditableOK
 }
 

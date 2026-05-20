@@ -14,6 +14,8 @@ import (
 )
 
 func (s *Store) CreateAccount(ctx context.Context, name string, accType model.AccountType, currency string, description string, parentID *int64) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	if !accType.IsValid() {
 		return 0, fmt.Errorf("account type %q: %w", accType, ErrInvalidAccountType)
 	}
@@ -47,6 +49,8 @@ func (s *Store) CreateAccount(ctx context.Context, name string, accType model.Ac
 }
 
 func (s *Store) GetAllAccounts(ctx context.Context) ([]*model.Account, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	rows, err := s.db.QueryContext(ctx, `
         SELECT id, name, type, parent_id, currency, description, is_hidden
         FROM accounts
@@ -63,6 +67,8 @@ func (s *Store) GetAllAccounts(ctx context.Context) ([]*model.Account, error) {
 }
 
 func (s *Store) GetAccountByName(ctx context.Context, name string) (*model.Account, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	row := s.db.QueryRowContext(ctx, "SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE name = ?", name)
 
 	acc := &model.Account{}
@@ -89,6 +95,8 @@ func (s *Store) GetAccountByName(ctx context.Context, name string) (*model.Accou
 }
 
 func (s *Store) GetAccountByID(ctx context.Context, id int64) (*model.Account, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	row := s.db.QueryRowContext(ctx, "SELECT id, name, type, parent_id, currency, description, is_hidden FROM accounts WHERE id = ?", id)
 
 	acc := &model.Account{}
@@ -115,6 +123,8 @@ func (s *Store) GetAccountByID(ctx context.Context, id int64) (*model.Account, e
 }
 
 func (s *Store) AccountExists(ctx context.Context, name string) (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var exists bool
 	row := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE name = ?)", name)
 	if err := row.Scan(&exists); err != nil {
@@ -124,6 +134,8 @@ func (s *Store) AccountExists(ctx context.Context, name string) (bool, error) {
 }
 
 func (s *Store) GetAllAccountBalances(ctx context.Context, asOf int64) (map[int64]int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	rows, err := s.db.QueryContext(ctx, `
         SELECT s.account_id, SUM(s.amount)
         FROM splits s
@@ -154,6 +166,8 @@ func (s *Store) GetAllAccountBalances(ctx context.Context, asOf int64) (map[int6
 }
 
 func (s *Store) HasChildAccounts(ctx context.Context, accountID int64) (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var exists bool
 	row := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM accounts WHERE parent_id = ?)", accountID)
 	if err := row.Scan(&exists); err != nil {
@@ -163,6 +177,8 @@ func (s *Store) HasChildAccounts(ctx context.Context, accountID int64) (bool, er
 }
 
 func (s *Store) GetAccountsByType(ctx context.Context, accType model.AccountType) ([]*model.Account, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	rows, err := s.db.QueryContext(ctx, `
         SELECT id, name, type, parent_id, currency, description, is_hidden
         FROM accounts
@@ -181,6 +197,8 @@ func (s *Store) GetAccountsByType(ctx context.Context, accType model.AccountType
 }
 
 func (s *Store) GetAccountBalance(ctx context.Context, accountID int64) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var balance sql.NullInt64
 	err := s.db.QueryRowContext(ctx, `
         SELECT SUM(amount)
@@ -229,6 +247,8 @@ func (s *Store) scanAccounts(rows *sql.Rows) ([]*model.Account, error) {
 
 // AccountHasTransactions returns true when the account is referenced by any split.
 func (s *Store) AccountHasTransactions(ctx context.Context, accountID int64) (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var exists bool
 	row := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM splits WHERE account_id = ?)", accountID)
 	if err := row.Scan(&exists); err != nil {
@@ -240,11 +260,14 @@ func (s *Store) AccountHasTransactions(ctx context.Context, accountID int64) (bo
 // RenameAccount updates the name of an account and cascades the rename to all descendants.
 // Both updates run in a single transaction.
 func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) error {
-	if s.rawDB == nil {
+	s.mu.RLock()
+	rawDB := s.rawDB
+	s.mu.RUnlock()
+	if rawDB == nil {
 		return fmt.Errorf("store is already in a transaction")
 	}
 
-	tx, err := s.rawDB.BeginTx(ctx, nil)
+	tx, err := rawDB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -276,6 +299,8 @@ func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) erro
 
 // DeleteAccount removes an account record by ID.
 func (s *Store) DeleteAccount(ctx context.Context, accountID int64) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	result, err := s.db.ExecContext(ctx, "DELETE FROM accounts WHERE id = ?", accountID)
 	if err != nil {
 		return fmt.Errorf("failed to delete account: %w", err)
@@ -295,6 +320,8 @@ func (s *Store) DeleteAccount(ctx context.Context, accountID int64) error {
 
 // UpdateAccountMetadata updates the description and hidden status of an account.
 func (s *Store) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE accounts SET description = ?, is_hidden = ? WHERE id = ?`,
 		description, isHidden, accountID,

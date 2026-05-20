@@ -4,12 +4,16 @@
 package ledger
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,6 +35,9 @@ type Registry struct {
 	Ledgers        map[string]Entry `yaml:"ledgers"`
 	MigratedLegacy bool             `yaml:"-"`
 	filePath       string
+	mu             sync.Mutex
+	callbacks      []func(name string, path string)
+	watcher        *fsnotify.Watcher
 }
 
 // EmptyRegistry returns a Registry with no ledgers and no active ledger.
@@ -175,4 +182,135 @@ func (r *Registry) Remove(name string, deleteFile bool) error {
 		}
 	}
 	return nil
+}
+
+// OnSwitch registers a callback that is called when the active ledger changes.
+// Multiple callbacks may be registered; all are called on each change.
+func (r *Registry) OnSwitch(fn func(name, path string)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.callbacks = append(r.callbacks, fn)
+}
+
+const debounceDuration = 100 * time.Millisecond
+
+// ErrWatcherAlreadyRunning is returned by Watch when a watcher is already active.
+var ErrWatcherAlreadyRunning = errors.New("watcher already running")
+
+// Watch monitors ledgers.yaml for changes and fires registered OnSwitch
+// callbacks when the active ledger changes. It blocks until ctx is cancelled
+// or the watcher is stopped via StopWatch. Includes a debounce to coalesce
+// rapid writes into a single callback. Returns ErrWatcherAlreadyRunning if
+// Watch has already been called without a subsequent StopWatch.
+func (r *Registry) Watch(ctx context.Context) error {
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return fmt.Errorf("create watcher: %w", err)
+	}
+
+	r.mu.Lock()
+	if r.watcher != nil {
+		r.mu.Unlock()
+		_ = w.Close()
+		return ErrWatcherAlreadyRunning
+	}
+	r.watcher = w
+	r.mu.Unlock()
+
+	defer func() {
+		r.mu.Lock()
+		r.watcher = nil
+		r.mu.Unlock()
+		_ = w.Close()
+	}()
+
+	if err := w.Add(r.filePath); err != nil {
+		return fmt.Errorf("watch %s: %w", r.filePath, err)
+	}
+
+	var debounce *time.Timer
+	for {
+		select {
+		case <-ctx.Done():
+			if debounce != nil {
+				debounce.Stop()
+			}
+			return ctx.Err()
+		case event, ok := <-w.Events:
+			if !ok {
+				if debounce != nil {
+					debounce.Stop()
+				}
+				return nil
+			}
+			if event.Op&(fsnotify.Write|fsnotify.Create) == 0 {
+				continue
+			}
+			if debounce != nil {
+				debounce.Stop()
+			}
+			debounce = time.AfterFunc(debounceDuration, func() {
+				r.reload()
+			})
+		case err, ok := <-w.Errors:
+			if !ok {
+				if debounce != nil {
+					debounce.Stop()
+				}
+				return nil
+			}
+			fmt.Fprintf(os.Stderr, "ledger watcher error: %v\n", err)
+		}
+	}
+}
+
+// StopWatch closes the underlying fsnotify watcher, causing Watch to return.
+func (r *Registry) StopWatch() {
+	r.mu.Lock()
+	w := r.watcher
+	r.watcher = nil
+	r.mu.Unlock()
+	if w != nil {
+		_ = w.Close()
+	}
+}
+
+// reload reads ledgers.yaml from disk and fires OnSwitch callbacks if the
+// active ledger has changed since the last read.
+func (r *Registry) reload() {
+	data, err := os.ReadFile(r.filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "reload ledgers.yaml: %v\n", err)
+		return
+	}
+	var fresh Registry
+	if err := yaml.Unmarshal(data, &fresh); err != nil {
+		fmt.Fprintf(os.Stderr, "parse ledgers.yaml: %v\n", err)
+		return
+	}
+	if fresh.Ledgers == nil {
+		fresh.Ledgers = make(map[string]Entry)
+	}
+
+	r.mu.Lock()
+	prev := r.ActiveLedger
+	if fresh.ActiveLedger == prev {
+		r.mu.Unlock()
+		return
+	}
+	r.ActiveLedger = fresh.ActiveLedger
+	r.Ledgers = fresh.Ledgers
+	entry, exists := r.Ledgers[r.ActiveLedger]
+	cbs := make([]func(string, string), len(r.callbacks))
+	copy(cbs, r.callbacks)
+	r.mu.Unlock()
+
+	if !exists {
+		fmt.Fprintf(os.Stderr, "reloaded active ledger %q not found in registry\n", fresh.ActiveLedger)
+		return
+	}
+
+	for _, fn := range cbs {
+		fn(fresh.ActiveLedger, entry.Path)
+	}
 }

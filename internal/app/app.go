@@ -11,16 +11,18 @@ import (
 
 	"github.com/hance08/kea/internal/backup"
 	"github.com/hance08/kea/internal/config"
+	"github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
 )
 
 type App struct {
-	Service *service.Service
+	Service  *service.Service
+	Registry *ledger.Registry
 }
 
 // NewApp initialize config, database and core logic, then return App entity
-func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
+func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*App, func(), error) {
 	dbPathRaw := cfg.Database.Path
 
 	if dbPathRaw == "" {
@@ -42,14 +44,25 @@ func NewApp(cfg *config.Config, migrationFS fs.FS) (*App, func(), error) {
 
 	svc := service.NewService(dbStore, dbStore, dbStore, cfg)
 
+	registry.OnSwitch(func(name, path string) {
+		if err := dbStore.Swap(path, migrationFS); err != nil {
+			fmt.Fprintf(os.Stderr, "ledger switch failed: %v\n", err)
+			return
+		}
+		cfg.ActiveLedger = name
+		cfg.Database.Path = path
+	})
+
 	cleanup := func() {
+		registry.StopWatch()
 		if err := dbStore.Close(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error closing DB: %v\n", err)
 		}
 	}
 
 	return &App{
-		Service: svc,
+		Service:  svc,
+		Registry: registry,
 	}, cleanup, nil
 }
 

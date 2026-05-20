@@ -145,6 +145,23 @@ func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name st
 	return nil
 }
 
+func (as *AccountService) SearchAccounts(ctx context.Context, filter model.AccountFilter, opts model.ListOptions) (*model.ListResult[*model.Account], error) {
+	result, err := as.repo.SearchAccounts(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := make([]*model.Account, 0, len(result.Items))
+	for _, acc := range result.Items {
+		if acc.IsHidden || model.IsOpeningBalancesAccount(acc.Name) {
+			continue
+		}
+		filtered = append(filtered, acc)
+	}
+	result.Items = filtered
+	return result, nil
+}
+
 func (as *AccountService) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) (*model.Account, error) {
 	acc, err := as.repo.GetAccountByID(ctx, accountID)
 	if err != nil {

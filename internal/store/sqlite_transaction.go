@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hance08/kea/internal/model"
 	sqlite "github.com/mattn/go-sqlite3"
@@ -573,4 +574,90 @@ func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
 	}
 
 	return transactions, nil
+}
+
+func (s *Store) FilterTransactions(ctx context.Context, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	opts = normalizeListOpts(opts)
+
+	needsJoin := filter.AccountID != nil
+
+	var whereClauses []string
+	var args []any
+
+	if filter.AccountID != nil {
+		whereClauses = append(whereClauses, "s.account_id = ?")
+		args = append(args, *filter.AccountID)
+	}
+	if filter.Type != nil {
+		whereClauses = append(whereClauses, "t.type = ?")
+		args = append(args, string(*filter.Type))
+	}
+	if filter.Status != nil {
+		whereClauses = append(whereClauses, "t.status = ?")
+		args = append(args, int(*filter.Status))
+	}
+	if filter.StartTime != nil {
+		whereClauses = append(whereClauses, "t.timestamp >= ?")
+		args = append(args, *filter.StartTime)
+	}
+	if filter.EndTime != nil {
+		whereClauses = append(whereClauses, "t.timestamp <= ?")
+		args = append(args, *filter.EndTime)
+	}
+	if filter.Description != nil {
+		escaped := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(*filter.Description)
+		whereClauses = append(whereClauses, `t.description LIKE ? ESCAPE '\'`)
+		args = append(args, "%"+escaped+"%")
+	}
+
+	whereSQL := ""
+	if len(whereClauses) > 0 {
+		whereSQL = "WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	fromSQL := "FROM transactions t"
+	selectDistinct := ""
+	countExpr := "COUNT(*)"
+	if needsJoin {
+		fromSQL = "FROM transactions t INNER JOIN splits s ON t.id = s.transaction_id"
+		selectDistinct = "DISTINCT "
+		countExpr = "COUNT(DISTINCT t.id)"
+	}
+
+	result := &model.ListResult[*model.Transaction]{
+		Limit:  opts.Limit,
+		Offset: opts.Offset,
+	}
+
+	if opts.IncludeCount {
+		countQuery := fmt.Sprintf("SELECT %s %s %s", countExpr, fromSQL, whereSQL)
+		if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&result.TotalCount); err != nil {
+			return nil, fmt.Errorf("failed to count filtered transactions: %w", err)
+		}
+	}
+
+	query := fmt.Sprintf(
+		"SELECT %st.id, t.timestamp, t.description, t.status, t.external_id, t.type %s %s ORDER BY t.timestamp DESC, t.id DESC LIMIT ? OFFSET ?",
+		selectDistinct, fromSQL, whereSQL,
+	)
+	queryArgs := append(args, opts.Limit, opts.Offset)
+
+	rows, err := s.db.QueryContext(ctx, query, queryArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query filtered transactions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	items, err := s.scanTransactions(rows)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []*model.Transaction{}
+	}
+	result.Items = items
+	return result, nil
 }

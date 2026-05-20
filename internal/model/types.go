@@ -173,9 +173,15 @@ func ParseTransactionTypeLabel(s string) TransactionType {
 	return TxTypeTransfer
 }
 
-func ParseTransactionStatus(s string) TransactionStatus {
-	if strings.ToLower(s) == "pending" {
-		return StatusPending
+func ParseTransactionStatus(s string) (TransactionStatus, error) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "pending":
+		return StatusPending, nil
+	case "cleared":
+		return StatusCleared, nil
+	case "reconciled":
+		return StatusReconciled, nil
+	default:
+		return 0, fmt.Errorf("invalid transaction status %q: must be pending, cleared, or reconciled", s)
 	}
-	return StatusCleared
 }

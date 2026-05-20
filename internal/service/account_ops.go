@@ -51,12 +51,18 @@ func (as *AccountService) CreateAccount(ctx context.Context, input model.CreateA
 	if err := as.validateAccountFields(ctx, input.Name, input.Type, input.Currency, input.ParentID); err != nil {
 		return nil, err
 	}
+	if err := as.validateParentType(ctx, input.ParentID, input.Type); err != nil {
+		return nil, err
+	}
 	return as.createAccountViaRepo(ctx, as.repo, input)
 }
 
 func (as *AccountService) CreateAccountWithBalance(ctx context.Context, input model.CreateAccountInput) (*model.Account, error) {
 	input.Currency = strings.ToUpper(strings.TrimSpace(input.Currency))
 	if err := as.validateAccountFields(ctx, input.Name, input.Type, input.Currency, input.ParentID); err != nil {
+		return nil, err
+	}
+	if err := as.validateParentType(ctx, input.ParentID, input.Type); err != nil {
 		return nil, err
 	}
 
@@ -77,6 +83,20 @@ func (as *AccountService) CreateAccountWithBalance(ctx context.Context, input mo
 		return nil, err
 	}
 	return account, nil
+}
+
+func (as *AccountService) validateParentType(ctx context.Context, parentID *int64, accType model.AccountType) error {
+	if parentID == nil {
+		return nil
+	}
+	parent, err := as.repo.GetAccountByID(ctx, *parentID)
+	if err != nil {
+		return fmt.Errorf("failed to look up parent account %d: %w", *parentID, err)
+	}
+	if parent.Type != accType {
+		return validationErrorf("type", "child type %q must match parent type %q", accType, parent.Type)
+	}
+	return nil
 }
 
 func (as *AccountService) validateAccountFields(ctx context.Context, name string, accType model.AccountType, currency string, parentID *int64) error {

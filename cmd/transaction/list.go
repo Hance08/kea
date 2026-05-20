@@ -6,6 +6,7 @@ package transaction
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
@@ -19,16 +20,21 @@ type ListView interface {
 }
 
 type ListProvider interface {
-	GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error)
-	GetRecentTransactions(ctx context.Context, limit int) ([]*model.Transaction, error)
+	FilterTransactions(ctx context.Context, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error)
+	FilterTransactionsByAccountName(ctx context.Context, accountName string, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error)
 	GetTransactionDetailsByIDs(ctx context.Context, txs []*model.Transaction) (map[int64]*model.TransactionDetail, error)
 	BuildTransactionListItems(ctx context.Context, txs []*model.Transaction, details map[int64]*model.TransactionDetail) []model.TransactionListItem
 }
 
 type listFlags struct {
-	Account string
-	Limit   int
-	JSON    bool
+	Account     string
+	Limit       int
+	JSON        bool
+	Status      string
+	Type        string
+	From        string
+	To          string
+	Description string
 }
 
 type listRunner struct {
@@ -61,6 +67,11 @@ date, type, account, description, amount, and status.`,
 	cmd.Flags().StringVarP(&flags.Account, "account", "a", "", "Filter transactions by account name")
 	cmd.Flags().IntVarP(&flags.Limit, "limit", "l", 20, "Maximum number of transactions to display")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output as JSON")
+	cmd.Flags().StringVar(&flags.Status, "status", "", "Filter by status (pending, cleared, reconciled)")
+	cmd.Flags().StringVar(&flags.Type, "type", "", "Filter by type (expense, income, transfer)")
+	cmd.Flags().StringVar(&flags.From, "from", "", "Filter from date (YYYY-MM-DD)")
+	cmd.Flags().StringVar(&flags.To, "to", "", "Filter to date (YYYY-MM-DD)")
+	cmd.Flags().StringVarP(&flags.Description, "description", "d", "", "Filter by description (substring match)")
 
 	return cmd
 }
@@ -87,10 +98,60 @@ func (r *listRunner) Run(ctx context.Context) error {
 }
 
 func (r *listRunner) fetchTransactions(ctx context.Context) ([]*model.Transaction, error) {
-	if r.flags.Account != "" {
-		return r.svc.GetTransactionHistory(ctx, r.flags.Account, r.flags.Limit)
+	filter, err := r.buildFilter()
+	if err != nil {
+		return nil, err
 	}
-	return r.svc.GetRecentTransactions(ctx, r.flags.Limit)
+
+	opts := model.ListOptions{Limit: r.flags.Limit, IncludeCount: false}
+
+	var result *model.ListResult[*model.Transaction]
+	if r.flags.Account != "" {
+		result, err = r.svc.FilterTransactionsByAccountName(ctx, r.flags.Account, filter, opts)
+	} else {
+		result, err = r.svc.FilterTransactions(ctx, filter, opts)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return result.Items, nil
+}
+
+func (r *listRunner) buildFilter() (model.TransactionFilter, error) {
+	var filter model.TransactionFilter
+
+	if r.flags.Status != "" {
+		s := model.ParseTransactionStatus(r.flags.Status)
+		filter.Status = &s
+	}
+	if r.flags.Type != "" {
+		txType, err := model.ParseTransactionType(r.flags.Type)
+		if err != nil {
+			return filter, err
+		}
+		filter.Type = &txType
+	}
+	if r.flags.From != "" {
+		t, err := time.Parse(model.DateFormat, r.flags.From)
+		if err != nil {
+			return filter, fmt.Errorf("invalid --from date: %w", err)
+		}
+		ts := t.Unix()
+		filter.StartTime = &ts
+	}
+	if r.flags.To != "" {
+		t, err := time.Parse(model.DateFormat, r.flags.To)
+		if err != nil {
+			return filter, fmt.Errorf("invalid --to date: %w", err)
+		}
+		ts := t.Add(24*time.Hour - time.Second).Unix()
+		filter.EndTime = &ts
+	}
+	if r.flags.Description != "" {
+		filter.Description = &r.flags.Description
+	}
+
+	return filter, nil
 }
 
 func (r *listRunner) buildViewItems(ctx context.Context, transactions []*model.Transaction) []views.TransactionListItem {

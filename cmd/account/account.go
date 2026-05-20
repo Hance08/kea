@@ -20,6 +20,7 @@ func NewAccountCmd(svc *service.Service) *cobra.Command {
 	accountCmd.AddCommand(NewEditCmd(svc))
 	accountCmd.AddCommand(NewListCmd(svc))
 	accountCmd.AddCommand(NewDeleteCmd(svc))
+	accountCmd.AddCommand(NewSearchCmd(svc))
 
 	return accountCmd
 }

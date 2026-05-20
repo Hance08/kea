@@ -284,6 +284,8 @@ func initConfig(cfgFile string) (*config.Config, error) {
 		}
 	}
 
+	setServerDefaults(viper.GetViper())
+
 	viper.SetEnvPrefix("KEA")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv() // allow using environment variables to override
@@ -343,6 +345,12 @@ func expandPath(path string) (string, error) {
 		return "", fmt.Errorf("unsupported path format %q: ~username syntax is not supported, use an absolute path or ~/", path)
 	}
 	return path, nil
+}
+
+func setServerDefaults(v *viper.Viper) {
+	v.SetDefault("server.host", "localhost")
+	v.SetDefault("server.port", 8080)
+	v.SetDefault("server.cors_origins", []string{"http://localhost:5173"})
 }
 
 func createDefaultConfig(appDir string) error {

@@ -608,8 +608,9 @@ func (s *Store) FilterTransactions(ctx context.Context, filter model.Transaction
 		args = append(args, *filter.EndTime)
 	}
 	if filter.Description != nil {
-		whereClauses = append(whereClauses, "t.description LIKE ?")
-		args = append(args, "%"+*filter.Description+"%")
+		escaped := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(*filter.Description)
+		whereClauses = append(whereClauses, `t.description LIKE ? ESCAPE '\'`)
+		args = append(args, "%"+escaped+"%")
 	}
 
 	whereSQL := ""

@@ -121,7 +121,10 @@ func (r *listRunner) buildFilter() (model.TransactionFilter, error) {
 	var filter model.TransactionFilter
 
 	if r.flags.Status != "" {
-		s := model.ParseTransactionStatus(r.flags.Status)
+		s, err := model.ParseTransactionStatus(r.flags.Status)
+		if err != nil {
+			return filter, err
+		}
 		filter.Status = &s
 	}
 	if r.flags.Type != "" {

@@ -81,22 +81,30 @@ func TestParseTransactionTypeLabel(t *testing.T) {
 
 func TestParseTransactionStatus(t *testing.T) {
 	tests := []struct {
-		input string
-		want  TransactionStatus
+		input   string
+		want    TransactionStatus
+		wantErr bool
 	}{
-		{"pending", StatusPending},
-		{"Pending", StatusPending},
-		{"PENDING", StatusPending},
-		{"cleared", StatusCleared},
-		{"Cleared", StatusCleared},
-		{"", StatusCleared},
-		{"anything", StatusCleared},
+		{"pending", StatusPending, false},
+		{"Pending", StatusPending, false},
+		{"PENDING", StatusPending, false},
+		{"cleared", StatusCleared, false},
+		{"Cleared", StatusCleared, false},
+		{"reconciled", StatusReconciled, false},
+		{"Reconciled", StatusReconciled, false},
+		{"", 0, true},
+		{"anything", 0, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got := ParseTransactionStatus(tt.input)
-			assert.Equal(t, tt.want, got)
+			got, err := ParseTransactionStatus(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
 		})
 	}
 }

@@ -34,8 +34,14 @@ func (r *addRunner) runFromFlags(ctx context.Context, flags *addFlags) (addTrans
 		return addTransactionInput{}, fmt.Errorf("invalid amount: %w", err)
 	}
 
-	// Parse status
-	status := model.ParseTransactionStatus(flags.Status)
+	// Parse status (default to Cleared when not specified)
+	status := model.StatusCleared
+	if flags.Status != "" {
+		status, err = model.ParseTransactionStatus(flags.Status)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+	}
 
 	// Parse timestamp
 	timestamp, err := r.txSvc.ParseTransactionDate(flags.Timestamp)
@@ -213,7 +219,13 @@ func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, err
 		description = "-"
 	}
 
-	status := model.ParseTransactionStatus(flags.Status)
+	status := model.StatusCleared
+	if flags.Status != "" {
+		status, err = model.ParseTransactionStatus(flags.Status)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+	}
 
 	timestamp, err := r.txSvc.ParseTransactionDate(flags.Timestamp)
 	if err != nil {

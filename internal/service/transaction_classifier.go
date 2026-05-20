@@ -32,13 +32,9 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 	)
 
 	for _, split := range splits {
-		accType := split.AccountType
-		if accType == "" {
-			acc, err := ts.accRepo.GetAccountByID(ctx, split.AccountID)
-			if err != nil {
-				return model.TxTypeOther, err
-			}
-			accType = acc.Type
+		accType, err := ts.resolveAccountType(ctx, split)
+		if err != nil {
+			return model.TxTypeOther, err
 		}
 
 		if split.Memo == model.OpeningAccountMemo {
@@ -112,22 +108,11 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 		return "-", nil
 	}
 
-	resolveType := func(split model.SplitDetail) (model.AccountType, error) {
-		if split.AccountType != "" {
-			return split.AccountType, nil
-		}
-		account, err := ts.accRepo.GetAccountByName(ctx, split.AccountName)
-		if err != nil {
-			return "", err
-		}
-		return account.Type, nil
-	}
-
 	switch txType {
 	case "Expense":
 		// Find and return the Expense account (E type)
 		for _, split := range splits {
-			accType, err := resolveType(split)
+			accType, err := ts.resolveAccountType(ctx, split)
 			if err == nil && accType == model.AccountTypeExpense {
 				return split.AccountName, nil
 			}
@@ -136,7 +121,7 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 	case "Income":
 		// Find and return the Revenue account (R type)
 		for _, split := range splits {
-			accType, err := resolveType(split)
+			accType, err := ts.resolveAccountType(ctx, split)
 			if err == nil && accType == model.AccountTypeRevenue {
 				return split.AccountName, nil
 			}
@@ -146,7 +131,7 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 		// Find and return the Asset/Liability account with positive amount (receiving account)
 		for _, split := range splits {
 			if split.Amount > 0 {
-				accType, err := resolveType(split)
+				accType, err := ts.resolveAccountType(ctx, split)
 				if err == nil && (accType == model.AccountTypeAsset || accType == model.AccountTypeLiability) {
 					return split.AccountName, nil
 				}
@@ -156,7 +141,7 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 	case "Opening":
 		// For opening transactions, return the non-equity account
 		for _, split := range splits {
-			accType, err := resolveType(split)
+			accType, err := ts.resolveAccountType(ctx, split)
 			if err == nil && accType != model.AccountTypeEquity {
 				return split.AccountName, nil
 			}
@@ -205,17 +190,6 @@ func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, split
 		return "-", nil
 	}
 
-	resolveAccountType := func(split model.SplitDetail) (model.AccountType, error) {
-		if split.AccountType != "" {
-			return split.AccountType, nil
-		}
-		account, err := ts.accRepo.GetAccountByName(ctx, split.AccountName)
-		if err != nil {
-			return "", err
-		}
-		return account.Type, nil
-	}
-
 	seen := map[string]struct{}{}
 
 	switch txType {
@@ -228,7 +202,7 @@ func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, split
 		}
 
 		for _, split := range splits {
-			typeVal, err := resolveAccountType(split)
+			typeVal, err := ts.resolveAccountType(ctx, split)
 			if err != nil {
 				return "", err
 			}

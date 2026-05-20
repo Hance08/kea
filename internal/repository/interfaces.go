@@ -23,6 +23,7 @@ type AccountRepository interface {
 	DeleteAccount(ctx context.Context, accountID int64) error
 	RenameAccount(ctx context.Context, oldName, newName string) error
 	UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) error
+	SearchAccounts(ctx context.Context, filter model.AccountFilter, opts model.ListOptions) (*model.ListResult[*model.Account], error)
 }
 
 type TransactionRepository interface {

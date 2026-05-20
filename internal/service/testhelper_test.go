@@ -46,6 +46,7 @@ type mockAccountRepo struct {
 		isHidden    bool
 	}
 	updateMetadataErr error
+	searchErr         error
 }
 
 func newMockAccountRepo() *mockAccountRepo {
@@ -202,6 +203,54 @@ func (m *mockAccountRepo) UpdateAccountMetadata(_ context.Context, accountID int
 	acc.Description = description
 	acc.IsHidden = isHidden
 	return nil
+}
+
+func (m *mockAccountRepo) SearchAccounts(_ context.Context, filter model.AccountFilter, opts model.ListOptions) (*model.ListResult[*model.Account], error) {
+	if m.searchErr != nil {
+		return nil, m.searchErr
+	}
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := opts.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	var items []*model.Account
+	for _, acc := range m.accountsByID {
+		if acc.IsHidden {
+			continue
+		}
+		if model.IsOpeningBalancesAccount(acc.Name) {
+			continue
+		}
+		if filter.Query != nil && *filter.Query != "" && !strings.Contains(strings.ToLower(acc.Name), strings.ToLower(*filter.Query)) {
+			continue
+		}
+		if filter.Type != nil && acc.Type != *filter.Type {
+			continue
+		}
+		if filter.Currency != nil && acc.Currency != *filter.Currency {
+			continue
+		}
+		items = append(items, acc)
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
+	total := len(items)
+	if offset > len(items) {
+		offset = len(items)
+	}
+	end := offset + limit
+	if end > len(items) {
+		end = len(items)
+	}
+	return &model.ListResult[*model.Account]{
+		Items:      items[offset:end],
+		TotalCount: total,
+		Limit:      limit,
+		Offset:     offset,
+	}, nil
 }
 
 // ──────────────────────────────────────────────

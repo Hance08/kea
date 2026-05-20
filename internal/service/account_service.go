@@ -145,6 +145,10 @@ func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name st
 	return nil
 }
 
+func (as *AccountService) SearchAccounts(ctx context.Context, filter model.AccountFilter, opts model.ListOptions) (*model.ListResult[*model.Account], error) {
+	return as.repo.SearchAccounts(ctx, filter, opts)
+}
+
 func (as *AccountService) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) (*model.Account, error) {
 	acc, err := as.repo.GetAccountByID(ctx, accountID)
 	if err != nil {

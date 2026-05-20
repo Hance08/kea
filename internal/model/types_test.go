@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOpeningBalancesAccountName(t *testing.T) {
@@ -106,5 +107,49 @@ func TestParseTransactionStatus(t *testing.T) {
 				assert.Equal(t, tt.want, got)
 			}
 		})
+	}
+}
+
+func TestAccountTypeFromRootName(t *testing.T) {
+	tests := []struct {
+		root     string
+		wantType AccountType
+		wantOK   bool
+	}{
+		{"Assets", AccountTypeAsset, true},
+		{"assets", AccountTypeAsset, true},
+		{"ASSETS", AccountTypeAsset, true},
+		{"Liabilities", AccountTypeLiability, true},
+		{"liabilities", AccountTypeLiability, true},
+		{"Equity", AccountTypeEquity, true},
+		{"Revenue", AccountTypeRevenue, true},
+		{"Expenses", AccountTypeExpense, true},
+		{"expenses", AccountTypeExpense, true},
+		{"Unknown", "", false},
+		{"", "", false},
+		{"Asset", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.root, func(t *testing.T) {
+			gotType, gotOK := AccountTypeFromRootName(tt.root)
+			assert.Equal(t, tt.wantType, gotType)
+			assert.Equal(t, tt.wantOK, gotOK)
+		})
+	}
+}
+
+func TestAccountTypeFromRootName_RoundTrips(t *testing.T) {
+	allTypes := []AccountType{
+		AccountTypeAsset, AccountTypeLiability, AccountTypeEquity,
+		AccountTypeRevenue, AccountTypeExpense,
+	}
+	for _, at := range allTypes {
+		rootName, ok := at.RootName()
+		require.True(t, ok, "RootName() should succeed for %s", at)
+
+		gotType, gotOK := AccountTypeFromRootName(rootName)
+		assert.True(t, gotOK)
+		assert.Equal(t, at, gotType, "round-trip failed for %s", at)
 	}
 }

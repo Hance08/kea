@@ -594,6 +594,75 @@ func TestValidateSplitsMatchType(t *testing.T) {
 	}
 }
 
+func TestValidateSplitsMatchType_IgnoresCallerAccountType(t *testing.T) {
+	accRepo := classifierAccRepo()
+	svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+	t.Run("lying AccountType on expense tx is rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -1000},
+			{AccountName: "Revenue:Salary", AccountType: model.AccountTypeExpense, Amount: 1000},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Expense account")
+	})
+
+	t.Run("lying AccountType on income tx is rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 1000},
+			{AccountName: "Expenses:Food", AccountType: model.AccountTypeRevenue, Amount: -1000},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeIncome, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Revenue account")
+	})
+
+	t.Run("lying AccountType on transfer tx is rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 500},
+			{AccountName: "Expenses:Food", AccountType: model.AccountTypeAsset, Amount: -500},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeTransfer, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Asset and Liability")
+	})
+
+	t.Run("correct AccountType still passes (repo is truth)", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500},
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -500},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeExpense, splits)
+		require.NoError(t, err)
+	})
+}
+
+func TestDetermineType_IgnoresCallerAccountType(t *testing.T) {
+	accRepo := classifierAccRepo()
+	svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+	t.Run("Revenue account claimed as Expense resolves correctly", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Revenue:Salary", AccountType: model.AccountTypeExpense, Amount: -1000},
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 1000},
+		}
+		got, err := svc.DetermineType(context.Background(), splits)
+		require.NoError(t, err)
+		assert.Equal(t, model.TxTypeIncome, got)
+	})
+
+	t.Run("resolves by AccountID when both ID and name are set", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountID: 1, AccountName: "Expenses:Food", AccountType: model.AccountTypeRevenue, Amount: 500},
+			{AccountID: 2, AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -500},
+		}
+		got, err := svc.DetermineType(context.Background(), splits)
+		require.NoError(t, err)
+		assert.Equal(t, model.TxTypeExpense, got)
+	})
+}
+
 func TestBuildTransactionListItems(t *testing.T) {
 	accRepo := newMockAccountRepo()
 	txRepo := newMockTransactionRepo()

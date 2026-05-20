@@ -40,6 +40,15 @@ database:
 defaults:
   # Default currency code (ISO 4217), e.g. USD, TWD, JPY, EUR
   currency: ""
+
+server:
+  # Host to bind the web server to
+  host: "localhost"
+  # Port to listen on
+  port: 8080
+  # Allowed CORS origins
+  cors_origins:
+    - "http://localhost:5173"
 `
 
 func Execute(migrations fs.FS) {

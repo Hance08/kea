@@ -127,6 +127,21 @@ func (ts *TransactionService) ListTransactionHistory(ctx context.Context, accoun
 	return ts.txRepo.ListTransactionsByAccount(ctx, account.ID, opts)
 }
 
+// FilterTransactions returns a paginated, multi-dimensionally filtered transaction list.
+func (ts *TransactionService) FilterTransactions(ctx context.Context, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	return ts.txRepo.FilterTransactions(ctx, filter, opts)
+}
+
+// FilterTransactionsByAccountName resolves an account name to its ID, then delegates to FilterTransactions.
+func (ts *TransactionService) FilterTransactionsByAccountName(ctx context.Context, accountName string, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	account, err := ts.accRepo.GetAccountByName(ctx, accountName)
+	if err != nil {
+		return nil, fmt.Errorf("account not found: %w", err)
+	}
+	filter.AccountID = &account.ID
+	return ts.txRepo.FilterTransactions(ctx, filter, opts)
+}
+
 // GetTransactionHistory retrieves transaction history for a specific account
 func (ts *TransactionService) GetTransactionHistory(ctx context.Context, accountName string, limit int) ([]*model.Transaction, error) {
 	// Get account by name

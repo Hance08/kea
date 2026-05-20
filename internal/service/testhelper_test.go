@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
@@ -256,6 +257,7 @@ type mockTransactionRepo struct {
 	// pagination support
 	listTxErr          error
 	listTxByAccountErr error
+	filterErr          error
 }
 
 func newMockTransactionRepo() *mockTransactionRepo {
@@ -564,6 +566,54 @@ func (m *mockTransactionRepo) ListTransactionsByAccount(_ context.Context, accou
 	result.Offset = offset
 	result.Items = matching[offset:end]
 	return result, nil
+}
+
+func (m *mockTransactionRepo) FilterTransactions(_ context.Context, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error) {
+	if m.filterErr != nil {
+		return nil, m.filterErr
+	}
+	var items []*model.Transaction
+	for _, tx := range m.transactions {
+		if filter.Type != nil && tx.Type != *filter.Type {
+			continue
+		}
+		if filter.Status != nil && tx.Status != *filter.Status {
+			continue
+		}
+		if filter.StartTime != nil && tx.Timestamp < *filter.StartTime {
+			continue
+		}
+		if filter.EndTime != nil && tx.Timestamp > *filter.EndTime {
+			continue
+		}
+		if filter.AccountID != nil {
+			found := false
+			for _, s := range m.splits[tx.ID] {
+				if s.AccountID == *filter.AccountID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+		if filter.Description != nil {
+			if !strings.Contains(strings.ToLower(tx.Description), strings.ToLower(*filter.Description)) {
+				continue
+			}
+		}
+		items = append(items, tx)
+	}
+	if items == nil {
+		items = []*model.Transaction{}
+	}
+	return &model.ListResult[*model.Transaction]{
+		Items:      items,
+		TotalCount: len(items),
+		Limit:      opts.Limit,
+		Offset:     opts.Offset,
+	}, nil
 }
 
 // ──────────────────────────────────────────────

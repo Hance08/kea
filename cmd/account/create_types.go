@@ -20,6 +20,7 @@ type CreateProvider interface {
 	GetAccountByName(ctx context.Context, name string) (*model.Account, error)
 	GetRootNameByType(accType string) (string, error)
 	CheckAccountExists(ctx context.Context, name string) (bool, error)
+	AccountHasTransactions(ctx context.Context, accountID int64) (bool, error)
 	FormatAccountName(prefix string, name string) string
 	CreateAccountWithBalance(ctx context.Context, input model.CreateAccountInput) (*model.Account, error)
 	ValidateAccountName(name string) error

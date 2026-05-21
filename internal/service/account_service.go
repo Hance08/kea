@@ -111,6 +111,10 @@ func (as *AccountService) CheckAccountExists(ctx context.Context, name string) (
 	return as.repo.AccountExists(ctx, name)
 }
 
+func (as *AccountService) AccountHasTransactions(ctx context.Context, accountID int64) (bool, error) {
+	return as.repo.AccountHasTransactions(ctx, accountID)
+}
+
 func (as *AccountService) ValidateSelectableAccount(ctx context.Context, name string, allowedTypes []string) error {
 	acc, err := as.repo.GetAccountByName(ctx, name)
 	if err != nil {

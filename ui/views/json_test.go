@@ -96,6 +96,36 @@ func TestToJSONTxListItem(t *testing.T) {
 	assert.Equal(t, "Cleared", got.Status)
 }
 
+func TestToJSONTxListItem_commaAmount(t *testing.T) {
+	item := TransactionListItem{
+		ID: 10, Date: "2024-03-24", Type: "Income",
+		Account: "Assets:Bank", Offset: "Revenue:Salary",
+		Description: "salary", Amount: "1,234.56", Currency: "TWD", Status: "Cleared",
+	}
+	got := ToJSONTxListItem(item)
+	assert.Equal(t, 1234.56, got.Amount)
+}
+
+func TestToJSONTxListItem_negativeCommaAmount(t *testing.T) {
+	item := TransactionListItem{
+		ID: 11, Date: "2024-03-24", Type: "Expense",
+		Account: "Assets:Bank", Offset: "Expenses:Rent",
+		Description: "rent", Amount: "-1,234.56", Currency: "TWD", Status: "Cleared",
+	}
+	got := ToJSONTxListItem(item)
+	assert.Equal(t, -1234.56, got.Amount)
+}
+
+func TestToJSONTxListItem_largeCommaAmount(t *testing.T) {
+	item := TransactionListItem{
+		ID: 12, Date: "2024-03-24", Type: "Income",
+		Account: "Assets:Bank", Offset: "Revenue:Salary",
+		Description: "bonus", Amount: "1,234,567.89", Currency: "TWD", Status: "Cleared",
+	}
+	got := ToJSONTxListItem(item)
+	assert.Equal(t, 1234567.89, got.Amount)
+}
+
 func TestWriteJSON_validOutput(t *testing.T) {
 	// Redirect stdout
 	old := os.Stdout

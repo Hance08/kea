@@ -5,6 +5,7 @@ package views
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hance08/kea/internal/model"
@@ -109,7 +110,7 @@ func ToJSONTxDetail(d *model.TransactionDetail) JSONTxDetail {
 }
 
 func ToJSONTxListItem(item TransactionListItem) JSONTxListItem {
-	amount, _ := strconv.ParseFloat(item.Amount, 64)
+	amount, _ := strconv.ParseFloat(strings.ReplaceAll(item.Amount, ",", ""), 64)
 	return JSONTxListItem{
 		ID:          item.ID,
 		Date:        item.Date,

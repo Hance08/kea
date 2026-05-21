@@ -478,6 +478,36 @@ func TestPreviewReconcile_DuplicateIDs_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestReconcileTransactions_DuplicateIDs_ReturnsError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 100000},
+	})
+
+	_, err := svc.ReconcileTransactions(context.Background(), 1, 200000, []int64{10, 10})
+
+	if err == nil {
+		t.Fatal("expected error for duplicate transaction IDs, got nil")
+	}
+	var ve *ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+	if ve.Field != "transactions" {
+		t.Errorf("expected field 'transactions', got %q", ve.Field)
+	}
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not be called when validation fails")
+	}
+	if len(txRepo.setLastReconciledBalCalls) != 0 {
+		t.Error("SetLastReconciledBalance must not be called when validation fails")
+	}
+}
+
 func TestPreviewReconcile_DoesNotMutate(t *testing.T) {
 	accRepo := newMockAccountRepo()
 	txRepo := newMockTransactionRepo()

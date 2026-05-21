@@ -181,6 +181,7 @@ func parseIDs(s string) ([]int64, error) {
 		return nil, fmt.Errorf("empty ID list")
 	}
 	parts := strings.Split(s, ",")
+	seen := make(map[int64]bool, len(parts))
 	ids := make([]int64, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
@@ -188,6 +189,10 @@ func parseIDs(s string) ([]int64, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid ID %q: %w", p, err)
 		}
+		if seen[id] {
+			return nil, fmt.Errorf("duplicate transaction ID %d", id)
+		}
+		seen[id] = true
 		ids = append(ids, id)
 	}
 	return ids, nil

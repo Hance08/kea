@@ -10,6 +10,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParseIDs_ValidInput(t *testing.T) {
+	ids, err := parseIDs("1, 2, 3")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 3 {
+		t.Fatalf("expected 3 IDs, got %d", len(ids))
+	}
+	if ids[0] != 1 || ids[1] != 2 || ids[2] != 3 {
+		t.Errorf("expected [1 2 3], got %v", ids)
+	}
+}
+
+func TestParseIDs_DuplicateIDs_ReturnsError(t *testing.T) {
+	_, err := parseIDs("10,10")
+	if err == nil {
+		t.Fatal("expected error for duplicate IDs, got nil")
+	}
+}
+
+func TestParseIDs_DuplicateIDs_NonAdjacent_ReturnsError(t *testing.T) {
+	_, err := parseIDs("10,20,10")
+	if err == nil {
+		t.Fatal("expected error for duplicate IDs, got nil")
+	}
+}
+
+func TestParseIDs_EmptyInput_ReturnsError(t *testing.T) {
+	_, err := parseIDs("")
+	if err == nil {
+		t.Fatal("expected error for empty input, got nil")
+	}
+}
+
+func TestParseIDs_InvalidNumber_ReturnsError(t *testing.T) {
+	_, err := parseIDs("10,abc,20")
+	if err == nil {
+		t.Fatal("expected error for invalid number, got nil")
+	}
+}
+
 func TestResolveMode(t *testing.T) {
 	t.Run("no flags means interactive", func(t *testing.T) {
 		mode, err := resolveMode(false, false, false)

@@ -61,7 +61,12 @@ func (ts *TransactionService) PreviewReconcile(ctx context.Context, accountID in
 	}
 
 	var clearedBalance int64
+	seen := make(map[int64]bool, len(txIDs))
 	for _, id := range txIDs {
+		if seen[id] {
+			return 0, validationErrorf("transactions", "duplicate transaction ID %d", id)
+		}
+		seen[id] = true
 		amount, ok := validAmounts[id]
 		if !ok {
 			return 0, validationErrorf("transactions", "transaction ID %d is not in the unreconciled set for this account", id)
@@ -116,7 +121,12 @@ func (ts *TransactionService) ReconcileTransactions(ctx context.Context, account
 
 	// 4. Validate every requested ID and accumulate the cleared balance.
 	var clearedBalance int64
+	seen := make(map[int64]bool, len(txIDs))
 	for _, id := range txIDs {
+		if seen[id] {
+			return 0, validationErrorf("transactions", "duplicate transaction ID %d", id)
+		}
+		seen[id] = true
 		amount, ok := validAmounts[id]
 		if !ok {
 			return 0, validationErrorf("transactions", "transaction ID %d is not in the unreconciled set for this account", id)

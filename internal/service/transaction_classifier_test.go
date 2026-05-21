@@ -32,12 +32,42 @@ func splitWithMemo(accName string, accType model.AccountType, amount int64, memo
 	return s
 }
 
+// classifierAccRepo returns a mock account repository pre-populated with all
+// accounts referenced by classifier tests, allowing resolveAccountType to
+// look up types by name without hitting a real database.
+func classifierAccRepo() *mockAccountRepo {
+	repo := newMockAccountRepo()
+	repo.addAccount(&model.Account{ID: 1, Name: "Expenses:Food", Type: model.AccountTypeExpense})
+	repo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 3, Name: "Revenue:Salary", Type: model.AccountTypeRevenue})
+	repo.addAccount(&model.Account{ID: 4, Name: "Liabilities:Card", Type: model.AccountTypeLiability})
+	repo.addAccount(&model.Account{ID: 5, Name: model.OpeningBalancesAccountName("USD"), Type: model.AccountTypeEquity})
+	repo.addAccount(&model.Account{ID: 6, Name: "Assets:Cash", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 7, Name: "Assets:Savings", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 8, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 9, Name: "Equity:Retained", Type: model.AccountTypeEquity})
+	repo.addAccount(&model.Account{ID: 10, Name: "Expenses:Drink", Type: model.AccountTypeExpense})
+	repo.addAccount(&model.Account{ID: 11, Name: "Revenue:Bonus", Type: model.AccountTypeRevenue})
+	repo.addAccount(&model.Account{ID: 12, Name: "Expenses:Tax", Type: model.AccountTypeExpense})
+	repo.addAccount(&model.Account{ID: 13, Name: "Expenses:A", Type: model.AccountTypeExpense})
+	repo.addAccount(&model.Account{ID: 14, Name: "Expenses:B", Type: model.AccountTypeExpense})
+	repo.addAccount(&model.Account{ID: 15, Name: "Assets:Investments:00878", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 16, Name: "Expenses:Fees:Stocks", Type: model.AccountTypeExpense})
+	repo.addAccount(&model.Account{ID: 17, Name: "Assets:Bank:DAWHO", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 18, Name: "Expenses:Food:Drink", Type: model.AccountTypeExpense})
+	repo.addAccount(&model.Account{ID: 19, Name: "Assets:Receivable:Friends", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 20, Name: "Assets:Ewallet:LinePayMoney", Type: model.AccountTypeAsset})
+	repo.addAccount(&model.Account{ID: 21, Name: model.OpeningBalancesAccountName("TWD"), Type: model.AccountTypeEquity})
+	repo.addAccount(&model.Account{ID: 22, Name: "Assets:Card", Type: model.AccountTypeAsset})
+	return repo
+}
+
 // ──────────────────────────────────────────────
 // DetermineType
 // ──────────────────────────────────────────────
 
 func TestDetermineType(t *testing.T) {
-	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+	svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
 
 	tests := []struct {
 		name   string
@@ -329,7 +359,7 @@ func TestGetDisplayAccount(t *testing.T) {
 
 func TestGetDisplayOffsetAccount(t *testing.T) {
 	t.Run("Expense: single offset (asset account)", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
 		splits := []model.SplitDetail{
 			{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500},
 			{AccountName: "Assets:Cash", AccountType: model.AccountTypeAsset, Amount: -500},
@@ -340,7 +370,7 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 	})
 
 	t.Run("Expense: multiple offsets returns (multiple)", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
 		splits := []model.SplitDetail{
 			{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500},
 			{AccountName: "Assets:Cash", AccountType: model.AccountTypeAsset, Amount: -300},
@@ -352,7 +382,7 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 	})
 
 	t.Run("Transfer: excludes primary account by name", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
 		splits := []model.SplitDetail{
 			{AccountName: "Assets:Savings", AccountType: model.AccountTypeAsset, Amount: 1000},
 			{AccountName: "Assets:Checking", AccountType: model.AccountTypeAsset, Amount: -1000},
@@ -363,7 +393,7 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 	})
 
 	t.Run("no offset accounts returns -", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
 		splits := []model.SplitDetail{
 			{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500},
 		}
@@ -373,7 +403,7 @@ func TestGetDisplayOffsetAccount(t *testing.T) {
 	})
 
 	t.Run("empty splits returns -", func(t *testing.T) {
-		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
 		got, err := svc.GetDisplayOffsetAccount(context.Background(), nil, "Expense", "")
 		require.NoError(t, err)
 		assert.Equal(t, "-", got)
@@ -444,7 +474,7 @@ func TestGetAllowedAccounts(t *testing.T) {
 // ──────────────────────────────────────────────
 
 func TestValidateSplitsMatchType(t *testing.T) {
-	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+	svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
 
 	tests := []struct {
 		name    string
@@ -562,6 +592,75 @@ func TestValidateSplitsMatchType(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateSplitsMatchType_IgnoresCallerAccountType(t *testing.T) {
+	accRepo := classifierAccRepo()
+	svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+	t.Run("lying AccountType on expense tx is rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -1000},
+			{AccountName: "Revenue:Salary", AccountType: model.AccountTypeExpense, Amount: 1000},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeExpense, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Expense account")
+	})
+
+	t.Run("lying AccountType on income tx is rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 1000},
+			{AccountName: "Expenses:Food", AccountType: model.AccountTypeRevenue, Amount: -1000},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeIncome, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Revenue account")
+	})
+
+	t.Run("lying AccountType on transfer tx is rejected", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 500},
+			{AccountName: "Expenses:Food", AccountType: model.AccountTypeAsset, Amount: -500},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeTransfer, splits)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Asset and Liability")
+	})
+
+	t.Run("correct AccountType still passes (repo is truth)", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500},
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -500},
+		}
+		err := svc.ValidateSplitsMatchType(context.Background(), model.TxTypeExpense, splits)
+		require.NoError(t, err)
+	})
+}
+
+func TestDetermineType_IgnoresCallerAccountType(t *testing.T) {
+	accRepo := classifierAccRepo()
+	svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+	t.Run("Revenue account claimed as Expense resolves correctly", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountName: "Revenue:Salary", AccountType: model.AccountTypeExpense, Amount: -1000},
+			{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 1000},
+		}
+		got, err := svc.DetermineType(context.Background(), splits)
+		require.NoError(t, err)
+		assert.Equal(t, model.TxTypeIncome, got)
+	})
+
+	t.Run("resolves by AccountID when both ID and name are set", func(t *testing.T) {
+		splits := []model.SplitDetail{
+			{AccountID: 1, AccountName: "Expenses:Food", AccountType: model.AccountTypeRevenue, Amount: 500},
+			{AccountID: 2, AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: -500},
+		}
+		got, err := svc.DetermineType(context.Background(), splits)
+		require.NoError(t, err)
+		assert.Equal(t, model.TxTypeExpense, got)
+	})
 }
 
 func TestBuildTransactionListItems(t *testing.T) {

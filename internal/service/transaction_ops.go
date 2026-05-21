@@ -157,8 +157,8 @@ func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, input
 			return model.TransactionDetail{}, fmt.Errorf("failed to resolve to account: %w", err)
 		}
 		inferred, err := ts.DetermineType(ctx, []model.SplitDetail{
-			{AccountType: toAcc.Type, Amount: input.Amount},
-			{AccountType: fromAcc.Type, Amount: -input.Amount},
+			{AccountID: toAcc.ID, AccountName: input.ToAccount, AccountType: toAcc.Type, Amount: input.Amount},
+			{AccountID: fromAcc.ID, AccountName: input.FromAccount, AccountType: fromAcc.Type, Amount: -input.Amount},
 		})
 		if err != nil {
 			return model.TransactionDetail{}, err

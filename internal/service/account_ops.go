@@ -109,14 +109,26 @@ func (as *AccountService) validateAccountFields(ctx context.Context, name string
 	if !accType.IsValid() {
 		return validationErrorf("type", "invalid account type: %s", accType)
 	}
-	root := strings.SplitN(name, ":", 2)[0]
-	if expected, ok := model.AccountTypeFromRootName(root); ok && expected != accType {
-		return validationErrorf("type", "account type %q conflicts with root %q (expected %q)", accType, root, expected)
-	}
 	if parentID != nil {
 		if err := as.validateParentChain(ctx, 0, parentID); err != nil {
 			return err
 		}
+		parent, err := as.repo.GetAccountByID(ctx, *parentID)
+		if err != nil {
+			return fmt.Errorf("failed to look up parent account %d: %w", *parentID, err)
+		}
+		expectedPrefix := parent.Name + ":"
+		if !strings.HasPrefix(name, expectedPrefix) {
+			return validationErrorf("parent", "account name %q is not a child of parent %q", name, parent.Name)
+		}
+		childSegment := strings.TrimPrefix(name, expectedPrefix)
+		if strings.Contains(childSegment, ":") {
+			return validationErrorf("parent", "account name %q is not a direct child of parent %q (nested segments found)", name, parent.Name)
+		}
+	}
+	root := strings.SplitN(name, ":", 2)[0]
+	if expected, ok := model.AccountTypeFromRootName(root); ok && expected != accType {
+		return validationErrorf("type", "account type %q conflicts with root %q (expected %q)", accType, root, expected)
 	}
 	return nil
 }

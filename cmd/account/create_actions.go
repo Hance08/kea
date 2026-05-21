@@ -86,7 +86,22 @@ func (r *createRunner) promptParent(ctx context.Context) (*model.Account, error)
 		return nil, fmt.Errorf("failed to retrieve accounts: %w", err)
 	}
 
-	_, selectedAccount, err := prompts.PromptParentAccount(allAccounts)
+	var eligible []*model.Account
+	for _, acc := range allAccounts {
+		hasTx, err := r.accSvc.AccountHasTransactions(ctx, acc.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check transactions for %q: %w", acc.Name, err)
+		}
+		if !hasTx {
+			eligible = append(eligible, acc)
+		}
+	}
+
+	if len(eligible) == 0 {
+		return nil, fmt.Errorf("no eligible parent accounts found (all accounts have transactions)")
+	}
+
+	_, selectedAccount, err := prompts.PromptParentAccount(eligible)
 	if err != nil {
 		return nil, err
 	}

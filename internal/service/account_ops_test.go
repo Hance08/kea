@@ -1094,3 +1094,85 @@ func TestCreateAccount_ParentNameConsistency(t *testing.T) {
 		assert.Equal(t, "Assets:Bank", acc.Name)
 	})
 }
+
+// ──────────────────────────────────────────────
+// Parent with transactions guard (#150)
+// ──────────────────────────────────────────────
+
+func TestCreateAccount_ParentHasTransactions(t *testing.T) {
+	t.Run("parent with transactions rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		accRepo.txExistsMap[10] = true
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Checking",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "parent", ve.Field)
+		assert.Contains(t, err.Error(), "transactions")
+	})
+
+	t.Run("parent without transactions accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		// txExistsMap[10] defaults to false
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Checking",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "Assets:Bank:Checking", acc.Name)
+	})
+
+	t.Run("nil parent skips transaction check", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "Assets:Bank", acc.Name)
+	})
+
+	t.Run("rejected via CreateAccountWithBalance too", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		accRepo.txExistsMap[10] = true
+		addOpeningBalanceAccount(accRepo)
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Checking",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+			Balance:  1000,
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "parent", ve.Field)
+		assert.Contains(t, err.Error(), "transactions")
+	})
+}

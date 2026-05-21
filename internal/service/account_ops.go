@@ -117,6 +117,13 @@ func (as *AccountService) validateAccountFields(ctx context.Context, name string
 		if err != nil {
 			return fmt.Errorf("failed to look up parent account %d: %w", *parentID, err)
 		}
+		hasTransactions, err := as.repo.AccountHasTransactions(ctx, parent.ID)
+		if err != nil {
+			return fmt.Errorf("failed to check parent transactions for account %d: %w", parent.ID, err)
+		}
+		if hasTransactions {
+			return validationErrorf("parent", "account %q already has transactions; it cannot become a parent", parent.Name)
+		}
 		expectedPrefix := parent.Name + ":"
 		if !strings.HasPrefix(name, expectedPrefix) {
 			return validationErrorf("parent", "account name %q is not a child of parent %q", name, parent.Name)

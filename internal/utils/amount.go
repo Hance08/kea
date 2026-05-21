@@ -12,6 +12,10 @@ import (
 	"github.com/hance08/kea/internal/model"
 )
 
+var ErrAmountOverflow = fmt.Errorf("amount too large: exceeds int64 range")
+
+const maxDollars = math.MaxInt64 / int64(model.CentsPerUnit)
+
 func FormatAmount(cents int64) string {
 	if cents == math.MinInt64 {
 		panic("utils.FormatAmount: undefined for math.MinInt64 (overflow)")
@@ -124,7 +128,15 @@ func ParseAmount(amountStr string) (int64, error) {
 		}
 	}
 
-	total := (dollars+dollarCarry)*int64(model.CentsPerUnit) + cents
+	dollars += dollarCarry
+	if dollars > maxDollars {
+		return 0, ErrAmountOverflow
+	}
+
+	total := dollars*int64(model.CentsPerUnit) + cents
+	if total < 0 {
+		return 0, ErrAmountOverflow
+	}
 
 	if isNegative {
 		total = -total

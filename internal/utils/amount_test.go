@@ -82,6 +82,8 @@ func TestParseAmount_Valid(t *testing.T) {
 		{"3 decimals no carry", "0.994", 99},
 		// "1.0099": dollars=1, centStr="0099", firstTwo=00, third='9'>=5 → cents=1, total=1*100+1=101
 		{"4 decimals truncated with round-up", "1.0099", 101},
+		{"max safe positive", "92233720368547758.07", 9223372036854775807},
+		{"max safe negative", "-92233720368547758.07", -9223372036854775807},
 	}
 
 	for _, tt := range tests {
@@ -110,6 +112,10 @@ func TestParseAmount_Invalid(t *testing.T) {
 		{"whitespace", " "},
 		{"empty string", ""},
 		{"just -", "-"},
+		{"overflow positive dollars", "92233720368547759"},
+		{"overflow negative dollars", "-92233720368547759"},
+		{"overflow from cents addition", "92233720368547758.08"},
+		{"overflow from dollarCarry", "92233720368547758.995"},
 	}
 
 	for _, tt := range tests {

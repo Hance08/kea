@@ -1000,3 +1000,97 @@ func TestCreateAccount_ParentTypeMismatch(t *testing.T) {
 		assert.Equal(t, model.AccountTypeRevenue, acc.Type)
 	})
 }
+
+func TestCreateAccount_ParentNameConsistency(t *testing.T) {
+	t.Run("name under different branch than parent rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Expenses:Food",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "parent", ve.Field)
+		assert.Contains(t, err.Error(), "Assets:Bank")
+	})
+
+	t.Run("name shares prefix but adds extra nesting rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Sub:Deep",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "parent", ve.Field)
+	})
+
+	t.Run("correct child name accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank:Checking",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "Assets:Bank:Checking", acc.Name)
+	})
+
+	t.Run("mismatch rejected via CreateAccountWithBalance", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{
+			ID: 10, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD",
+		})
+		addOpeningBalanceAccount(accRepo)
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateAccountWithBalance(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Cash",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+			ParentID: int64Ptr(10),
+			Balance:  1000,
+		})
+		require.Error(t, err)
+
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "parent", ve.Field)
+	})
+
+	t.Run("nil parent skips name consistency check", func(t *testing.T) {
+		svc := newTestAccountService(newMockAccountRepo(), newMockTransactionRepo())
+
+		acc, err := svc.CreateAccount(context.Background(), model.CreateAccountInput{
+			Name:     "Assets:Bank",
+			Type:     model.AccountTypeAsset,
+			Currency: "USD",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "Assets:Bank", acc.Name)
+	})
+}

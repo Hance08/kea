@@ -288,6 +288,41 @@ func TestMarkSplitsReconciledByAccount_LargeBatch(t *testing.T) {
 	assert.Empty(t, entries)
 }
 
+func TestBulkUpdateTransactionStatus_LargeBatch(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	assetID, err := s.CreateAccount(ctx, "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+	require.NoError(t, err)
+	expenseID, err := s.CreateAccount(ctx, "Expenses:Food", model.AccountTypeExpense, "USD", "", nil)
+	require.NoError(t, err)
+
+	const n = 600
+	txIDs := make([]int64, n)
+	for i := 0; i < n; i++ {
+		txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
+			Timestamp:   int64(1000 + i),
+			Description: fmt.Sprintf("tx-%d", i),
+			Status:      model.StatusPending,
+			Type:        model.TxTypeExpense,
+		}, []model.Split{
+			{AccountID: assetID, Amount: -100, Currency: "USD"},
+			{AccountID: expenseID, Amount: 100, Currency: "USD"},
+		})
+		require.NoError(t, err)
+		txIDs[i] = txID
+	}
+
+	err = s.BulkUpdateTransactionStatus(ctx, txIDs, model.StatusCleared)
+	require.NoError(t, err)
+
+	for _, txID := range txIDs {
+		tx, err := s.GetTransactionByID(ctx, txID)
+		require.NoError(t, err)
+		assert.Equal(t, model.StatusCleared, tx.Status)
+	}
+}
+
 func TestGetSetLastReconciledBalance(t *testing.T) {
 	s := setupTestDB(t)
 	ctx := context.Background()

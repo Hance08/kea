@@ -114,9 +114,9 @@ func (s *Store) MarkSplitsReconciledByAccount(ctx context.Context, accountID int
 	return totalAffected, s.bulkUpdateTransactionStatus(ctx, txIDs, model.StatusReconciled)
 }
 
-// BulkUpdateTransactionStatus sets the status of all listed transaction IDs
-// in a single UPDATE statement. Returns an error if the affected row count
-// does not match len(txIDs) — indicating one or more IDs did not exist.
+// BulkUpdateTransactionStatus sets the status of all listed transaction IDs,
+// chunked to respect SQLite's variable limit. Returns an error if the affected
+// row count does not match len(txIDs) — indicating one or more IDs did not exist.
 func (s *Store) BulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, status model.TransactionStatus) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -128,31 +128,35 @@ func (s *Store) bulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, 
 		return nil
 	}
 
-	placeholders := strings.Repeat("?,", len(txIDs))
-	placeholders = placeholders[:len(placeholders)-1] // trim trailing comma
+	var totalAffected int64
+	for _, chunk := range chunkInt64(txIDs, sqliteChunkSize) {
+		placeholders := strings.Repeat("?,", len(chunk))
+		placeholders = placeholders[:len(placeholders)-1]
 
-	query := fmt.Sprintf(
-		"UPDATE transactions SET status = ? WHERE id IN (%s)",
-		placeholders,
-	)
+		query := fmt.Sprintf(
+			"UPDATE transactions SET status = ? WHERE id IN (%s)",
+			placeholders,
+		)
 
-	args := make([]any, 0, len(txIDs)+1)
-	args = append(args, status)
-	for _, id := range txIDs {
-		args = append(args, id)
+		args := make([]any, 0, len(chunk)+1)
+		args = append(args, status)
+		for _, id := range chunk {
+			args = append(args, id)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to bulk update transaction status: %w", err)
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to get rows affected: %w", err)
+		}
+		totalAffected += rowsAffected
 	}
-
-	result, err := s.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to bulk update transaction status: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if rowsAffected != int64(len(txIDs)) {
-		return fmt.Errorf("expected to update %d transactions, updated %d", len(txIDs), rowsAffected)
+	if totalAffected != int64(len(txIDs)) {
+		return fmt.Errorf("expected to update %d transactions, updated %d", len(txIDs), totalAffected)
 	}
 	return nil
 }

@@ -407,9 +407,8 @@ func (s *Store) GetSplitsWithAccountsByTransaction(ctx context.Context, txID int
 	return result, nil
 }
 
-// GetSplitsWithAccountsByTransactionIDs assumes len(txIDs) is bounded by the
-// list command's --limit flag (default 20). SQLite's SQLITE_MAX_VARIABLE_NUMBER
-// is 999 by default, so this is safe for practical list sizes.
+// GetSplitsWithAccountsByTransactionIDs returns splits grouped by transaction ID.
+// Large ID slices are chunked to stay within SQLite's variable limit.
 func (s *Store) GetSplitsWithAccountsByTransactionIDs(ctx context.Context, txIDs []int64) (map[int64][]model.SplitDetail, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -418,45 +417,49 @@ func (s *Store) GetSplitsWithAccountsByTransactionIDs(ctx context.Context, txIDs
 		return make(map[int64][]model.SplitDetail), nil
 	}
 
-	placeholders := make([]byte, 0, len(txIDs)*2-1)
-	args := make([]any, len(txIDs))
-	for i, id := range txIDs {
-		if i > 0 {
-			placeholders = append(placeholders, ',')
-		}
-		placeholders = append(placeholders, '?')
-		args[i] = id
-	}
-
-	query := `
-        SELECT
-            s.id, s.transaction_id, s.account_id, s.amount, s.currency, s.memo,
-            a.name, a.type
-        FROM splits s
-        JOIN accounts a ON s.account_id = a.id
-        WHERE s.transaction_id IN (` + string(placeholders) + `)
-        ORDER BY s.transaction_id, s.id`
-
-	rows, err := s.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query splits by transaction IDs: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
 	result := make(map[int64][]model.SplitDetail)
-	for rows.Next() {
-		var d model.SplitDetail
-		var txID int64
-		if err := rows.Scan(
-			&d.ID, &txID, &d.AccountID, &d.Amount, &d.Currency, &d.Memo,
-			&d.AccountName, &d.AccountType,
-		); err != nil {
-			return nil, fmt.Errorf("failed to scan split with account: %w", err)
+	for _, chunk := range chunkInt64(txIDs, sqliteChunkSize) {
+		placeholders := make([]byte, 0, len(chunk)*2-1)
+		args := make([]any, len(chunk))
+		for i, id := range chunk {
+			if i > 0 {
+				placeholders = append(placeholders, ',')
+			}
+			placeholders = append(placeholders, '?')
+			args[i] = id
 		}
-		result[txID] = append(result[txID], d)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+
+		query := `
+            SELECT
+                s.id, s.transaction_id, s.account_id, s.amount, s.currency, s.memo,
+                a.name, a.type
+            FROM splits s
+            JOIN accounts a ON s.account_id = a.id
+            WHERE s.transaction_id IN (` + string(placeholders) + `)
+            ORDER BY s.transaction_id, s.id`
+
+		rows, err := s.db.QueryContext(ctx, query, args...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query splits by transaction IDs: %w", err)
+		}
+
+		for rows.Next() {
+			var d model.SplitDetail
+			var txID int64
+			if err := rows.Scan(
+				&d.ID, &txID, &d.AccountID, &d.Amount, &d.Currency, &d.Memo,
+				&d.AccountName, &d.AccountType,
+			); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("failed to scan split with account: %w", err)
+			}
+			result[txID] = append(result[txID], d)
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("rows iteration error: %w", err)
+		}
+		_ = rows.Close()
 	}
 	return result, nil
 }

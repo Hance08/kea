@@ -108,3 +108,44 @@ func TestListAccounts(t *testing.T) {
 		assert.Len(t, accounts, 2)
 	})
 }
+
+func TestGetAccountBalanceFormatted(t *testing.T) {
+	t.Run("returns formatted balance for existing account", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.balances[1] = 5000
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		bal, err := svc.GetAccountBalanceFormatted(context.Background(), 1)
+
+		require.NoError(t, err)
+		assert.Equal(t, "50", bal)
+	})
+
+	t.Run("returns ErrNotFound for nonexistent account", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		bal, err := svc.GetAccountBalanceFormatted(context.Background(), 999)
+
+		assert.Empty(t, bal)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound))
+		assert.Contains(t, err.Error(), "999")
+	})
+
+	t.Run("passes through other errors from GetAccountByID", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		dbErr := fmt.Errorf("connection refused")
+		accRepo.getByIDErr[42] = dbErr
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		bal, err := svc.GetAccountBalanceFormatted(context.Background(), 42)
+
+		assert.Empty(t, bal)
+		require.Error(t, err)
+		assert.False(t, errors.Is(err, ErrNotFound))
+		assert.Equal(t, dbErr, err)
+	})
+}
+

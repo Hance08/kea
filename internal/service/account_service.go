@@ -87,10 +87,22 @@ func (as *AccountService) GetAccountsByType(ctx context.Context, accType model.A
 }
 
 func (as *AccountService) GetAccountBalance(ctx context.Context, accountID int64) (int64, error) {
+	if _, err := as.repo.GetAccountByID(ctx, accountID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return 0, fmt.Errorf("account #%d: %w", accountID, ErrNotFound)
+		}
+		return 0, err
+	}
 	return as.repo.GetAccountBalance(ctx, accountID)
 }
 
 func (as *AccountService) GetAccountBalanceFormatted(ctx context.Context, accountID int64) (string, error) {
+	if _, err := as.repo.GetAccountByID(ctx, accountID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return "", fmt.Errorf("account #%d: %w", accountID, ErrNotFound)
+		}
+		return "", err
+	}
 	balance, err := as.repo.GetAccountBalance(ctx, accountID)
 	if err != nil {
 		return "", err

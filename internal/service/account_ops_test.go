@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -648,9 +649,37 @@ func TestGetAccountBalance(t *testing.T) {
 	})
 
 	t.Run("propagates repo error", func(t *testing.T) {
-		repo.getBalanceErr[99] = errors.New("not found")
+		repo.addAccount(&model.Account{ID: 99, Name: "Assets:Test", Type: model.AccountTypeAsset})
+		repo.getBalanceErr[99] = errors.New("balance fetch failed")
 		_, err := svc.GetAccountBalance(context.Background(), 99)
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "balance fetch failed")
+	})
+
+	t.Run("returns ErrNotFound for nonexistent account", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		bal, err := svc.GetAccountBalance(context.Background(), 999)
+
+		assert.Equal(t, int64(0), bal)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrNotFound))
+		assert.Contains(t, err.Error(), "999")
+	})
+
+	t.Run("passes through other errors from GetAccountByID", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		dbErr := fmt.Errorf("connection refused")
+		accRepo.getByIDErr[42] = dbErr
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		bal, err := svc.GetAccountBalance(context.Background(), 42)
+
+		assert.Equal(t, int64(0), bal)
+		require.Error(t, err)
+		assert.False(t, errors.Is(err, ErrNotFound))
+		assert.Equal(t, dbErr, err)
 	})
 }
 

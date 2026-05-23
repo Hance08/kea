@@ -86,30 +86,32 @@ func (s *Store) MarkSplitsReconciledByAccount(ctx context.Context, accountID int
 		return 0, nil
 	}
 
-	placeholders := strings.Repeat("?,", len(txIDs))
-	placeholders = placeholders[:len(placeholders)-1]
+	var totalAffected int64
+	for _, chunk := range chunkInt64(txIDs, sqliteChunkSize) {
+		placeholders := strings.Repeat("?,", len(chunk))
+		placeholders = placeholders[:len(placeholders)-1]
 
-	// 1. Mark the account's splits as reconciled.
-	splitArgs := make([]any, 0, len(txIDs)+1)
-	splitArgs = append(splitArgs, accountID)
-	for _, id := range txIDs {
-		splitArgs = append(splitArgs, id)
-	}
-	splitQuery := fmt.Sprintf(
-		"UPDATE splits SET reconciled = 1 WHERE account_id = ? AND transaction_id IN (%s)",
-		placeholders,
-	)
-	result, err := s.db.ExecContext(ctx, splitQuery, splitArgs...)
-	if err != nil {
-		return 0, fmt.Errorf("failed to mark splits as reconciled: %w", err)
-	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get rows affected from splits update: %w", err)
+		splitArgs := make([]any, 0, len(chunk)+1)
+		splitArgs = append(splitArgs, accountID)
+		for _, id := range chunk {
+			splitArgs = append(splitArgs, id)
+		}
+		splitQuery := fmt.Sprintf(
+			"UPDATE splits SET reconciled = 1 WHERE account_id = ? AND transaction_id IN (%s)",
+			placeholders,
+		)
+		result, err := s.db.ExecContext(ctx, splitQuery, splitArgs...)
+		if err != nil {
+			return 0, fmt.Errorf("failed to mark splits as reconciled: %w", err)
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get rows affected from splits update: %w", err)
+		}
+		totalAffected += rowsAffected
 	}
 
-	// 2. Upgrade all affected transactions to StatusReconciled.
-	return rowsAffected, s.bulkUpdateTransactionStatus(ctx, txIDs, model.StatusReconciled)
+	return totalAffected, s.bulkUpdateTransactionStatus(ctx, txIDs, model.StatusReconciled)
 }
 
 // BulkUpdateTransactionStatus sets the status of all listed transaction IDs

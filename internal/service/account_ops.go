@@ -290,9 +290,20 @@ func (as *AccountService) RenameAccount(ctx context.Context, oldName, newFullNam
 		return nil, validationErrorf("name", "account %q already exists", newFullName)
 	}
 
-	if err := as.repo.RenameAccount(ctx, acc.Name, newFullName); err != nil {
+	var renamed *model.Account
+	err = as.tm.ExecTx(ctx, func(repo repository.Repository) error {
+		if err := repo.RenameAccount(ctx, acc.Name, newFullName); err != nil {
+			return err
+		}
+		got, err := repo.GetAccountByName(ctx, newFullName)
+		if err != nil {
+			return err
+		}
+		renamed = got
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	return as.repo.GetAccountByName(ctx, newFullName)
+	return renamed, nil
 }

@@ -258,7 +258,9 @@ func (s *Store) AccountHasTransactions(ctx context.Context, accountID int64) (bo
 	return exists, nil
 }
 
-// RenameAccount updates the name of an account and cascades the rename to all descendants.
+// RenameAccount updates the name of an account and cascades the rename to all
+// descendants. The two UPDATEs are not wrapped in a transaction; callers should
+// use ExecTx when atomicity is required.
 func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

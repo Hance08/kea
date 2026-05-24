@@ -39,7 +39,7 @@ func (s *Store) CreateTransactionWithSplits(ctx context.Context, tx model.Transa
 		var sqliteErr sqlite.Error
 		if errors.As(err, &sqliteErr) {
 			if errors.Is(sqliteErr.Code, sqlite.ErrConstraint) || errors.Is(sqliteErr.ExtendedCode, sqlite.ErrConstraintUnique) {
-				return 0, fmt.Errorf("transaction already exists (duplicate external_id)")
+				return 0, fmt.Errorf("duplicate external_id: %w", ErrTransactionExists)
 			}
 		}
 		return 0, fmt.Errorf("failed to insert transaction: %w", err)

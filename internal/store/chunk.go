@@ -6,6 +6,9 @@ package store
 const sqliteChunkSize = 500
 
 func chunkInt64(ids []int64, size int) [][]int64 {
+	if size <= 0 {
+		panic("chunkInt64: size must be positive")
+	}
 	if len(ids) == 0 {
 		return nil
 	}

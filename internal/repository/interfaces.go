@@ -60,9 +60,9 @@ type TransactionRepository interface {
 	// net split amount for that account. Ordered by timestamp ASC.
 	GetUnreconciledTransactionsByAccount(ctx context.Context, accountID int64) ([]*model.ReconcileEntry, error)
 
-	// BulkUpdateTransactionStatus sets status on all listed transaction IDs
-	// in a single atomic UPDATE. Returns an error if the affected row count
-	// does not match len(txIDs).
+	// BulkUpdateTransactionStatus sets status on all listed transaction IDs.
+	// Large ID lists are chunked internally. Returns an error if the affected
+	// row count does not match len(txIDs).
 	BulkUpdateTransactionStatus(ctx context.Context, txIDs []int64, status model.TransactionStatus) error
 
 	// MarkSplitsReconciledByAccount marks the splits for accountID in each of

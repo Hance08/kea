@@ -5,6 +5,7 @@ package store_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
@@ -446,4 +447,37 @@ func TestGetSplitsWithAccountsByTransactionIDs(t *testing.T) {
 	empty, err := s.GetSplitsWithAccountsByTransactionIDs(ctx, []int64{})
 	require.NoError(t, err)
 	assert.Empty(t, empty)
+}
+
+func TestGetSplitsWithAccountsByTransactionIDs_LargeBatch(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	assetID, err := s.CreateAccount(ctx, "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+	require.NoError(t, err)
+	expenseID, err := s.CreateAccount(ctx, "Expenses:Food", model.AccountTypeExpense, "USD", "", nil)
+	require.NoError(t, err)
+
+	const n = 600
+	txIDs := make([]int64, n)
+	for i := 0; i < n; i++ {
+		txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
+			Timestamp:   int64(1000 + i),
+			Description: fmt.Sprintf("tx-%d", i),
+			Status:      model.StatusPending,
+			Type:        model.TxTypeExpense,
+		}, []model.Split{
+			{AccountID: assetID, Amount: -100, Currency: "USD"},
+			{AccountID: expenseID, Amount: 100, Currency: "USD"},
+		})
+		require.NoError(t, err)
+		txIDs[i] = txID
+	}
+
+	result, err := s.GetSplitsWithAccountsByTransactionIDs(ctx, txIDs)
+	require.NoError(t, err)
+	assert.Len(t, result, n)
+	for _, txID := range txIDs {
+		assert.Len(t, result[txID], 2, "each transaction should have 2 splits")
+	}
 }

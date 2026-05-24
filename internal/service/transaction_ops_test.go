@@ -6,10 +6,12 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -310,6 +312,27 @@ func TestCreateTransaction(t *testing.T) {
 		var ve *ValidationError
 		assert.True(t, errors.As(err, &ve))
 		assert.Equal(t, "status", ve.Field)
+	})
+
+	t.Run("duplicate external_id returns ErrAlreadyExists", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		txRepo.createErr = fmt.Errorf("duplicate external_id: %w", repository.ErrAlreadyExists)
+
+		input := model.TransactionDetail{
+			Description: "Lunch",
+			Type:        model.TxTypeExpense,
+			Splits: []model.SplitDetail{
+				{AccountName: "Expenses:Food", Amount: 500},
+				{AccountName: "Assets:Bank", Amount: -500},
+			},
+		}
+		_, err := svc.CreateTransaction(context.Background(), input)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrAlreadyExists), "expected ErrAlreadyExists, got: %v", err)
 	})
 }
 

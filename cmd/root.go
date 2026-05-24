@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"unicode"
 
 	"github.com/hance08/kea/cmd/account"
@@ -133,7 +134,7 @@ func Execute(migrations fs.FS) {
 			return 1
 		}
 
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 
 		if err := initSysAcc(ctx, application.Service, cfg); err != nil {

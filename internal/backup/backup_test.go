@@ -169,10 +169,14 @@ func TestRotate_OnlyTouchesMatchingTier(t *testing.T) {
 	assert.NoError(t, err, "weekly backup must not be deleted by daily rotation")
 }
 
-// mkDB creates a fake DB file at dbPath with contents "fake-db".
+// mkDB creates a real SQLite database file at dbPath.
 func mkDB(t *testing.T, dbPath string) {
 	t.Helper()
-	require.NoError(t, os.WriteFile(dbPath, []byte("fake-db"), 0644))
+	db, err := sql.Open("sqlite3", dbPath)
+	require.NoError(t, err)
+	_, err = db.Exec("CREATE TABLE _backup_marker (id INTEGER PRIMARY KEY)")
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
 }
 
 func TestRun_FirstRun_AllThreeTiersCreated(t *testing.T) {

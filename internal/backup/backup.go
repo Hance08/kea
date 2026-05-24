@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -147,39 +146,4 @@ func doBackup(dbPath, dst string, db *sql.DB) error {
 	}
 
 	return backupOnline(context.Background(), tmpDB, dst)
-}
-
-// copyFile copies src to dst atomically via a .tmp intermediate file.
-// The parent directory of dst must already exist.
-func copyFile(src, dst string) error {
-	tmp := dst + ".tmp"
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		os.Remove(tmp)
-		return err
-	}
-
-	if err := out.Close(); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-
-	if err := os.Rename(tmp, dst); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-
-	return nil
 }

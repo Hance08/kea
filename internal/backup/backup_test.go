@@ -67,37 +67,6 @@ func TestBackupFilename(t *testing.T) {
 	assert.Equal(t, "kea_monthly_2026-04.db", backupFilename("kea", "monthly", "2026-04", ".db"))
 }
 
-func TestCopyFile(t *testing.T) {
-	dir := t.TempDir()
-
-	src := filepath.Join(dir, "kea.db")
-	require.NoError(t, os.WriteFile(src, []byte("db-contents"), 0644))
-
-	dst := filepath.Join(dir, "backups", "kea_daily_2026-04-14.db")
-	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0755))
-
-	require.NoError(t, copyFile(src, dst))
-
-	got, err := os.ReadFile(dst)
-	require.NoError(t, err)
-	assert.Equal(t, []byte("db-contents"), got)
-}
-
-func TestCopyFile_LeavesNoTmpOnFailure(t *testing.T) {
-	dir := t.TempDir()
-	// Source does not exist — copy must fail and leave no .tmp behind.
-	src := filepath.Join(dir, "missing.db")
-	dst := filepath.Join(dir, "backups", "out.db")
-	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0755))
-
-	err := copyFile(src, dst)
-	assert.Error(t, err)
-
-	// No .tmp file left behind.
-	_, statErr := os.Stat(dst + ".tmp")
-	assert.True(t, errors.Is(statErr, os.ErrNotExist))
-}
-
 func TestRotate_PrunesOldestBeyondRetention(t *testing.T) {
 	dir := t.TempDir()
 	backupDir := filepath.Join(dir, "backups")

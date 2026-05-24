@@ -532,3 +532,26 @@ func TestPreviewReconcile_DoesNotMutate(t *testing.T) {
 		t.Errorf("expected last reconciled balance unchanged at 0, got %d", bal)
 	}
 }
+
+func TestReconcileTransactions_ReadsInsideExecTx(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 50000},
+	})
+
+	diff, err := svc.ReconcileTransactions(context.Background(), 1, 50000, []int64{10})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff != 0 {
+		t.Errorf("expected diff 0, got %d", diff)
+	}
+	if txRepo.lastReconciledBalances[1] != 50000 {
+		t.Errorf("expected persisted balance 50000, got %d", txRepo.lastReconciledBalances[1])
+	}
+}

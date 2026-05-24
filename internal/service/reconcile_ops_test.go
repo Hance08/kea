@@ -532,3 +532,55 @@ func TestPreviewReconcile_DoesNotMutate(t *testing.T) {
 		t.Errorf("expected last reconciled balance unchanged at 0, got %d", bal)
 	}
 }
+
+func TestReconcileTransactions_ReadsInsideExecTx(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 50000},
+	})
+
+	diff, err := svc.ReconcileTransactions(context.Background(), 1, 50000, []int64{10})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if diff != 0 {
+		t.Errorf("expected diff 0, got %d", diff)
+	}
+	if txRepo.lastReconciledBalances[1] != 50000 {
+		t.Errorf("expected persisted balance 50000, got %d", txRepo.lastReconciledBalances[1])
+	}
+}
+
+func TestReconcileTransactions_UnknownID_InsideExecTx_NoWrites(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Checking", Type: model.AccountTypeAsset})
+	seedUnreconciled(txRepo, 1, []*model.ReconcileEntry{
+		{ID: 10, Amount: 50000},
+	})
+	txRepo.lastReconciledBalances[1] = 20000
+
+	_, err := svc.ReconcileTransactions(context.Background(), 1, 70000, []int64{10, 99})
+
+	if err == nil {
+		t.Fatal("expected error for unknown transaction ID, got nil")
+	}
+	// Validation error from inside ExecTx must roll back: no marks, no balance change.
+	if len(txRepo.markSplitsReconciledCalls) != 0 {
+		t.Error("MarkSplitsReconciledByAccount must not persist when validation fails inside ExecTx")
+	}
+	if len(txRepo.setLastReconciledBalCalls) != 0 {
+		t.Error("SetLastReconciledBalance must not persist when validation fails inside ExecTx")
+	}
+	// Original balance must be unchanged.
+	if txRepo.lastReconciledBalances[1] != 20000 {
+		t.Errorf("expected last reconciled balance unchanged at 20000, got %d", txRepo.lastReconciledBalances[1])
+	}
+}

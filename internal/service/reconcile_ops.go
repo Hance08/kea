@@ -97,48 +97,50 @@ func (ts *TransactionService) ReconcileTransactions(ctx context.Context, account
 		return 0, validationErrorf("transactions", "no transactions selected for reconciliation")
 	}
 
-	// 1. Verify account exists.
+	// Fast-fail: verify account exists before opening a transaction.
 	if _, err := ts.accRepo.GetAccountByID(ctx, accountID); err != nil {
 		return 0, fmt.Errorf("account not found: %w", err)
 	}
 
-	// 2. Fetch last reconciled balance.
-	lastBalance, err := ts.txRepo.GetLastReconciledBalance(ctx, accountID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to load last reconciled balance: %w", err)
-	}
-
-	// 3. Fetch unreconciled transactions and build a valid-ID → amount map.
-	entries, err := ts.txRepo.GetUnreconciledTransactionsByAccount(ctx, accountID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to load unreconciled transactions: %w", err)
-	}
-
-	validAmounts := make(map[int64]int64, len(entries))
-	for _, e := range entries {
-		validAmounts[e.ID] = e.Amount
-	}
-
-	// 4. Validate every requested ID and accumulate the cleared balance.
-	var clearedBalance int64
+	// Duplicate-ID check is pure input validation — no DB needed.
 	seen := make(map[int64]bool, len(txIDs))
 	for _, id := range txIDs {
 		if seen[id] {
 			return 0, validationErrorf("transactions", "duplicate transaction ID %d", id)
 		}
 		seen[id] = true
-		amount, ok := validAmounts[id]
-		if !ok {
-			return 0, validationErrorf("transactions", "transaction ID %d is not in the unreconciled set for this account", id)
-		}
-		clearedBalance += amount
 	}
 
-	// 5-6. Atomically mark splits reconciled and persist the new running balance.
-	// Both writes run in the same DB transaction so a rows guard or a balance
-	// persistence error rolls back the splits UPDATE too.
-	newBalance := lastBalance + clearedBalance
+	// Everything else runs atomically inside a single DB transaction:
+	// read last balance → read unreconciled set → validate IDs → mark splits → persist balance.
+	var diff int64
 	if err := ts.tm.ExecTx(ctx, func(repo repository.Repository) error {
+		lastBalance, err := repo.GetLastReconciledBalance(ctx, accountID)
+		if err != nil {
+			return fmt.Errorf("failed to load last reconciled balance: %w", err)
+		}
+
+		entries, err := repo.GetUnreconciledTransactionsByAccount(ctx, accountID)
+		if err != nil {
+			return fmt.Errorf("failed to load unreconciled transactions: %w", err)
+		}
+
+		validAmounts := make(map[int64]int64, len(entries))
+		for _, e := range entries {
+			validAmounts[e.ID] = e.Amount
+		}
+
+		var clearedBalance int64
+		for _, id := range txIDs {
+			amount, ok := validAmounts[id]
+			if !ok {
+				return validationErrorf("transactions", "transaction ID %d is not in the unreconciled set for this account", id)
+			}
+			clearedBalance += amount
+		}
+
+		newBalance := lastBalance + clearedBalance
+
 		rowsAffected, err := repo.MarkSplitsReconciledByAccount(ctx, accountID, txIDs)
 		if err != nil {
 			return fmt.Errorf("failed to reconcile transactions: %w", err)
@@ -149,13 +151,16 @@ func (ts *TransactionService) ReconcileTransactions(ctx context.Context, account
 				len(txIDs), rowsAffected,
 			)
 		}
+
 		if err := repo.SetLastReconciledBalance(ctx, accountID, newBalance); err != nil {
 			return fmt.Errorf("failed to persist reconciled balance: %w", err)
 		}
+
+		diff = statementBalance - newBalance
 		return nil
 	}); err != nil {
 		return 0, err
 	}
 
-	return statementBalance - newBalance, nil
+	return diff, nil
 }

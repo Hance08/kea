@@ -111,6 +111,30 @@ func TestRenameAccount_SiblingUnaffected(t *testing.T) {
 	assert.NotContains(t, names, "Assets:Bank:Checking", "old child name should not exist")
 }
 
+func TestRenameAccount_InsideExecTx(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	_, err := s.CreateAccount(ctx, "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+	require.NoError(t, err)
+	_, err = s.CreateAccount(ctx, "Assets:Bank:Checking", model.AccountTypeAsset, "USD", "", nil)
+	require.NoError(t, err)
+
+	err = s.ExecTx(ctx, func(repo repository.Repository) error {
+		return repo.RenameAccount(ctx, "Assets:Bank", "Assets:CU")
+	})
+	require.NoError(t, err)
+
+	accounts, err := s.GetAllAccounts(ctx)
+	require.NoError(t, err)
+	names := accountNames(accounts)
+
+	assert.Contains(t, names, "Assets:CU")
+	assert.Contains(t, names, "Assets:CU:Checking")
+	assert.NotContains(t, names, "Assets:Bank")
+	assert.NotContains(t, names, "Assets:Bank:Checking")
+}
+
 func TestCreateAccount_And_GetByName(t *testing.T) {
 	s := setupTestDB(t)
 	ctx := context.Background()

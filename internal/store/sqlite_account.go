@@ -258,23 +258,14 @@ func (s *Store) AccountHasTransactions(ctx context.Context, accountID int64) (bo
 	return exists, nil
 }
 
-// RenameAccount updates the name of an account and cascades the rename to all descendants.
-// Both updates run in a single transaction.
+// RenameAccount updates the name of an account and cascades the rename to all
+// descendants. The two UPDATEs are not wrapped in a transaction; callers should
+// use ExecTx when atomicity is required.
 func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) error {
 	s.mu.RLock()
-	rawDB := s.rawDB
-	s.mu.RUnlock()
-	if rawDB == nil {
-		return fmt.Errorf("store is already in a transaction")
-	}
+	defer s.mu.RUnlock()
 
-	tx, err := rawDB.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	res, err := tx.ExecContext(ctx, `UPDATE accounts SET name = ? WHERE name = ?`, newName, oldName)
+	res, err := s.db.ExecContext(ctx, `UPDATE accounts SET name = ? WHERE name = ?`, newName, oldName)
 	if err != nil {
 		return fmt.Errorf("failed to rename account %q: %w", oldName, err)
 	}
@@ -286,7 +277,7 @@ func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) erro
 		return fmt.Errorf("account %q not found: %w", oldName, ErrRecordNotFound)
 	}
 
-	_, err = tx.ExecContext(ctx,
+	_, err = s.db.ExecContext(ctx,
 		`UPDATE accounts SET name = ? || substr(name, length(?) + 1)
 		 WHERE substr(name, 1, length(? || ':')) = ? || ':'`,
 		newName, oldName, oldName, oldName,
@@ -295,7 +286,7 @@ func (s *Store) RenameAccount(ctx context.Context, oldName, newName string) erro
 		return fmt.Errorf("failed to cascade rename from %q to %q: %w", oldName, newName, err)
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // DeleteAccount removes an account record by ID.

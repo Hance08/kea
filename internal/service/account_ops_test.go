@@ -797,6 +797,17 @@ func TestRenameAccount(t *testing.T) {
 
 		assert.Equal(t, model.OpeningBalancesAccountName("USD"), got.Name)
 	})
+
+	t.Run("ExecTx failure propagates error", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+		tm := &mockTransactionManager{accRepo: accRepo, txRepo: newMockTransactionRepo(), failTx: true}
+		svc := NewAccountService(accRepo, defaultConfig(), tm)
+
+		_, err := svc.RenameAccount(context.Background(), "Assets:Bank", "Assets:Savings")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "forced failure")
+	})
 }
 
 // ──────────────────────────────────────────────

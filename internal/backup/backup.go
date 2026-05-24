@@ -135,7 +135,18 @@ func doBackup(dbPath, dst string, db *sql.DB) error {
 	if db != nil {
 		return backupOnline(context.Background(), db, dst)
 	}
-	return copyFile(dbPath, dst)
+
+	tmpDB, err := sql.Open("sqlite3", dbPath+"?_busy_timeout=5000")
+	if err != nil {
+		return fmt.Errorf("open for backup: %w", err)
+	}
+	defer tmpDB.Close()
+
+	if err := tmpDB.Ping(); err != nil {
+		return fmt.Errorf("ping for backup: %w", err)
+	}
+
+	return backupOnline(context.Background(), tmpDB, dst)
 }
 
 // copyFile copies src to dst atomically via a .tmp intermediate file.

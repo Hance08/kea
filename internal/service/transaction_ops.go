@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hance08/kea/internal/model"
@@ -38,6 +39,13 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		return 0, validationErrorf("status", "invalid status: new transactions must be Pending or Cleared")
 	}
 
+	if strings.TrimSpace(input.Description) == "" {
+		return 0, validationErrorf("description", "description is required")
+	}
+	if len(input.Description) > model.DescriptionMaxLength {
+		return 0, validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
+	}
+
 	// Set default timestamp: Use current system time if not provided.
 	if input.Timestamp == 0 {
 		input.Timestamp = time.Now().Unix()
@@ -63,6 +71,10 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		splitCurrency := currency
 		if account.Currency != "" {
 			splitCurrency = account.Currency
+		}
+
+		if len(splitInput.Memo) > model.MemoMaxLength {
+			return 0, validationErrorf("memo", "split #%d memo too long (max %d characters)", i+1, model.MemoMaxLength)
 		}
 
 		splits = append(splits, model.Split{

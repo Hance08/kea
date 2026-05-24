@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,7 +97,8 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		input := model.TransactionDetail{
-			Type: model.TxTypeExpense,
+			Description: "test",
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -400}, // off by 100
@@ -113,7 +115,8 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
 
 		input := model.TransactionDetail{
-			Type: model.TxTypeExpense,
+			Description: "test",
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Assets:Bank", Amount: -500},
 				{AccountName: "NonExistent:Account", Amount: 500},
@@ -132,8 +135,9 @@ func TestCreateTransaction(t *testing.T) {
 
 		before := time.Now().Unix()
 		input := model.TransactionDetail{
-			Timestamp: 0,
-			Type:      model.TxTypeExpense,
+			Description: "test",
+			Timestamp:   0,
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -500},
@@ -155,7 +159,8 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		input := model.TransactionDetail{
-			Type: model.TxTypeExpense,
+			Description: "test",
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:TWDFood", Amount: 500},
 				{AccountName: "Assets:TWDBank", Amount: -500},
@@ -179,7 +184,8 @@ func TestCreateTransaction(t *testing.T) {
 
 		// Assets:Cash is TWD, Expenses:Food has no currency (falls back to USD)
 		input := model.TransactionDetail{
-			Type: model.TxTypeExpense,
+			Description: "test",
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Cash", Amount: -500},
@@ -197,7 +203,8 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		input := model.TransactionDetail{
-			Type: model.TxTypeExpense,
+			Description: "test",
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -500},
@@ -219,7 +226,8 @@ func TestCreateTransaction(t *testing.T) {
 		svc := newTestTransactionService(accRepo, txRepo)
 
 		input := model.TransactionDetail{
-			Type: model.TxTypeExpense,
+			Description: "test",
+			Type:        model.TxTypeExpense,
 			Splits: []model.SplitDetail{
 				{AccountName: "Expenses:Food", Amount: 500},
 				{AccountName: "Assets:Bank", Amount: -500},
@@ -985,6 +993,100 @@ func TestCreateTransactionFromSplits(t *testing.T) {
 		}
 		_, err := svc.CreateTransactionFromSplits(context.Background(), model.CreateTransactionFromSplitsInput{Splits: splits, Description: "team lunch", Timestamp: 0, Status: model.StatusCleared, Type: model.TxTypeExpense})
 		require.Error(t, err)
+	})
+}
+
+// ──────────────────────────────────────────────
+// CreateTransaction: Description & Memo validation
+// ──────────────────────────────────────────────
+
+func TestCreateTransaction_DescriptionValidation(t *testing.T) {
+	makeInput := func(desc string, memo string) model.TransactionDetail {
+		return model.TransactionDetail{
+			Description: desc,
+			Type:        model.TxTypeExpense,
+			Splits: []model.SplitDetail{
+				{AccountName: "Expenses:Food", Amount: 500, Memo: memo},
+				{AccountName: "Assets:Bank", Amount: -500},
+			},
+		}
+	}
+
+	t.Run("empty description rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateTransaction(context.Background(), makeInput("", ""))
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "description", ve.Field)
+		assert.Contains(t, ve.Message, "required")
+	})
+
+	t.Run("whitespace-only description rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.CreateTransaction(context.Background(), makeInput("   ", ""))
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "description", ve.Field)
+	})
+
+	t.Run("over-length description rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		longDesc := strings.Repeat("a", model.DescriptionMaxLength+1)
+		_, err := svc.CreateTransaction(context.Background(), makeInput(longDesc, ""))
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "description", ve.Field)
+		assert.Contains(t, ve.Message, "too long")
+	})
+
+	t.Run("exactly max-length description accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		exactDesc := strings.Repeat("a", model.DescriptionMaxLength)
+		id, err := svc.CreateTransaction(context.Background(), makeInput(exactDesc, ""))
+		require.NoError(t, err)
+		assert.Greater(t, id, int64(0))
+	})
+
+	t.Run("over-length memo on split rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+		longMemo := strings.Repeat("m", model.MemoMaxLength+1)
+		_, err := svc.CreateTransaction(context.Background(), makeInput("Valid desc", longMemo))
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "memo", ve.Field)
+		assert.Contains(t, ve.Message, "too long")
+	})
+
+	t.Run("exactly max-length memo accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		exactMemo := strings.Repeat("m", model.MemoMaxLength)
+		id, err := svc.CreateTransaction(context.Background(), makeInput("Valid desc", exactMemo))
+		require.NoError(t, err)
+		assert.Greater(t, id, int64(0))
 	})
 }
 

@@ -25,10 +25,14 @@ Added to `internal/model/types.go` alongside `AccountNameMaxLength`:
 
 ## Validation Rules
 
-### Description
+### Transaction Description
 - **Required:** must not be empty after `strings.TrimSpace()`.
 - **Max length:** must not exceed `DescriptionMaxLength` (500) characters.
 - The `"-"` default remains a CLI convention in `cmd/add_actions.go`. The service rejects empty descriptions; each client decides its own default.
+
+### Account Description
+- **Optional:** empty string is allowed (accounts don't always need a description).
+- **Max length:** must not exceed `DescriptionMaxLength` (500) characters when provided.
 
 ### Memo
 - **Optional:** empty string is allowed (splits don't always need a memo).
@@ -45,13 +49,13 @@ Added to `internal/model/types.go` alongside `AccountNameMaxLength`:
 - Validate each split's `Memo` (max length only) before entering the `ExecTx` block.
 
 ### 3. `CreateAccount` (`internal/service/account_ops.go:49`)
-- Validate `input.Description` (required + max length) before `validateAccountFields`.
+- Validate `input.Description` (max length only — account descriptions are optional) before `validateAccountFields`.
 
 ### 4. `CreateAccountWithBalance` (`internal/service/account_ops.go:60`)
 - Same description validation as `CreateAccount`, before `validateAccountFields`.
 
 ### 5. `UpdateAccountMetadata` (`internal/service/account_service.go:168`)
-- Validate `description` parameter (required + max length) at method entry, before the `GetAccountByID` call.
+- Validate `description` parameter (max length only) at method entry, before the `GetAccountByID` call.
 
 ## Error Format
 
@@ -65,13 +69,20 @@ validationErrorf("memo", "split #%d memo too long (max %d characters)", i+1, mod
 
 ## Testing
 
-White-box tests using the existing mock infrastructure (`package service`). Each method gets tests for:
+White-box tests using the existing mock infrastructure (`package service`). 
 
+**Transaction methods** (`CreateTransaction`, `UpdateTransactionComplete`):
 - Empty description is rejected with `ValidationError{Field: "description"}`
 - Whitespace-only description is rejected
 - Over-length description is rejected
-- Over-length memo is rejected (for transaction methods)
+- Over-length memo on a split is rejected
 - Valid inputs at the boundary (exactly max length) pass
+
+**Account methods** (`CreateAccount`, `CreateAccountWithBalance`, `UpdateAccountMetadata`):
+- Empty description is allowed (account descriptions are optional)
+- Over-length description is rejected
+- Valid inputs at the boundary (exactly max length) pass
+
 - Existing tests continue to pass (no regressions)
 
 ## Out of Scope

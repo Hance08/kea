@@ -24,10 +24,9 @@ type realClock struct{}
 func (realClock) Now() time.Time { return time.Now() }
 
 // Run backs up dbPath if any tier is due. It is a no-op when dbPath does not
-// exist. When db is non-nil, the SQLite online backup API is used for a
-// consistent snapshot; when nil, the DB file is copied directly (CLI startup
-// path where the database is not yet open). Errors are non-fatal: the caller
-// should log and continue startup.
+// exist. When db is non-nil, that connection is reused; when nil, a temporary
+// connection is opened. Both paths use the SQLite online backup API for a
+// consistent snapshot safe under concurrent access.
 func Run(dbPath string, db *sql.DB) error {
 	return run(dbPath, realClock{}, db)
 }
@@ -127,9 +126,9 @@ func rotate(backupDir, dbBase, tierName, ext string, retention int) error {
 	return nil
 }
 
-// doBackup dispatches to the appropriate backup strategy. When db is non-nil
-// the SQLite online backup API is used for a consistent snapshot; otherwise
-// the source file is copied directly.
+// doBackup creates a backup using the SQLite online backup API. When db is
+// non-nil the existing connection is used; otherwise a temporary connection
+// is opened and closed after the backup completes.
 func doBackup(dbPath, dst string, db *sql.DB) error {
 	if db != nil {
 		return backupOnline(context.Background(), db, dst)

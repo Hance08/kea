@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
@@ -146,6 +147,44 @@ func TestGetAccountBalanceFormatted(t *testing.T) {
 		require.Error(t, err)
 		assert.False(t, errors.Is(err, ErrNotFound))
 		assert.Equal(t, dbErr, err)
+	})
+}
+
+func TestUpdateAccountMetadata_DescriptionValidation(t *testing.T) {
+	t.Run("empty description is allowed", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD"})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		acc, err := svc.UpdateAccountMetadata(context.Background(), 1, "", false)
+		require.NoError(t, err)
+		assert.NotNil(t, acc)
+	})
+
+	t.Run("over-length description rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD"})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		longDesc := strings.Repeat("d", model.DescriptionMaxLength+1)
+		acc, err := svc.UpdateAccountMetadata(context.Background(), 1, longDesc, false)
+		assert.Nil(t, acc)
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "description", ve.Field)
+		assert.Contains(t, ve.Message, "too long")
+	})
+
+	t.Run("exactly max-length description accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD"})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		exactDesc := strings.Repeat("d", model.DescriptionMaxLength)
+		acc, err := svc.UpdateAccountMetadata(context.Background(), 1, exactDesc, false)
+		require.NoError(t, err)
+		assert.NotNil(t, acc)
 	})
 }
 

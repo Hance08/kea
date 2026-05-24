@@ -11,6 +11,7 @@ import (
 
 var (
 	ErrAccountExists       = fmt.Errorf("account already exists: %w", repository.ErrAlreadyExists)
+	ErrTransactionExists   = fmt.Errorf("transaction already exists: %w", repository.ErrAlreadyExists)
 	ErrRecordNotFound      = fmt.Errorf("record not found: %w", repository.ErrNotFound)
 	ErrConstraintViolation = fmt.Errorf("database constraint violation")
 	ErrInvalidAccountType  = fmt.Errorf("invalid account type")

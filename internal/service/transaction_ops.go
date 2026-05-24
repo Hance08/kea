@@ -99,6 +99,9 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 
 		newTxID, err = repo.CreateTransactionWithSplits(ctx, tx, splits)
 		if err != nil {
+			if errors.Is(err, repository.ErrAlreadyExists) {
+				return fmt.Errorf("transaction already exists: %w", ErrAlreadyExists)
+			}
 			return fmt.Errorf("failed to create transaction: %w", err)
 		}
 		return nil

@@ -67,37 +67,6 @@ func TestBackupFilename(t *testing.T) {
 	assert.Equal(t, "kea_monthly_2026-04.db", backupFilename("kea", "monthly", "2026-04", ".db"))
 }
 
-func TestCopyFile(t *testing.T) {
-	dir := t.TempDir()
-
-	src := filepath.Join(dir, "kea.db")
-	require.NoError(t, os.WriteFile(src, []byte("db-contents"), 0644))
-
-	dst := filepath.Join(dir, "backups", "kea_daily_2026-04-14.db")
-	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0755))
-
-	require.NoError(t, copyFile(src, dst))
-
-	got, err := os.ReadFile(dst)
-	require.NoError(t, err)
-	assert.Equal(t, []byte("db-contents"), got)
-}
-
-func TestCopyFile_LeavesNoTmpOnFailure(t *testing.T) {
-	dir := t.TempDir()
-	// Source does not exist — copy must fail and leave no .tmp behind.
-	src := filepath.Join(dir, "missing.db")
-	dst := filepath.Join(dir, "backups", "out.db")
-	require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0755))
-
-	err := copyFile(src, dst)
-	assert.Error(t, err)
-
-	// No .tmp file left behind.
-	_, statErr := os.Stat(dst + ".tmp")
-	assert.True(t, errors.Is(statErr, os.ErrNotExist))
-}
-
 func TestRotate_PrunesOldestBeyondRetention(t *testing.T) {
 	dir := t.TempDir()
 	backupDir := filepath.Join(dir, "backups")
@@ -169,10 +138,14 @@ func TestRotate_OnlyTouchesMatchingTier(t *testing.T) {
 	assert.NoError(t, err, "weekly backup must not be deleted by daily rotation")
 }
 
-// mkDB creates a fake DB file at dbPath with contents "fake-db".
+// mkDB creates a real SQLite database file at dbPath.
 func mkDB(t *testing.T, dbPath string) {
 	t.Helper()
-	require.NoError(t, os.WriteFile(dbPath, []byte("fake-db"), 0644))
+	db, err := sql.Open("sqlite3", dbPath)
+	require.NoError(t, err)
+	_, err = db.Exec("CREATE TABLE _backup_marker (id INTEGER PRIMARY KEY)")
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
 }
 
 func TestRun_FirstRun_AllThreeTiersCreated(t *testing.T) {
@@ -420,6 +393,43 @@ func TestRun_WithDB_UsesOnlineBackup(t *testing.T) {
 	err = backupDB.QueryRow("SELECT val FROM test WHERE id = 1").Scan(&val)
 	require.NoError(t, err)
 	assert.Equal(t, "hello", val)
+}
+
+func TestDoBackup_NilDB_ProducesConsistentSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+
+	srcDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	require.NoError(t, err)
+
+	_, err = srcDB.Exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)")
+	require.NoError(t, err)
+	_, err = srcDB.Exec("INSERT INTO items (name) VALUES ('alpha'), ('beta')")
+	require.NoError(t, err)
+
+	// Leave data in WAL by NOT closing or checkpointing.
+	// Write to WAL then keep the connection open to simulate a running web server.
+	_, err = srcDB.Exec("INSERT INTO items (name) VALUES ('gamma')")
+	require.NoError(t, err)
+	defer srcDB.Close()
+
+	dst := filepath.Join(dir, "backup.db")
+	err = doBackup(dbPath, dst, nil)
+	require.NoError(t, err)
+
+	backupDB, err := sql.Open("sqlite3", dst)
+	require.NoError(t, err)
+	defer backupDB.Close()
+
+	var result string
+	err = backupDB.QueryRow("PRAGMA integrity_check").Scan(&result)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", result)
+
+	var count int
+	err = backupDB.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 3, count, "backup should contain all committed rows")
 }
 
 // assertFileExists is a helper that checks a file exists in dir.

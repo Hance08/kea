@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,10 +24,9 @@ type realClock struct{}
 func (realClock) Now() time.Time { return time.Now() }
 
 // Run backs up dbPath if any tier is due. It is a no-op when dbPath does not
-// exist. When db is non-nil, the SQLite online backup API is used for a
-// consistent snapshot; when nil, the DB file is copied directly (CLI startup
-// path where the database is not yet open). Errors are non-fatal: the caller
-// should log and continue startup.
+// exist. When db is non-nil, that connection is reused; when nil, a temporary
+// connection is opened. Both paths use the SQLite online backup API for a
+// consistent snapshot safe under concurrent access.
 func Run(dbPath string, db *sql.DB) error {
 	return run(dbPath, realClock{}, db)
 }
@@ -128,47 +126,23 @@ func rotate(backupDir, dbBase, tierName, ext string, retention int) error {
 	return nil
 }
 
-// doBackup dispatches to the appropriate backup strategy. When db is non-nil
-// the SQLite online backup API is used for a consistent snapshot; otherwise
-// the source file is copied directly.
+// doBackup creates a backup using the SQLite online backup API. When db is
+// non-nil the existing connection is used; otherwise a temporary connection
+// is opened and closed after the backup completes.
 func doBackup(dbPath, dst string, db *sql.DB) error {
 	if db != nil {
 		return backupOnline(context.Background(), db, dst)
 	}
-	return copyFile(dbPath, dst)
-}
 
-// copyFile copies src to dst atomically via a .tmp intermediate file.
-// The parent directory of dst must already exist.
-func copyFile(src, dst string) error {
-	tmp := dst + ".tmp"
-
-	in, err := os.Open(src)
+	tmpDB, err := sql.Open("sqlite3", dbPath+"?_busy_timeout=5000")
 	if err != nil {
-		return err
+		return fmt.Errorf("open for backup: %w", err)
 	}
-	defer in.Close()
+	defer tmpDB.Close()
 
-	out, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		os.Remove(tmp)
-		return err
+	if err := tmpDB.Ping(); err != nil {
+		return fmt.Errorf("ping for backup: %w", err)
 	}
 
-	if err := out.Close(); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-
-	if err := os.Rename(tmp, dst); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-
-	return nil
+	return backupOnline(context.Background(), tmpDB, dst)
 }

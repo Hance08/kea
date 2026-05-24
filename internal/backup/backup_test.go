@@ -426,6 +426,43 @@ func TestRun_WithDB_UsesOnlineBackup(t *testing.T) {
 	assert.Equal(t, "hello", val)
 }
 
+func TestDoBackup_NilDB_ProducesConsistentSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "kea.db")
+
+	srcDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	require.NoError(t, err)
+
+	_, err = srcDB.Exec("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT)")
+	require.NoError(t, err)
+	_, err = srcDB.Exec("INSERT INTO items (name) VALUES ('alpha'), ('beta')")
+	require.NoError(t, err)
+
+	// Leave data in WAL by NOT closing or checkpointing.
+	// Write to WAL then keep the connection open to simulate a running web server.
+	_, err = srcDB.Exec("INSERT INTO items (name) VALUES ('gamma')")
+	require.NoError(t, err)
+	defer srcDB.Close()
+
+	dst := filepath.Join(dir, "backup.db")
+	err = doBackup(dbPath, dst, nil)
+	require.NoError(t, err)
+
+	backupDB, err := sql.Open("sqlite3", dst)
+	require.NoError(t, err)
+	defer backupDB.Close()
+
+	var result string
+	err = backupDB.QueryRow("PRAGMA integrity_check").Scan(&result)
+	require.NoError(t, err)
+	assert.Equal(t, "ok", result)
+
+	var count int
+	err = backupDB.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, count, 2, "backup should contain at least the committed rows")
+}
+
 // assertFileExists is a helper that checks a file exists in dir.
 func assertFileExists(t *testing.T, dir, name string) {
 	t.Helper()

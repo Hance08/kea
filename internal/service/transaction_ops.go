@@ -269,6 +269,13 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 		return validationErrorf("status", "invalid status: must be Pending or Cleared")
 	}
 
+	if strings.TrimSpace(input.Description) == "" {
+		return validationErrorf("description", "description is required")
+	}
+	if len(input.Description) > model.DescriptionMaxLength {
+		return validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
+	}
+
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, input.ID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -292,6 +299,12 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 
 	if err := ts.ValidateSplitsMatchType(ctx, input.Type, input.Splits); err != nil {
 		return fmt.Errorf("splits do not match transaction type %q: %w", input.Type, err)
+	}
+
+	for i, s := range input.Splits {
+		if len(s.Memo) > model.MemoMaxLength {
+			return validationErrorf("memo", "split #%d memo too long (max %d characters)", i+1, model.MemoMaxLength)
+		}
 	}
 
 	return ts.tm.ExecTx(ctx, func(repo repository.Repository) error {

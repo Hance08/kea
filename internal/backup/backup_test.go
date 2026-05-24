@@ -429,7 +429,7 @@ func TestDoBackup_NilDB_ProducesConsistentSnapshot(t *testing.T) {
 	var count int
 	err = backupDB.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, count, 2, "backup should contain at least the committed rows")
+	assert.Equal(t, 3, count, "backup should contain all committed rows")
 }
 
 // assertFileExists is a helper that checks a file exists in dir.

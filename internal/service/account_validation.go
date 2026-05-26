@@ -5,6 +5,7 @@ package service
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hance08/kea/internal/model"
 )
@@ -25,7 +26,7 @@ func (as *AccountService) ValidateAccountName(name string) error {
 	if model.ReservedNames[strings.ToLower(name)] {
 		return validationErrorf("name", "'%s' is a reserved root account name", name)
 	}
-	if len(name) > model.AccountNameMaxLength {
+	if utf8.RuneCountInString(name) > model.AccountNameMaxLength {
 		return validationErrorf("name", "account name too long (max %d characters)", model.AccountNameMaxLength)
 	}
 	return nil
@@ -40,7 +41,7 @@ func (as *AccountService) ValidateFullAccountName(fullName string) error {
 	if fullName == "" {
 		return validationErrorf("name", "account name can't be empty")
 	}
-	if len(fullName) > model.AccountNameMaxLength {
+	if utf8.RuneCountInString(fullName) > model.AccountNameMaxLength {
 		return validationErrorf("name", "account name too long (max %d characters)", model.AccountNameMaxLength)
 	}
 
@@ -65,7 +66,7 @@ func (as *AccountService) ValidateFullAccountName(fullName string) error {
 		if strings.Contains(segment, ":") {
 			return validationErrorf("name", "account segment '%s' cannot contain ':'", segment)
 		}
-		if len(segment) > model.AccountNameMaxLength {
+		if utf8.RuneCountInString(segment) > model.AccountNameMaxLength {
 			return validationErrorf("name", "account segment too long (max %d characters)", model.AccountNameMaxLength)
 		}
 		if i > 0 && model.ReservedNames[strings.ToLower(segment)] {

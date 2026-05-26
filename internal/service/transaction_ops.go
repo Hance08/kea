@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
@@ -39,10 +40,11 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		return 0, validationErrorf("status", "invalid status: new transactions must be Pending or Cleared")
 	}
 
-	if strings.TrimSpace(input.Description) == "" {
+	input.Description = strings.TrimSpace(input.Description)
+	if input.Description == "" {
 		return 0, validationErrorf("description", "description is required")
 	}
-	if len(input.Description) > model.DescriptionMaxLength {
+	if utf8.RuneCountInString(input.Description) > model.DescriptionMaxLength {
 		return 0, validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
 	}
 
@@ -73,7 +75,7 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 			splitCurrency = account.Currency
 		}
 
-		if len(splitInput.Memo) > model.MemoMaxLength {
+		if utf8.RuneCountInString(splitInput.Memo) > model.MemoMaxLength {
 			return 0, validationErrorf("memo", "split #%d memo too long (max %d characters)", i+1, model.MemoMaxLength)
 		}
 
@@ -269,10 +271,11 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 		return validationErrorf("status", "invalid status: must be Pending or Cleared")
 	}
 
-	if strings.TrimSpace(input.Description) == "" {
+	input.Description = strings.TrimSpace(input.Description)
+	if input.Description == "" {
 		return validationErrorf("description", "description is required")
 	}
-	if len(input.Description) > model.DescriptionMaxLength {
+	if utf8.RuneCountInString(input.Description) > model.DescriptionMaxLength {
 		return validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
 	}
 
@@ -302,7 +305,7 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 	}
 
 	for i, s := range input.Splits {
-		if len(s.Memo) > model.MemoMaxLength {
+		if utf8.RuneCountInString(s.Memo) > model.MemoMaxLength {
 			return validationErrorf("memo", "split #%d memo too long (max %d characters)", i+1, model.MemoMaxLength)
 		}
 	}

@@ -24,10 +24,12 @@ const (
 )
 
 const (
-	AccountNameMaxLength = 100
-	MaxSafeBalanceFloat  = 9223372036854775.0
-	OpeningAccountMemo   = "Opening Balance"
-	TypeEquity           = "C"
+	AccountNameMaxLength  = 100
+	DescriptionMaxLength  = 500
+	MemoMaxLength         = 200
+	MaxSafeBalanceFloat   = 9223372036854775.0
+	OpeningAccountMemo    = "Opening Balance"
+	TypeEquity            = "C"
 )
 
 var ReservedNames = map[string]bool{

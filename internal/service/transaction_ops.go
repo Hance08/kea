@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
@@ -38,6 +40,14 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		return 0, validationErrorf("status", "invalid status: new transactions must be Pending or Cleared")
 	}
 
+	input.Description = strings.TrimSpace(input.Description)
+	if input.Description == "" {
+		return 0, validationErrorf("description", "description is required")
+	}
+	if utf8.RuneCountInString(input.Description) > model.DescriptionMaxLength {
+		return 0, validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
+	}
+
 	// Set default timestamp: Use current system time if not provided.
 	if input.Timestamp == 0 {
 		input.Timestamp = time.Now().Unix()
@@ -63,6 +73,10 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		splitCurrency := currency
 		if account.Currency != "" {
 			splitCurrency = account.Currency
+		}
+
+		if utf8.RuneCountInString(splitInput.Memo) > model.MemoMaxLength {
+			return 0, validationErrorf("memo", "split #%d memo too long (max %d characters)", i+1, model.MemoMaxLength)
 		}
 
 		splits = append(splits, model.Split{
@@ -257,6 +271,14 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 		return validationErrorf("status", "invalid status: must be Pending or Cleared")
 	}
 
+	input.Description = strings.TrimSpace(input.Description)
+	if input.Description == "" {
+		return validationErrorf("description", "description is required")
+	}
+	if utf8.RuneCountInString(input.Description) > model.DescriptionMaxLength {
+		return validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
+	}
+
 	oldTx, err := ts.txRepo.GetTransactionByID(ctx, input.ID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -280,6 +302,12 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 
 	if err := ts.ValidateSplitsMatchType(ctx, input.Type, input.Splits); err != nil {
 		return fmt.Errorf("splits do not match transaction type %q: %w", input.Type, err)
+	}
+
+	for i, s := range input.Splits {
+		if utf8.RuneCountInString(s.Memo) > model.MemoMaxLength {
+			return validationErrorf("memo", "split #%d memo too long (max %d characters)", i+1, model.MemoMaxLength)
+		}
 	}
 
 	return ts.tm.ExecTx(ctx, func(repo repository.Repository) error {

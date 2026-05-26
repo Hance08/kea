@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/repository"
@@ -48,6 +49,9 @@ func (as *AccountService) validateParentChain(ctx context.Context, accountID int
 
 func (as *AccountService) CreateAccount(ctx context.Context, input model.CreateAccountInput) (*model.Account, error) {
 	input.Currency = strings.ToUpper(strings.TrimSpace(input.Currency))
+	if utf8.RuneCountInString(input.Description) > model.DescriptionMaxLength {
+		return nil, validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
+	}
 	if err := as.validateAccountFields(ctx, input.Name, input.Type, input.Currency, input.ParentID); err != nil {
 		return nil, err
 	}
@@ -59,6 +63,9 @@ func (as *AccountService) CreateAccount(ctx context.Context, input model.CreateA
 
 func (as *AccountService) CreateAccountWithBalance(ctx context.Context, input model.CreateAccountInput) (*model.Account, error) {
 	input.Currency = strings.ToUpper(strings.TrimSpace(input.Currency))
+	if utf8.RuneCountInString(input.Description) > model.DescriptionMaxLength {
+		return nil, validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
+	}
 	if err := as.validateAccountFields(ctx, input.Name, input.Type, input.Currency, input.ParentID); err != nil {
 		return nil, err
 	}

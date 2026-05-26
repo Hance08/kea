@@ -153,3 +153,11 @@ func TestAccountTypeFromRootName_RoundTrips(t *testing.T) {
 		assert.Equal(t, at, gotType, "round-trip failed for %s", at)
 	}
 }
+
+func TestDescriptionMaxLength(t *testing.T) {
+	assert.Equal(t, 500, DescriptionMaxLength)
+}
+
+func TestMemoMaxLength(t *testing.T) {
+	assert.Equal(t, 200, MemoMaxLength)
+}

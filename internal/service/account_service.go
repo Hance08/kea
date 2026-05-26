@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/model"
@@ -166,6 +167,10 @@ func (as *AccountService) SearchAccounts(ctx context.Context, filter model.Accou
 }
 
 func (as *AccountService) UpdateAccountMetadata(ctx context.Context, accountID int64, description string, isHidden bool) (*model.Account, error) {
+	if utf8.RuneCountInString(description) > model.DescriptionMaxLength {
+		return nil, validationErrorf("description", "description too long (max %d characters)", model.DescriptionMaxLength)
+	}
+
 	acc, err := as.repo.GetAccountByID(ctx, accountID)
 	if err != nil {
 		return nil, err

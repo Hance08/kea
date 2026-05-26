@@ -1139,6 +1139,87 @@ func TestCreateAccount_ParentNameConsistency(t *testing.T) {
 // Parent with transactions guard (#150)
 // ──────────────────────────────────────────────
 
+// ──────────────────────────────────────────────
+// Description length validation
+// ──────────────────────────────────────────────
+
+func TestCreateAccount_DescriptionValidation(t *testing.T) {
+	t.Run("empty description is allowed", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		input := model.CreateAccountInput{
+			Name:        "Assets:Checking",
+			Type:        model.AccountTypeAsset,
+			Currency:    "USD",
+			Description: "",
+		}
+		acc, err := svc.CreateAccount(context.Background(), input)
+		require.NoError(t, err)
+		assert.NotNil(t, acc)
+	})
+
+	t.Run("over-length description rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		input := model.CreateAccountInput{
+			Name:        "Assets:Checking",
+			Type:        model.AccountTypeAsset,
+			Currency:    "USD",
+			Description: strings.Repeat("d", model.DescriptionMaxLength+1),
+		}
+		acc, err := svc.CreateAccount(context.Background(), input)
+		assert.Nil(t, acc)
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "description", ve.Field)
+		assert.Contains(t, ve.Message, "too long")
+	})
+
+	t.Run("exactly max-length description accepted", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		input := model.CreateAccountInput{
+			Name:        "Assets:Checking",
+			Type:        model.AccountTypeAsset,
+			Currency:    "USD",
+			Description: strings.Repeat("d", model.DescriptionMaxLength),
+		}
+		acc, err := svc.CreateAccount(context.Background(), input)
+		require.NoError(t, err)
+		assert.NotNil(t, acc)
+	})
+}
+
+func TestCreateAccountWithBalance_DescriptionValidation(t *testing.T) {
+	t.Run("over-length description rejected", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		addOpeningBalancesForCurrency(accRepo, "USD")
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		input := model.CreateAccountInput{
+			Name:        "Assets:Checking",
+			Type:        model.AccountTypeAsset,
+			Currency:    "USD",
+			Description: strings.Repeat("d", model.DescriptionMaxLength+1),
+			Balance:     10000,
+		}
+		acc, err := svc.CreateAccountWithBalance(context.Background(), input)
+		assert.Nil(t, acc)
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve))
+		assert.Equal(t, "description", ve.Field)
+	})
+}
+
+// ──────────────────────────────────────────────
+// Parent with transactions guard (#150)
+// ──────────────────────────────────────────────
+
 func TestCreateAccount_ParentHasTransactions(t *testing.T) {
 	t.Run("parent with transactions rejected", func(t *testing.T) {
 		accRepo := newMockAccountRepo()

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -59,6 +60,60 @@ func (as *AccountService) ListAccounts(ctx context.Context, opts ListAccountsOpt
 
 func (as *AccountService) GetAllAccounts(ctx context.Context) ([]*model.Account, error) {
 	return as.repo.GetAllAccounts(ctx)
+}
+
+type AccountTreeOptions struct {
+	ShowHidden bool
+}
+
+// GetAccountTree returns root accounts as a hierarchical tree built from the flat
+// account list, alphabetically sorted; when ShowHidden is false hidden accounts
+// are dropped and any visible orphan is promoted to a root.
+func (as *AccountService) GetAccountTree(ctx context.Context, opts AccountTreeOptions) ([]*model.AccountNode, error) {
+	accounts, err := as.repo.GetAllAccounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !opts.ShowHidden {
+		filtered := make([]*model.Account, 0, len(accounts))
+		for _, acc := range accounts {
+			if !acc.IsHidden {
+				filtered = append(filtered, acc)
+			}
+		}
+		accounts = filtered
+	}
+
+	nodes := make(map[int64]*model.AccountNode, len(accounts))
+	for _, acc := range accounts {
+		nodes[acc.ID] = &model.AccountNode{Account: acc}
+	}
+
+	roots := []*model.AccountNode{}
+	for _, acc := range accounts {
+		node := nodes[acc.ID]
+		if acc.ParentID != nil {
+			if parent, ok := nodes[*acc.ParentID]; ok {
+				parent.Children = append(parent.Children, node)
+				continue
+			}
+		}
+		roots = append(roots, node)
+	}
+
+	sortNodes(roots)
+	for _, node := range nodes {
+		sortNodes(node.Children)
+	}
+
+	return roots, nil
+}
+
+func sortNodes(nodes []*model.AccountNode) {
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].Account.Name < nodes[j].Account.Name
+	})
 }
 
 func (as *AccountService) GetAccountByName(ctx context.Context, name string) (*model.Account, error) {

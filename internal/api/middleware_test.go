@@ -142,6 +142,52 @@ func TestCORSMiddlewarePreflight(t *testing.T) {
 	}
 }
 
+func TestAccessLogMiddlewareLogsOnPanic(t *testing.T) {
+	var buf bytes.Buffer
+	base := slog.New(slog.NewJSONHandler(&buf, nil))
+
+	h := requestIDMiddleware(loggerMiddleware(base)(accessLogMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic("boom")
+	}))))
+
+	rr := httptest.NewRecorder()
+	func() {
+		defer func() { _ = recover() }()
+		h.ServeHTTP(rr, httptest.NewRequest("GET", "/panic", nil))
+	}()
+
+	if buf.Len() == 0 {
+		t.Fatal("access log entry missing after panicking handler")
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
+		t.Fatalf("log not valid JSON: %v", err)
+	}
+	if entry["path"] != "/panic" {
+		t.Errorf("path: got %v, want /panic", entry["path"])
+	}
+}
+
+func TestCORSMiddlewarePreflightDisallowedOriginFallsThrough(t *testing.T) {
+	called := false
+	h := corsMiddleware([]string{"http://localhost:5173"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest("OPTIONS", "/", nil)
+	req.Header.Set("Origin", "http://evil.example")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if !called {
+		t.Error("OPTIONS from disallowed origin should fall through to next handler")
+	}
+	if rr.Header().Get("Access-Control-Allow-Origin") != "" {
+		t.Error("disallowed origin must not receive ACAO header")
+	}
+}
+
 // discardLogger is a convenience for tests that need a logger but ignore output.
 func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))

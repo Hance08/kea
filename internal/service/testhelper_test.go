@@ -37,6 +37,7 @@ type mockAccountRepo struct {
 	getByIDErr        map[int64]error
 	getBalanceErr     map[int64]error
 	getAllBalancesErr error
+	getAllAccountsErr error
 
 	// call recorders
 	renameCalls         []struct{ old, new string }
@@ -92,6 +93,9 @@ func (m *mockAccountRepo) CreateAccount(_ context.Context, name string, accType 
 }
 
 func (m *mockAccountRepo) GetAllAccounts(_ context.Context) ([]*model.Account, error) {
+	if m.getAllAccountsErr != nil {
+		return nil, m.getAllAccountsErr
+	}
 	result := make([]*model.Account, 0, len(m.accountsByID))
 	for _, acc := range m.accountsByID {
 		result = append(result, acc)

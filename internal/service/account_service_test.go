@@ -150,6 +150,155 @@ func TestGetAccountBalanceFormatted(t *testing.T) {
 	})
 }
 
+func TestGetAccountTree(t *testing.T) {
+	ptrID := func(id int64) *int64 { return &id }
+
+	t.Run("empty repo returns non-nil empty slice", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+
+		require.NoError(t, err)
+		require.NotNil(t, tree)
+		assert.Len(t, tree, 0)
+	})
+
+	t.Run("flat list with no parents becomes sorted roots", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Charlie", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Alpha", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Bravo", Type: model.AccountTypeAsset, Currency: "USD"})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+
+		require.NoError(t, err)
+		require.Len(t, tree, 3)
+		assert.Equal(t, "Alpha", tree[0].Account.Name)
+		assert.Equal(t, "Bravo", tree[1].Account.Name)
+		assert.Equal(t, "Charlie", tree[2].Account.Name)
+		for _, n := range tree {
+			assert.Empty(t, n.Children)
+		}
+	})
+
+	t.Run("two-level nesting groups children under parent and sorts them", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+
+		require.NoError(t, err)
+		require.Len(t, tree, 1)
+		root := tree[0]
+		assert.Equal(t, "Assets", root.Account.Name)
+		require.Len(t, root.Children, 2)
+		assert.Equal(t, "Assets:Bank", root.Children[0].Account.Name)
+		assert.Equal(t, "Assets:Cash", root.Children[1].Account.Name)
+		for _, c := range root.Children {
+			assert.Empty(t, c.Children)
+		}
+	})
+
+	t.Run("three-level nesting builds correctly at each level", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Bank:Checking", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(2)})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+
+		require.NoError(t, err)
+		require.Len(t, tree, 1)
+		root := tree[0]
+		assert.Equal(t, "Assets", root.Account.Name)
+		require.Len(t, root.Children, 1)
+		mid := root.Children[0]
+		assert.Equal(t, "Assets:Bank", mid.Account.Name)
+		require.Len(t, mid.Children, 1)
+		leaf := mid.Children[0]
+		assert.Equal(t, "Assets:Bank:Checking", leaf.Account.Name)
+		assert.Empty(t, leaf.Children)
+	})
+
+	t.Run("ShowHidden false drops hidden accounts and promotes orphaned visible children to roots", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD", IsHidden: true})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Expenses", Type: model.AccountTypeExpense, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 4, Name: "Expenses:Hidden", Type: model.AccountTypeExpense, Currency: "USD", ParentID: ptrID(3), IsHidden: true})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+
+		require.NoError(t, err)
+		require.Len(t, tree, 2)
+		assert.Equal(t, "Assets:Cash", tree[0].Account.Name)
+		assert.Empty(t, tree[0].Children)
+		assert.Equal(t, "Expenses", tree[1].Account.Name)
+		assert.Empty(t, tree[1].Children)
+	})
+
+	t.Run("ShowHidden true includes hidden accounts in the tree", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD", IsHidden: true})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Expenses", Type: model.AccountTypeExpense, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 4, Name: "Expenses:Hidden", Type: model.AccountTypeExpense, Currency: "USD", ParentID: ptrID(3), IsHidden: true})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{ShowHidden: true})
+
+		require.NoError(t, err)
+		require.Len(t, tree, 2)
+		assert.Equal(t, "Assets", tree[0].Account.Name)
+		require.Len(t, tree[0].Children, 1)
+		assert.Equal(t, "Assets:Cash", tree[0].Children[0].Account.Name)
+		assert.Equal(t, "Expenses", tree[1].Account.Name)
+		require.Len(t, tree[1].Children, 1)
+		assert.Equal(t, "Expenses:Hidden", tree[1].Children[0].Account.Name)
+	})
+
+	t.Run("propagates repo error from GetAllAccounts", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		boom := errors.New("boom")
+		accRepo.getAllAccountsErr = boom
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+
+		require.Error(t, err)
+		assert.Same(t, boom, err)
+		assert.Nil(t, tree)
+	})
+
+	t.Run("sibling ordering is deterministic across runs", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			accRepo := newMockAccountRepo()
+			accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD"})
+			accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Zeta", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+			accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Alpha", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+			accRepo.addAccount(&model.Account{ID: 4, Name: "Assets:Mike", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+			svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+			tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+
+			require.NoError(t, err)
+			require.Len(t, tree, 1)
+			children := tree[0].Children
+			require.Len(t, children, 3)
+			assert.Equal(t, "Assets:Alpha", children[0].Account.Name)
+			assert.Equal(t, "Assets:Mike", children[1].Account.Name)
+			assert.Equal(t, "Assets:Zeta", children[2].Account.Name)
+		}
+	})
+}
+
 func TestUpdateAccountMetadata_DescriptionValidation(t *testing.T) {
 	t.Run("empty description is allowed", func(t *testing.T) {
 		accRepo := newMockAccountRepo()
@@ -187,4 +336,3 @@ func TestUpdateAccountMetadata_DescriptionValidation(t *testing.T) {
 		assert.NotNil(t, acc)
 	})
 }
-

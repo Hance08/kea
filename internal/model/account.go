@@ -12,3 +12,8 @@ type Account struct {
 	Description string      `json:"description"`
 	IsHidden    bool        `json:"is_hidden"`
 }
+
+type AccountNode struct {
+	Account  *Account       `json:"account"`
+	Children []*AccountNode `json:"children"`
+}

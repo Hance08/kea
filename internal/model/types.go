@@ -151,6 +151,35 @@ const (
 	TxTypeOther      TransactionType = "Other"
 )
 
+func (t TransactionType) IsValid() bool {
+	switch t {
+	case TxTypeExpense, TxTypeIncome, TxTypeTransfer,
+		TxTypeOpening, TxTypeDeposit, TxTypeWithdrawal, TxTypeOther:
+		return true
+	}
+	return false
+}
+
+func (t TransactionType) MarshalJSON() ([]byte, error) {
+	if !t.IsValid() {
+		return nil, fmt.Errorf("cannot marshal invalid transaction type %q", string(t))
+	}
+	return json.Marshal(string(t))
+}
+
+func (t *TransactionType) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	tt := TransactionType(str)
+	if !tt.IsValid() {
+		return fmt.Errorf("unknown transaction type %q", str)
+	}
+	*t = tt
+	return nil
+}
+
 const (
 	DateFormat  = "2006-01-02"
 	MinSplitsCount = 2
@@ -174,8 +203,16 @@ func ParseTransactionType(s string) (TransactionType, error) {
 		return TxTypeIncome, nil
 	case "transfer":
 		return TxTypeTransfer, nil
+	case "opening":
+		return TxTypeOpening, nil
+	case "deposit":
+		return TxTypeDeposit, nil
+	case "withdrawal":
+		return TxTypeWithdrawal, nil
+	case "other":
+		return TxTypeOther, nil
 	default:
-		return "", fmt.Errorf("invalid transaction type %q: must be expense, income, or transfer", s)
+		return "", fmt.Errorf("invalid transaction type %q: must be expense, income, transfer, opening, deposit, withdrawal, or other", s)
 	}
 }
 

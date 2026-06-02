@@ -4,6 +4,7 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,9 +39,14 @@ func TestParseTransactionType(t *testing.T) {
 		{"Income", TxTypeIncome, false},
 		{"transfer", TxTypeTransfer, false},
 		{"Transfer", TxTypeTransfer, false},
+		{"opening", TxTypeOpening, false},
+		{"Opening", TxTypeOpening, false},
+		{"deposit", TxTypeDeposit, false},
+		{"withdrawal", TxTypeWithdrawal, false},
+		{"  Other  ", TxTypeOther, false},
 		{"unknown", "", true},
 		{"", "", true},
-		{"opening", "", true},
+		{"garbage", "", true},
 	}
 
 	for _, tt := range tests {
@@ -152,6 +158,68 @@ func TestAccountTypeFromRootName_RoundTrips(t *testing.T) {
 		assert.True(t, gotOK)
 		assert.Equal(t, at, gotType, "round-trip failed for %s", at)
 	}
+}
+
+func TestTransactionType_IsValid(t *testing.T) {
+	valid := []TransactionType{
+		TxTypeExpense, TxTypeIncome, TxTypeTransfer,
+		TxTypeOpening, TxTypeDeposit, TxTypeWithdrawal, TxTypeOther,
+	}
+	for _, v := range valid {
+		assert.True(t, v.IsValid(), "expected %q to be valid", v)
+	}
+
+	invalid := []TransactionType{"", "garbage", "expense", "EXPENSE", "Unknown"}
+	for _, v := range invalid {
+		assert.False(t, v.IsValid(), "expected %q to be invalid", v)
+	}
+}
+
+func TestTransactionType_MarshalJSON(t *testing.T) {
+	t.Run("valid round trip", func(t *testing.T) {
+		all := []TransactionType{
+			TxTypeExpense, TxTypeIncome, TxTypeTransfer,
+			TxTypeOpening, TxTypeDeposit, TxTypeWithdrawal, TxTypeOther,
+		}
+		for _, want := range all {
+			data, err := json.Marshal(want)
+			require.NoError(t, err)
+			var got TransactionType
+			require.NoError(t, json.Unmarshal(data, &got))
+			assert.Equal(t, want, got)
+		}
+	})
+
+	t.Run("invalid value fails to marshal", func(t *testing.T) {
+		_, err := json.Marshal(TransactionType("garbage"))
+		assert.Error(t, err)
+	})
+}
+
+func TestTransactionType_UnmarshalJSON(t *testing.T) {
+	t.Run("rejects unknown string", func(t *testing.T) {
+		var got TransactionType
+		err := json.Unmarshal([]byte(`"garbage"`), &got)
+		assert.Error(t, err)
+	})
+
+	t.Run("rejects empty string", func(t *testing.T) {
+		var got TransactionType
+		err := json.Unmarshal([]byte(`""`), &got)
+		assert.Error(t, err)
+	})
+
+	t.Run("rejects non-string", func(t *testing.T) {
+		var got TransactionType
+		err := json.Unmarshal([]byte(`123`), &got)
+		assert.Error(t, err)
+	})
+
+	t.Run("rejects wrong case", func(t *testing.T) {
+		var got TransactionType
+		err := json.Unmarshal([]byte(`"expense"`), &got)
+		assert.Error(t, err)
+	})
 }
 
 func TestDescriptionMaxLength(t *testing.T) {

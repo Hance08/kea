@@ -277,25 +277,25 @@ func TestGetAccountTree(t *testing.T) {
 		assert.Nil(t, tree)
 	})
 
-	t.Run("sibling ordering is deterministic across runs", func(t *testing.T) {
-		for i := 0; i < 5; i++ {
-			accRepo := newMockAccountRepo()
-			accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD"})
-			accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Zeta", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
-			accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Alpha", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
-			accRepo.addAccount(&model.Account{ID: 4, Name: "Assets:Mike", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
-			svc := newTestAccountService(accRepo, newMockTransactionRepo())
+	t.Run("sorts siblings alphabetically regardless of insertion order", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		// Insert siblings in reverse-alphabetical order so the only thing that
+		// can produce alphabetical output is sortNodes inside GetAccountTree.
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Zucchini", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Mango", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		accRepo.addAccount(&model.Account{ID: 4, Name: "Assets:Apple", Type: model.AccountTypeAsset, Currency: "USD", ParentID: ptrID(1)})
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-			tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
+		tree, err := svc.GetAccountTree(context.Background(), AccountTreeOptions{})
 
-			require.NoError(t, err)
-			require.Len(t, tree, 1)
-			children := tree[0].Children
-			require.Len(t, children, 3)
-			assert.Equal(t, "Assets:Alpha", children[0].Account.Name)
-			assert.Equal(t, "Assets:Mike", children[1].Account.Name)
-			assert.Equal(t, "Assets:Zeta", children[2].Account.Name)
-		}
+		require.NoError(t, err)
+		require.Len(t, tree, 1)
+		children := tree[0].Children
+		require.Len(t, children, 3)
+		assert.Equal(t, "Assets:Apple", children[0].Account.Name)
+		assert.Equal(t, "Assets:Mango", children[1].Account.Name)
+		assert.Equal(t, "Assets:Zucchini", children[2].Account.Name)
 	})
 }
 

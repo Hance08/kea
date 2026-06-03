@@ -243,7 +243,10 @@ func TestHandleDeleteTransaction_OK(t *testing.T) {
 		t.Errorf("deleted: got %v", body["deleted"])
 	}
 
-	getResp, _ := http.Get(ts.URL + "/api/transactions/" + itoa(d.ID))
+	getResp, err := http.Get(ts.URL + "/api/transactions/" + itoa(d.ID))
+	if err != nil {
+		t.Fatalf("GET transaction: %v", err)
+	}
 	defer getResp.Body.Close()
 	if getResp.StatusCode != http.StatusNotFound {
 		t.Errorf("after delete: %d, want 404", getResp.StatusCode)

@@ -93,7 +93,10 @@ func TestHandleCreateAccount_LiabilityBalanceSignReversed(t *testing.T) {
 	var acc model.Account
 	_ = json.NewDecoder(resp.Body).Decode(&acc)
 
-	balResp, _ := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID) + "/balance")
+	balResp, err := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID) + "/balance")
+	if err != nil {
+		t.Fatalf("GET balance: %v", err)
+	}
 	defer balResp.Body.Close()
 	var bal balanceResponse
 	_ = json.NewDecoder(balResp.Body).Decode(&bal)
@@ -254,7 +257,10 @@ func TestHandleDeleteAccount_OK(t *testing.T) {
 		t.Errorf("id: got %v, want %d", body["id"], acc.ID)
 	}
 
-	getResp, _ := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID))
+	getResp, err := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID))
+	if err != nil {
+		t.Fatalf("GET account: %v", err)
+	}
 	defer getResp.Body.Close()
 	if getResp.StatusCode != http.StatusNotFound {
 		t.Errorf("after delete, GET status: got %d, want 404", getResp.StatusCode)
@@ -385,7 +391,10 @@ func TestHandleUpdateAccount_RenameOnly(t *testing.T) {
 		t.Errorf("name: got %q", got.Name)
 	}
 
-	oldResp, _ := http.Get(ts.URL + "/api/accounts/by-name?name=Assets:Cash")
+	oldResp, err := http.Get(ts.URL + "/api/accounts/by-name?name=Assets:Cash")
+	if err != nil {
+		t.Fatalf("GET old name: %v", err)
+	}
 	defer oldResp.Body.Close()
 	if oldResp.StatusCode != http.StatusNotFound {
 		t.Errorf("old name still resolvable: %d", oldResp.StatusCode)

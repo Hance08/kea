@@ -22,8 +22,9 @@ func (s *Server) routes() http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.Method(http.MethodGet, "/health", apiHandler(s.handleHealth))
 		r.Method(http.MethodGet, "/version", apiHandler(s.handleVersion))
-		r.Method(http.MethodGet, "/accounts/tree", apiHandler(s.handleAccountTree))
-		r.Method(http.MethodGet, "/accounts/by-name", apiHandler(s.handleAccountByName))
+		r.Method(http.MethodGet, "/accounts",              apiHandler(s.handleListAccounts))
+		r.Method(http.MethodGet, "/accounts/tree",         apiHandler(s.handleAccountTree))
+		r.Method(http.MethodGet, "/accounts/by-name",      apiHandler(s.handleAccountByName))
 		r.Method(http.MethodGet, "/accounts/{id}",         apiHandler(s.handleAccountByID))
 		r.Method(http.MethodGet, "/accounts/{id}/balance", apiHandler(s.handleAccountBalance))
 	})

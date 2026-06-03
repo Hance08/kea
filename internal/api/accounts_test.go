@@ -189,3 +189,127 @@ func TestHandleAccountTree_OK(t *testing.T) {
 		t.Errorf("expected both seeded roots in tree; got names %v", names)
 	}
 }
+
+func TestHandleListAccounts_EmptyStore(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/accounts")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+	var lr model.ListResult[*model.Account]
+	if err := json.NewDecoder(resp.Body).Decode(&lr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if lr.Items == nil {
+		t.Errorf("Items should be a non-nil slice")
+	}
+}
+
+func TestHandleListAccounts_FiltersHidden(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	visible := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	hidden := seedAccount(t, svc, "Assets:OldBank", model.AccountTypeAsset, 0)
+	if _, err := svc.Account().UpdateAccountMetadata(
+		t.Context(), hidden.ID, hidden.Description, true,
+	); err != nil {
+		t.Fatalf("hide: %v", err)
+	}
+
+	resp, err := http.Get(ts.URL + "/api/accounts?type=A")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	var lr model.ListResult[*model.Account]
+	if err := json.NewDecoder(resp.Body).Decode(&lr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, a := range lr.Items {
+		if a.ID == hidden.ID {
+			t.Errorf("hidden account leaked into default list")
+		}
+	}
+
+	resp2, err := http.Get(ts.URL + "/api/accounts?type=A&include_hidden=true")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp2.Body.Close()
+	var lr2 model.ListResult[*model.Account]
+	if err := json.NewDecoder(resp2.Body).Decode(&lr2); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	sawHidden, sawVisible := false, false
+	for _, a := range lr2.Items {
+		if a.ID == hidden.ID {
+			sawHidden = true
+		}
+		if a.ID == visible.ID {
+			sawVisible = true
+		}
+	}
+	if !sawHidden || !sawVisible {
+		t.Errorf("include_hidden=true: sawHidden=%v sawVisible=%v", sawHidden, sawVisible)
+	}
+}
+
+func TestHandleListAccounts_SearchPaginated(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:BankA", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Assets:BankB", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp, err := http.Get(ts.URL + "/api/accounts?q=Bank&limit=10&offset=0&include_count=true")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+	var lr model.ListResult[*model.Account]
+	if err := json.NewDecoder(resp.Body).Decode(&lr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if lr.TotalCount < 2 {
+		t.Errorf("expected TotalCount >= 2 for Bank matches, got %d", lr.TotalCount)
+	}
+	for _, a := range lr.Items {
+		if a.Name == "Assets:Cash" {
+			t.Errorf("Cash leaked into Bank search: %+v", a)
+		}
+	}
+}
+
+func TestHandleListAccounts_InvalidLimit(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/accounts?limit=abc")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+	var body map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body["field"] != "limit" {
+		t.Errorf("field: got %q", body["field"])
+	}
+}
+
+func TestHandleListAccounts_InvalidType(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/accounts?type=Z")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}

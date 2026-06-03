@@ -72,6 +72,63 @@ func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) er
 	})
 }
 
+// applyHiddenFilter removes hidden accounts from the result and updates
+// TotalCount to reflect what was returned. Used after SearchAccounts, which
+// does not itself filter hidden.
+func applyHiddenFilter(res *model.ListResult[*model.Account], includeHidden bool) *model.ListResult[*model.Account] {
+	if includeHidden {
+		return res
+	}
+	out := make([]*model.Account, 0, len(res.Items))
+	for _, a := range res.Items {
+		if !a.IsHidden {
+			out = append(out, a)
+		}
+	}
+	res.Items = out
+	res.TotalCount = len(out)
+	return res
+}
+
+func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
+
+	opts, err := parseListOptions(r)
+	if err != nil {
+		return err
+	}
+	filter, err := parseAccountFilter(r)
+	if err != nil {
+		return err
+	}
+	includeHidden, err := parseBoolQuery(r, "include_hidden")
+	if err != nil {
+		return err
+	}
+
+	// Route to SearchAccounts when the request has any filter or pagination intent.
+	// Otherwise use ListAccounts, which already filters hidden internally.
+	hasSearchIntent := filter.Query != nil || filter.Currency != nil ||
+		opts.Limit > 0 || opts.Offset > 0 || opts.IncludeCount
+
+	if hasSearchIntent {
+		res, err := s.svc.Account().SearchAccounts(ctx, filter, opts)
+		if err != nil {
+			return err
+		}
+		return writeJSON(w, http.StatusOK, applyHiddenFilter(res, includeHidden))
+	}
+
+	accounts, err := s.svc.Account().ListAccounts(ctx, service.ListAccountsOptions{
+		Type:       filter.Type,
+		ShowHidden: includeHidden,
+	})
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, wrapAsListResult(accounts))
+}
+
 func (s *Server) handleAccountTree(w http.ResponseWriter, r *http.Request) error {
 	includeHidden, err := parseBoolQuery(r, "include_hidden")
 	if err != nil {

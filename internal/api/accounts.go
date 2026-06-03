@@ -72,7 +72,6 @@ func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) er
 	})
 }
 
-
 func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 

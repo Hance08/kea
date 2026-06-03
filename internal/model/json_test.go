@@ -302,3 +302,137 @@ func TestTransactionStatus_JSONUnmarshal_Invalid(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateAccountInput_JSONKeys(t *testing.T) {
+	parentID := int64(7)
+	in := model.CreateAccountInput{
+		Name:        "Assets:Bank:Checking",
+		Type:        model.AccountTypeAsset,
+		Currency:    "USD",
+		Description: "primary checking",
+		ParentID:    &parentID,
+		Balance:     12345,
+	}
+	data, err := json.Marshal(in)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	assert.Contains(t, m, "name")
+	assert.Contains(t, m, "type")
+	assert.Contains(t, m, "currency")
+	assert.Contains(t, m, "description")
+	assert.Contains(t, m, "parent_id")
+	assert.Contains(t, m, "balance")
+
+	assert.NotContains(t, m, "Name")
+	assert.NotContains(t, m, "ParentID")
+}
+
+func TestCreateAccountInput_JSON_OmitsNullParentID(t *testing.T) {
+	in := model.CreateAccountInput{
+		Name:     "Assets:Cash",
+		Type:     model.AccountTypeAsset,
+		Currency: "USD",
+	}
+	data, err := json.Marshal(in)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	_, exists := m["parent_id"]
+	assert.False(t, exists, "parent_id should be omitted when nil")
+}
+
+func TestCreateAccountInput_JSON_RoundTrip(t *testing.T) {
+	src := `{"name":"Assets:Bank","type":"A","currency":"USD","description":"d","parent_id":42,"balance":10000}`
+	var in model.CreateAccountInput
+	require.NoError(t, json.Unmarshal([]byte(src), &in))
+	assert.Equal(t, "Assets:Bank", in.Name)
+	assert.Equal(t, model.AccountTypeAsset, in.Type)
+	assert.Equal(t, "USD", in.Currency)
+	assert.Equal(t, "d", in.Description)
+	require.NotNil(t, in.ParentID)
+	assert.Equal(t, int64(42), *in.ParentID)
+	assert.Equal(t, int64(10000), in.Balance)
+}
+
+func TestCreateTransactionFromSplitsInput_JSONKeys(t *testing.T) {
+	in := model.CreateTransactionFromSplitsInput{
+		Splits:      []model.SplitDetail{{AccountName: "Assets:Bank", Amount: -500}},
+		Description: "Coffee",
+		Timestamp:   1700000000,
+		Status:      model.StatusCleared,
+		Type:        model.TxTypeExpense,
+	}
+	data, err := json.Marshal(in)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	assert.Contains(t, m, "splits")
+	assert.Contains(t, m, "description")
+	assert.Contains(t, m, "timestamp")
+	assert.Contains(t, m, "status")
+	assert.Contains(t, m, "type")
+
+	assert.NotContains(t, m, "Splits")
+}
+
+func TestCreateTransactionFromSplitsInput_JSON_RoundTrip(t *testing.T) {
+	src := `{
+		"splits":[
+			{"account_name":"Assets:Bank","amount":-500},
+			{"account_name":"Expenses:Coffee","amount":500}
+		],
+		"description":"Coffee",
+		"timestamp":1700000000,
+		"status":"Cleared",
+		"type":"Expense"
+	}`
+	var in model.CreateTransactionFromSplitsInput
+	require.NoError(t, json.Unmarshal([]byte(src), &in))
+	assert.Equal(t, "Coffee", in.Description)
+	assert.Equal(t, int64(1700000000), in.Timestamp)
+	assert.Equal(t, model.StatusCleared, in.Status)
+	assert.Equal(t, model.TxTypeExpense, in.Type)
+	require.Len(t, in.Splits, 2)
+	assert.Equal(t, "Assets:Bank", in.Splits[0].AccountName)
+	assert.Equal(t, int64(-500), in.Splits[0].Amount)
+}
+
+func TestUpdateTransactionInput_JSON_IDInvisibleOnMarshal(t *testing.T) {
+	in := model.UpdateTransactionInput{
+		ID:          99,
+		Description: "x",
+		Timestamp:   1700000000,
+		Status:      model.StatusCleared,
+		Type:        model.TxTypeExpense,
+		Splits:      []model.SplitDetail{},
+	}
+	data, err := json.Marshal(in)
+	require.NoError(t, err)
+
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &m))
+
+	_, hasID := m["id"]
+	assert.False(t, hasID, "id should not be emitted in JSON")
+
+	assert.Contains(t, m, "description")
+	assert.Contains(t, m, "timestamp")
+	assert.Contains(t, m, "status")
+	assert.Contains(t, m, "type")
+	assert.Contains(t, m, "splits")
+}
+
+func TestUpdateTransactionInput_JSON_RoundTrip_IgnoresIDInInput(t *testing.T) {
+	src := `{"description":"x","timestamp":1700000000,"status":"Cleared","type":"Expense","splits":[]}`
+	var in model.UpdateTransactionInput
+	require.NoError(t, json.Unmarshal([]byte(src), &in))
+	assert.Equal(t, int64(0), in.ID, "id field must remain zero when absent from JSON")
+	assert.Equal(t, "x", in.Description)
+}

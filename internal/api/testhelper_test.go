@@ -4,7 +4,6 @@
 package api
 
 import (
-	"context"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -44,7 +43,7 @@ func newServerWithStore(t *testing.T) (*httptest.Server, *service.Service) {
 // seedAccount creates a leaf account and returns it.
 func seedAccount(t *testing.T, svc *service.Service, name string, accType model.AccountType, balance int64) *model.Account {
 	t.Helper()
-	acc, err := svc.Account().CreateAccountWithBalance(context.Background(), model.CreateAccountInput{
+	acc, err := svc.Account().CreateAccountWithBalance(t.Context(), model.CreateAccountInput{
 		Name:     name,
 		Type:     accType,
 		Currency: "USD",
@@ -59,7 +58,7 @@ func seedAccount(t *testing.T, svc *service.Service, name string, accType model.
 // seedTransaction creates a simple two-split transaction and returns its detail.
 func seedTransaction(t *testing.T, svc *service.Service, from, to string, amount int64, timestamp int64, description string, txType model.TransactionType, status model.TransactionStatus) model.TransactionDetail {
 	t.Helper()
-	d, err := svc.Transaction().CreateSimpleTransaction(context.Background(), model.CreateSimpleTransactionInput{
+	d, err := svc.Transaction().CreateSimpleTransaction(t.Context(), model.CreateSimpleTransactionInput{
 		FromAccount: from,
 		ToAccount:   to,
 		Amount:      amount,

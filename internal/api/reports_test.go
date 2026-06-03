@@ -119,3 +119,44 @@ func TestHandleExpenseBreakdown_Month(t *testing.T) {
 		t.Errorf("TotalExpense USD: got %d", got.TotalExpense["USD"])
 	}
 }
+
+func TestHandleBalanceSheet_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 100000)
+	seedAccount(t, svc, "Liabilities:Card", model.AccountTypeLiability, 25000)
+
+	resp, err := http.Get(ts.URL + "/api/reports/balance-sheet")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+	var got model.BalanceSheetResult
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.AsOf == 0 {
+		t.Errorf("AsOf should default to now")
+	}
+	now := time.Now().Unix()
+	if got.AsOf < now-30 || got.AsOf > now+30 {
+		t.Errorf("AsOf out of window: got %d, now=%d", got.AsOf, now)
+	}
+	if got.TotalAssets["USD"] != 100000 {
+		t.Errorf("TotalAssets USD: got %d, want 100000", got.TotalAssets["USD"])
+	}
+}
+
+func TestHandleBalanceSheet_BadAsOf(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/reports/balance-sheet?as_of=abc")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}

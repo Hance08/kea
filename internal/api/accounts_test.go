@@ -164,7 +164,7 @@ func TestHandleAccountBalance_NotFound(t *testing.T) {
 func TestHandleAccountTree_OK(t *testing.T) {
 	ts, svc := newServerWithStore(t)
 	seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
-	seedAccount(t, svc, "Assets:Bank:Checking", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
 
 	resp, err := http.Get(ts.URL + "/api/accounts/tree")
 	if err != nil {
@@ -178,10 +178,14 @@ func TestHandleAccountTree_OK(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&roots); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	// The real store does not auto-create parent accounts, so Assets:Bank and
-	// Assets:Bank:Checking both appear as root nodes with no Assets parent.
-	// Verify the tree decodes as a non-empty slice of AccountNodes.
-	if len(roots) == 0 {
-		t.Fatalf("expected at least one root node")
+
+	names := map[string]bool{}
+	for _, n := range roots {
+		if n.Account != nil {
+			names[n.Account.Name] = true
+		}
+	}
+	if !names["Assets:Bank"] || !names["Assets:Cash"] {
+		t.Errorf("expected both seeded roots in tree; got names %v", names)
 	}
 }

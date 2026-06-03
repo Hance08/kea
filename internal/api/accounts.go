@@ -71,3 +71,17 @@ func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) er
 		Currency:  acc.Currency,
 	})
 }
+
+func (s *Server) handleAccountTree(w http.ResponseWriter, r *http.Request) error {
+	includeHidden, err := parseBoolQuery(r, "include_hidden")
+	if err != nil {
+		return err
+	}
+	roots, err := s.svc.Account().GetAccountTree(r.Context(), service.AccountTreeOptions{
+		ShowHidden: includeHidden,
+	})
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, roots)
+}

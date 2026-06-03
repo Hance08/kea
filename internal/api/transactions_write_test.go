@@ -226,6 +226,42 @@ func TestHandleCreateTransaction_NonexistentAccount_Currently500(t *testing.T) {
 	}
 }
 
+func TestHandleCreateTransaction_ParentAccountInSplit(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	// Create a parent account and a child of it. The parent then has a child,
+	// making it non-leaf and not selectable for transactions.
+	parent := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	_, err := svc.Account().CreateAccount(t.Context(), model.CreateAccountInput{
+		Name:     "Assets:Bank:Checking",
+		Type:     model.AccountTypeAsset,
+		Currency: "USD",
+		ParentID: &parent.ID,
+	})
+	if err != nil {
+		t.Fatalf("create child: %v", err)
+	}
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+
+	// Reference the non-leaf parent in a split.
+	body := `{
+		"splits":[
+			{"account_name":"Assets:Bank","amount":-500},
+			{"account_name":"Expenses:Coffee","amount":500}
+		],
+		"description":"x","timestamp":1700000000,"status":"Cleared","type":"Expense"
+	}`
+	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["field"] != "account" {
+		t.Errorf("field: got %q, want account", errBody["field"])
+	}
+}
+
 func TestHandleDeleteTransaction_OK(t *testing.T) {
 	ts, svc := newServerWithStore(t)
 	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)

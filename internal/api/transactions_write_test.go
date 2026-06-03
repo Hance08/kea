@@ -225,3 +225,77 @@ func TestHandleCreateTransaction_NonexistentAccount_Currently500(t *testing.T) {
 		t.Errorf("status: got %d, want 500 (known rough edge — fix is out of scope)", resp.StatusCode)
 	}
 }
+
+func TestHandleDeleteTransaction_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	d := seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusCleared)
+
+	resp := deleteReq(t, ts.URL+"/api/transactions/"+itoa(d.ID))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var body map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body["deleted"] != true {
+		t.Errorf("deleted: got %v", body["deleted"])
+	}
+
+	getResp, _ := http.Get(ts.URL + "/api/transactions/" + itoa(d.ID))
+	defer getResp.Body.Close()
+	if getResp.StatusCode != http.StatusNotFound {
+		t.Errorf("after delete: %d, want 404", getResp.StatusCode)
+	}
+}
+
+func TestHandleDeleteTransaction_Pending(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	d := seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusPending)
+
+	resp := deleteReq(t, ts.URL+"/api/transactions/"+itoa(d.ID))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status: got %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestHandleDeleteTransaction_Reconciled(t *testing.T) {
+	ts, svc, st := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	d := seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusCleared)
+	seedReconciledTransaction(t, st, src.ID, d.ID)
+
+	resp := deleteReq(t, ts.URL+"/api/transactions/"+itoa(d.ID))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("status: got %d, want 409", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["error"] != "reconciled" {
+		t.Errorf("error: got %q, want reconciled", errBody["error"])
+	}
+}
+
+func TestHandleDeleteTransaction_NotFound(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp := deleteReq(t, ts.URL+"/api/transactions/9999")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestHandleDeleteTransaction_BadPath(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp := deleteReq(t, ts.URL+"/api/transactions/abc")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}

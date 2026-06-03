@@ -25,3 +25,14 @@ func (s *Server) handleCreateTransaction(w http.ResponseWriter, r *http.Request)
 	}
 	return writeJSON(w, http.StatusCreated, full)
 }
+
+func (s *Server) handleDeleteTransaction(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseInt64Path(r, "id")
+	if err != nil {
+		return err
+	}
+	if err := s.svc.Transaction().DeleteTransaction(r.Context(), id); err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "id": id})
+}

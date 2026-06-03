@@ -27,6 +27,7 @@ func (s *Server) routes() http.Handler {
 		r.Method(http.MethodGet, "/accounts/by-name",      apiHandler(s.handleAccountByName))
 		r.Method(http.MethodGet, "/accounts/{id}",         apiHandler(s.handleAccountByID))
 		r.Method(http.MethodGet, "/accounts/{id}/balance", apiHandler(s.handleAccountBalance))
+		r.Method(http.MethodGet, "/transactions",      apiHandler(s.handleListTransactions))
 		r.Method(http.MethodGet, "/transactions/{id}", apiHandler(s.handleTransactionByID))
 	})
 

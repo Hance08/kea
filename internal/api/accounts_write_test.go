@@ -220,3 +220,120 @@ func TestHandleCreateAccount_UnknownField(t *testing.T) {
 		t.Fatalf("status: got %d, want 400", resp.StatusCode)
 	}
 }
+
+func deleteReq(t *testing.T, url string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE %s: %v", url, err)
+	}
+	return resp
+}
+
+func TestHandleDeleteAccount_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp := deleteReq(t, ts.URL+"/api/accounts/"+itoa(acc.ID))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var body map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["deleted"] != true {
+		t.Errorf("deleted: got %v, want true", body["deleted"])
+	}
+	if int64(body["id"].(float64)) != acc.ID {
+		t.Errorf("id: got %v, want %d", body["id"], acc.ID)
+	}
+
+	getResp, _ := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID))
+	defer getResp.Body.Close()
+	if getResp.StatusCode != http.StatusNotFound {
+		t.Errorf("after delete, GET status: got %d, want 404", getResp.StatusCode)
+	}
+}
+
+func TestHandleDeleteAccount_NotFound(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp := deleteReq(t, ts.URL+"/api/accounts/9999")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestHandleDeleteAccount_BadPath(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp := deleteReq(t, ts.URL+"/api/accounts/abc")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestHandleDeleteAccount_HasChildren(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	parent := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	_, err := svc.Account().CreateAccount(t.Context(), model.CreateAccountInput{
+		Name:     "Assets:Bank:Checking",
+		Type:     model.AccountTypeAsset,
+		Currency: "USD",
+		ParentID: &parent.ID,
+	})
+	if err != nil {
+		t.Fatalf("create child: %v", err)
+	}
+
+	resp := deleteReq(t, ts.URL+"/api/accounts/"+itoa(parent.ID))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["error"] != "validation_failed" {
+		t.Errorf("error: got %q, want validation_failed", errBody["error"])
+	}
+}
+
+func TestHandleDeleteAccount_HasTransactions(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 10000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	_ = seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusCleared)
+
+	resp := deleteReq(t, ts.URL+"/api/accounts/"+itoa(src.ID))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestHandleDeleteAccount_SystemAccount(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 10000)
+
+	sys, err := svc.Account().GetAccountByName(t.Context(), "Equity:OpeningBalances_USD")
+	if err != nil {
+		t.Fatalf("lookup sys account: %v", err)
+	}
+
+	resp := deleteReq(t, ts.URL+"/api/accounts/"+itoa(sys.ID))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status: got %d, want 403", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["error"] != "not_editable" {
+		t.Errorf("error: got %q, want not_editable", errBody["error"])
+	}
+}

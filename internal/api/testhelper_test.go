@@ -20,23 +20,7 @@ import (
 // seeding.
 func newServerWithStore(t *testing.T) (*httptest.Server, *service.Service) {
 	t.Helper()
-
-	dbPath := filepath.Join(t.TempDir(), "test.db")
-	st, err := store.NewStore(dbPath, migrations.FS)
-	if err != nil {
-		t.Fatalf("NewStore: %v", err)
-	}
-	t.Cleanup(func() { _ = st.Close() })
-
-	cfg := config.NewDefault()
-	cfg.Defaults.Currency = "USD"
-
-	svc := service.NewService(st, st, st, cfg)
-
-	srv := NewServer(cfg, svc, discardLogger())
-	ts := httptest.NewServer(srv.routes())
-	t.Cleanup(ts.Close)
-
+	ts, svc, _ := newServerForWrite(t)
 	return ts, svc
 }
 

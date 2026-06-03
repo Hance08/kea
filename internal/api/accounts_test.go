@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026  Hance Chin
+
+package api
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"testing"
+
+	"github.com/hance08/kea/internal/model"
+)
+
+func TestHandleAccountByID_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp, err := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID))
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+	var got model.Account
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.ID != acc.ID || got.Name != "Assets:Cash" {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestHandleAccountByID_NotFound(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+
+	resp, err := http.Get(ts.URL + "/api/accounts/9999")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404", resp.StatusCode)
+	}
+	var body map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["error"] != "not_found" {
+		t.Errorf("error code: got %q", body["error"])
+	}
+}
+
+func TestHandleAccountByID_BadPath(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+
+	resp, err := http.Get(ts.URL + "/api/accounts/abc")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}
+
+// itoa is a tiny helper used across handler tests.
+func itoa(n int64) string {
+	return strconv.FormatInt(n, 10)
+}

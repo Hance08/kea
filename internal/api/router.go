@@ -22,6 +22,7 @@ func (s *Server) routes() http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.Method(http.MethodGet, "/health", apiHandler(s.handleHealth))
 		r.Method(http.MethodGet, "/version", apiHandler(s.handleVersion))
+		r.Method(http.MethodGet, "/accounts/{id}", apiHandler(s.handleAccountByID))
 	})
 
 	return r

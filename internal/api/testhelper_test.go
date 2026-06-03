@@ -39,7 +39,8 @@ func seedAccount(t *testing.T, svc *service.Service, name string, accType model.
 	return acc
 }
 
-// seedTransaction creates a simple two-split transaction and returns its detail.
+// seedTransaction creates a simple two-split transaction and returns its full detail
+// (including split IDs and account IDs resolved from the database).
 func seedTransaction(t *testing.T, svc *service.Service, from, to string, amount int64, timestamp int64, description string, txType model.TransactionType, status model.TransactionStatus) model.TransactionDetail {
 	t.Helper()
 	d, err := svc.Transaction().CreateSimpleTransaction(t.Context(), model.CreateSimpleTransactionInput{
@@ -54,7 +55,12 @@ func seedTransaction(t *testing.T, svc *service.Service, from, to string, amount
 	if err != nil {
 		t.Fatalf("seedTransaction %q->%q: %v", from, to, err)
 	}
-	return d
+	// Fetch full detail so that Splits carry database-assigned IDs and AccountIDs.
+	full, err := svc.Transaction().GetTransactionByID(t.Context(), d.ID)
+	if err != nil {
+		t.Fatalf("seedTransaction get full detail: %v", err)
+	}
+	return *full
 }
 
 // newServerForWrite is a variant of newServerWithStore that also returns the

@@ -34,6 +34,7 @@ func (s *Server) routes() http.Handler {
 		r.Method(http.MethodPost, "/transactions",      apiHandler(s.handleCreateTransaction))
 		r.Method(http.MethodGet,    "/transactions/{id}", apiHandler(s.handleTransactionByID))
 		r.Method(http.MethodDelete, "/transactions/{id}", apiHandler(s.handleDeleteTransaction))
+		r.Method(http.MethodPatch,  "/transactions/{id}", apiHandler(s.handleUpdateTransaction))
 		r.Method(http.MethodPatch,  "/transactions/{id}/status", apiHandler(s.handleUpdateTransactionStatus))
 		r.Method(http.MethodGet, "/reports/income-statement",  apiHandler(s.handleIncomeStatement))
 		r.Method(http.MethodGet, "/reports/income-breakdown",  apiHandler(s.handleIncomeBreakdown))

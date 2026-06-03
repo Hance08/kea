@@ -60,3 +60,25 @@ func (s *Server) handleUpdateTransactionStatus(w http.ResponseWriter, r *http.Re
 	}
 	return writeJSON(w, http.StatusOK, detail)
 }
+
+func (s *Server) handleUpdateTransaction(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseInt64Path(r, "id")
+	if err != nil {
+		return err
+	}
+	var input model.UpdateTransactionInput
+	if err := decodeJSON(r, &input); err != nil {
+		return err
+	}
+	input.ID = id
+
+	ctx := r.Context()
+	if err := s.svc.Transaction().UpdateTransactionComplete(ctx, input); err != nil {
+		return err
+	}
+	detail, err := s.svc.Transaction().GetTransactionByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, detail)
+}

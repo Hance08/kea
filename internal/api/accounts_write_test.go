@@ -337,3 +337,167 @@ func TestHandleDeleteAccount_SystemAccount(t *testing.T) {
 		t.Errorf("error: got %q, want not_editable", errBody["error"])
 	}
 }
+
+func patchJSON(t *testing.T, url string, body string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPatch, url, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PATCH %s: %v", url, err)
+	}
+	return resp
+}
+
+func TestHandleUpdateAccount_NoFields(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(acc.ID), `{}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["error"] != "validation_failed" {
+		t.Errorf("error: got %q", errBody["error"])
+	}
+}
+
+func TestHandleUpdateAccount_RenameOnly(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(acc.ID), `{"name":"Assets:CashRenamed"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.Account
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Name != "Assets:CashRenamed" {
+		t.Errorf("name: got %q", got.Name)
+	}
+
+	oldResp, _ := http.Get(ts.URL + "/api/accounts/by-name?name=Assets:Cash")
+	defer oldResp.Body.Close()
+	if oldResp.StatusCode != http.StatusNotFound {
+		t.Errorf("old name still resolvable: %d", oldResp.StatusCode)
+	}
+}
+
+func TestHandleUpdateAccount_MetadataOnly(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(acc.ID), `{"description":"new desc","is_hidden":true}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.Account
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Description != "new desc" || !got.IsHidden {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestHandleUpdateAccount_RenameAndMetadata(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	body := `{"name":"Assets:Cash2","description":"d2","is_hidden":true}`
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(acc.ID), body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.Account
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Name != "Assets:Cash2" || got.Description != "d2" || !got.IsHidden {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestHandleUpdateAccount_NameEqualToCurrent_NoOp(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	body := `{"name":"Assets:Cash","description":"updated"}`
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(acc.ID), body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.Account
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	if got.Name != "Assets:Cash" || got.Description != "updated" {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestHandleUpdateAccount_RenameAcrossParentPath(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(acc.ID), `{"name":"Liabilities:CC"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["field"] != "name" {
+		t.Errorf("field: got %q", errBody["field"])
+	}
+}
+
+func TestHandleUpdateAccount_RenameSystemAccount(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 10000) // creates Equity:OpeningBalances_USD
+	sys, err := svc.Account().GetAccountByName(t.Context(), "Equity:OpeningBalances_USD")
+	if err != nil {
+		t.Fatalf("lookup sys: %v", err)
+	}
+
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(sys.ID), `{"name":"Equity:OpeningBalances_USD2"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status: got %d, want 403", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["error"] != "not_editable" {
+		t.Errorf("error: got %q", errBody["error"])
+	}
+}
+
+func TestHandleUpdateAccount_NotFound(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp := patchJSON(t, ts.URL+"/api/accounts/9999", `{"description":"x"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestHandleUpdateAccount_UnknownField(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+
+	resp := patchJSON(t, ts.URL+"/api/accounts/"+itoa(acc.ID), `{"description":"x","unknown":1}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}

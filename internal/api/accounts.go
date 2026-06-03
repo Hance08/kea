@@ -45,3 +45,29 @@ func (s *Server) handleAccountByID(w http.ResponseWriter, r *http.Request) error
 	}
 	return writeJSON(w, http.StatusOK, acc)
 }
+
+type balanceResponse struct {
+	AccountID int64  `json:"account_id"`
+	Amount    int64  `json:"amount"`
+	Currency  string `json:"currency"`
+}
+
+func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseInt64Path(r, "id")
+	if err != nil {
+		return err
+	}
+	acc, err := s.svc.Account().GetAccountByID(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	amount, err := s.svc.Account().GetAccountBalance(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, balanceResponse{
+		AccountID: id,
+		Amount:    amount,
+		Currency:  acc.Currency,
+	})
+}

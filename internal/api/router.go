@@ -23,7 +23,8 @@ func (s *Server) routes() http.Handler {
 		r.Method(http.MethodGet, "/health", apiHandler(s.handleHealth))
 		r.Method(http.MethodGet, "/version", apiHandler(s.handleVersion))
 		r.Method(http.MethodGet, "/accounts/by-name", apiHandler(s.handleAccountByName))
-		r.Method(http.MethodGet, "/accounts/{id}",    apiHandler(s.handleAccountByID))
+		r.Method(http.MethodGet, "/accounts/{id}",         apiHandler(s.handleAccountByID))
+		r.Method(http.MethodGet, "/accounts/{id}/balance", apiHandler(s.handleAccountBalance))
 	})
 
 	return r

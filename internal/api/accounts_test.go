@@ -123,3 +123,40 @@ func TestHandleAccountByName_NotFound(t *testing.T) {
 		t.Errorf("status: got %d, want 404", resp.StatusCode)
 	}
 }
+
+func TestHandleAccountBalance_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc := seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 50000)
+
+	resp, err := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID) + "/balance")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+	var got struct {
+		AccountID int64  `json:"account_id"`
+		Amount    int64  `json:"amount"`
+		Currency  string `json:"currency"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.AccountID != acc.ID || got.Amount != 50000 || got.Currency != "USD" {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestHandleAccountBalance_NotFound(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/accounts/9999/balance")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404", resp.StatusCode)
+	}
+}

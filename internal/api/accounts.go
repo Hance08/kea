@@ -112,6 +112,7 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) erro
 		opts.Limit > 0 || opts.Offset > 0 || opts.IncludeCount
 
 	if hasSearchIntent {
+		filter.IncludeHidden = includeHidden
 		res, err := s.svc.Account().SearchAccounts(ctx, filter, opts)
 		if err != nil {
 			return err

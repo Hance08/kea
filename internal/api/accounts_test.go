@@ -313,3 +313,64 @@ func TestHandleListAccounts_InvalidType(t *testing.T) {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
 	}
 }
+
+func TestHandleListAccounts_SearchFiltersHidden(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	visible := seedAccount(t, svc, "Assets:BankA", model.AccountTypeAsset, 0)
+	hidden := seedAccount(t, svc, "Assets:BankB", model.AccountTypeAsset, 0)
+	if _, err := svc.Account().UpdateAccountMetadata(
+		t.Context(), hidden.ID, hidden.Description, true,
+	); err != nil {
+		t.Fatalf("hide: %v", err)
+	}
+
+	// ?q= triggers the SearchAccounts path, which goes through applyHiddenFilter.
+	resp, err := http.Get(ts.URL + "/api/accounts?q=Bank")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	var lr model.ListResult[*model.Account]
+	if err := json.NewDecoder(resp.Body).Decode(&lr); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	sawVisible, sawHidden := false, false
+	for _, a := range lr.Items {
+		if a.ID == visible.ID {
+			sawVisible = true
+		}
+		if a.ID == hidden.ID {
+			sawHidden = true
+		}
+	}
+	if !sawVisible {
+		t.Errorf("visible account missing from search")
+	}
+	if sawHidden {
+		t.Errorf("hidden account leaked into search (applyHiddenFilter did not run)")
+	}
+	// TotalCount should reflect only the visible items returned.
+	if lr.TotalCount != len(lr.Items) {
+		t.Errorf("TotalCount %d != len(Items) %d after applyHiddenFilter", lr.TotalCount, len(lr.Items))
+	}
+
+	// Verify the same query with include_hidden=true returns the hidden one too.
+	resp2, err := http.Get(ts.URL + "/api/accounts?q=Bank&include_hidden=true")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp2.Body.Close()
+	var lr2 model.ListResult[*model.Account]
+	if err := json.NewDecoder(resp2.Body).Decode(&lr2); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	gotHidden := false
+	for _, a := range lr2.Items {
+		if a.ID == hidden.ID {
+			gotHidden = true
+		}
+	}
+	if !gotHidden {
+		t.Errorf("include_hidden=true: hidden account missing from search")
+	}
+}

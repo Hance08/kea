@@ -36,3 +36,27 @@ func (s *Server) handleDeleteTransaction(w http.ResponseWriter, r *http.Request)
 	}
 	return writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "id": id})
 }
+
+type updateStatusRequest struct {
+	Status model.TransactionStatus `json:"status"`
+}
+
+func (s *Server) handleUpdateTransactionStatus(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseInt64Path(r, "id")
+	if err != nil {
+		return err
+	}
+	var req updateStatusRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	ctx := r.Context()
+	if err := s.svc.Transaction().UpdateTransactionStatus(ctx, id, req.Status); err != nil {
+		return err
+	}
+	detail, err := s.svc.Transaction().GetTransactionByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, detail)
+}

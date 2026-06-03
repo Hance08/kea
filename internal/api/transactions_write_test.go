@@ -299,3 +299,75 @@ func TestHandleDeleteTransaction_BadPath(t *testing.T) {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
 	}
 }
+
+func TestHandleUpdateTransactionStatus_PendingToCleared(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	d := seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusPending)
+
+	resp := patchJSON(t, ts.URL+"/api/transactions/"+itoa(d.ID)+"/status", `{"status":"Cleared"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.TransactionDetail
+	_ = json.NewDecoder(resp.Body).Decode(&got)
+	if got.Status != model.StatusCleared {
+		t.Errorf("status: got %v, want Cleared", got.Status)
+	}
+}
+
+func TestHandleUpdateTransactionStatus_ClearedToPending(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	d := seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusCleared)
+
+	resp := patchJSON(t, ts.URL+"/api/transactions/"+itoa(d.ID)+"/status", `{"status":"Pending"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status: got %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestHandleUpdateTransactionStatus_RejectsReconciledTarget(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	d := seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusCleared)
+
+	resp := patchJSON(t, ts.URL+"/api/transactions/"+itoa(d.ID)+"/status", `{"status":"Reconciled"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var errBody map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&errBody)
+	if errBody["field"] != "status" {
+		t.Errorf("field: got %q", errBody["field"])
+	}
+}
+
+func TestHandleUpdateTransactionStatus_OnReconciled(t *testing.T) {
+	ts, svc, st := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
+	dst := seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	d := seedTransaction(t, svc, src.Name, dst.Name, 500, 1700000000, "Coffee", model.TxTypeExpense, model.StatusCleared)
+	seedReconciledTransaction(t, st, src.ID, d.ID)
+
+	resp := patchJSON(t, ts.URL+"/api/transactions/"+itoa(d.ID)+"/status", `{"status":"Cleared"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Errorf("status: got %d, want 409", resp.StatusCode)
+	}
+}
+
+func TestHandleUpdateTransactionStatus_NotFound(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp := patchJSON(t, ts.URL+"/api/transactions/9999/status", `{"status":"Cleared"}`)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404", resp.StatusCode)
+	}
+}

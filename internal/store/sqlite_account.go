@@ -353,7 +353,9 @@ func (s *Store) SearchAccounts(ctx context.Context, filter model.AccountFilter, 
 		whereClauses = append(whereClauses, "currency = ?")
 		args = append(args, *filter.Currency)
 	}
-	whereClauses = append(whereClauses, "is_hidden = 0")
+	if !filter.IncludeHidden {
+		whereClauses = append(whereClauses, "is_hidden = 0")
+	}
 	whereClauses = append(whereClauses, "name NOT LIKE 'Equity:OpeningBalances_%'")
 
 	whereSQL := ""

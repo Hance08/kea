@@ -4,7 +4,8 @@
 package model
 
 type AccountFilter struct {
-	Query    *string
-	Type     *AccountType
-	Currency *string
+	Query         *string
+	Type          *AccountType
+	Currency      *string
+	IncludeHidden bool
 }

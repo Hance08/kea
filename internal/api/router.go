@@ -22,6 +22,18 @@ func (s *Server) routes() http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.Method(http.MethodGet, "/health", apiHandler(s.handleHealth))
 		r.Method(http.MethodGet, "/version", apiHandler(s.handleVersion))
+		r.Method(http.MethodGet, "/accounts",              apiHandler(s.handleListAccounts))
+		r.Method(http.MethodGet, "/accounts/tree",         apiHandler(s.handleAccountTree))
+		r.Method(http.MethodGet, "/accounts/by-name",      apiHandler(s.handleAccountByName))
+		r.Method(http.MethodGet, "/accounts/{id}",         apiHandler(s.handleAccountByID))
+		r.Method(http.MethodGet, "/accounts/{id}/balance", apiHandler(s.handleAccountBalance))
+		r.Method(http.MethodGet, "/transactions",      apiHandler(s.handleListTransactions))
+		r.Method(http.MethodGet, "/transactions/{id}", apiHandler(s.handleTransactionByID))
+		r.Method(http.MethodGet, "/reports/income-statement",  apiHandler(s.handleIncomeStatement))
+		r.Method(http.MethodGet, "/reports/income-breakdown",  apiHandler(s.handleIncomeBreakdown))
+		r.Method(http.MethodGet, "/reports/expense-breakdown", apiHandler(s.handleExpenseBreakdown))
+		r.Method(http.MethodGet, "/reports/balance-sheet",     apiHandler(s.handleBalanceSheet))
+		r.Method(http.MethodGet, "/reports/net-worth", apiHandler(s.handleNetWorth))
 	})
 
 	return r

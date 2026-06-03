@@ -160,3 +160,44 @@ func TestHandleBalanceSheet_BadAsOf(t *testing.T) {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
 	}
 }
+
+func TestHandleNetWorth_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 100000)
+	seedAccount(t, svc, "Liabilities:Card", model.AccountTypeLiability, 25000)
+
+	resp, err := http.Get(ts.URL + "/api/reports/net-worth")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+	var got struct {
+		At       int64            `json:"at"`
+		NetWorth map[string]int64 `json:"net_worth"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	now := time.Now().Unix()
+	if got.At < now-30 || got.At > now+30 {
+		t.Errorf("At out of window: %d (now=%d)", got.At, now)
+	}
+	if got.NetWorth == nil {
+		t.Errorf("NetWorth must be a JSON object, got nil")
+	}
+}
+
+func TestHandleNetWorth_BadAt(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/reports/net-worth?at=xyz")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+}

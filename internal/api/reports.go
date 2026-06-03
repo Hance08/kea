@@ -50,3 +50,27 @@ func (s *Server) handleBalanceSheet(w http.ResponseWriter, r *http.Request) erro
 	}
 	return writeJSON(w, http.StatusOK, result)
 }
+
+type netWorthResponse struct {
+	At       int64            `json:"at"`
+	NetWorth map[string]int64 `json:"net_worth"`
+}
+
+func (s *Server) handleNetWorth(w http.ResponseWriter, r *http.Request) error {
+	atPtr, err := parseInt64Query(r, "at")
+	if err != nil {
+		return err
+	}
+	at := time.Now().Unix()
+	if atPtr != nil {
+		at = *atPtr
+	}
+	nw, err := s.svc.Transaction().GetNetWorthAt(r.Context(), at)
+	if err != nil {
+		return err
+	}
+	if nw == nil {
+		nw = map[string]int64{}
+	}
+	return writeJSON(w, http.StatusOK, netWorthResponse{At: at, NetWorth: nw})
+}

@@ -72,23 +72,6 @@ func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) er
 	})
 }
 
-// applyHiddenFilter removes hidden accounts from the result and updates
-// TotalCount to reflect what was returned. Used after SearchAccounts, which
-// does not itself filter hidden.
-func applyHiddenFilter(res *model.ListResult[*model.Account], includeHidden bool) *model.ListResult[*model.Account] {
-	if includeHidden {
-		return res
-	}
-	out := make([]*model.Account, 0, len(res.Items))
-	for _, a := range res.Items {
-		if !a.IsHidden {
-			out = append(out, a)
-		}
-	}
-	res.Items = out
-	res.TotalCount = len(out)
-	return res
-}
 
 func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
@@ -117,7 +100,7 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request) erro
 		if err != nil {
 			return err
 		}
-		return writeJSON(w, http.StatusOK, applyHiddenFilter(res, includeHidden))
+		return writeJSON(w, http.StatusOK, res)
 	}
 
 	accounts, err := s.svc.Account().ListAccounts(ctx, service.ListAccountsOptions{

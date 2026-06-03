@@ -324,8 +324,8 @@ func TestHandleListAccounts_SearchFiltersHidden(t *testing.T) {
 		t.Fatalf("hide: %v", err)
 	}
 
-	// ?q= triggers the SearchAccounts path, which goes through applyHiddenFilter.
-	resp, err := http.Get(ts.URL + "/api/accounts?q=Bank")
+	// ?q= triggers the SearchAccounts path; the store filters hidden when IncludeHidden is false.
+	resp, err := http.Get(ts.URL + "/api/accounts?q=Bank&include_count=true")
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
@@ -347,11 +347,11 @@ func TestHandleListAccounts_SearchFiltersHidden(t *testing.T) {
 		t.Errorf("visible account missing from search")
 	}
 	if sawHidden {
-		t.Errorf("hidden account leaked into search (applyHiddenFilter did not run)")
+		t.Errorf("hidden account leaked into search (store did not filter hidden)")
 	}
-	// TotalCount should reflect only the visible items returned.
+	// TotalCount should reflect only the visible items returned (store filters hidden).
 	if lr.TotalCount != len(lr.Items) {
-		t.Errorf("TotalCount %d != len(Items) %d after applyHiddenFilter", lr.TotalCount, len(lr.Items))
+		t.Errorf("TotalCount %d != len(Items) %d", lr.TotalCount, len(lr.Items))
 	}
 
 	// Verify the same query with include_hidden=true returns the hidden one too.

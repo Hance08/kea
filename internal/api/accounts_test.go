@@ -73,3 +73,53 @@ func TestHandleAccountByID_BadPath(t *testing.T) {
 func itoa(n int64) string {
 	return strconv.FormatInt(n, 10)
 }
+
+func TestHandleAccountByName_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Bank:Checking", model.AccountTypeAsset, 0)
+
+	resp, err := http.Get(ts.URL + "/api/accounts/by-name?name=Assets:Bank:Checking")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+	var got model.Account
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Name != "Assets:Bank:Checking" {
+		t.Errorf("got %q", got.Name)
+	}
+}
+
+func TestHandleAccountByName_MissingName(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/accounts/by-name")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status: got %d, want 400", resp.StatusCode)
+	}
+	var body map[string]string
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body["field"] != "name" {
+		t.Errorf("field: got %q", body["field"])
+	}
+}
+
+func TestHandleAccountByName_NotFound(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	resp, err := http.Get(ts.URL + "/api/accounts/by-name?name=Missing")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status: got %d, want 404", resp.StatusCode)
+	}
+}

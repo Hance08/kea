@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/service"
 )
 
 // wrapAsListResult wraps a flat slice into a ListResult with limit=0/offset=0
@@ -19,6 +20,18 @@ func wrapAsListResult(accounts []*model.Account) *model.ListResult[*model.Accoun
 		Limit:      0,
 		Offset:     0,
 	}
+}
+
+func (s *Server) handleAccountByName(w http.ResponseWriter, r *http.Request) error {
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		return &service.ValidationError{Field: "name", Message: "name query parameter is required"}
+	}
+	acc, err := s.svc.Account().GetAccountByName(r.Context(), name)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, acc)
 }
 
 func (s *Server) handleAccountByID(w http.ResponseWriter, r *http.Request) error {

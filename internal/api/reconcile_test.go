@@ -499,6 +499,9 @@ func TestHandleReconcileCommit_AllowMismatchTrue(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatalf("unmarshal: %v; body=%s", err, body)
 	}
+	if got.ReconciledCount != 1 {
+		t.Errorf("reconciled_count: got %d, want 1", got.ReconciledCount)
+	}
 	if got.Difference != 5000 {
 		t.Errorf("difference: got %d, want 5000", got.Difference)
 	}

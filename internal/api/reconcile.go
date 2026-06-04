@@ -84,6 +84,12 @@ func (s *Server) handleReconcileCommit(w http.ResponseWriter, r *http.Request) e
 	}
 	ctx := r.Context()
 
+	// Gate: preview-first when allow_mismatch is off. PreviewReconcile is
+	// read-only; if it returns a non-zero diff we reject without writing.
+	// There is a brief TOCTOU window between preview and commit (unreconciled
+	// set could change between calls), but ReconcileTransactions re-validates
+	// IDs atomically inside ExecTx, so any intervening change surfaces as a
+	// 400 rather than silent data corruption.
 	if !req.AllowMismatch {
 		diff, err := s.svc.Transaction().PreviewReconcile(ctx, id, req.StatementBalance, req.TransactionIDs)
 		if err != nil {
@@ -102,6 +108,6 @@ func (s *Server) handleReconcileCommit(w http.ResponseWriter, r *http.Request) e
 	return writeJSON(w, http.StatusOK, reconcileCommitResponse{
 		ReconciledCount:       len(req.TransactionIDs),
 		Difference:            diff,
-		LastReconciledBalance: req.StatementBalance - diff,
+		LastReconciledBalance: req.StatementBalance - diff, // statement_balance - diff == lastBalance + clearedBalance
 	})
 }

@@ -415,3 +415,12 @@ func TestHandleReconcilePreview_DoesNotWrite(t *testing.T) {
 		t.Errorf("entries: got %d, want 1 (preview must not write)", len(got.Entries))
 	}
 }
+
+func TestHandleReconcilePreview_BadPathParam(t *testing.T) {
+	ts, _, _ := newServerForWrite(t)
+	payload := map[string]any{"statement_balance": 0, "transaction_ids": []int64{1}}
+	status, body := postJSON(t, ts.URL+"/api/accounts/not-a-number/reconcile/preview", payload)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+}

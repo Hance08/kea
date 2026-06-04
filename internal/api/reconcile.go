@@ -60,3 +60,48 @@ func (s *Server) handleReconcilePreview(w http.ResponseWriter, r *http.Request) 
 	}
 	return writeJSON(w, http.StatusOK, reconcilePreviewResponse{Difference: diff})
 }
+
+type reconcileCommitRequest struct {
+	StatementBalance int64   `json:"statement_balance"`
+	TransactionIDs   []int64 `json:"transaction_ids"`
+	AllowMismatch    bool    `json:"allow_mismatch"`
+}
+
+type reconcileCommitResponse struct {
+	ReconciledCount       int   `json:"reconciled_count"`
+	Difference            int64 `json:"difference"`
+	LastReconciledBalance int64 `json:"last_reconciled_balance"`
+}
+
+func (s *Server) handleReconcileCommit(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseInt64Path(r, "id")
+	if err != nil {
+		return err
+	}
+	var req reconcileCommitRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	ctx := r.Context()
+
+	if !req.AllowMismatch {
+		diff, err := s.svc.Transaction().PreviewReconcile(ctx, id, req.StatementBalance, req.TransactionIDs)
+		if err != nil {
+			return err
+		}
+		if diff != 0 {
+			return &balanceMismatchError{Difference: diff}
+		}
+	}
+
+	diff, err := s.svc.Transaction().ReconcileTransactions(ctx, id, req.StatementBalance, req.TransactionIDs)
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, reconcileCommitResponse{
+		ReconciledCount:       len(req.TransactionIDs),
+		Difference:            diff,
+		LastReconciledBalance: req.StatementBalance - diff,
+	})
+}

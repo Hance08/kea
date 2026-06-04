@@ -35,3 +35,28 @@ func (s *Server) handleListUnreconciled(w http.ResponseWriter, r *http.Request) 
 		LastReconciledBalance: lastBalance,
 	})
 }
+
+type reconcilePreviewRequest struct {
+	StatementBalance int64   `json:"statement_balance"`
+	TransactionIDs   []int64 `json:"transaction_ids"`
+}
+
+type reconcilePreviewResponse struct {
+	Difference int64 `json:"difference"`
+}
+
+func (s *Server) handleReconcilePreview(w http.ResponseWriter, r *http.Request) error {
+	id, err := parseInt64Path(r, "id")
+	if err != nil {
+		return err
+	}
+	var req reconcilePreviewRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	diff, err := s.svc.Transaction().PreviewReconcile(r.Context(), id, req.StatementBalance, req.TransactionIDs)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, reconcilePreviewResponse{Difference: diff})
+}

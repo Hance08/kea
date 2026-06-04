@@ -224,3 +224,194 @@ func TestHandleListUnreconciled_BadPathParam(t *testing.T) {
 		t.Fatalf("status: got %d, want 400; body=%s", status, body)
 	}
 }
+
+func TestHandleReconcilePreview_ZeroDiff(t *testing.T) {
+	ts, svc, _ := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	seedAccount(t, svc, "Revenue:Salary", model.AccountTypeRevenue, 0)
+
+	t1 := seedTransaction(t, svc, "Assets:Bank", "Expenses:Coffee", 450, 1735689600, "Coffee", model.TxTypeExpense, model.StatusCleared)
+	t2 := seedTransaction(t, svc, "Revenue:Salary", "Assets:Bank", 500000, 1735776000, "Salary", model.TxTypeIncome, model.StatusCleared)
+
+	// Net for Assets:Bank: -450 + 500000 = 499550. With lastBalance=0, statement 499550 → diff 0.
+	payload := map[string]any{"statement_balance": 499550, "transaction_ids": []int64{t1.ID, t2.ID}}
+	status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload)
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+	var got struct {
+		Difference int64 `json:"difference"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Difference != 0 {
+		t.Errorf("difference: got %d, want 0", got.Difference)
+	}
+}
+
+func TestHandleReconcilePreview_UnderShoot(t *testing.T) {
+	ts, svc, _ := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Revenue:Salary", model.AccountTypeRevenue, 0)
+	tx := seedTransaction(t, svc, "Revenue:Salary", "Assets:Bank", 100000, 1735776000, "Salary", model.TxTypeIncome, model.StatusCleared)
+
+	payload := map[string]any{"statement_balance": 105000, "transaction_ids": []int64{tx.ID}}
+	status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload)
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+	var got struct {
+		Difference int64 `json:"difference"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Difference != 5000 {
+		t.Errorf("difference: got %d, want 5000", got.Difference)
+	}
+}
+
+func TestHandleReconcilePreview_OverShoot(t *testing.T) {
+	ts, svc, _ := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Revenue:Salary", model.AccountTypeRevenue, 0)
+	tx := seedTransaction(t, svc, "Revenue:Salary", "Assets:Bank", 100000, 1735776000, "Salary", model.TxTypeIncome, model.StatusCleared)
+
+	payload := map[string]any{"statement_balance": 90000, "transaction_ids": []int64{tx.ID}}
+	status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload)
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+	var got struct {
+		Difference int64 `json:"difference"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Difference != -10000 {
+		t.Errorf("difference: got %d, want -10000", got.Difference)
+	}
+}
+
+func TestHandleReconcilePreview_EmptyIDs(t *testing.T) {
+	ts, svc, _ := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+
+	payload := map[string]any{"statement_balance": 0, "transaction_ids": []int64{}}
+	status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var got errorBody
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Error != "validation_failed" {
+		t.Errorf("error code: got %q, want validation_failed", got.Error)
+	}
+	if got.Field != "transactions" {
+		t.Errorf("field: got %q, want transactions", got.Field)
+	}
+}
+
+func TestHandleReconcilePreview_DuplicateIDs(t *testing.T) {
+	ts, svc, _ := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	tx := seedTransaction(t, svc, "Assets:Bank", "Expenses:Coffee", 450, 1735689600, "Coffee", model.TxTypeExpense, model.StatusCleared)
+
+	payload := map[string]any{"statement_balance": -450, "transaction_ids": []int64{tx.ID, tx.ID}}
+	status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var got errorBody
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Field != "transactions" {
+		t.Errorf("field: got %q, want transactions", got.Field)
+	}
+}
+
+func TestHandleReconcilePreview_IDNotInUnreconciledSet(t *testing.T) {
+	ts, svc, st := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	tx := seedTransaction(t, svc, "Assets:Bank", "Expenses:Coffee", 450, 1735689600, "Coffee", model.TxTypeExpense, model.StatusCleared)
+	seedReconciledTransaction(t, st, src.ID, tx.ID)
+
+	payload := map[string]any{"statement_balance": -450, "transaction_ids": []int64{tx.ID}}
+	status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var got errorBody
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Field != "transactions" {
+		t.Errorf("field: got %q, want transactions", got.Field)
+	}
+}
+
+func TestHandleReconcilePreview_UnknownAccount(t *testing.T) {
+	ts, _, _ := newServerForWrite(t)
+
+	payload := map[string]any{"statement_balance": 0, "transaction_ids": []int64{1}}
+	status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/99999/reconcile/preview", ts.URL), payload)
+	if status != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404; body=%s", status, body)
+	}
+	var got errorBody
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Error != "not_found" {
+		t.Errorf("error code: got %q, want not_found", got.Error)
+	}
+}
+
+func TestHandleReconcilePreview_UnknownJSONField(t *testing.T) {
+	ts, svc, _ := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+
+	payload := map[string]any{
+		"statement_balance": 0,
+		"transaction_ids":   []int64{1},
+		"extra_field":       "nope",
+	}
+	status, _ := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", status)
+	}
+}
+
+func TestHandleReconcilePreview_DoesNotWrite(t *testing.T) {
+	ts, svc, _ := newServerForWrite(t)
+	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+	tx := seedTransaction(t, svc, "Assets:Bank", "Expenses:Coffee", 450, 1735689600, "Coffee", model.TxTypeExpense, model.StatusCleared)
+
+	payload := map[string]any{"statement_balance": -450, "transaction_ids": []int64{tx.ID}}
+	if status, body := postJSON(t, fmt.Sprintf("%s/api/accounts/%d/reconcile/preview", ts.URL, src.ID), payload); status != http.StatusOK {
+		t.Fatalf("preview: got %d; body=%s", status, body)
+	}
+
+	// Re-fetch unreconciled list — entry must still be present.
+	status, body := getJSON(t, fmt.Sprintf("%s/api/accounts/%d/unreconciled", ts.URL, src.ID))
+	if status != http.StatusOK {
+		t.Fatalf("list: got %d; body=%s", status, body)
+	}
+	var got struct {
+		Entries []model.ReconcileEntry `json:"entries"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if len(got.Entries) != 1 {
+		t.Errorf("entries: got %d, want 1 (preview must not write)", len(got.Entries))
+	}
+}

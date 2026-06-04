@@ -49,6 +49,9 @@ func TestMapError(t *testing.T) {
 			if body.Field != tc.wantField {
 				t.Errorf("field: got %q, want %q", body.Field, tc.wantField)
 			}
+			if body.Difference != nil {
+				t.Errorf("Difference: want nil for %q, got %d", tc.name, *body.Difference)
+			}
 		})
 	}
 }
@@ -66,10 +69,11 @@ func TestMapError_BalanceMismatch(t *testing.T) {
 		err            error
 		wantStatus     int
 		wantCode       string
+		wantMessage    string
 		wantDifference int64
 	}{
-		{"direct", &balanceMismatchError{Difference: 50450}, 409, "balance_mismatch", 50450},
-		{"wrapped", fmt.Errorf("commit: %w", &balanceMismatchError{Difference: -100}), 409, "balance_mismatch", -100},
+		{"direct", &balanceMismatchError{Difference: 50450}, 409, "balance_mismatch", "statement balance off by 50450", 50450},
+		{"wrapped", fmt.Errorf("commit: %w", &balanceMismatchError{Difference: -100}), 409, "balance_mismatch", "statement balance off by -100", -100},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -79,6 +83,9 @@ func TestMapError_BalanceMismatch(t *testing.T) {
 			}
 			if body.Error != tc.wantCode {
 				t.Errorf("error code: got %q, want %q", body.Error, tc.wantCode)
+			}
+			if body.Message != tc.wantMessage {
+				t.Errorf("message: got %q, want %q", body.Message, tc.wantMessage)
 			}
 			if body.Difference == nil {
 				t.Fatalf("Difference: got nil, want pointer to %d", tc.wantDifference)

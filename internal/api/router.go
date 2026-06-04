@@ -43,6 +43,7 @@ func (s *Server) routes() http.Handler {
 		r.Method(http.MethodGet, "/reports/net-worth", apiHandler(s.handleNetWorth))
 		r.Method(http.MethodGet, "/ledgers/active", apiHandler(s.handleActiveLedger))
 		r.Method(http.MethodGet, "/ledgers", apiHandler(s.handleListLedgers))
+		r.Method(http.MethodPost, "/ledgers", apiHandler(s.handleCreateLedger))
 	})
 
 	return r

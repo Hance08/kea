@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -184,5 +185,102 @@ func TestHandleListLedgers_TwoRegisteredOneActive(t *testing.T) {
 	if got.Items[0].Path != pathA || got.Items[1].Path != pathB {
 		t.Errorf("paths: got [%q, %q], want [%q, %q]",
 			got.Items[0].Path, got.Items[1].Path, pathA, pathB)
+	}
+}
+
+func TestHandleCreateLedger_Success(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers", map[string]any{"name": "alpha"})
+	if status != http.StatusCreated {
+		t.Fatalf("status: got %d, want 201; body=%s", status, body)
+	}
+
+	var got struct {
+		Name   string `json:"name"`
+		Path   string `json:"path"`
+		Active bool   `json:"active"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	wantPath := filepath.Join(appDir, "ledgers", "alpha.db")
+	if got.Name != "alpha" || got.Path != wantPath || got.Active {
+		t.Errorf("body: got %+v, want {alpha, %s, false}", got, wantPath)
+	}
+	if _, err := os.Stat(wantPath); err != nil {
+		t.Errorf("db file not created at %q: %v", wantPath, err)
+	}
+	if _, ok := reg.EntryFor("alpha"); !ok {
+		t.Errorf("registry missing alpha after create")
+	}
+}
+
+func TestHandleCreateLedger_DuplicateName(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	if err := reg.Add("alpha", filepath.Join(appDir, "ledgers", "alpha.db")); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers", map[string]any{"name": "alpha"})
+	if status != http.StatusConflict {
+		t.Fatalf("status: got %d, want 409; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "already_exists" {
+		t.Errorf("error: got %q, want %q", eb.Error, "already_exists")
+	}
+}
+
+func TestHandleCreateLedger_InvalidName(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	cases := []struct {
+		name    string
+		payload map[string]any
+	}{
+		{"empty", map[string]any{"name": ""}},
+		{"slash", map[string]any{"name": "a/b"}},
+		{"backslash", map[string]any{"name": `a\b`}},
+		{"dotdot", map[string]any{"name": "..foo"}},
+		{"control_char", map[string]any{"name": "a\x00b"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			status, body := postJSON(t, ts.URL+"/api/ledgers", tc.payload)
+			if status != http.StatusBadRequest {
+				t.Fatalf("status: got %d, want 400; body=%s", status, body)
+			}
+			var eb errorBody
+			if err := json.Unmarshal(body, &eb); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if eb.Error != "validation_failed" || eb.Field != "name" {
+				t.Errorf("error: got %+v, want validation_failed/name", eb)
+			}
+		})
+	}
+}
+
+func TestHandleCreateLedger_UnknownField(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers", map[string]any{
+		"name": "alpha",
+		"path": "/tmp/evil.db",
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "validation_failed" {
+		t.Errorf("error: got %q, want validation_failed", eb.Error)
 	}
 }

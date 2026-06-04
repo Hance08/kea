@@ -81,7 +81,7 @@ func newServerForWrite(t *testing.T) (*httptest.Server, *service.Service, *store
 	cfg.Defaults.Currency = "USD"
 
 	svc := service.NewService(st, st, st, cfg)
-	srv := NewServer(cfg, svc, discardLogger())
+	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 

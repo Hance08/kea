@@ -102,6 +102,10 @@ func (a *App) SwitchLedger(name string) error {
 	return a.Registry.Switch(name)
 }
 
+// Config returns the config in use. Used by callers that build subcommands
+// from *App and need the same cfg pointer NewApp captured.
+func (a *App) Config() *config.Config { return a.cfg }
+
 func InitLedgerDB(path string, migrations fs.FS) error {
 	s, err := store.NewStore(path, migrations)
 	if err != nil {

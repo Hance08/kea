@@ -6,6 +6,7 @@ package api
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,20 +14,41 @@ import (
 	"time"
 
 	"github.com/hance08/kea/internal/config"
+	"github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/service"
 )
 
 const shutdownTimeout = 5 * time.Second
 
 type Server struct {
-	cfg    *config.Config
-	svc    *service.Service
-	logger *slog.Logger
-	http   *http.Server
+	cfg        *config.Config
+	svc        *service.Service
+	registry   *ledger.Registry
+	migrations fs.FS
+	appDir     string
+	switchLedger func(name string) error
+	logger     *slog.Logger
+	http       *http.Server
 }
 
-func NewServer(cfg *config.Config, svc *service.Service, logger *slog.Logger) *Server {
-	s := &Server{cfg: cfg, svc: svc, logger: logger}
+func NewServer(
+	cfg *config.Config,
+	svc *service.Service,
+	registry *ledger.Registry,
+	migrations fs.FS,
+	appDir string,
+	switchLedger func(name string) error,
+	logger *slog.Logger,
+) *Server {
+	s := &Server{
+		cfg:        cfg,
+		svc:        svc,
+		registry:   registry,
+		migrations: migrations,
+		appDir:     appDir,
+		switchLedger: switchLedger,
+		logger:     logger,
+	}
 	addr := net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port))
 	s.http = &http.Server{
 		Addr:              addr,

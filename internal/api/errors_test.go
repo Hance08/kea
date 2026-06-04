@@ -59,3 +59,33 @@ func TestMapErrorInternalHidesDetail(t *testing.T) {
 		t.Errorf("internal error must not expose detail in body; got %q", body.Message)
 	}
 }
+
+func TestMapError_BalanceMismatch(t *testing.T) {
+	cases := []struct {
+		name           string
+		err            error
+		wantStatus     int
+		wantCode       string
+		wantDifference int64
+	}{
+		{"direct", &balanceMismatchError{Difference: 50450}, 409, "balance_mismatch", 50450},
+		{"wrapped", fmt.Errorf("commit: %w", &balanceMismatchError{Difference: -100}), 409, "balance_mismatch", -100},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			status, body := mapError(tc.err)
+			if status != tc.wantStatus {
+				t.Errorf("status: got %d, want %d", status, tc.wantStatus)
+			}
+			if body.Error != tc.wantCode {
+				t.Errorf("error code: got %q, want %q", body.Error, tc.wantCode)
+			}
+			if body.Difference == nil {
+				t.Fatalf("Difference: got nil, want pointer to %d", tc.wantDifference)
+			}
+			if *body.Difference != tc.wantDifference {
+				t.Errorf("Difference: got %d, want %d", *body.Difference, tc.wantDifference)
+			}
+		})
+	}
+}

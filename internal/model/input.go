@@ -4,12 +4,12 @@
 package model
 
 type CreateAccountInput struct {
-	Name        string
-	Type        AccountType
-	Currency    string
-	Description string
-	ParentID    *int64
-	Balance     int64
+	Name        string      `json:"name"`
+	Type        AccountType `json:"type"`
+	Currency    string      `json:"currency"`
+	Description string      `json:"description"`
+	ParentID    *int64      `json:"parent_id,omitempty"`
+	Balance     int64       `json:"balance"`
 }
 
 type CreateSimpleTransactionInput struct {
@@ -23,18 +23,18 @@ type CreateSimpleTransactionInput struct {
 }
 
 type CreateTransactionFromSplitsInput struct {
-	Splits      []SplitDetail
-	Description string
-	Timestamp   int64
-	Status      TransactionStatus
-	Type        TransactionType
+	Splits      []SplitDetail     `json:"splits"`
+	Description string            `json:"description"`
+	Timestamp   int64             `json:"timestamp"`
+	Status      TransactionStatus `json:"status"`
+	Type        TransactionType   `json:"type"`
 }
 
 type UpdateTransactionInput struct {
-	ID          int64
-	Description string
-	Timestamp   int64
-	Status      TransactionStatus
-	Type        TransactionType
-	Splits      []SplitDetail
+	ID          int64             `json:"-"`
+	Description string            `json:"description"`
+	Timestamp   int64             `json:"timestamp"`
+	Status      TransactionStatus `json:"status"`
+	Type        TransactionType   `json:"type"`
+	Splits      []SplitDetail     `json:"splits"`
 }

@@ -95,3 +95,18 @@ func (s *Server) handleCreateLedger(w http.ResponseWriter, r *http.Request) erro
 	}
 	return writeJSON(w, http.StatusCreated, ledgerInfo{Name: req.Name, Path: dbPath, Active: false})
 }
+
+func (s *Server) handleSwitchLedger(w http.ResponseWriter, r *http.Request) error {
+	var req switchLedgerRequest
+	if err := decodeJSON(r, &req); err != nil {
+		return err
+	}
+	if err := validateLedgerName(req.Name); err != nil {
+		return err
+	}
+	if err := s.switchLedger(req.Name); err != nil {
+		return err
+	}
+	e, _ := s.registry.EntryFor(req.Name)
+	return writeJSON(w, http.StatusOK, ledgerInfo{Name: req.Name, Path: e.Path, Active: true})
+}

@@ -284,3 +284,74 @@ func TestHandleCreateLedger_UnknownField(t *testing.T) {
 		t.Errorf("error: got %q, want validation_failed", eb.Error)
 	}
 }
+
+func TestHandleSwitchLedger_Success(t *testing.T) {
+	ts, reg, appDir, calls := newTestServerWithLedger(t)
+
+	pathA := filepath.Join(appDir, "ledgers", "alpha.db")
+	pathB := filepath.Join(appDir, "ledgers", "beta.db")
+	if err := reg.Add("alpha", pathA); err != nil {
+		t.Fatalf("add alpha: %v", err)
+	}
+	if err := reg.Add("beta", pathB); err != nil {
+		t.Fatalf("add beta: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("seed switch: %v", err)
+	}
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers/switch", map[string]any{"name": "beta"})
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+
+	var got struct {
+		Name   string `json:"name"`
+		Path   string `json:"path"`
+		Active bool   `json:"active"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Name != "beta" || got.Path != pathB || !got.Active {
+		t.Errorf("body: got %+v, want {beta, %s, true}", got, pathB)
+	}
+	if reg.ActiveName() != "beta" {
+		t.Errorf("registry active: got %q, want beta", reg.ActiveName())
+	}
+	if len(*calls) != 1 || (*calls)[0] != "beta" {
+		t.Errorf("switchLedger calls: got %v, want [beta]", *calls)
+	}
+}
+
+func TestHandleSwitchLedger_Unknown(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers/switch", map[string]any{"name": "ghost"})
+	if status != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "not_found" {
+		t.Errorf("error: got %q, want not_found", eb.Error)
+	}
+}
+
+func TestHandleSwitchLedger_EmptyName(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers/switch", map[string]any{"name": ""})
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "validation_failed" || eb.Field != "name" {
+		t.Errorf("error: got %+v, want validation_failed/name", eb)
+	}
+}

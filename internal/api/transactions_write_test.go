@@ -27,7 +27,7 @@ func TestHandleCreateTransaction_OK(t *testing.T) {
 		"status":"Cleared",
 		"type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("status: got %d, want 201", resp.StatusCode)
@@ -61,7 +61,7 @@ func TestHandleCreateTransaction_Unbalanced(t *testing.T) {
 		],
 		"description":"x","timestamp":1700000000,"status":"Cleared","type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
@@ -76,7 +76,7 @@ func TestHandleCreateTransaction_OneSplit(t *testing.T) {
 		"splits":[{"account_name":"Assets:Bank","amount":-500}],
 		"description":"x","timestamp":1700000000,"status":"Cleared","type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
@@ -101,7 +101,7 @@ func TestHandleCreateTransaction_TypeMismatch(t *testing.T) {
 		],
 		"description":"x","timestamp":1700000000,"status":"Cleared","type":"Income"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
@@ -120,7 +120,7 @@ func TestHandleCreateTransaction_ReconciledOnCreate(t *testing.T) {
 		],
 		"description":"x","timestamp":1700000000,"status":"Reconciled","type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
@@ -144,7 +144,7 @@ func TestHandleCreateTransaction_EmptyDescription(t *testing.T) {
 		],
 		"description":"","timestamp":1700000000,"status":"Cleared","type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
@@ -170,7 +170,7 @@ func TestHandleCreateTransaction_MemoTooLong(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	resp := postJSON(t, ts.URL+"/api/transactions", string(body))
+	resp := postJSONStr(t, ts.URL+"/api/transactions", string(body))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
@@ -197,7 +197,7 @@ func TestHandleCreateTransaction_HiddenAccount(t *testing.T) {
 		],
 		"description":"x","timestamp":1700000000,"status":"Cleared","type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
@@ -219,7 +219,7 @@ func TestHandleCreateTransaction_NonexistentAccount_Currently500(t *testing.T) {
 		],
 		"description":"x","timestamp":1700000000,"status":"Cleared","type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Errorf("status: got %d, want 500 (known rough edge — fix is out of scope)", resp.StatusCode)
@@ -250,7 +250,7 @@ func TestHandleCreateTransaction_ParentAccountInSplit(t *testing.T) {
 		],
 		"description":"x","timestamp":1700000000,"status":"Cleared","type":"Expense"
 	}`
-	resp := postJSON(t, ts.URL+"/api/transactions", body)
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status: got %d, want 400", resp.StatusCode)

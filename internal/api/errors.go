@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/service"
 )
 
@@ -43,6 +44,14 @@ func mapError(err error) (int, errorBody) {
 		return http.StatusConflict, errorBody{Error: "circular_parent", Message: err.Error()}
 	case errors.Is(err, service.ErrNotEditable):
 		return http.StatusForbidden, errorBody{Error: "not_editable", Message: err.Error()}
+	case errors.Is(err, ledger.ErrLedgerNotFound):
+		return http.StatusNotFound, errorBody{Error: "not_found", Message: err.Error()}
+	case errors.Is(err, ledger.ErrLedgerExists):
+		return http.StatusConflict, errorBody{Error: "already_exists", Message: err.Error()}
+	case errors.Is(err, ledger.ErrRemoveActive):
+		return http.StatusConflict, errorBody{Error: "cannot_remove_active", Message: err.Error()}
+	case errors.Is(err, ledger.ErrNoActiveLedger):
+		return http.StatusNotFound, errorBody{Error: "no_active_ledger", Message: err.Error()}
 	default:
 		return http.StatusInternalServerError, errorBody{Error: "internal", Message: "internal server error"}
 	}

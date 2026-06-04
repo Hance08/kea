@@ -18,7 +18,7 @@ func TestRunReturnsWhenContextCancelled(t *testing.T) {
 			Port: 0, // Let the kernel pick a free port.
 		},
 	}
-	srv := NewServer(cfg, nil, discardLogger())
+	srv := NewServer(cfg, nil, nil, nil, "", nil, discardLogger())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

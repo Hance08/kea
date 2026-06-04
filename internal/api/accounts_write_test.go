@@ -12,7 +12,7 @@ import (
 	"github.com/hance08/kea/internal/model"
 )
 
-func postJSON(t *testing.T, url string, body string) *http.Response {
+func postJSONStr(t *testing.T, url string, body string) *http.Response {
 	t.Helper()
 	resp, err := http.Post(url, "application/json", strings.NewReader(body))
 	if err != nil {
@@ -25,7 +25,7 @@ func TestHandleCreateAccount_OK(t *testing.T) {
 	ts, _ := newServerWithStore(t)
 
 	body := `{"name":"Assets:Cash","type":"A","currency":"USD","description":"","balance":0}`
-	resp := postJSON(t, ts.URL+"/api/accounts", body)
+	resp := postJSONStr(t, ts.URL+"/api/accounts", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
@@ -47,7 +47,7 @@ func TestHandleCreateAccount_WithBalance(t *testing.T) {
 	ts, _ := newServerWithStore(t)
 
 	body := `{"name":"Assets:Bank","type":"A","currency":"USD","description":"","balance":100000}`
-	resp := postJSON(t, ts.URL+"/api/accounts", body)
+	resp := postJSONStr(t, ts.URL+"/api/accounts", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
@@ -85,7 +85,7 @@ func TestHandleCreateAccount_LiabilityBalanceSignReversed(t *testing.T) {
 	ts, _ := newServerWithStore(t)
 
 	body := `{"name":"Liabilities:CreditCard","type":"L","currency":"USD","description":"","balance":50000}`
-	resp := postJSON(t, ts.URL+"/api/accounts", body)
+	resp := postJSONStr(t, ts.URL+"/api/accounts", body)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("status: got %d", resp.StatusCode)
@@ -111,7 +111,7 @@ func TestHandleCreateAccount_DuplicateName(t *testing.T) {
 	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
 
 	body := `{"name":"Assets:Cash","type":"A","currency":"USD","description":"","balance":0}`
-	resp := postJSON(t, ts.URL+"/api/accounts", body)
+	resp := postJSONStr(t, ts.URL+"/api/accounts", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusConflict {
@@ -138,7 +138,7 @@ func TestHandleCreateAccount_CircularParent(t *testing.T) {
 		"parent_id": parent.ID,
 		"balance":   0,
 	})
-	resp := postJSON(t, ts.URL+"/api/accounts", string(body))
+	resp := postJSONStr(t, ts.URL+"/api/accounts", string(body))
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("status: got %d, want 409", resp.StatusCode)
@@ -154,7 +154,7 @@ func TestHandleCreateAccount_InvalidType(t *testing.T) {
 	ts, _ := newServerWithStore(t)
 
 	body := `{"name":"Assets:Cash","type":"Z","currency":"USD","description":"","balance":0}`
-	resp := postJSON(t, ts.URL+"/api/accounts", body)
+	resp := postJSONStr(t, ts.URL+"/api/accounts", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -171,7 +171,7 @@ func TestHandleCreateAccount_EmptyName(t *testing.T) {
 	ts, _ := newServerWithStore(t)
 
 	body := `{"name":"","type":"A","currency":"USD","description":"","balance":0}`
-	resp := postJSON(t, ts.URL+"/api/accounts", body)
+	resp := postJSONStr(t, ts.URL+"/api/accounts", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -199,7 +199,7 @@ func TestHandleCreateAccount_DescriptionTooLong(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	resp := postJSON(t, ts.URL+"/api/accounts", string(body))
+	resp := postJSONStr(t, ts.URL+"/api/accounts", string(body))
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -216,7 +216,7 @@ func TestHandleCreateAccount_UnknownField(t *testing.T) {
 	ts, _ := newServerWithStore(t)
 
 	body := `{"name":"Assets:Cash","type":"A","currency":"USD","balance":0,"unknown_field":1}`
-	resp := postJSON(t, ts.URL+"/api/accounts", body)
+	resp := postJSONStr(t, ts.URL+"/api/accounts", body)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {

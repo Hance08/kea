@@ -17,8 +17,11 @@ import (
 )
 
 type App struct {
-	Service  *service.Service
-	Registry *ledger.Registry
+	Service    *service.Service
+	Registry   *ledger.Registry
+	store      *store.Store
+	migrations fs.FS
+	cfg        *config.Config
 }
 
 // NewApp initialize config, database and core logic, then return App entity
@@ -61,8 +64,11 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 	}
 
 	return &App{
-		Service:  svc,
-		Registry: registry,
+		Service:    svc,
+		Registry:   registry,
+		store:      dbStore,
+		migrations: migrationFS,
+		cfg:        cfg,
 	}, cleanup, nil
 }
 
@@ -78,6 +84,27 @@ func GetAppDataDir() (string, error) {
 
 	return filepath.Join(configDir, "kea"), nil
 }
+
+// SwitchLedger atomically swaps the active store to the named ledger,
+// updates the in-memory config, and persists the active-name change to
+// ledgers.yaml. The registry's fsnotify watcher subsequently fires reload(),
+// which short-circuits because ActiveLedger already matches.
+func (a *App) SwitchLedger(name string) error {
+	entry, ok := a.Registry.EntryFor(name)
+	if !ok {
+		return fmt.Errorf("%w: %q", ledger.ErrLedgerNotFound, name)
+	}
+	if err := a.store.Swap(entry.Path, a.migrations); err != nil {
+		return fmt.Errorf("swap store: %w", err)
+	}
+	a.cfg.ActiveLedger = name
+	a.cfg.Database.Path = entry.Path
+	return a.Registry.Switch(name)
+}
+
+// Config returns the config in use. Used by callers that build subcommands
+// from *App and need the same cfg pointer NewApp captured.
+func (a *App) Config() *config.Config { return a.cfg }
 
 func InitLedgerDB(path string, migrations fs.FS) error {
 	s, err := store.NewStore(path, migrations)

@@ -5,12 +5,10 @@ package cmd
 
 import (
 	"testing"
-
-	"github.com/hance08/kea/internal/config"
 )
 
 func TestNewServeCmdShape(t *testing.T) {
-	cmd := NewServeCmd(nil, &config.Config{})
+	cmd := NewServeCmd(nil, nil, "")
 	if cmd.Use != "serve" {
 		t.Errorf("Use: got %q, want %q", cmd.Use, "serve")
 	}

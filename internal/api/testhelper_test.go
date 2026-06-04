@@ -4,11 +4,13 @@
 package api
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
 	"github.com/hance08/kea/internal/config"
+	"github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/internal/store"
@@ -81,7 +83,7 @@ func newServerForWrite(t *testing.T) (*httptest.Server, *service.Service, *store
 	cfg.Defaults.Currency = "USD"
 
 	svc := service.NewService(st, st, st, cfg)
-	srv := NewServer(cfg, svc, discardLogger())
+	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 
@@ -110,6 +112,73 @@ func injectParentSelfCycle(t *testing.T, st *store.Store, accountID int64) {
 	if _, err := st.DB().ExecContext(t.Context(),
 		"UPDATE accounts SET parent_id = ? WHERE id = ?", accountID, accountID); err != nil {
 		t.Fatalf("inject cycle: %v", err)
+	}
+}
+
+// newTestServerWithLedger wires a fresh Server backed by a real on-disk
+// *ledger.Registry plus a fake switchLedger fn that records calls and
+// updates the registry's active name without invoking dbStore.Swap.
+//
+// The real store-swap behavior is exercised in internal/app/app_test.go;
+// duplicating it at the HTTP boundary does not pin additional behavior.
+func newTestServerWithLedger(t *testing.T) (
+	ts *httptest.Server,
+	reg *ledger.Registry,
+	appDir string,
+	switchCalls *[]string,
+) {
+	t.Helper()
+
+	appDir = t.TempDir()
+
+	var err error
+	reg, err = ledger.Load(appDir)
+	if err != nil {
+		t.Fatalf("ledger.Load: %v", err)
+	}
+
+	// ledger.Load auto-creates a "default" entry pointing at <appDir>/kea.db
+	// and sets it active. Remove it so tests start from a clean slate; tests
+	// that need a default-active ledger seed one explicitly.
+	delete(reg.Ledgers, "default")
+	reg.ActiveLedger = ""
+	if err := reg.Save(); err != nil {
+		t.Fatalf("clear default: %v", err)
+	}
+
+	calls := []string{}
+	switchLedger := func(name string) error {
+		calls = append(calls, name)
+		if _, ok := reg.EntryFor(name); !ok {
+			return fmt.Errorf("%w: %q", ledger.ErrLedgerNotFound, name)
+		}
+		return reg.Switch(name)
+	}
+
+	cfg := config.NewDefault()
+	srv := NewServer(cfg, nil, reg, migrations.FS, appDir, switchLedger, discardLogger())
+	ts = httptest.NewServer(srv.routes())
+	t.Cleanup(ts.Close)
+
+	return ts, reg, appDir, &calls
+}
+
+func TestNewTestServerWithLedger_StartsClean(t *testing.T) {
+	_, reg, appDir, calls := newTestServerWithLedger(t)
+	if reg == nil {
+		t.Fatal("registry is nil")
+	}
+	if got := reg.ActiveName(); got != "" {
+		t.Errorf("ActiveName: got %q, want \"\"", got)
+	}
+	if len(reg.Names()) != 0 {
+		t.Errorf("Names: got %v, want empty", reg.Names())
+	}
+	if appDir == "" {
+		t.Error("appDir is empty")
+	}
+	if calls == nil {
+		t.Error("switchCalls slice is nil")
 	}
 }
 

@@ -1,0 +1,460 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026  Hance Chin
+
+package api
+
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func getJSON(t *testing.T, url string) (int, []byte) {
+	t.Helper()
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	return resp.StatusCode, body
+}
+
+func postJSON(t *testing.T, url string, payload any) (int, []byte) {
+	t.Helper()
+	var buf bytes.Buffer
+	if payload != nil {
+		if err := json.NewEncoder(&buf).Encode(payload); err != nil {
+			t.Fatalf("encode payload: %v", err)
+		}
+	}
+	resp, err := http.Post(url, "application/json", &buf)
+	if err != nil {
+		t.Fatalf("POST %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	return resp.StatusCode, body
+}
+
+func deleteURL(t *testing.T, url string) (int, []byte) {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE %s: %v", url, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	return resp.StatusCode, body
+}
+
+func TestHandleListLedgers_Empty(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := getJSON(t, ts.URL+"/api/ledgers")
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+
+	var got struct {
+		Active string `json:"active"`
+		Items  []struct {
+			Name   string `json:"name"`
+			Path   string `json:"path"`
+			Active bool   `json:"active"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Active != "" {
+		t.Errorf("active: got %q, want \"\"", got.Active)
+	}
+	if len(got.Items) != 0 {
+		t.Errorf("items: got %v, want []", got.Items)
+	}
+}
+
+func TestHandleActiveLedger_None(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := getJSON(t, ts.URL+"/api/ledgers/active")
+	if status != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404; body=%s", status, body)
+	}
+	var got errorBody
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Error != "no_active_ledger" {
+		t.Errorf("error: got %q, want %q", got.Error, "no_active_ledger")
+	}
+}
+
+func TestHandleActiveLedger_Set(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	path := filepath.Join(appDir, "ledgers", "alpha.db")
+	if err := reg.Add("alpha", path); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	status, body := getJSON(t, ts.URL+"/api/ledgers/active")
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+	var got struct {
+		Name   string `json:"name"`
+		Path   string `json:"path"`
+		Active bool   `json:"active"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Name != "alpha" || got.Path != path || !got.Active {
+		t.Errorf("body: got %+v, want {alpha, %s, true}", got, path)
+	}
+}
+
+func TestHandleListLedgers_TwoRegisteredOneActive(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	pathA := filepath.Join(appDir, "ledgers", "alpha.db")
+	pathB := filepath.Join(appDir, "ledgers", "beta.db")
+	if err := reg.Add("alpha", pathA); err != nil {
+		t.Fatalf("add alpha: %v", err)
+	}
+	if err := reg.Add("beta", pathB); err != nil {
+		t.Fatalf("add beta: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch alpha: %v", err)
+	}
+
+	status, body := getJSON(t, ts.URL+"/api/ledgers")
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+
+	var got struct {
+		Active string `json:"active"`
+		Items  []struct {
+			Name   string `json:"name"`
+			Path   string `json:"path"`
+			Active bool   `json:"active"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Active != "alpha" {
+		t.Errorf("active: got %q, want %q", got.Active, "alpha")
+	}
+	if len(got.Items) != 2 {
+		t.Fatalf("items: got %d, want 2", len(got.Items))
+	}
+	// Items must be sorted by name: alpha, beta.
+	if got.Items[0].Name != "alpha" || got.Items[1].Name != "beta" {
+		t.Errorf("sort order: got [%q, %q], want [alpha, beta]",
+			got.Items[0].Name, got.Items[1].Name)
+	}
+	if !got.Items[0].Active || got.Items[1].Active {
+		t.Errorf("active flags: got [%v, %v], want [true, false]",
+			got.Items[0].Active, got.Items[1].Active)
+	}
+	if got.Items[0].Path != pathA || got.Items[1].Path != pathB {
+		t.Errorf("paths: got [%q, %q], want [%q, %q]",
+			got.Items[0].Path, got.Items[1].Path, pathA, pathB)
+	}
+}
+
+func TestHandleCreateLedger_Success(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers", map[string]any{"name": "alpha"})
+	if status != http.StatusCreated {
+		t.Fatalf("status: got %d, want 201; body=%s", status, body)
+	}
+
+	var got struct {
+		Name   string `json:"name"`
+		Path   string `json:"path"`
+		Active bool   `json:"active"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	wantPath := filepath.Join(appDir, "ledgers", "alpha.db")
+	if got.Name != "alpha" || got.Path != wantPath || got.Active {
+		t.Errorf("body: got %+v, want {alpha, %s, false}", got, wantPath)
+	}
+	if _, err := os.Stat(wantPath); err != nil {
+		t.Errorf("db file not created at %q: %v", wantPath, err)
+	}
+	if _, ok := reg.EntryFor("alpha"); !ok {
+		t.Errorf("registry missing alpha after create")
+	}
+}
+
+func TestHandleCreateLedger_DuplicateName(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	if err := reg.Add("alpha", filepath.Join(appDir, "ledgers", "alpha.db")); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers", map[string]any{"name": "alpha"})
+	if status != http.StatusConflict {
+		t.Fatalf("status: got %d, want 409; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "already_exists" {
+		t.Errorf("error: got %q, want %q", eb.Error, "already_exists")
+	}
+}
+
+func TestHandleCreateLedger_InvalidName(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	cases := []struct {
+		name    string
+		payload map[string]any
+	}{
+		{"empty", map[string]any{"name": ""}},
+		{"slash", map[string]any{"name": "a/b"}},
+		{"backslash", map[string]any{"name": `a\b`}},
+		{"dotdot", map[string]any{"name": "..foo"}},
+		{"control_char", map[string]any{"name": "a\x00b"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			status, body := postJSON(t, ts.URL+"/api/ledgers", tc.payload)
+			if status != http.StatusBadRequest {
+				t.Fatalf("status: got %d, want 400; body=%s", status, body)
+			}
+			var eb errorBody
+			if err := json.Unmarshal(body, &eb); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if eb.Error != "validation_failed" || eb.Field != "name" {
+				t.Errorf("error: got %+v, want validation_failed/name", eb)
+			}
+		})
+	}
+}
+
+func TestHandleCreateLedger_UnknownField(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers", map[string]any{
+		"name": "alpha",
+		"path": "/tmp/evil.db",
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "validation_failed" {
+		t.Errorf("error: got %q, want validation_failed", eb.Error)
+	}
+}
+
+func TestHandleSwitchLedger_Success(t *testing.T) {
+	ts, reg, appDir, calls := newTestServerWithLedger(t)
+
+	pathA := filepath.Join(appDir, "ledgers", "alpha.db")
+	pathB := filepath.Join(appDir, "ledgers", "beta.db")
+	if err := reg.Add("alpha", pathA); err != nil {
+		t.Fatalf("add alpha: %v", err)
+	}
+	if err := reg.Add("beta", pathB); err != nil {
+		t.Fatalf("add beta: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("seed switch: %v", err)
+	}
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers/switch", map[string]any{"name": "beta"})
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+
+	var got struct {
+		Name   string `json:"name"`
+		Path   string `json:"path"`
+		Active bool   `json:"active"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Name != "beta" || got.Path != pathB || !got.Active {
+		t.Errorf("body: got %+v, want {beta, %s, true}", got, pathB)
+	}
+	if reg.ActiveName() != "beta" {
+		t.Errorf("registry active: got %q, want beta", reg.ActiveName())
+	}
+	if len(*calls) != 1 || (*calls)[0] != "beta" {
+		t.Errorf("switchLedger calls: got %v, want [beta]", *calls)
+	}
+}
+
+func TestHandleSwitchLedger_Unknown(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers/switch", map[string]any{"name": "ghost"})
+	if status != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "not_found" {
+		t.Errorf("error: got %q, want not_found", eb.Error)
+	}
+}
+
+func TestHandleSwitchLedger_EmptyName(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := postJSON(t, ts.URL+"/api/ledgers/switch", map[string]any{"name": ""})
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "validation_failed" || eb.Field != "name" {
+		t.Errorf("error: got %+v, want validation_failed/name", eb)
+	}
+}
+
+func TestHandleDeleteLedger_Inactive(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	pathA := filepath.Join(appDir, "ledgers", "alpha.db")
+	pathB := filepath.Join(appDir, "ledgers", "beta.db")
+	if err := reg.Add("alpha", pathA); err != nil {
+		t.Fatalf("add alpha: %v", err)
+	}
+	if err := reg.Add("beta", pathB); err != nil {
+		t.Fatalf("add beta: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	// Create the beta file on disk so we can assert the file is untouched
+	// after DELETE.
+	if err := os.MkdirAll(filepath.Dir(pathB), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(pathB, []byte("sqlite-magic"), 0644); err != nil {
+		t.Fatalf("write beta: %v", err)
+	}
+
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/beta")
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+	var got struct {
+		Deleted bool   `json:"deleted"`
+		Name    string `json:"name"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !got.Deleted || got.Name != "beta" {
+		t.Errorf("body: got %+v, want {deleted:true, name:beta}", got)
+	}
+	if _, ok := reg.EntryFor("beta"); ok {
+		t.Errorf("registry still has beta after delete")
+	}
+	if _, err := os.Stat(pathB); err != nil {
+		t.Errorf("beta db file removed despite unregister-only policy: %v", err)
+	}
+}
+
+func TestHandleDeleteLedger_Active(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	if err := reg.Add("alpha", filepath.Join(appDir, "ledgers", "alpha.db")); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/alpha")
+	if status != http.StatusConflict {
+		t.Fatalf("status: got %d, want 409; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "cannot_remove_active" {
+		t.Errorf("error: got %q, want cannot_remove_active", eb.Error)
+	}
+}
+
+func TestHandleDeleteLedger_Unknown(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/ghost")
+	if status != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "not_found" {
+		t.Errorf("error: got %q, want not_found", eb.Error)
+	}
+}
+
+func TestHandleDeleteLedger_InvalidName(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	// chi only routes to the handler when {name} is non-empty, so we exercise
+	// the post-routing validation via a name containing "..".
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/..foo")
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "validation_failed" || eb.Field != "name" {
+		t.Errorf("error: got %+v, want validation_failed/name", eb)
+	}
+}

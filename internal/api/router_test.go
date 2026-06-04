@@ -21,7 +21,7 @@ func newTestServer(t *testing.T) *httptest.Server {
 			CORSOrigins: []string{"http://localhost:5173"},
 		},
 	}
-	srv := NewServer(cfg, nil, discardLogger())
+	srv := NewServer(cfg, nil, nil, nil, "", nil, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 	return ts

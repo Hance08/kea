@@ -355,3 +355,88 @@ func TestHandleSwitchLedger_EmptyName(t *testing.T) {
 		t.Errorf("error: got %+v, want validation_failed/name", eb)
 	}
 }
+
+func TestHandleDeleteLedger_Inactive(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	pathA := filepath.Join(appDir, "ledgers", "alpha.db")
+	pathB := filepath.Join(appDir, "ledgers", "beta.db")
+	if err := reg.Add("alpha", pathA); err != nil {
+		t.Fatalf("add alpha: %v", err)
+	}
+	if err := reg.Add("beta", pathB); err != nil {
+		t.Fatalf("add beta: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	// Create the beta file on disk so we can assert the file is untouched
+	// after DELETE.
+	if err := os.MkdirAll(filepath.Dir(pathB), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(pathB, []byte("sqlite-magic"), 0644); err != nil {
+		t.Fatalf("write beta: %v", err)
+	}
+
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/beta")
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+	var got struct {
+		Deleted bool   `json:"deleted"`
+		Name    string `json:"name"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !got.Deleted || got.Name != "beta" {
+		t.Errorf("body: got %+v, want {deleted:true, name:beta}", got)
+	}
+	if _, ok := reg.EntryFor("beta"); ok {
+		t.Errorf("registry still has beta after delete")
+	}
+	if _, err := os.Stat(pathB); err != nil {
+		t.Errorf("beta db file removed despite unregister-only policy: %v", err)
+	}
+}
+
+func TestHandleDeleteLedger_Active(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	if err := reg.Add("alpha", filepath.Join(appDir, "ledgers", "alpha.db")); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/alpha")
+	if status != http.StatusConflict {
+		t.Fatalf("status: got %d, want 409; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "cannot_remove_active" {
+		t.Errorf("error: got %q, want cannot_remove_active", eb.Error)
+	}
+}
+
+func TestHandleDeleteLedger_Unknown(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/ghost")
+	if status != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "not_found" {
+		t.Errorf("error: got %q, want not_found", eb.Error)
+	}
+}

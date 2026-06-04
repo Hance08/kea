@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/ledger"
 	"github.com/hance08/kea/internal/service"
@@ -109,4 +111,12 @@ func (s *Server) handleSwitchLedger(w http.ResponseWriter, r *http.Request) erro
 	}
 	e, _ := s.registry.EntryFor(req.Name)
 	return writeJSON(w, http.StatusOK, ledgerInfo{Name: req.Name, Path: e.Path, Active: true})
+}
+
+func (s *Server) handleDeleteLedger(w http.ResponseWriter, r *http.Request) error {
+	name := chi.URLParam(r, "name")
+	if err := s.registry.Remove(name, false); err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "name": name})
 }

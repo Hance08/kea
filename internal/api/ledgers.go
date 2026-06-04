@@ -4,7 +4,10 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
+
+	"github.com/hance08/kea/internal/ledger"
 )
 
 type ledgerInfo struct {
@@ -24,6 +27,18 @@ type createLedgerRequest struct {
 
 type switchLedgerRequest struct {
 	Name string `json:"name"`
+}
+
+func (s *Server) handleActiveLedger(w http.ResponseWriter, r *http.Request) error {
+	name := s.registry.ActiveName()
+	if name == "" {
+		return ledger.ErrNoActiveLedger
+	}
+	e, ok := s.registry.EntryFor(name)
+	if !ok {
+		return fmt.Errorf("%w: %q", ledger.ErrLedgerNotFound, name)
+	}
+	return writeJSON(w, http.StatusOK, ledgerInfo{Name: name, Path: e.Path, Active: true})
 }
 
 func (s *Server) handleListLedgers(w http.ResponseWriter, r *http.Request) error {

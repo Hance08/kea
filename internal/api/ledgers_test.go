@@ -91,6 +91,50 @@ func TestHandleListLedgers_Empty(t *testing.T) {
 	}
 }
 
+func TestHandleActiveLedger_None(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	status, body := getJSON(t, ts.URL+"/api/ledgers/active")
+	if status != http.StatusNotFound {
+		t.Fatalf("status: got %d, want 404; body=%s", status, body)
+	}
+	var got errorBody
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Error != "no_active_ledger" {
+		t.Errorf("error: got %q, want %q", got.Error, "no_active_ledger")
+	}
+}
+
+func TestHandleActiveLedger_Set(t *testing.T) {
+	ts, reg, appDir, _ := newTestServerWithLedger(t)
+
+	path := filepath.Join(appDir, "ledgers", "alpha.db")
+	if err := reg.Add("alpha", path); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if err := reg.Switch("alpha"); err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+
+	status, body := getJSON(t, ts.URL+"/api/ledgers/active")
+	if status != http.StatusOK {
+		t.Fatalf("status: got %d, want 200; body=%s", status, body)
+	}
+	var got struct {
+		Name   string `json:"name"`
+		Path   string `json:"path"`
+		Active bool   `json:"active"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v; body=%s", err, body)
+	}
+	if got.Name != "alpha" || got.Path != path || !got.Active {
+		t.Errorf("body: got %+v, want {alpha, %s, true}", got, path)
+	}
+}
+
 func TestHandleListLedgers_TwoRegisteredOneActive(t *testing.T) {
 	ts, reg, appDir, _ := newTestServerWithLedger(t)
 

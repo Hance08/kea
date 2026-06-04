@@ -440,3 +440,21 @@ func TestHandleDeleteLedger_Unknown(t *testing.T) {
 		t.Errorf("error: got %q, want not_found", eb.Error)
 	}
 }
+
+func TestHandleDeleteLedger_InvalidName(t *testing.T) {
+	ts, _, _, _ := newTestServerWithLedger(t)
+
+	// chi only routes to the handler when {name} is non-empty, so we exercise
+	// the post-routing validation via a name containing "..".
+	status, body := deleteURL(t, ts.URL+"/api/ledgers/..foo")
+	if status != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400; body=%s", status, body)
+	}
+	var eb errorBody
+	if err := json.Unmarshal(body, &eb); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if eb.Error != "validation_failed" || eb.Field != "name" {
+		t.Errorf("error: got %+v, want validation_failed/name", eb)
+	}
+}

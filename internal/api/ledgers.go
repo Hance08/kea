@@ -36,6 +36,11 @@ type switchLedgerRequest struct {
 	Name string `json:"name"`
 }
 
+type deleteLedgerResponse struct {
+	Deleted bool   `json:"deleted"`
+	Name    string `json:"name"`
+}
+
 func (s *Server) handleActiveLedger(w http.ResponseWriter, r *http.Request) error {
 	name := s.registry.ActiveName()
 	if name == "" {
@@ -115,8 +120,11 @@ func (s *Server) handleSwitchLedger(w http.ResponseWriter, r *http.Request) erro
 
 func (s *Server) handleDeleteLedger(w http.ResponseWriter, r *http.Request) error {
 	name := chi.URLParam(r, "name")
+	if err := validateLedgerName(name); err != nil {
+		return err
+	}
 	if err := s.registry.Remove(name, false); err != nil {
 		return err
 	}
-	return writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "name": name})
+	return writeJSON(w, http.StatusOK, deleteLedgerResponse{Deleted: true, Name: name})
 }

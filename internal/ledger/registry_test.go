@@ -442,7 +442,7 @@ func TestRegistry_ConcurrentAccess(t *testing.T) {
 					return
 				default:
 				}
-				switch i % 5 {
+				switch i % 6 {
 				case 0:
 					name := fmt.Sprintf("g%d-%d", id, i)
 					_ = r.Add(name, "/tmp/"+name+".db")
@@ -454,6 +454,8 @@ func TestRegistry_ConcurrentAccess(t *testing.T) {
 					_ = r.Names()
 				case 4:
 					_ = r.ActiveName()
+				case 5:
+					_, _ = r.Active()
 				}
 				i++
 			}
@@ -496,6 +498,7 @@ func TestRegistry_SwitchVsReload(t *testing.T) {
 		}
 	}
 
+	assert.Equal(t, "personal", r.ActiveName(), "last Switch in the loop sets personal")
 	cancel()
 	<-watchDone
 }

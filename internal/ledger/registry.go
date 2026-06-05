@@ -365,6 +365,10 @@ func (r *Registry) reload() {
 	r.ActiveLedger = fresh.ActiveLedger
 	r.Ledgers = fresh.Ledgers
 	entry, exists := r.Ledgers[r.ActiveLedger]
+	// Invoke callbacks outside r.mu: the OnSwitch handler in app.go calls
+	// dbStore.Swap, which acquires the store's own mutex and does disk I/O.
+	// Holding r.mu across that would invert lock ordering with concurrent
+	// registry readers and risk deadlock.
 	cbs := make([]func(string, string), len(r.callbacks))
 	copy(cbs, r.callbacks)
 	r.mu.Unlock()

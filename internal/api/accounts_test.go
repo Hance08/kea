@@ -594,3 +594,44 @@ func TestHandleListAccounts_SearchFiltersHidden(t *testing.T) {
 		t.Errorf("include_hidden=true: hidden account missing from search")
 	}
 }
+
+// TestHandleAccountBalance_EmptyCurrencyNormalized verifies the handler
+// resolves an empty account Currency to the config default, mirroring the
+// behavior of GET /api/balances and GenerateBalanceSheet. ValidateCurrency
+// explicitly allows empty input, so this case is reachable through normal
+// account creation.
+func TestHandleAccountBalance_EmptyCurrencyNormalized(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	acc, err := svc.Account().CreateAccount(t.Context(), model.CreateAccountInput{
+		Name:     "Assets:NoCurrency",
+		Type:     model.AccountTypeAsset,
+		Currency: "",
+	})
+	if err != nil {
+		t.Fatalf("create account: %v", err)
+	}
+
+	resp, err := http.Get(ts.URL + "/api/accounts/" + itoa(acc.ID) + "/balance")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got struct {
+		AccountID int64  `json:"account_id"`
+		Amount    int64  `json:"amount"`
+		Currency  string `json:"currency"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	want := svc.Config().Defaults.Currency
+	if got.Currency != want {
+		t.Errorf("currency: got %q, want %q (config default)", got.Currency, want)
+	}
+	if got.AccountID != acc.ID {
+		t.Errorf("account_id: got %d, want %d", got.AccountID, acc.ID)
+	}
+}

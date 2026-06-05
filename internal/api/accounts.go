@@ -66,10 +66,14 @@ func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) er
 	if err != nil {
 		return err
 	}
+	currency := acc.Currency
+	if currency == "" {
+		currency = s.svc.Config().Defaults.Currency
+	}
 	return writeJSON(w, http.StatusOK, balanceResponse{
 		AccountID: id,
 		Amount:    amount,
-		Currency:  acc.Currency,
+		Currency:  currency,
 	})
 }
 

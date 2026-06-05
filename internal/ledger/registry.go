@@ -86,26 +86,53 @@ func Load(appDir string) (*Registry, error) {
 		r.ActiveLedger = "default"
 	}
 
-	if err := r.Save(); err != nil {
+	// Load runs during single-threaded init before any other goroutine
+	// touches r; calling saveLocked() directly is safe and avoids the
+	// uncontended lock cycle.
+	if err := r.saveLocked(); err != nil {
 		return nil, fmt.Errorf("init default ledger: %w", err)
 	}
 	return r, nil
 }
 
-// Save writes the current registry state to ledgers.yaml.
+// Save writes the current registry state to ledgers.yaml. Safe to call from
+// external goroutines; takes r.mu internally.
 func (r *Registry) Save() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.saveLocked()
+}
+
+// registrySnapshot is a plain struct used as the YAML serialisation target.
+// Marshalling r directly would expose r.mu to reflect while other goroutines
+// hold or contend the same word, which the race detector correctly flags.
+type registrySnapshot struct {
+	ActiveLedger string           `yaml:"active"`
+	Ledgers      map[string]Entry `yaml:"ledgers"`
+}
+
+// saveLocked persists the registry to disk. The caller MUST hold r.mu so
+// that the snapshot sees a consistent view of r.ActiveLedger and r.Ledgers.
+func (r *Registry) saveLocked() error {
 	if err := os.MkdirAll(filepath.Dir(r.filePath), 0755); err != nil {
 		return fmt.Errorf("create registry directory: %w", err)
 	}
-	data, err := yaml.Marshal(r)
+	snap := registrySnapshot{
+		ActiveLedger: r.ActiveLedger,
+		Ledgers:      r.Ledgers,
+	}
+	data, err := yaml.Marshal(snap)
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
 	}
 	return os.WriteFile(r.filePath, data, 0644)
 }
 
-// Names returns all registered ledger names in sorted order.
+// Names returns all registered ledger names in sorted order. Safe to call
+// from external goroutines; takes r.mu internally.
 func (r *Registry) Names() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	names := make([]string, 0, len(r.Ledgers))
 	for name := range r.Ledgers {
 		names = append(names, name)
@@ -115,33 +142,43 @@ func (r *Registry) Names() []string {
 }
 
 // EntryFor returns the Entry for a given name and whether it was found.
+// Safe to call from external goroutines; takes r.mu internally.
 func (r *Registry) EntryFor(name string) (Entry, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	e, ok := r.Ledgers[name]
 	return e, ok
 }
 
 // Add registers a new ledger. Returns ErrLedgerExists if the name is already taken.
 func (r *Registry) Add(name, dbPath string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if _, exists := r.Ledgers[name]; exists {
 		return fmt.Errorf("%w: %q", ErrLedgerExists, name)
 	}
 	r.Ledgers[name] = Entry{Path: dbPath}
-	return r.Save()
+	return r.saveLocked()
 }
 
 // Switch sets the active ledger by name. Returns ErrLedgerNotFound if unknown.
 func (r *Registry) Switch(name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if _, exists := r.Ledgers[name]; !exists {
 		return fmt.Errorf("%w: %q — run: kea ledger list", ErrLedgerNotFound, name)
 	}
 	r.ActiveLedger = name
-	return r.Save()
+	return r.saveLocked()
 }
 
 // Active returns the resolved DB path for the active ledger.
-// KEA_LEDGER env var overrides the registry's active field.
+// KEA_LEDGER env var overrides the registry's active field. Safe to call
+// from external goroutines; takes r.mu internally.
 func (r *Registry) Active() (string, error) {
-	name := r.ActiveName()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	name := r.activeNameLocked()
 	if name == "" {
 		return "", ErrNoActiveLedger
 	}
@@ -152,9 +189,19 @@ func (r *Registry) Active() (string, error) {
 	return entry.Path, nil
 }
 
-// ActiveName returns the name of the active ledger.
-// KEA_LEDGER env var takes precedence over the registry's active field.
+// ActiveName returns the name of the active ledger. KEA_LEDGER env var
+// takes precedence over the registry's active field. Safe to call from
+// external goroutines; takes r.mu internally.
 func (r *Registry) ActiveName() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.activeNameLocked()
+}
+
+// activeNameLocked returns the active ledger name. Caller MUST hold r.mu.
+// The env-var lookup itself is thread-safe and independent of registry
+// state but is held inside the lock to keep the function shape simple.
+func (r *Registry) activeNameLocked() string {
 	if env := os.Getenv("KEA_LEDGER"); env != "" {
 		return env
 	}
@@ -163,25 +210,42 @@ func (r *Registry) ActiveName() string {
 
 // Remove unregisters a ledger. If deleteFile is true and the ledger's DB file
 // exists, it is deleted after unregistering. Returns ErrRemoveActive if the
-// target is currently the active ledger.
+// target is currently the active ledger. The file deletion happens outside
+// r.mu — the captured entry path was resolved while holding the lock, and
+// blocking all registry reads on a disk-remove call would be needlessly
+// pessimistic.
 func (r *Registry) Remove(name string, deleteFile bool) error {
-	if name == r.ActiveName() {
-		return ErrRemoveActive
+	entry, err := r.removeAndSave(name)
+	if err != nil {
+		return err
+	}
+	if !deleteFile {
+		return nil
+	}
+	if err := os.Remove(entry.Path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("delete database file: %w", err)
+	}
+	return nil
+}
+
+// removeAndSave deletes name from r.Ledgers, persists the registry, and
+// returns the removed entry so the caller can act on it outside the lock.
+// Takes r.mu internally.
+func (r *Registry) removeAndSave(name string) (Entry, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if name == r.activeNameLocked() {
+		return Entry{}, ErrRemoveActive
 	}
 	entry, exists := r.Ledgers[name]
 	if !exists {
-		return fmt.Errorf("%w: %q", ErrLedgerNotFound, name)
+		return Entry{}, fmt.Errorf("%w: %q", ErrLedgerNotFound, name)
 	}
 	delete(r.Ledgers, name)
-	if err := r.Save(); err != nil {
-		return err
+	if err := r.saveLocked(); err != nil {
+		return Entry{}, err
 	}
-	if deleteFile {
-		if err := os.Remove(entry.Path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("delete database file: %w", err)
-		}
-	}
-	return nil
+	return entry, nil
 }
 
 // OnSwitch registers a callback that is called when the active ledger changes.
@@ -301,6 +365,10 @@ func (r *Registry) reload() {
 	r.ActiveLedger = fresh.ActiveLedger
 	r.Ledgers = fresh.Ledgers
 	entry, exists := r.Ledgers[r.ActiveLedger]
+	// Invoke callbacks outside r.mu: the OnSwitch handler in app.go calls
+	// dbStore.Swap, which acquires the store's own mutex and does disk I/O.
+	// Holding r.mu across that would invert lock ordering with concurrent
+	// registry readers and risk deadlock.
 	cbs := make([]func(string, string), len(r.callbacks))
 	copy(cbs, r.callbacks)
 	r.mu.Unlock()

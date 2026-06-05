@@ -6,6 +6,7 @@ package ledger
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -409,6 +410,95 @@ func TestWatch_DebouncesRapidWrites(t *testing.T) {
 		t.Fatal("timed out waiting for OnSwitch callback")
 	}
 
+	cancel()
+	<-watchDone
+}
+
+// TestRegistry_ConcurrentAccess stresses every Registry accessor that touches
+// r.ActiveLedger or r.Ledgers from multiple goroutines. With unsynchronized
+// access (the pre-fix state) Go's runtime panics with "concurrent map read
+// and map write" — that's the loud failure mode this test pins. Run under
+// -race for additional data-race coverage.
+func TestRegistry_ConcurrentAccess(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("seed1", "/tmp/seed1.db"))
+	require.NoError(t, r.Add("seed2", "/tmp/seed2.db"))
+
+	const goroutines = 8
+	const dur = 100 * time.Millisecond
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			i := 0
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				switch i % 6 {
+				case 0:
+					name := fmt.Sprintf("g%d-%d", id, i)
+					_ = r.Add(name, "/tmp/"+name+".db")
+				case 1:
+					_ = r.Switch("seed1")
+				case 2:
+					_, _ = r.EntryFor("seed1")
+				case 3:
+					_ = r.Names()
+				case 4:
+					_ = r.ActiveName()
+				case 5:
+					_, _ = r.Active()
+				}
+				i++
+			}
+		}(g)
+	}
+	time.Sleep(dur)
+	close(stop)
+	wg.Wait()
+}
+
+// TestRegistry_SwitchVsReload reproduces the production-shape race: the
+// fsnotify watcher's reload() rewrites r.ActiveLedger and r.Ledgers under
+// the lock, while an in-process Switch caller mutates them concurrently
+// without it. Each Switch persists ledgers.yaml, which triggers reload()
+// after the debounce window. With the fix in place this completes cleanly
+// under -race; without the fix `-race` flags the data race on r.ActiveLedger.
+func TestRegistry_SwitchVsReload(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Load(dir)
+	require.NoError(t, err)
+	require.NoError(t, r.Add("work", "/tmp/work.db"))
+	require.NoError(t, r.Add("personal", "/tmp/personal.db"))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	watchDone := make(chan struct{})
+	go func() {
+		_ = r.Watch(ctx)
+		close(watchDone)
+	}()
+	// Let the watcher install its fsnotify hook before we start mutating.
+	time.Sleep(200 * time.Millisecond)
+
+	deadline := time.Now().Add(200 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if err := r.Switch("work"); err != nil {
+			t.Fatalf("Switch(work): %v", err)
+		}
+		if err := r.Switch("personal"); err != nil {
+			t.Fatalf("Switch(personal): %v", err)
+		}
+	}
+
+	assert.Equal(t, "personal", r.ActiveName(), "last Switch in the loop sets personal")
 	cancel()
 	<-watchDone
 }

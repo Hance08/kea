@@ -5,6 +5,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 	"github.com/hance08/kea/internal/service"
@@ -69,6 +70,31 @@ func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) er
 		AccountID: id,
 		Amount:    amount,
 		Currency:  acc.Currency,
+	})
+}
+
+func (s *Server) handleListBalances(w http.ResponseWriter, r *http.Request) error {
+	asOfPtr, err := parseInt64Query(r, "as_of")
+	if err != nil {
+		return err
+	}
+	asOf := time.Now().Unix()
+	if asOfPtr != nil {
+		asOf = *asOfPtr
+	}
+	includeHidden, err := parseBoolQuery(r, "include_hidden")
+	if err != nil {
+		return err
+	}
+	rows, err := s.svc.Account().GetAccountBalancesBulk(r.Context(), asOf, includeHidden)
+	if err != nil {
+		return err
+	}
+	return writeJSON(w, http.StatusOK, &model.ListResult[model.AccountBalance]{
+		Items:      rows,
+		TotalCount: len(rows),
+		Limit:      0,
+		Offset:     0,
 	})
 }
 

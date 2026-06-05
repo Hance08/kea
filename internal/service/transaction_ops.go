@@ -171,10 +171,18 @@ func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, input
 	if txType == "" {
 		fromAcc, err := ts.accRepo.GetAccountByName(ctx, input.FromAccount)
 		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return model.TransactionDetail{}, validationErrorf("from_account",
+					"from account %q not found", input.FromAccount)
+			}
 			return model.TransactionDetail{}, fmt.Errorf("failed to resolve from account: %w", err)
 		}
 		toAcc, err := ts.accRepo.GetAccountByName(ctx, input.ToAccount)
 		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return model.TransactionDetail{}, validationErrorf("to_account",
+					"to account %q not found", input.ToAccount)
+			}
 			return model.TransactionDetail{}, fmt.Errorf("failed to resolve to account: %w", err)
 		}
 		inferred, err := ts.DetermineType(ctx, []model.SplitDetail{

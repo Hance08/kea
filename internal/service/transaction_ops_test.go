@@ -458,6 +458,56 @@ func TestCreateSimpleTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, model.TxTypeExpense, detail.Type)
 	})
+
+	t.Run("unknown from account returns validation error on from_account", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		_, err := svc.CreateSimpleTransaction(
+			context.Background(),
+			model.CreateSimpleTransactionInput{
+				FromAccount: "Assets:NotReal",
+				ToAccount:   "Expenses:Food",
+				Amount:      100,
+				Description: "x",
+				Timestamp:   0,
+				Status:      model.StatusPending,
+				Type:        "", // empty -> enters the type-inference branch
+			},
+		)
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve), "expected *ValidationError, got %T: %v", err, err)
+		assert.Equal(t, "from_account", ve.Field)
+		assert.Contains(t, ve.Message, "Assets:NotReal")
+	})
+
+	t.Run("unknown to account returns validation error on to_account", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		txRepo := newMockTransactionRepo()
+		setupStandardAccounts(accRepo)
+		svc := newTestTransactionService(accRepo, txRepo)
+
+		_, err := svc.CreateSimpleTransaction(
+			context.Background(),
+			model.CreateSimpleTransactionInput{
+				FromAccount: "Assets:Bank",
+				ToAccount:   "Expenses:NotReal",
+				Amount:      100,
+				Description: "x",
+				Timestamp:   0,
+				Status:      model.StatusPending,
+				Type:        "", // empty -> enters the type-inference branch
+			},
+		)
+		require.Error(t, err)
+		var ve *ValidationError
+		require.True(t, errors.As(err, &ve), "expected *ValidationError, got %T: %v", err, err)
+		assert.Equal(t, "to_account", ve.Field)
+		assert.Contains(t, ve.Message, "Expenses:NotReal")
+	})
 }
 
 // ──────────────────────────────────────────────

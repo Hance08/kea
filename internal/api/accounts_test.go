@@ -316,8 +316,10 @@ func TestHandleListAccounts_InvalidType(t *testing.T) {
 
 func TestHandleListBalances_OK(t *testing.T) {
 	ts, svc := newServerWithStore(t)
+	// Seed accounts of different types. seedAccount always uses the config
+	// default currency ("USD"), so multi-currency coverage is not exercised here.
 	seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 125000)
-	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 3500)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
 
 	resp, err := http.Get(ts.URL + "/api/balances")
 	if err != nil {
@@ -337,7 +339,7 @@ func TestHandleListBalances_OK(t *testing.T) {
 	if got.Limit != 0 || got.Offset != 0 {
 		t.Errorf("limit/offset: got %d/%d, want 0/0", got.Limit, got.Offset)
 	}
-	var foundBank, foundCash bool
+	var foundBank, foundCoffee bool
 	for _, row := range got.Items {
 		switch row.Name {
 		case "Assets:Bank":
@@ -345,21 +347,57 @@ func TestHandleListBalances_OK(t *testing.T) {
 			if row.Amount != 125000 {
 				t.Errorf("Bank amount: got %d, want 125000", row.Amount)
 			}
-		case "Assets:Cash":
-			foundCash = true
-			if row.Amount != 3500 {
-				t.Errorf("Cash amount: got %d, want 3500", row.Amount)
+			if row.Type != model.AccountTypeAsset {
+				t.Errorf("Bank type: got %q, want %q", row.Type, model.AccountTypeAsset)
+			}
+			if row.Currency == "" {
+				t.Errorf("Bank currency: got empty, want a resolved currency string")
+			}
+		case "Expenses:Coffee":
+			foundCoffee = true
+			if row.Type != model.AccountTypeExpense {
+				t.Errorf("Coffee type: got %q, want %q", row.Type, model.AccountTypeExpense)
 			}
 		}
 	}
-	if !foundBank || !foundCash {
-		t.Errorf("missing seeded rows: bank=%v cash=%v", foundBank, foundCash)
+	if !foundBank || !foundCoffee {
+		t.Errorf("missing seeded rows: bank=%v coffee=%v", foundBank, foundCoffee)
 	}
 	// Sorted by AccountID ascending.
 	for i := 1; i < len(got.Items); i++ {
 		if got.Items[i-1].AccountID > got.Items[i].AccountID {
 			t.Errorf("rows not sorted by AccountID at index %d", i)
 		}
+	}
+}
+
+func TestHandleListBalances_Empty(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	// No accounts seeded. The store may still contain system accounts
+	// (e.g. Equity:OpeningBalances_<CCY>) created during startup; the spec
+	// anticipates this and we assert envelope wellformedness rather than a
+	// strict empty list.
+
+	resp, err := http.Get(ts.URL + "/api/balances")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.ListResult[model.AccountBalance]
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Items == nil {
+		t.Error("items: got nil, want [] (non-nil empty slice contract)")
+	}
+	if got.TotalCount != len(got.Items) {
+		t.Errorf("total_count (%d) must equal len(items) (%d)", got.TotalCount, len(got.Items))
+	}
+	if got.Limit != 0 || got.Offset != 0 {
+		t.Errorf("limit/offset: got %d/%d, want 0/0", got.Limit, got.Offset)
 	}
 }
 

@@ -299,6 +299,102 @@ func TestGetAccountTree(t *testing.T) {
 	})
 }
 
+func TestGetAccountBalancesBulk(t *testing.T) {
+	t.Run("hidden excluded by default", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", IsHidden: false})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset, Currency: "USD", IsHidden: false})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Old", Type: model.AccountTypeAsset, Currency: "USD", IsHidden: true})
+		accRepo.addAccount(&model.Account{ID: 4, Name: "Expenses:Food", Type: model.AccountTypeExpense, Currency: "USD", IsHidden: false})
+		accRepo.balances[1] = 125000
+		accRepo.balances[2] = 3500
+		accRepo.balances[3] = 9999
+		accRepo.balances[4] = -2000
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		rows, err := svc.GetAccountBalancesBulk(context.Background(), 1700000000, false)
+		require.NoError(t, err)
+		require.Len(t, rows, 3, "hidden account should be excluded")
+		assert.Equal(t, int64(1), rows[0].AccountID, "rows should be sorted by AccountID")
+		assert.Equal(t, int64(2), rows[1].AccountID)
+		assert.Equal(t, int64(4), rows[2].AccountID)
+		assert.Equal(t, int64(125000), rows[0].Amount)
+		assert.Equal(t, "USD", rows[0].Currency)
+		assert.False(t, rows[0].IsHidden)
+	})
+
+	t.Run("hidden included when toggled", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD", IsHidden: false})
+		accRepo.addAccount(&model.Account{ID: 3, Name: "Assets:Old", Type: model.AccountTypeAsset, Currency: "USD", IsHidden: true})
+		accRepo.balances[1] = 100
+		accRepo.balances[3] = 200
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		rows, err := svc.GetAccountBalancesBulk(context.Background(), 0, true)
+		require.NoError(t, err)
+		require.Len(t, rows, 2)
+		assert.True(t, rows[1].IsHidden)
+	})
+
+	t.Run("empty currency normalized to config default", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "", IsHidden: false})
+		accRepo.balances[1] = 100
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		rows, err := svc.GetAccountBalancesBulk(context.Background(), 0, false)
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, defaultConfig().Defaults.Currency, rows[0].Currency,
+			"empty Currency should be normalized to config default")
+	})
+
+	t.Run("account not in balances map gets zero", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:NewlyCreated", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.balances[1] = 500 // 2 omitted
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		rows, err := svc.GetAccountBalancesBulk(context.Background(), 0, false)
+		require.NoError(t, err)
+		require.Len(t, rows, 2)
+		assert.Equal(t, int64(0), rows[1].Amount, "account missing from balances map should get zero")
+	})
+
+	t.Run("empty registry returns non-nil empty slice", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		rows, err := svc.GetAccountBalancesBulk(context.Background(), 0, false)
+		require.NoError(t, err)
+		require.NotNil(t, rows, "must be non-nil so JSON marshals to []")
+		assert.Len(t, rows, 0)
+	})
+
+	t.Run("GetAllAccounts error propagates", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.getAllAccountsErr = errors.New("db boom")
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.GetAccountBalancesBulk(context.Background(), 0, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "load accounts")
+	})
+
+	t.Run("GetAllAccountBalances error propagates", func(t *testing.T) {
+		accRepo := newMockAccountRepo()
+		accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
+		accRepo.getAllBalancesErr = errors.New("db boom")
+		svc := newTestAccountService(accRepo, newMockTransactionRepo())
+
+		_, err := svc.GetAccountBalancesBulk(context.Background(), 0, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "load balances")
+	})
+}
+
 func TestUpdateAccountMetadata_DescriptionValidation(t *testing.T) {
 	t.Run("empty description is allowed", func(t *testing.T) {
 		accRepo := newMockAccountRepo()

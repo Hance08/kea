@@ -30,6 +30,7 @@ func (s *Server) routes() http.Handler {
 		r.Method(http.MethodPatch, "/accounts/{id}", apiHandler(s.handleUpdateAccount))
 		r.Method(http.MethodDelete, "/accounts/{id}", apiHandler(s.handleDeleteAccount))
 		r.Method(http.MethodGet, "/accounts/{id}/balance", apiHandler(s.handleAccountBalance))
+		r.Method(http.MethodGet, "/balances", apiHandler(s.handleListBalances))
 		r.Method(http.MethodGet, "/accounts/{id}/unreconciled", apiHandler(s.handleListUnreconciled))
 		r.Method(http.MethodPost, "/accounts/{id}/reconcile/preview", apiHandler(s.handleReconcilePreview))
 		r.Method(http.MethodPost, "/accounts/{id}/reconcile", apiHandler(s.handleReconcileCommit))

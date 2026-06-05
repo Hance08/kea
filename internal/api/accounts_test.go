@@ -314,6 +314,226 @@ func TestHandleListAccounts_InvalidType(t *testing.T) {
 	}
 }
 
+func TestHandleListBalances_OK(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	// Seed accounts of different types. seedAccount always uses the config
+	// default currency ("USD"), so multi-currency coverage is not exercised here.
+	seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 125000)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+
+	resp, err := http.Get(ts.URL + "/api/balances")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.ListResult[model.AccountBalance]
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.TotalCount < 2 {
+		t.Fatalf("total_count: got %d, want >= 2 (system account may bump it)", got.TotalCount)
+	}
+	if got.Limit != 0 || got.Offset != 0 {
+		t.Errorf("limit/offset: got %d/%d, want 0/0", got.Limit, got.Offset)
+	}
+	var foundBank, foundCoffee bool
+	for _, row := range got.Items {
+		switch row.Name {
+		case "Assets:Bank":
+			foundBank = true
+			if row.Amount != 125000 {
+				t.Errorf("Bank amount: got %d, want 125000", row.Amount)
+			}
+			if row.Type != model.AccountTypeAsset {
+				t.Errorf("Bank type: got %q, want %q", row.Type, model.AccountTypeAsset)
+			}
+			if row.Currency == "" {
+				t.Errorf("Bank currency: got empty, want a resolved currency string")
+			}
+		case "Expenses:Coffee":
+			foundCoffee = true
+			if row.Type != model.AccountTypeExpense {
+				t.Errorf("Coffee type: got %q, want %q", row.Type, model.AccountTypeExpense)
+			}
+		}
+	}
+	if !foundBank || !foundCoffee {
+		t.Errorf("missing seeded rows: bank=%v coffee=%v", foundBank, foundCoffee)
+	}
+	// Sorted by AccountID ascending.
+	for i := 1; i < len(got.Items); i++ {
+		if got.Items[i-1].AccountID > got.Items[i].AccountID {
+			t.Errorf("rows not sorted by AccountID at index %d", i)
+		}
+	}
+}
+
+func TestHandleListBalances_Empty(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+	// No accounts seeded. The store may still contain system accounts
+	// (e.g. Equity:OpeningBalances_<CCY>) created during startup; the spec
+	// anticipates this and we assert envelope wellformedness rather than a
+	// strict empty list.
+
+	resp, err := http.Get(ts.URL + "/api/balances")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.ListResult[model.AccountBalance]
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Items == nil {
+		t.Error("items: got nil, want [] (non-nil empty slice contract)")
+	}
+	if got.TotalCount != len(got.Items) {
+		t.Errorf("total_count (%d) must equal len(items) (%d)", got.TotalCount, len(got.Items))
+	}
+	if got.Limit != 0 || got.Offset != 0 {
+		t.Errorf("limit/offset: got %d/%d, want 0/0", got.Limit, got.Offset)
+	}
+}
+
+func TestHandleListBalances_AsOfDefault(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+
+	resp, err := http.Get(ts.URL + "/api/balances")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	// We do not assert the as_of value the service was called with — the spec
+	// accepts this gap deliberately (no nowFunc test seam).
+}
+
+func TestHandleListBalances_HistoricalAsOf(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+
+	resp, err := http.Get(ts.URL + "/api/balances?as_of=1700000000")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestHandleListBalances_InvalidAsOf(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+
+	resp, err := http.Get(ts.URL + "/api/balances?as_of=banana")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var body struct {
+		Error string `json:"error"`
+		Field string `json:"field"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Error != "validation_failed" {
+		t.Errorf("error code: got %q, want %q", body.Error, "validation_failed")
+	}
+	if body.Field != "as_of" {
+		t.Errorf("field: got %q, want %q", body.Field, "as_of")
+	}
+}
+
+func TestHandleListBalances_InvalidIncludeHidden(t *testing.T) {
+	ts, _ := newServerWithStore(t)
+
+	resp, err := http.Get(ts.URL + "/api/balances?include_hidden=maybe")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var body struct {
+		Error string `json:"error"`
+		Field string `json:"field"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Error != "validation_failed" {
+		t.Errorf("error code: got %q, want %q", body.Error, "validation_failed")
+	}
+	if body.Field != "include_hidden" {
+		t.Errorf("field: got %q, want %q", body.Field, "include_hidden")
+	}
+}
+
+func TestHandleListBalances_IncludeHidden(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	visible := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	hidden := seedAccount(t, svc, "Assets:Old", model.AccountTypeAsset, 0)
+
+	// Mark "Assets:Old" hidden via the service.
+	if _, err := svc.Account().UpdateAccountMetadata(
+		t.Context(), hidden.ID, hidden.Description, true,
+	); err != nil {
+		t.Fatalf("hide account: %v", err)
+	}
+	_ = visible // referenced via the response
+
+	// Default: hidden excluded.
+	respDefault, err := http.Get(ts.URL + "/api/balances")
+	if err != nil {
+		t.Fatalf("GET default: %v", err)
+	}
+	defer respDefault.Body.Close()
+	var gotDefault model.ListResult[model.AccountBalance]
+	if err := json.NewDecoder(respDefault.Body).Decode(&gotDefault); err != nil {
+		t.Fatalf("decode default: %v", err)
+	}
+	for _, row := range gotDefault.Items {
+		if row.Name == "Assets:Old" {
+			t.Errorf("hidden account should be excluded by default, got row %+v", row)
+		}
+	}
+
+	// Toggled: hidden included.
+	respAll, err := http.Get(ts.URL + "/api/balances?include_hidden=true")
+	if err != nil {
+		t.Fatalf("GET include_hidden: %v", err)
+	}
+	defer respAll.Body.Close()
+	var gotAll model.ListResult[model.AccountBalance]
+	if err := json.NewDecoder(respAll.Body).Decode(&gotAll); err != nil {
+		t.Fatalf("decode include_hidden: %v", err)
+	}
+	var sawHidden bool
+	for _, row := range gotAll.Items {
+		if row.Name == "Assets:Old" {
+			sawHidden = true
+			if !row.IsHidden {
+				t.Errorf("Assets:Old should have IsHidden=true; got %+v", row)
+			}
+		}
+	}
+	if !sawHidden {
+		t.Error("Assets:Old should appear when include_hidden=true")
+	}
+}
+
 func TestHandleListAccounts_SearchFiltersHidden(t *testing.T) {
 	ts, svc := newServerWithStore(t)
 	visible := seedAccount(t, svc, "Assets:BankA", model.AccountTypeAsset, 0)

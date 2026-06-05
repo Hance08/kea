@@ -166,6 +166,49 @@ func (as *AccountService) GetAccountBalanceFormatted(ctx context.Context, accoun
 	return utils.FormatAmount(balance), nil
 }
 
+// GetAccountBalancesBulk returns one AccountBalance row per account known to
+// the registry, with the balance computed as of asOf (Unix seconds). When
+// includeHidden is false, accounts with IsHidden=true are omitted. Rows are
+// sorted by Account.ID for deterministic output. An account that has no
+// entry in the underlying balances map is reported with Amount=0 — this
+// covers newly-created accounts that have no transactions yet.
+func (as *AccountService) GetAccountBalancesBulk(
+	ctx context.Context, asOf int64, includeHidden bool,
+) ([]model.AccountBalance, error) {
+	accounts, err := as.repo.GetAllAccounts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load accounts: %w", err)
+	}
+	balances, err := as.repo.GetAllAccountBalances(ctx, asOf)
+	if err != nil {
+		return nil, fmt.Errorf("load balances: %w", err)
+	}
+
+	rows := make([]model.AccountBalance, 0, len(accounts))
+	for _, acc := range accounts {
+		if !includeHidden && acc.IsHidden {
+			continue
+		}
+		currency := acc.Currency
+		if currency == "" {
+			currency = as.config.Defaults.Currency
+		}
+		rows = append(rows, model.AccountBalance{
+			AccountID: acc.ID,
+			Name:      acc.Name,
+			Type:      acc.Type,
+			ParentID:  acc.ParentID,
+			Currency:  currency,
+			Amount:    balances[acc.ID],
+			IsHidden:  acc.IsHidden,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].AccountID < rows[j].AccountID
+	})
+	return rows, nil
+}
+
 func (as *AccountService) GetRootNameByType(accType string) (string, error) {
 	at := model.AccountType(strings.ToUpper(accType))
 	name, ok := at.RootName()

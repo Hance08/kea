@@ -344,6 +344,36 @@ func TestCreateTransaction(t *testing.T) {
 	})
 }
 
+// TestCreateTransaction_UnknownSplitAccount_ReturnsValidationError pins the
+// service contract: when a request references a nonexistent split account
+// name, CreateTransaction must return a *ValidationError tagged with the
+// "splits" field, not a wrapped repository.ErrNotFound. The latter would
+// fall through mapError to HTTP 500; the former maps to 400.
+func TestCreateTransaction_UnknownSplitAccount_ReturnsValidationError(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	setupStandardAccounts(accRepo)
+	svc := newTestTransactionService(accRepo, newMockTransactionRepo())
+
+	input := model.TransactionDetail{
+		Type:        model.TxTypeExpense,
+		Description: "lunch",
+		Status:      model.StatusCleared,
+		Timestamp:   1700000000,
+		Splits: []model.SplitDetail{
+			{AccountName: "Assets:Bank", Amount: -500},
+			{AccountName: "Expenses:DoesNotExist", Amount: 500},
+		},
+	}
+
+	_, err := svc.CreateTransaction(context.Background(), input)
+	require.Error(t, err)
+
+	var ve *ValidationError
+	require.True(t, errors.As(err, &ve), "expected *ValidationError, got %T: %v", err, err)
+	assert.Equal(t, "splits", ve.Field)
+	assert.Contains(t, ve.Message, "Expenses:DoesNotExist")
+}
+
 // ──────────────────────────────────────────────
 // CreateSimpleTransaction
 // ──────────────────────────────────────────────

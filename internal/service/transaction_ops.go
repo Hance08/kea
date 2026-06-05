@@ -61,6 +61,10 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		// Step 1: Validate account existence and retrieve account details.
 		account, err := ts.accRepo.GetAccountByName(ctx, splitInput.AccountName)
 		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return 0, validationErrorf("splits",
+					"split #%d: account %q not found", i+1, splitInput.AccountName)
+			}
 			return 0, fmt.Errorf("split #%d: %w", i+1, err)
 		}
 

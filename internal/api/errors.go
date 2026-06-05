@@ -5,6 +5,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/hance08/kea/internal/ledger"
@@ -12,9 +13,22 @@ import (
 )
 
 type errorBody struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-	Field   string `json:"field,omitempty"`
+	Error      string `json:"error"`
+	Message    string `json:"message"`
+	Field      string `json:"field,omitempty"`
+	Difference *int64 `json:"difference,omitempty"`
+}
+
+// balanceMismatchError is returned by the reconcile commit handler when the
+// caller did not set allow_mismatch=true and the computed diff is non-zero.
+// Mirrors --force semantics from the CLI; lives in the API layer because the
+// service contract always persists regardless of diff.
+type balanceMismatchError struct {
+	Difference int64
+}
+
+func (e *balanceMismatchError) Error() string {
+	return fmt.Sprintf("statement balance off by %d", e.Difference)
 }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
@@ -29,11 +43,21 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 
 func mapError(err error) (int, errorBody) {
 	var verr *service.ValidationError
-	switch {
-	case errors.As(err, &verr):
+	if errors.As(err, &verr) {
 		return http.StatusBadRequest, errorBody{
 			Error: "validation_failed", Message: verr.Message, Field: verr.Field,
 		}
+	}
+	var bme *balanceMismatchError
+	if errors.As(err, &bme) {
+		diff := bme.Difference
+		return http.StatusConflict, errorBody{
+			Error:      "balance_mismatch",
+			Message:    bme.Error(),
+			Difference: &diff,
+		}
+	}
+	switch {
 	case errors.Is(err, service.ErrNotFound):
 		return http.StatusNotFound, errorBody{Error: "not_found", Message: err.Error()}
 	case errors.Is(err, service.ErrAlreadyExists):

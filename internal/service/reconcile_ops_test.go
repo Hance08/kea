@@ -238,6 +238,9 @@ func TestReconcileTransactions_AccountNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown account, got nil")
 	}
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected service.ErrNotFound, got %T: %v", err, err)
+	}
 	if len(txRepo.setLastReconciledBalCalls) != 0 {
 		t.Error("SetLastReconciledBalance must not be called when account lookup fails")
 	}
@@ -429,6 +432,9 @@ func TestPreviewReconcile_AccountNotFound(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error for missing account, got nil")
+	}
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected service.ErrNotFound, got %T: %v", err, err)
 	}
 }
 

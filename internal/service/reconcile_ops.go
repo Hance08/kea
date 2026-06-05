@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hance08/kea/internal/model"
@@ -42,7 +43,10 @@ func (ts *TransactionService) PreviewReconcile(ctx context.Context, accountID in
 	}
 
 	if _, err := ts.accRepo.GetAccountByID(ctx, accountID); err != nil {
-		return 0, fmt.Errorf("account not found: %w", err)
+		if errors.Is(err, repository.ErrNotFound) {
+			return 0, fmt.Errorf("account #%d: %w", accountID, ErrNotFound)
+		}
+		return 0, fmt.Errorf("account lookup: %w", err)
 	}
 
 	lastBalance, err := ts.txRepo.GetLastReconciledBalance(ctx, accountID)
@@ -99,7 +103,10 @@ func (ts *TransactionService) ReconcileTransactions(ctx context.Context, account
 
 	// Fast-fail: verify account exists before opening a transaction.
 	if _, err := ts.accRepo.GetAccountByID(ctx, accountID); err != nil {
-		return 0, fmt.Errorf("account not found: %w", err)
+		if errors.Is(err, repository.ErrNotFound) {
+			return 0, fmt.Errorf("account #%d: %w", accountID, ErrNotFound)
+		}
+		return 0, fmt.Errorf("account lookup: %w", err)
 	}
 
 	// Duplicate-ID check is pure input validation — no DB needed.

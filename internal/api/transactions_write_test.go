@@ -204,11 +204,7 @@ func TestHandleCreateTransaction_HiddenAccount(t *testing.T) {
 	}
 }
 
-// A split referencing a nonexistent account currently returns 500 because
-// CreateTransaction surfaces repository.ErrNotFound (not service.ErrNotFound),
-// and mapError only matches the service-level sentinel. The spec records this
-// as a known rough edge to be fixed outside this plan.
-func TestHandleCreateTransaction_NonexistentAccount_Currently500(t *testing.T) {
+func TestHandleCreateTransaction_NonexistentAccount(t *testing.T) {
 	ts, svc := newServerWithStore(t)
 	seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)
 
@@ -221,8 +217,25 @@ func TestHandleCreateTransaction_NonexistentAccount_Currently500(t *testing.T) {
 	}`
 	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusInternalServerError {
-		t.Errorf("status: got %d, want 500 (known rough edge — fix is out of scope)", resp.StatusCode)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", resp.StatusCode)
+	}
+	var got struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+		Field   string `json:"field"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Error != "validation_failed" {
+		t.Errorf("error code: got %q, want %q", got.Error, "validation_failed")
+	}
+	if got.Field != "splits" {
+		t.Errorf("field: got %q, want %q", got.Field, "splits")
+	}
+	if !strings.Contains(got.Message, "Expenses:DoesNotExist") {
+		t.Errorf("message should mention the unknown account; got %q", got.Message)
 	}
 }
 

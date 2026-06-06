@@ -9,7 +9,7 @@ import { summarizeBalances } from '@/lib/balances';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 
-const DEFAULT_CURRENCY = (import.meta.env.VITE_DEFAULT_CURRENCY as string) || 'USD';
+const DEFAULT_CURRENCY = import.meta.env.VITE_DEFAULT_CURRENCY || 'USD';
 
 export const Route = createFileRoute('/balances')({
   component: BalancesPage,

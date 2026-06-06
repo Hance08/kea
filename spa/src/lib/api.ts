@@ -12,7 +12,6 @@ export class ApiError extends Error {
 }
 
 interface ApiErrorBody {
-  error?: string;
   message?: string;
   field?: string;
 }

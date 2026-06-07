@@ -71,7 +71,7 @@ function BalancesPage() {
         assetsTotal={summary.assetsTotal}
         liabilitiesTotal={summary.liabilitiesTotal}
         currency={DEFAULT_CURRENCY}
-        excludedCount={summary.excluded.length}
+        excludedCount={summary.excludedByCurrency.length}
       />
 
       <div className="mb-6 grid grid-cols-2 gap-4">

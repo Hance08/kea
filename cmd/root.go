@@ -107,8 +107,7 @@ func Execute(migrations fs.FS) {
 			return 0
 		}
 
-		activePath, err := registry.Active()
-		if err != nil {
+		if _, err := registry.Active(); err != nil {
 			// No active ledger — only ledger commands are useful.
 			pterm.Warning.Println("No ledger configured. Run: kea ledger add <name>")
 			if err := rootCmd.ExecuteContext(context.Background()); err != nil {
@@ -117,9 +116,6 @@ func Execute(migrations fs.FS) {
 			}
 			return 0
 		}
-
-		// Inject the resolved DB path so app.NewApp and kea info both see it.
-		cfg.Database.Path = activePath
 
 		application, cleanup, err := app.NewApp(cfg, registry, migrations)
 		if err != nil {

@@ -54,21 +54,16 @@ func (a *App) setRuntime(s RuntimeState) {
 
 // NewApp initialize config, database and core logic, then return App entity
 func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*App, func(), error) {
-	dbPathRaw := cfg.Database.Path
-
-	if dbPathRaw == "" {
-		appDir, err := GetAppDataDir()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to determine data directory: %w", err)
-		}
-		dbPathRaw = filepath.Join(appDir, "kea.db")
+	dbPath, err := registry.Active()
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve active ledger: %w", err)
 	}
 
-	if err := backup.Run(dbPathRaw, nil); err != nil {
+	if err := backup.Run(dbPath, nil); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: backup failed: %v\n", err)
 	}
 
-	dbStore, err := store.NewStore(dbPathRaw, migrationFS)
+	dbStore, err := store.NewStore(dbPath, migrationFS)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -81,7 +76,7 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 		store:      dbStore,
 		migrations: migrationFS,
 		cfg:        cfg,
-		runtime:    RuntimeState{ActiveLedger: registry.ActiveName(), DatabasePath: dbPathRaw},
+		runtime:    RuntimeState{ActiveLedger: registry.ActiveName(), DatabasePath: dbPath},
 	}
 
 	registry.OnSwitch(func(name, path string) {
@@ -90,7 +85,6 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 			return
 		}
 		app.setRuntime(RuntimeState{ActiveLedger: name, DatabasePath: path})
-		cfg.Database.Path = path
 	})
 
 	cleanup := func() {
@@ -117,8 +111,7 @@ func GetAppDataDir() (string, error) {
 }
 
 // SwitchLedger atomically swaps the active store to the named ledger,
-// updates RuntimeState and cfg.Database.Path, and persists the active-name
-// change to ledgers.yaml.
+// updates RuntimeState, and persists the active-name change to ledgers.yaml.
 func (a *App) SwitchLedger(name string) error {
 	entry, ok := a.Registry.EntryFor(name)
 	if !ok {
@@ -128,7 +121,6 @@ func (a *App) SwitchLedger(name string) error {
 		return fmt.Errorf("swap store: %w", err)
 	}
 	a.setRuntime(RuntimeState{ActiveLedger: name, DatabasePath: entry.Path})
-	a.cfg.Database.Path = entry.Path
 	return a.Registry.Switch(name)
 }
 

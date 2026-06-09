@@ -45,8 +45,6 @@ Open <http://localhost:5173>. Vite proxies `/api/**` to `http://localhost:8080`.
 
 ## Configuration
 
-`VITE_DEFAULT_CURRENCY` — currency used for the Net Worth headline. Defaults to `USD` if unset. Copy `.env.example` to `.env` to override.
-
 `as_of` — not configurable in the UI; balances always reflect the current server time. Add a date picker to override if needed.
 
 ## Status
@@ -54,4 +52,3 @@ Open <http://localhost:5173>. Vite proxies `/api/**` to `http://localhost:8080`.
 - `/balances` — Net Worth dashboard
 - `/accounts`, `/transactions`, `/reports`, `/reconcile` — sidebar stubs (disabled)
 - Embed via `go:embed` for single-binary distribution
-- `GET /api/config` endpoint for server-side default currency

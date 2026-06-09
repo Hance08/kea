@@ -16,3 +16,9 @@ export interface ListResult<T> {
   limit: number;
   offset: number;
 }
+
+export interface ServerConfig {
+  defaults: {
+    currency: string;
+  };
+}

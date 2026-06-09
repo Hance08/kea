@@ -1,15 +1,15 @@
 import '@testing-library/jest-dom/vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// Re-export a TestApp helper for routing-aware tests.
+import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
+import { ServerConfigProvider } from '../lib/server-config';
+import { routeTree } from '../routeTree.gen';
 
 afterEach(() => {
   cleanup();
 });
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// Re-export a TestApp helper for routing-aware tests.
-import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router';
-import { routeTree } from '../routeTree.gen';
 
 export function makeTestApp(initialPath: string) {
   const history = createMemoryHistory({ initialEntries: [initialPath] });
@@ -19,7 +19,9 @@ export function makeTestApp(initialPath: string) {
   });
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <ServerConfigProvider fallback={<div>Loading…</div>}>
+        {() => <RouterProvider router={router} />}
+      </ServerConfigProvider>
     </QueryClientProvider>
   );
 }

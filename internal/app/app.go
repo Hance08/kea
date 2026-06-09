@@ -81,7 +81,7 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 		store:      dbStore,
 		migrations: migrationFS,
 		cfg:        cfg,
-		runtime:    RuntimeState{ActiveLedger: cfg.ActiveLedger, DatabasePath: dbPathRaw},
+		runtime:    RuntimeState{ActiveLedger: registry.ActiveName(), DatabasePath: dbPathRaw},
 	}
 
 	registry.OnSwitch(func(name, path string) {
@@ -90,7 +90,6 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 			return
 		}
 		app.setRuntime(RuntimeState{ActiveLedger: name, DatabasePath: path})
-		cfg.ActiveLedger = name
 		cfg.Database.Path = path
 	})
 
@@ -118,9 +117,8 @@ func GetAppDataDir() (string, error) {
 }
 
 // SwitchLedger atomically swaps the active store to the named ledger,
-// updates the in-memory config, and persists the active-name change to
-// ledgers.yaml. The registry's fsnotify watcher subsequently fires reload(),
-// which short-circuits because ActiveLedger already matches.
+// updates RuntimeState and cfg.Database.Path, and persists the active-name
+// change to ledgers.yaml.
 func (a *App) SwitchLedger(name string) error {
 	entry, ok := a.Registry.EntryFor(name)
 	if !ok {
@@ -130,7 +128,6 @@ func (a *App) SwitchLedger(name string) error {
 		return fmt.Errorf("swap store: %w", err)
 	}
 	a.setRuntime(RuntimeState{ActiveLedger: name, DatabasePath: entry.Path})
-	a.cfg.ActiveLedger = name
 	a.cfg.Database.Path = entry.Path
 	return a.Registry.Switch(name)
 }

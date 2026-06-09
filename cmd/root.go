@@ -120,7 +120,6 @@ func Execute(migrations fs.FS) {
 
 		// Inject the resolved DB path so app.NewApp and kea info both see it.
 		cfg.Database.Path = activePath
-		cfg.ActiveLedger = registry.ActiveName()
 
 		application, cleanup, err := app.NewApp(cfg, registry, migrations)
 		if err != nil {
@@ -145,7 +144,7 @@ func Execute(migrations fs.FS) {
 		rootCmd.AddCommand(account.NewAccountCmd(application.Service))
 		rootCmd.AddCommand(transaction.NewTransactionCmd(application.Service))
 		rootCmd.AddCommand(NewAddCmd(application.Service))
-		rootCmd.AddCommand(NewInfoCmd(application.Service))
+		rootCmd.AddCommand(NewInfoCmd(application))
 		rootCmd.AddCommand(NewReportCmd(application.Service))
 		rootCmd.AddCommand(NewReconcileCmd(application.Service))
 		rootCmd.AddCommand(NewServeCmd(application, migrations, appDir))

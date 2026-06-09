@@ -53,7 +53,6 @@ func newTestApp(t *testing.T) (a *App, tempDir string, pathA, pathB string) {
 
 	cfg := config.NewDefault()
 	cfg.Database.Path = pathA
-	cfg.ActiveLedger = "a"
 
 	st, err := store.NewStore(pathA, migrations.FS)
 	if err != nil {
@@ -197,7 +196,6 @@ func TestApp_WatchSwapsStoreOnExternalSwitch(t *testing.T) {
 
 	cfg := config.NewDefault()
 	cfg.Database.Path = pathA
-	cfg.ActiveLedger = "a"
 
 	// Use NewApp so the OnSwitch callback (app.go:50) is wired. The existing
 	// newTestApp helper bypasses NewApp and doesn't register the callback.

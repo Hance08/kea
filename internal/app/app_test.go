@@ -70,18 +70,19 @@ func newTestApp(t *testing.T) (a *App, tempDir string, pathA, pathB string) {
 	}, tempDir, pathA, pathB
 }
 
-func TestSwitchLedger_SwapsStoreAndUpdatesConfig(t *testing.T) {
+func TestSwitchLedger_SwapsStoreAndUpdatesRuntimeState(t *testing.T) {
 	a, _, _, pathB := newTestApp(t)
 
 	if err := a.SwitchLedger("b"); err != nil {
 		t.Fatalf("SwitchLedger: %v", err)
 	}
 
-	if a.cfg.ActiveLedger != "b" {
-		t.Errorf("cfg.ActiveLedger: got %q, want %q", a.cfg.ActiveLedger, "b")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "b" {
+		t.Errorf("RuntimeState.ActiveLedger: got %q, want %q", got.ActiveLedger, "b")
 	}
-	if a.cfg.Database.Path != pathB {
-		t.Errorf("cfg.Database.Path: got %q, want %q", a.cfg.Database.Path, pathB)
+	if got.DatabasePath != pathB {
+		t.Errorf("RuntimeState.DatabasePath: got %q, want %q", got.DatabasePath, pathB)
 	}
 	if a.Registry.ActiveLedger != "b" {
 		t.Errorf("registry.ActiveLedger: got %q, want %q", a.Registry.ActiveLedger, "b")
@@ -105,11 +106,12 @@ func TestSwitchLedger_UnknownNameReturnsErrLedgerNotFound(t *testing.T) {
 	if !errors.Is(err, ledger.ErrLedgerNotFound) {
 		t.Fatalf("err: got %v, want ErrLedgerNotFound", err)
 	}
-	if a.cfg.ActiveLedger != "a" {
-		t.Errorf("cfg.ActiveLedger leaked: got %q, want %q", a.cfg.ActiveLedger, "a")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "a" {
+		t.Errorf("RuntimeState.ActiveLedger leaked: got %q, want %q", got.ActiveLedger, "a")
 	}
-	if a.cfg.Database.Path != pathA {
-		t.Errorf("cfg.Database.Path leaked: got %q, want %q", a.cfg.Database.Path, pathA)
+	if got.DatabasePath != pathA {
+		t.Errorf("RuntimeState.DatabasePath leaked: got %q, want %q", got.DatabasePath, pathA)
 	}
 	if a.Registry.ActiveLedger != "a" {
 		t.Errorf("registry.ActiveLedger leaked: got %q, want %q", a.Registry.ActiveLedger, "a")
@@ -138,11 +140,12 @@ func TestSwitchLedger_FailedSwapLeavesStateUnchanged(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from SwitchLedger to nonexistent path")
 	}
-	if a.cfg.ActiveLedger != "a" {
-		t.Errorf("cfg.ActiveLedger leaked: got %q, want %q", a.cfg.ActiveLedger, "a")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "a" {
+		t.Errorf("RuntimeState.ActiveLedger leaked: got %q, want %q", got.ActiveLedger, "a")
 	}
-	if a.cfg.Database.Path != pathA {
-		t.Errorf("cfg.Database.Path leaked: got %q, want %q", a.cfg.Database.Path, pathA)
+	if got.DatabasePath != pathA {
+		t.Errorf("RuntimeState.DatabasePath leaked: got %q, want %q", got.DatabasePath, pathA)
 	}
 	if a.Registry.ActiveLedger != "a" {
 		t.Errorf("registry.ActiveLedger leaked: got %q, want %q", a.Registry.ActiveLedger, "a")
@@ -232,19 +235,20 @@ func TestApp_WatchSwapsStoreOnExternalSwitch(t *testing.T) {
 	// for slow CI environments.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if a.Config().ActiveLedger == "b" {
+		if a.RuntimeState().ActiveLedger == "b" {
 			break
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 
-	if a.Config().ActiveLedger != "b" {
-		t.Fatalf("ActiveLedger: got %q, want %q (external switch did not propagate)",
-			a.Config().ActiveLedger, "b")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "b" {
+		t.Fatalf("RuntimeState.ActiveLedger: got %q, want %q (external switch did not propagate)",
+			got.ActiveLedger, "b")
 	}
-	if a.Config().Database.Path != pathB {
-		t.Errorf("Database.Path: got %q, want %q after external switch",
-			a.Config().Database.Path, pathB)
+	if got.DatabasePath != pathB {
+		t.Errorf("RuntimeState.DatabasePath: got %q, want %q after external switch",
+			got.DatabasePath, pathB)
 	}
 
 	// Cancel and confirm the watcher exits cleanly.

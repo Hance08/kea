@@ -256,3 +256,17 @@ func TestApp_WatchSwapsStoreOnExternalSwitch(t *testing.T) {
 		t.Fatal("watcher goroutine did not exit after context cancel")
 	}
 }
+
+func TestApp_RuntimeStateAfterSwitchLedger(t *testing.T) {
+	a, _, _, pathB := newTestApp(t)
+
+	if err := a.SwitchLedger("b"); err != nil {
+		t.Fatalf("SwitchLedger: %v", err)
+	}
+
+	got := a.RuntimeState()
+	want := RuntimeState{ActiveLedger: "b", DatabasePath: pathB}
+	if got != want {
+		t.Errorf("RuntimeState after switch: got %+v, want %+v", got, want)
+	}
+}

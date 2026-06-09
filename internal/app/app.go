@@ -75,11 +75,21 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 
 	svc := service.NewService(dbStore, dbStore, dbStore, cfg)
 
+	app := &App{
+		Service:    svc,
+		Registry:   registry,
+		store:      dbStore,
+		migrations: migrationFS,
+		cfg:        cfg,
+		runtime:    RuntimeState{ActiveLedger: cfg.ActiveLedger, DatabasePath: dbPathRaw},
+	}
+
 	registry.OnSwitch(func(name, path string) {
 		if err := dbStore.Swap(path, migrationFS); err != nil {
 			fmt.Fprintf(os.Stderr, "ledger switch failed: %v\n", err)
 			return
 		}
+		app.setRuntime(RuntimeState{ActiveLedger: name, DatabasePath: path})
 		cfg.ActiveLedger = name
 		cfg.Database.Path = path
 	})
@@ -91,13 +101,7 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 		}
 	}
 
-	return &App{
-		Service:    svc,
-		Registry:   registry,
-		store:      dbStore,
-		migrations: migrationFS,
-		cfg:        cfg,
-	}, cleanup, nil
+	return app, cleanup, nil
 }
 
 func GetAppDataDir() (string, error) {
@@ -125,6 +129,7 @@ func (a *App) SwitchLedger(name string) error {
 	if err := a.store.Swap(entry.Path, a.migrations); err != nil {
 		return fmt.Errorf("swap store: %w", err)
 	}
+	a.setRuntime(RuntimeState{ActiveLedger: name, DatabasePath: entry.Path})
 	a.cfg.ActiveLedger = name
 	a.cfg.Database.Path = entry.Path
 	return a.Registry.Switch(name)

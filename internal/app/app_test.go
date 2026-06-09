@@ -4,10 +4,12 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/ledger"
@@ -143,5 +145,103 @@ func TestSwitchLedger_FailedSwapLeavesStateUnchanged(t *testing.T) {
 	}
 	if a.Registry.ActiveLedger != "a" {
 		t.Errorf("registry.ActiveLedger leaked: got %q, want %q", a.Registry.ActiveLedger, "a")
+	}
+}
+
+// TestApp_WatchSwapsStoreOnExternalSwitch pins the production scenario for
+// kea serve: a second process (the CLI) writes ledgers.yaml; the server
+// process has a watcher running; fsnotify detects the write; reload() fires
+// the OnSwitch callback wired by NewApp; the callback swaps the store and
+// updates cfg. This is the chain cmd/serve.go's Watch goroutine relies on.
+func TestApp_WatchSwapsStoreOnExternalSwitch(t *testing.T) {
+	tempDir := t.TempDir()
+	pathA := filepath.Join(tempDir, "a.db")
+	pathB := filepath.Join(tempDir, "b.db")
+
+	if err := InitLedgerDB(pathA, migrations.FS); err != nil {
+		t.Fatalf("init a: %v", err)
+	}
+	if err := InitLedgerDB(pathB, migrations.FS); err != nil {
+		t.Fatalf("init b: %v", err)
+	}
+
+	reg, err := ledger.Load(tempDir)
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	delete(reg.Ledgers, "default")
+	reg.ActiveLedger = ""
+	if err := reg.Add("a", pathA); err != nil {
+		t.Fatalf("add a: %v", err)
+	}
+	if err := reg.Add("b", pathB); err != nil {
+		t.Fatalf("add b: %v", err)
+	}
+	if err := reg.Switch("a"); err != nil {
+		t.Fatalf("switch a: %v", err)
+	}
+
+	cfg := config.NewDefault()
+	cfg.Database.Path = pathA
+	cfg.ActiveLedger = "a"
+
+	// Use NewApp so the OnSwitch callback (app.go:50) is wired. The existing
+	// newTestApp helper bypasses NewApp and doesn't register the callback.
+	a, cleanup, err := NewApp(cfg, reg, migrations.FS)
+	if err != nil {
+		t.Fatalf("NewApp: %v", err)
+	}
+	t.Cleanup(cleanup)
+
+	// Spawn the watcher in a goroutine, mimicking what cmd/serve.go does.
+	ctx, cancel := context.WithCancel(t.Context())
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		_ = a.Registry.Watch(ctx)
+	}()
+
+	// Let fsnotify install its watch — same pattern as the existing
+	// TestWatch_* tests in internal/ledger/registry_test.go.
+	time.Sleep(200 * time.Millisecond)
+
+	// External writer: a second Registry instance loads ledgers.yaml fresh
+	// (simulating a separate CLI process), then calls Switch which writes
+	// the file. fsnotify in the first process picks up the write, reload()
+	// fires the OnSwitch callback, the callback swaps the store and updates cfg.
+	extReg, err := ledger.Load(tempDir)
+	if err != nil {
+		t.Fatalf("load external registry: %v", err)
+	}
+	if err := extReg.Switch("b"); err != nil {
+		t.Fatalf("external switch: %v", err)
+	}
+
+	// Poll for the callback to fire. Debounce is 100ms; allow generous timeout
+	// for slow CI environments.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if a.Config().ActiveLedger == "b" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if a.Config().ActiveLedger != "b" {
+		t.Fatalf("ActiveLedger: got %q, want %q (external switch did not propagate)",
+			a.Config().ActiveLedger, "b")
+	}
+	if a.Config().Database.Path != pathB {
+		t.Errorf("Database.Path: got %q, want %q after external switch",
+			a.Config().Database.Path, pathB)
+	}
+
+	// Cancel and confirm the watcher exits cleanly.
+	cancel()
+	select {
+	case <-watchDone:
+		// OK
+	case <-time.After(2 * time.Second):
+		t.Fatal("watcher goroutine did not exit after context cancel")
 	}
 }

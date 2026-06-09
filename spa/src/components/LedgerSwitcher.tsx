@@ -8,19 +8,23 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLedgers, switchLedger } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 export function LedgerSwitcher() {
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
   const ledgersQuery = useQuery({ queryKey: ['ledgers'], queryFn: getLedgers });
   const mutation = useMutation({
     mutationFn: (name: string) => switchLedger(name),
     onSuccess: (info) => {
+      setOpen(false);
       queryClient.invalidateQueries();
       toast.success(`Switched to ${info.name}`);
     },
     onError: (err) => {
+      setOpen(false);
       toast.error(err instanceof Error ? err.message : 'Switch failed');
     },
   });
@@ -37,8 +41,15 @@ export function LedgerSwitcher() {
 
   return (
     <div className="mb-6">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <DropdownMenu
+        open={open}
+        onOpenChange={(next) => {
+          // While a switch is in-flight, keep the menu open.
+          if (mutation.isPending) return;
+          setOpen(next);
+        }}
+      >
+        <DropdownMenuTrigger asChild disabled={mutation.isPending}>
           <Button
             variant="ghost"
             className="-mx-2 flex w-[calc(100%+1rem)] items-center justify-between px-2 text-lg font-semibold tracking-tight"
@@ -50,13 +61,17 @@ export function LedgerSwitcher() {
         <DropdownMenuContent align="start" className="min-w-56">
           {items.map((item) => {
             const isActive = item.name === active;
+            const isSwitching = mutation.isPending && mutation.variables === item.name;
             return (
               <DropdownMenuItem
                 key={item.name}
-                disabled={isActive}
+                disabled={isActive || mutation.isPending}
                 onSelect={(e) => {
-                  if (isActive) {
-                    e.preventDefault();
+                  // Always prevent the default close-on-select so we can
+                  // keep the menu open while the mutation is in-flight and
+                  // close it ourselves in onSuccess/onError.
+                  e.preventDefault();
+                  if (isActive || mutation.isPending) {
                     return;
                   }
                   mutation.mutate(item.name);
@@ -64,7 +79,14 @@ export function LedgerSwitcher() {
                 className="flex items-center justify-between"
               >
                 <span>{item.name}</span>
-                {isActive ? <Check data-testid="ledger-active-check" className="h-4 w-4" /> : null}
+                {isSwitching ? (
+                  <Loader2
+                    data-testid="ledger-switching-spinner"
+                    className="h-4 w-4 animate-spin"
+                  />
+                ) : isActive ? (
+                  <Check data-testid="ledger-active-check" className="h-4 w-4" />
+                ) : null}
               </DropdownMenuItem>
             );
           })}

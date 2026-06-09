@@ -10,6 +10,12 @@ const okResponse = (body: unknown) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
+const errorResponse = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
 const LEDGERS_OK = {
   active: 'personal',
   items: [
@@ -107,4 +113,71 @@ test('clicking non-active row POSTs /api/ledgers/switch and shows success toast'
   await vi.waitFor(() => {
     expect(toastSuccess).toHaveBeenCalledWith('Switched to business');
   });
+});
+
+test('failed switch shows error toast with API message', async () => {
+  // Replace the default fetch stub for this test: make /switch fail.
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url === '/api/ledgers') {
+        return Promise.resolve(okResponse(LEDGERS_OK));
+      }
+      if (url === '/api/ledgers/switch') {
+        return Promise.resolve(errorResponse(404, { message: 'ledger not found: "business"' }));
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }),
+  );
+
+  renderSwitcher();
+  await userEvent.click(await screen.findByRole('button', { name: /personal/i }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: /business/i }));
+
+  await vi.waitFor(() => {
+    expect(toastError).toHaveBeenCalledWith('ledger not found: "business"');
+  });
+});
+
+test('while switch pending, other menu items are disabled', async () => {
+  // Build a fetch stub where /switch returns a Promise we can resolve manually.
+  let resolveSwitch: (value: Response) => void = () => {
+    /* assigned below */
+  };
+  const switchPromise = new Promise<Response>((res) => {
+    resolveSwitch = res;
+  });
+
+  const threeLedgers = {
+    active: 'personal',
+    items: [
+      { name: 'personal', path: '/p/personal.db', active: true },
+      { name: 'business', path: '/p/business.db', active: false },
+      { name: 'savings', path: '/p/savings.db', active: false },
+    ],
+  };
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url === '/api/ledgers') {
+        return Promise.resolve(okResponse(threeLedgers));
+      }
+      if (url === '/api/ledgers/switch') {
+        return switchPromise;
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }),
+  );
+
+  renderSwitcher();
+  await userEvent.click(await screen.findByRole('button', { name: /personal/i }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: /business/i }));
+
+  // While the switch is in-flight, the third (other) row should be disabled.
+  const savings = await screen.findByRole('menuitem', { name: /savings/i });
+  expect(savings).toHaveAttribute('data-disabled');
+
+  // Resolve to let the test tear down cleanly.
+  resolveSwitch(okResponse({ name: 'business', path: '/p/business.db', active: true }));
 });

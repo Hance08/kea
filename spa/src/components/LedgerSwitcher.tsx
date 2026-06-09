@@ -8,7 +8,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLedgers } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 
 export function LedgerSwitcher() {
   const ledgersQuery = useQuery({ queryKey: ['ledgers'], queryFn: getLedgers });
@@ -36,9 +36,19 @@ export function LedgerSwitcher() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-56">
-          {items.map((item) => (
-            <DropdownMenuItem key={item.name}>{item.name}</DropdownMenuItem>
-          ))}
+          {items.map((item) => {
+            const isActive = item.name === active;
+            return (
+              <DropdownMenuItem
+                key={item.name}
+                disabled={isActive}
+                className="flex items-center justify-between"
+              >
+                <span>{item.name}</span>
+                {isActive ? <Check data-testid="ledger-active-check" className="h-4 w-4" /> : null}
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

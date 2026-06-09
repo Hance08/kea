@@ -10,14 +10,6 @@ const okResponse = (body: unknown) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-const errorResponse = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-// used in Task 7; referenced here so TS noUnusedLocals is satisfied
-void errorResponse;
-
 const LEDGERS_OK = {
   active: 'personal',
   items: [

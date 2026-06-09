@@ -6,12 +6,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getLedgers } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { getLedgers, switchLedger } from '@/lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function LedgerSwitcher() {
+  const queryClient = useQueryClient();
   const ledgersQuery = useQuery({ queryKey: ['ledgers'], queryFn: getLedgers });
+  const mutation = useMutation({
+    mutationFn: (name: string) => switchLedger(name),
+    onSuccess: (info) => {
+      queryClient.invalidateQueries();
+      toast.success(`Switched to ${info.name}`);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Switch failed');
+    },
+  });
 
   if (ledgersQuery.isPending) {
     return <Skeleton data-testid="ledger-switcher-skeleton" className="mb-6 h-7 w-24" />;
@@ -42,6 +54,13 @@ export function LedgerSwitcher() {
               <DropdownMenuItem
                 key={item.name}
                 disabled={isActive}
+                onSelect={(e) => {
+                  if (isActive) {
+                    e.preventDefault();
+                    return;
+                  }
+                  mutation.mutate(item.name);
+                }}
                 className="flex items-center justify-between"
               >
                 <span>{item.name}</span>

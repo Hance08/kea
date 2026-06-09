@@ -272,3 +272,100 @@ func TestApp_RuntimeStateAfterSwitchLedger(t *testing.T) {
 		t.Errorf("RuntimeState after switch: got %+v, want %+v", got, want)
 	}
 }
+
+// TestApp_RuntimeStateRace asserts that a reader hammering RuntimeState() while
+// the watcher's OnSwitch callback fires produces no race reports under -race.
+// Run with: go test -race ./internal/app/ -run TestApp_RuntimeStateRace
+func TestApp_RuntimeStateRace(t *testing.T) {
+	tempDir := t.TempDir()
+	pathA := filepath.Join(tempDir, "a.db")
+	pathB := filepath.Join(tempDir, "b.db")
+
+	if err := InitLedgerDB(pathA, migrations.FS); err != nil {
+		t.Fatalf("init a: %v", err)
+	}
+	if err := InitLedgerDB(pathB, migrations.FS); err != nil {
+		t.Fatalf("init b: %v", err)
+	}
+
+	reg, err := ledger.Load(tempDir)
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	delete(reg.Ledgers, "default")
+	reg.ActiveLedger = ""
+	if err := reg.Add("a", pathA); err != nil {
+		t.Fatalf("add a: %v", err)
+	}
+	if err := reg.Add("b", pathB); err != nil {
+		t.Fatalf("add b: %v", err)
+	}
+	if err := reg.Switch("a"); err != nil {
+		t.Fatalf("switch a: %v", err)
+	}
+
+	cfg := config.NewDefault()
+
+	a, cleanup, err := NewApp(cfg, reg, migrations.FS)
+	if err != nil {
+		t.Fatalf("NewApp: %v", err)
+	}
+	t.Cleanup(cleanup)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		_ = a.Registry.Watch(ctx)
+	}()
+
+	// Let fsnotify install its watch.
+	time.Sleep(200 * time.Millisecond)
+
+	// Reader: hammer RuntimeState until the test signals stop.
+	stop := make(chan struct{})
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_ = a.RuntimeState()
+			}
+		}
+	}()
+
+	// Writer: trigger an external switch that fires OnSwitch.
+	extReg, err := ledger.Load(tempDir)
+	if err != nil {
+		t.Fatalf("load external registry: %v", err)
+	}
+	if err := extReg.Switch("b"); err != nil {
+		t.Fatalf("external switch: %v", err)
+	}
+
+	// Wait for the callback to land.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if a.RuntimeState().ActiveLedger == "b" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	close(stop)
+	<-readerDone
+
+	if got := a.RuntimeState(); got.ActiveLedger != "b" || got.DatabasePath != pathB {
+		t.Errorf("RuntimeState: got %+v, want {b %s}", got, pathB)
+	}
+
+	cancel()
+	select {
+	case <-watchDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("watcher goroutine did not exit after context cancel")
+	}
+}

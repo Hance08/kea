@@ -110,8 +110,12 @@ func GetAppDataDir() (string, error) {
 	return filepath.Join(configDir, "kea"), nil
 }
 
-// SwitchLedger atomically swaps the active store to the named ledger,
-// updates RuntimeState, and persists the active-name change to ledgers.yaml.
+// SwitchLedger swaps the active store to the named ledger, updates
+// RuntimeState, and persists the active-name change to ledgers.yaml. The
+// registry's fsnotify watcher subsequently fires reload(), which short-
+// circuits because the active name already matches. If the final persist
+// fails the runtime state still reflects the new ledger; the next process
+// start reseeds from the registry on disk.
 func (a *App) SwitchLedger(name string) error {
 	entry, ok := a.Registry.EntryFor(name)
 	if !ok {

@@ -65,11 +65,10 @@ func seedTransaction(t *testing.T, svc *service.Service, from, to string, amount
 	return *full
 }
 
-// newServerForWrite is a variant of newServerWithStore that also returns the
-// underlying *store.Store, so write tests can manipulate reconcile state and
-// inject a parent cycle directly via the repo (bypassing the service layer
-// where convenient).
-func newServerForWrite(t *testing.T) (*httptest.Server, *service.Service, *store.Store) {
+// newServerForWriteWithCurrency is a variant of newServerForWrite that lets the
+// caller choose cfg.Defaults.Currency. Used by /api/config tests that exercise
+// both populated and empty defaults.
+func newServerForWriteWithCurrency(t *testing.T, currency string) (*httptest.Server, *service.Service, *store.Store) {
 	t.Helper()
 
 	dbPath := filepath.Join(t.TempDir(), "test.db")
@@ -80,7 +79,7 @@ func newServerForWrite(t *testing.T) (*httptest.Server, *service.Service, *store
 	t.Cleanup(func() { _ = st.Close() })
 
 	cfg := config.NewDefault()
-	cfg.Defaults.Currency = "USD"
+	cfg.Defaults.Currency = currency
 
 	svc := service.NewService(st, st, st, cfg)
 	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
@@ -88,6 +87,15 @@ func newServerForWrite(t *testing.T) (*httptest.Server, *service.Service, *store
 	t.Cleanup(ts.Close)
 
 	return ts, svc, st
+}
+
+// newServerForWrite is a variant of newServerWithStore that also returns the
+// underlying *store.Store, so write tests can manipulate reconcile state and
+// inject a parent cycle directly via the repo (bypassing the service layer
+// where convenient).
+func newServerForWrite(t *testing.T) (*httptest.Server, *service.Service, *store.Store) {
+	t.Helper()
+	return newServerForWriteWithCurrency(t, "USD")
 }
 
 // seedReconciledTransaction flips a Cleared transaction to Reconciled by

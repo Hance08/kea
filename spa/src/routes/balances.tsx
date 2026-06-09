@@ -6,16 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getBalances } from '@/lib/api';
 import { summarizeBalances } from '@/lib/balances';
+import { useServerConfig } from '@/lib/server-config';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-
-const DEFAULT_CURRENCY = import.meta.env.VITE_DEFAULT_CURRENCY || 'USD';
 
 export const Route = createFileRoute('/balances')({
   component: BalancesPage,
 });
 
 function BalancesPage() {
+  const { defaults } = useServerConfig();
+  const DEFAULT_CURRENCY = defaults.currency;
   const query = useQuery({ queryKey: ['balances'], queryFn: getBalances });
 
   if (query.isPending) {

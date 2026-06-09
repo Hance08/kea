@@ -11,39 +11,47 @@ const okResponse = (body: unknown) =>
 beforeEach(() => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(() =>
-      okResponse({
-        items: [
-          {
-            account_id: 1,
-            name: 'Assets:Bank',
-            type: 'A',
-            currency: 'USD',
-            amount: 125000,
-            is_hidden: false,
-          },
-          {
-            account_id: 2,
-            name: 'Assets:Cash',
-            type: 'A',
-            currency: 'USD',
-            amount: 3500,
-            is_hidden: false,
-          },
-          {
-            account_id: 3,
-            name: 'Liab:Card',
-            type: 'L',
-            currency: 'USD',
-            amount: -42000,
-            is_hidden: false,
-          },
-        ],
-        total_count: 3,
-        limit: 0,
-        offset: 0,
-      }),
-    ),
+    vi.fn((url: string) => {
+      if (url === '/api/config') {
+        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+      }
+      if (url === '/api/balances') {
+        return Promise.resolve(
+          okResponse({
+            items: [
+              {
+                account_id: 1,
+                name: 'Assets:Bank',
+                type: 'A',
+                currency: 'USD',
+                amount: 125000,
+                is_hidden: false,
+              },
+              {
+                account_id: 2,
+                name: 'Assets:Cash',
+                type: 'A',
+                currency: 'USD',
+                amount: 3500,
+                is_hidden: false,
+              },
+              {
+                account_id: 3,
+                name: 'Liab:Card',
+                type: 'L',
+                currency: 'USD',
+                amount: -42000,
+                is_hidden: false,
+              },
+            ],
+            total_count: 3,
+            limit: 0,
+            offset: 0,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }),
   );
 });
 

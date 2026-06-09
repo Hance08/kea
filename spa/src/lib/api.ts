@@ -1,4 +1,4 @@
-import type { AccountBalance, ListResult } from './types';
+import type { AccountBalance, ListResult, ServerConfig } from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -32,4 +32,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getBalances(): Promise<ListResult<AccountBalance>> {
   return apiFetch<ListResult<AccountBalance>>('/api/balances');
+}
+
+export function getConfig(): Promise<ServerConfig> {
+  return apiFetch<ServerConfig>('/api/config');
 }

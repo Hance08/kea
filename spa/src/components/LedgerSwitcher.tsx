@@ -23,14 +23,21 @@ export function LedgerSwitcher() {
       queryClient.invalidateQueries();
       toast.success(`Switched to ${info.name}`);
     },
-    onError: (err) => {
+    onError: (err: Error) => {
       setOpen(false);
-      toast.error(err instanceof Error ? err.message : 'Switch failed');
+      toast.error(err.message);
     },
   });
 
   if (ledgersQuery.isPending) {
-    return <Skeleton data-testid="ledger-switcher-skeleton" className="mb-6 h-7 w-24" />;
+    return (
+      <Skeleton
+        data-testid="ledger-switcher-skeleton"
+        role="status"
+        aria-label="Loading active ledger"
+        className="mb-6 h-7 w-24"
+      />
+    );
   }
 
   if (ledgersQuery.isError) {

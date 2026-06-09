@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/hance08/kea/internal/backup"
 	"github.com/hance08/kea/internal/config"
@@ -22,6 +23,33 @@ type App struct {
 	store      *store.Store
 	migrations fs.FS
 	cfg        *config.Config
+
+	runtimeMu sync.RWMutex
+	runtime   RuntimeState
+}
+
+// RuntimeState is a value-type snapshot of the active ledger name and the
+// database path the store is currently open against. Returned by value from
+// App.RuntimeState so callers get a consistent pair under one lock.
+type RuntimeState struct {
+	ActiveLedger string
+	DatabasePath string
+}
+
+// RuntimeState returns a snapshot of the currently-active ledger name and
+// the database path the store is open against. Safe for concurrent callers.
+func (a *App) RuntimeState() RuntimeState {
+	a.runtimeMu.RLock()
+	defer a.runtimeMu.RUnlock()
+	return a.runtime
+}
+
+// setRuntime atomically replaces the runtime state. Internal — called from
+// NewApp's OnSwitch callback and from SwitchLedger.
+func (a *App) setRuntime(s RuntimeState) {
+	a.runtimeMu.Lock()
+	a.runtime = s
+	a.runtimeMu.Unlock()
 }
 
 // NewApp initialize config, database and core logic, then return App entity

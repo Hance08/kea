@@ -66,6 +66,7 @@ func newTestApp(t *testing.T) (a *App, tempDir string, pathA, pathB string) {
 		store:      st,
 		migrations: migrations.FS,
 		cfg:        cfg,
+		runtime:    RuntimeState{ActiveLedger: "a", DatabasePath: pathA},
 	}, tempDir, pathA, pathB
 }
 
@@ -145,6 +146,16 @@ func TestSwitchLedger_FailedSwapLeavesStateUnchanged(t *testing.T) {
 	}
 	if a.Registry.ActiveLedger != "a" {
 		t.Errorf("registry.ActiveLedger leaked: got %q, want %q", a.Registry.ActiveLedger, "a")
+	}
+}
+
+func TestApp_RuntimeStateInitialFromRegistry(t *testing.T) {
+	a, _, pathA, _ := newTestApp(t)
+
+	got := a.RuntimeState()
+	want := RuntimeState{ActiveLedger: "a", DatabasePath: pathA}
+	if got != want {
+		t.Errorf("RuntimeState: got %+v, want %+v", got, want)
 	}
 }
 

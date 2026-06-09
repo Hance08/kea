@@ -1,0 +1,55 @@
+import { cn } from '@/lib/cn';
+import { Link, useRouterState } from '@tanstack/react-router';
+
+interface NavItem {
+  label: string;
+  to?: string; // undefined = disabled stub
+}
+
+const NAV: NavItem[] = [
+  { label: 'Balances', to: '/balances' },
+  { label: 'Accounts' },
+  { label: 'Transactions' },
+  { label: 'Reports' },
+  { label: 'Reconcile' },
+];
+
+export function Sidebar() {
+  const { location } = useRouterState();
+  return (
+    <nav aria-label="Main navigation" className="w-56 shrink-0 border-r bg-muted/30 p-4">
+      <div className="mb-6 text-lg font-semibold tracking-tight">kea</div>
+      <ul className="space-y-1">
+        {NAV.map((item) => {
+          if (!item.to) {
+            return (
+              <li key={item.label}>
+                <span
+                  aria-disabled="true"
+                  className="block cursor-not-allowed rounded px-3 py-2 text-sm text-muted-foreground"
+                  title="Coming soon"
+                >
+                  {item.label}
+                </span>
+              </li>
+            );
+          }
+          const isActive = location.pathname === item.to;
+          return (
+            <li key={item.label}>
+              <Link
+                to={item.to}
+                className={cn(
+                  'block rounded px-3 py-2 text-sm transition-colors',
+                  isActive ? 'bg-primary text-primary-foreground font-medium' : 'hover:bg-muted',
+                )}
+              >
+                {item.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}

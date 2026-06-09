@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { LedgerSwitcher } from '../components/LedgerSwitcher';
@@ -178,6 +178,12 @@ test('while switch pending, other menu items are disabled', async () => {
   const savings = await screen.findByRole('menuitem', { name: /savings/i });
   expect(savings).toHaveAttribute('data-disabled');
 
+  // The switching row shows the loading spinner.
+  const business = await screen.findByRole('menuitem', { name: /business/i });
+  expect(business.querySelector('[data-testid="ledger-switching-spinner"]')).not.toBeNull();
+
   // Resolve to let the test tear down cleanly.
-  resolveSwitch(okResponse({ name: 'business', path: '/p/business.db', active: true }));
+  await act(async () => {
+    resolveSwitch(okResponse({ name: 'business', path: '/p/business.db', active: true }));
+  });
 });

@@ -9,13 +9,13 @@ import (
 
 	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/config"
-	"github.com/hance08/kea/internal/service"
 	"github.com/hance08/kea/ui/views"
 	"github.com/spf13/cobra"
 )
 
 type InfoProvider interface {
 	Config() *config.Config
+	RuntimeState() app.RuntimeState
 }
 
 type SystemInfoView interface {
@@ -32,14 +32,14 @@ type infoRunner struct {
 	json bool
 }
 
-func NewInfoCmd(svc *service.Service) *cobra.Command {
+func NewInfoCmd(application *app.App) *cobra.Command {
 	flags := &infoFlags{}
 	cmd := &cobra.Command{
 		Use:   "info",
 		Short: "Display application information",
 		Long:  `Display current configuration, database path, and system details.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			runner := &infoRunner{svc: svc, view: views.NewSystemInfoView(), json: flags.JSON}
+			runner := &infoRunner{svc: application, view: views.NewSystemInfoView(), json: flags.JSON}
 			return runner.Run()
 		},
 	}
@@ -53,7 +53,8 @@ func (r *infoRunner) Run() error {
 		configPath = "(None, using defaults)"
 	}
 
-	rawDBPath := r.svc.Config().Database.Path
+	rt := r.svc.RuntimeState()
+	rawDBPath := rt.DatabasePath
 	if rawDBPath == "" {
 		appDir := getAppDataDirOrPanic()
 		rawDBPath = filepath.Join(appDir, "kea.db")
@@ -67,7 +68,7 @@ func (r *infoRunner) Run() error {
 
 	info := views.SystemInfo{
 		ConfigPath:      configPath,
-		ActiveLedger:    r.svc.Config().ActiveLedger,
+		ActiveLedger:    rt.ActiveLedger,
 		DBPath:          expandedDBPath,
 		DBExists:        dbExists,
 		DefaultCurrency: r.svc.Config().Defaults.Currency,

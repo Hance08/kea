@@ -53,7 +53,6 @@ func newTestApp(t *testing.T) (a *App, tempDir string, pathA, pathB string) {
 
 	cfg := config.NewDefault()
 	cfg.Database.Path = pathA
-	cfg.ActiveLedger = "a"
 
 	st, err := store.NewStore(pathA, migrations.FS)
 	if err != nil {
@@ -66,21 +65,23 @@ func newTestApp(t *testing.T) (a *App, tempDir string, pathA, pathB string) {
 		store:      st,
 		migrations: migrations.FS,
 		cfg:        cfg,
+		runtime:    RuntimeState{ActiveLedger: "a", DatabasePath: pathA},
 	}, tempDir, pathA, pathB
 }
 
-func TestSwitchLedger_SwapsStoreAndUpdatesConfig(t *testing.T) {
+func TestSwitchLedger_SwapsStoreAndUpdatesRuntimeState(t *testing.T) {
 	a, _, _, pathB := newTestApp(t)
 
 	if err := a.SwitchLedger("b"); err != nil {
 		t.Fatalf("SwitchLedger: %v", err)
 	}
 
-	if a.cfg.ActiveLedger != "b" {
-		t.Errorf("cfg.ActiveLedger: got %q, want %q", a.cfg.ActiveLedger, "b")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "b" {
+		t.Errorf("RuntimeState.ActiveLedger: got %q, want %q", got.ActiveLedger, "b")
 	}
-	if a.cfg.Database.Path != pathB {
-		t.Errorf("cfg.Database.Path: got %q, want %q", a.cfg.Database.Path, pathB)
+	if got.DatabasePath != pathB {
+		t.Errorf("RuntimeState.DatabasePath: got %q, want %q", got.DatabasePath, pathB)
 	}
 	if a.Registry.ActiveLedger != "b" {
 		t.Errorf("registry.ActiveLedger: got %q, want %q", a.Registry.ActiveLedger, "b")
@@ -104,11 +105,12 @@ func TestSwitchLedger_UnknownNameReturnsErrLedgerNotFound(t *testing.T) {
 	if !errors.Is(err, ledger.ErrLedgerNotFound) {
 		t.Fatalf("err: got %v, want ErrLedgerNotFound", err)
 	}
-	if a.cfg.ActiveLedger != "a" {
-		t.Errorf("cfg.ActiveLedger leaked: got %q, want %q", a.cfg.ActiveLedger, "a")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "a" {
+		t.Errorf("RuntimeState.ActiveLedger leaked: got %q, want %q", got.ActiveLedger, "a")
 	}
-	if a.cfg.Database.Path != pathA {
-		t.Errorf("cfg.Database.Path leaked: got %q, want %q", a.cfg.Database.Path, pathA)
+	if got.DatabasePath != pathA {
+		t.Errorf("RuntimeState.DatabasePath leaked: got %q, want %q", got.DatabasePath, pathA)
 	}
 	if a.Registry.ActiveLedger != "a" {
 		t.Errorf("registry.ActiveLedger leaked: got %q, want %q", a.Registry.ActiveLedger, "a")
@@ -137,14 +139,25 @@ func TestSwitchLedger_FailedSwapLeavesStateUnchanged(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from SwitchLedger to nonexistent path")
 	}
-	if a.cfg.ActiveLedger != "a" {
-		t.Errorf("cfg.ActiveLedger leaked: got %q, want %q", a.cfg.ActiveLedger, "a")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "a" {
+		t.Errorf("RuntimeState.ActiveLedger leaked: got %q, want %q", got.ActiveLedger, "a")
 	}
-	if a.cfg.Database.Path != pathA {
-		t.Errorf("cfg.Database.Path leaked: got %q, want %q", a.cfg.Database.Path, pathA)
+	if got.DatabasePath != pathA {
+		t.Errorf("RuntimeState.DatabasePath leaked: got %q, want %q", got.DatabasePath, pathA)
 	}
 	if a.Registry.ActiveLedger != "a" {
 		t.Errorf("registry.ActiveLedger leaked: got %q, want %q", a.Registry.ActiveLedger, "a")
+	}
+}
+
+func TestApp_RuntimeStateInitialFromRegistry(t *testing.T) {
+	a, _, pathA, _ := newTestApp(t)
+
+	got := a.RuntimeState()
+	want := RuntimeState{ActiveLedger: "a", DatabasePath: pathA}
+	if got != want {
+		t.Errorf("RuntimeState: got %+v, want %+v", got, want)
 	}
 }
 
@@ -183,7 +196,6 @@ func TestApp_WatchSwapsStoreOnExternalSwitch(t *testing.T) {
 
 	cfg := config.NewDefault()
 	cfg.Database.Path = pathA
-	cfg.ActiveLedger = "a"
 
 	// Use NewApp so the OnSwitch callback (app.go:50) is wired. The existing
 	// newTestApp helper bypasses NewApp and doesn't register the callback.
@@ -221,19 +233,20 @@ func TestApp_WatchSwapsStoreOnExternalSwitch(t *testing.T) {
 	// for slow CI environments.
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if a.Config().ActiveLedger == "b" {
+		if a.RuntimeState().ActiveLedger == "b" {
 			break
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 
-	if a.Config().ActiveLedger != "b" {
-		t.Fatalf("ActiveLedger: got %q, want %q (external switch did not propagate)",
-			a.Config().ActiveLedger, "b")
+	got := a.RuntimeState()
+	if got.ActiveLedger != "b" {
+		t.Fatalf("RuntimeState.ActiveLedger: got %q, want %q (external switch did not propagate)",
+			got.ActiveLedger, "b")
 	}
-	if a.Config().Database.Path != pathB {
-		t.Errorf("Database.Path: got %q, want %q after external switch",
-			a.Config().Database.Path, pathB)
+	if got.DatabasePath != pathB {
+		t.Errorf("RuntimeState.DatabasePath: got %q, want %q after external switch",
+			got.DatabasePath, pathB)
 	}
 
 	// Cancel and confirm the watcher exits cleanly.
@@ -241,6 +254,117 @@ func TestApp_WatchSwapsStoreOnExternalSwitch(t *testing.T) {
 	select {
 	case <-watchDone:
 		// OK
+	case <-time.After(2 * time.Second):
+		t.Fatal("watcher goroutine did not exit after context cancel")
+	}
+}
+
+func TestApp_RuntimeStateAfterSwitchLedger(t *testing.T) {
+	a, _, _, pathB := newTestApp(t)
+
+	if err := a.SwitchLedger("b"); err != nil {
+		t.Fatalf("SwitchLedger: %v", err)
+	}
+
+	got := a.RuntimeState()
+	want := RuntimeState{ActiveLedger: "b", DatabasePath: pathB}
+	if got != want {
+		t.Errorf("RuntimeState after switch: got %+v, want %+v", got, want)
+	}
+}
+
+// TestApp_RuntimeStateRace asserts that a reader hammering RuntimeState() while
+// the watcher's OnSwitch callback fires produces no race reports under -race.
+// Run with: go test -race ./internal/app/ -run TestApp_RuntimeStateRace
+func TestApp_RuntimeStateRace(t *testing.T) {
+	tempDir := t.TempDir()
+	pathA := filepath.Join(tempDir, "a.db")
+	pathB := filepath.Join(tempDir, "b.db")
+
+	if err := InitLedgerDB(pathA, migrations.FS); err != nil {
+		t.Fatalf("init a: %v", err)
+	}
+	if err := InitLedgerDB(pathB, migrations.FS); err != nil {
+		t.Fatalf("init b: %v", err)
+	}
+
+	reg, err := ledger.Load(tempDir)
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	delete(reg.Ledgers, "default")
+	reg.ActiveLedger = ""
+	if err := reg.Add("a", pathA); err != nil {
+		t.Fatalf("add a: %v", err)
+	}
+	if err := reg.Add("b", pathB); err != nil {
+		t.Fatalf("add b: %v", err)
+	}
+	if err := reg.Switch("a"); err != nil {
+		t.Fatalf("switch a: %v", err)
+	}
+
+	cfg := config.NewDefault()
+
+	a, cleanup, err := NewApp(cfg, reg, migrations.FS)
+	if err != nil {
+		t.Fatalf("NewApp: %v", err)
+	}
+	t.Cleanup(cleanup)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		_ = a.Registry.Watch(ctx)
+	}()
+
+	// Let fsnotify install its watch.
+	time.Sleep(200 * time.Millisecond)
+
+	// Reader: hammer RuntimeState until the test signals stop.
+	stop := make(chan struct{})
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_ = a.RuntimeState()
+			}
+		}
+	}()
+
+	// Writer: trigger an external switch that fires OnSwitch.
+	extReg, err := ledger.Load(tempDir)
+	if err != nil {
+		t.Fatalf("load external registry: %v", err)
+	}
+	if err := extReg.Switch("b"); err != nil {
+		t.Fatalf("external switch: %v", err)
+	}
+
+	// Wait for the callback to land.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if a.RuntimeState().ActiveLedger == "b" {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	close(stop)
+	<-readerDone
+
+	if got := a.RuntimeState(); got.ActiveLedger != "b" || got.DatabasePath != pathB {
+		t.Errorf("RuntimeState: got %+v, want {b %s}", got, pathB)
+	}
+
+	cancel()
+	select {
+	case <-watchDone:
 	case <-time.After(2 * time.Second):
 		t.Fatal("watcher goroutine did not exit after context cancel")
 	}

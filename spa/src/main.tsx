@@ -1,4 +1,5 @@
 import './styles/globals.css';
+import { Toaster } from '@/components/ui/sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { StrictMode } from 'react';
@@ -35,6 +36,7 @@ createRoot(rootEl).render(
       >
         {() => <RouterProvider router={router} />}
       </ServerConfigProvider>
+      <Toaster />
     </QueryClientProvider>
   </StrictMode>,
 );

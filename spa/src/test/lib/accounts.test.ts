@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { isOpeningBalancesAccount } from '@/lib/accounts';
+import { describe, expect, it } from 'vitest';
 
 describe('isOpeningBalancesAccount', () => {
   it('matches per-currency system accounts', () => {
@@ -7,8 +7,8 @@ describe('isOpeningBalancesAccount', () => {
     expect(isOpeningBalancesAccount('Equity:OpeningBalances_EUR')).toBe(true);
   });
 
-  it('matches legacy single-name system account', () => {
-    expect(isOpeningBalancesAccount('Equity:OpeningBalances')).toBe(true);
+  it('does not match the legacy single-name system account', () => {
+    expect(isOpeningBalancesAccount('Equity:OpeningBalances')).toBe(false);
   });
 
   it('does not match unrelated accounts', () => {

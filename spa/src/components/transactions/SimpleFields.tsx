@@ -3,8 +3,8 @@ import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { buildCurrencyFilter, buildLeafFilter, combineFilters } from '@/lib/accountFilters';
+import { listAccounts } from '@/lib/accounts';
 import { determineType } from '@/lib/determineType';
-import { listAccounts } from '@/lib/transactions';
 import type { Account, TransactionType } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -22,7 +22,7 @@ interface Props {
 export function SimpleFields(props: Props) {
   const accounts = useQuery({
     queryKey: ['accounts', 'list'],
-    queryFn: listAccounts,
+    queryFn: () => listAccounts(),
     staleTime: 60_000,
   });
 

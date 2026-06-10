@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { buildCurrencyFilter, buildLeafFilter, combineFilters } from '@/lib/accountFilters';
+import { listAccounts } from '@/lib/accounts';
 import { determineType } from '@/lib/determineType';
-import { listAccounts } from '@/lib/transactions';
 import type { Account, AccountType, TransactionType } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -54,7 +54,7 @@ function balance(splits: SplitRow[]): number {
 export function SplitsEditor({ splits, onChange, splitsError }: Props) {
   const accounts = useQuery({
     queryKey: ['accounts', 'list'],
-    queryFn: listAccounts,
+    queryFn: () => listAccounts(),
     staleTime: 60_000,
   });
 

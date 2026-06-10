@@ -75,8 +75,12 @@ export function deleteAccount(id: number): Promise<{ deleted: boolean; id: numbe
 }
 
 // Mirrors model.IsOpeningBalancesAccount: matches the per-currency form
-// (Equity:OpeningBalances_<CCY>) and the legacy single-name form.
+// (Equity:OpeningBalances_<CCY>). The legacy bare name is auto-renamed at
+// startup, so it shouldn't appear at runtime.
 export function isOpeningBalancesAccount(name: string): boolean {
-  if (name === 'Equity:OpeningBalances') return true;
   return /^Equity:OpeningBalances_[A-Z]{3}$/.test(name);
+}
+
+export function searchAccounts(query: string): Promise<ListResult<Account>> {
+  return apiFetch<ListResult<Account>>(`/api/accounts${buildQuery({ q: query, limit: 20 })}`);
 }

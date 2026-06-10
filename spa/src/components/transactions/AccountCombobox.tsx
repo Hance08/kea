@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input';
+import { searchAccounts } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
-import { searchAccounts } from '@/lib/transactions';
 import type { Account } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';

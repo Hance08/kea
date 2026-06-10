@@ -1,6 +1,5 @@
 import { apiFetch } from './api';
 import type {
-  Account,
   CreateTransactionInput,
   ListResult,
   TransactionDetail,
@@ -82,13 +81,4 @@ export function deleteTransaction(id: number): Promise<{ deleted: boolean; id: n
   return apiFetch<{ deleted: boolean; id: number }>(`/api/transactions/${id}`, {
     method: 'DELETE',
   });
-}
-
-export function listAccounts(): Promise<ListResult<Account>> {
-  return apiFetch<ListResult<Account>>('/api/accounts?include_hidden=false');
-}
-
-export function searchAccounts(query: string): Promise<ListResult<Account>> {
-  const q = buildQuery({ q: query, limit: 20 });
-  return apiFetch<ListResult<Account>>(`/api/accounts${q}`);
 }

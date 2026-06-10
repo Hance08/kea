@@ -1,5 +1,5 @@
-import { getAccountTree, isOpeningBalancesAccount } from '@/lib/accounts';
-import { describe, expect, it, vi } from 'vitest';
+import { getAccountTree, isOpeningBalancesAccount, listAccounts } from '@/lib/accounts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('isOpeningBalancesAccount', () => {
   it('matches per-currency system accounts', () => {
@@ -73,5 +73,40 @@ describe('getAccountTree', () => {
       }),
     ]);
     expect(tree[1].children).toEqual([]);
+  });
+});
+
+describe('listAccounts URL routing', () => {
+  const captured: string[] = [];
+  let originalFetch: typeof global.fetch;
+
+  beforeEach(() => {
+    captured.length = 0;
+    originalFetch = global.fetch;
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      captured.push(url);
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ items: [], total_count: 0, limit: 0, offset: 0 }),
+      } as unknown as Response);
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('omits include_count when no q is given (routes to ListAccounts path)', async () => {
+    await listAccounts({ type: 'C', include_hidden: false });
+    expect(captured[0]).not.toContain('include_count');
+    expect(captured[0]).not.toContain('limit=');
+    expect(captured[0]).toContain('type=C');
+  });
+
+  it('sends include_count and limit when q is given (routes to SearchAccounts path)', async () => {
+    await listAccounts({ q: 'bank', type: 'A', limit: 100 });
+    expect(captured[0]).toContain('include_count=true');
+    expect(captured[0]).toContain('limit=100');
+    expect(captured[0]).toContain('q=bank');
   });
 });

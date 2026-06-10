@@ -28,15 +28,22 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 }
 
 export function listAccounts(opts: ListAccountsOpts = {}): Promise<ListResult<Account>> {
-  const q = buildQuery({
+  // When q is set we use the SearchAccounts backend path (fuzzy name match,
+  // paginated, but excludes per-currency system accounts).
+  // When q is empty we route to ListAccounts so system accounts are included
+  // — important for the Type filter on /accounts.
+  const hasQ = Boolean(opts.q && opts.q.length > 0);
+  const params: Record<string, string | number | boolean | undefined> = {
     q: opts.q,
     type: opts.type,
     include_hidden: opts.include_hidden,
-    limit: opts.limit,
-    offset: opts.offset,
-    include_count: true,
-  });
-  return apiFetch<ListResult<Account>>(`/api/accounts${q}`);
+  };
+  if (hasQ) {
+    params.limit = opts.limit;
+    params.offset = opts.offset;
+    params.include_count = true;
+  }
+  return apiFetch<ListResult<Account>>(`/api/accounts${buildQuery(params)}`);
 }
 
 function normalizeNode(node: AccountNode): AccountNode {

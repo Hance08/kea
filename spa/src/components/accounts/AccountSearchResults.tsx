@@ -1,3 +1,4 @@
+import { AccountTypeBadge } from '@/components/accounts/AccountTypeBadge';
 import { cn } from '@/lib/cn';
 import { formatCents } from '@/lib/format';
 import type { Account, AccountBalance } from '@/lib/types';
@@ -8,14 +9,6 @@ interface Props {
   balances?: AccountBalance[];
   totalCount: number;
 }
-
-const TYPE_LABEL: Record<Account['type'], string> = {
-  A: 'Asset',
-  L: 'Liability',
-  C: 'Equity',
-  R: 'Revenue',
-  E: 'Expense',
-};
 
 export function AccountSearchResults({ accounts, balances, totalCount }: Props) {
   const balanceById = new Map<number, { amount: number; currency: string }>();
@@ -56,7 +49,9 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
                       {acc.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-1.5">{TYPE_LABEL[acc.type]}</td>
+                  <td className="px-3 py-1.5">
+                    <AccountTypeBadge type={acc.type} />
+                  </td>
                   <td className="px-3 py-1.5">{acc.currency}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">
                     {bal ? (

@@ -17,7 +17,7 @@ function RootLayout() {
         shrink to the available flex space; children handle their own
         overflow (e.g., the table's overflow-x-auto wrapper).
       */}
-      <main className="min-w-0 flex-1 p-8">
+      <main className="min-w-0 flex-1 p-6">
         <Outlet />
       </main>
     </div>

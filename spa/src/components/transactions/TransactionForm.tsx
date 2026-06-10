@@ -123,15 +123,24 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
       const timestamp = dateToUnix(state.date);
       let splits: {
         id?: number;
+        account_id?: number;
         account_name: string;
         amount: number;
         currency: string;
         memo?: string;
       }[];
 
+      // Build the account-by-name lookup once: used both for resolving
+      // account_id on each split (required by the update endpoint) and
+      // for type derivation below.
+      const accountByName = new Map<string, Account>(
+        (accountsQuery.data?.items ?? []).map((a) => [a.name, a]),
+      );
+
       if (advanced) {
         splits = state.splits.map((s) => ({
           id: s.id,
+          account_id: accountByName.get(s.account_name.trim())?.id,
           account_name: s.account_name.trim(),
           amount: parseCents(s.amountStr),
           currency: s.currency || 'USD',
@@ -139,6 +148,11 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
         }));
         if (splits.some((s) => !Number.isFinite(s.amount))) {
           setFieldErrors({ splits: 'All split amounts must be valid numbers.' });
+          setSubmitting(false);
+          return;
+        }
+        if (splits.some((s) => !s.account_id)) {
+          setFieldErrors({ splits: 'Every split must reference an existing account.' });
           setSubmitting(false);
           return;
         }
@@ -159,20 +173,28 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           setSubmitting(false);
           return;
         }
-        const fromAcc = accountsQuery.data?.items.find((a) => a.name === state.fromAccount);
+        const fromAcc = accountByName.get(state.fromAccount.trim());
+        const toAcc = accountByName.get(state.toAccount.trim());
         const currency = fromAcc?.currency ?? 'USD';
         splits = [
-          { account_name: state.fromAccount.trim(), amount: -amt, currency },
-          { account_name: state.toAccount.trim(), amount: amt, currency },
+          {
+            account_id: fromAcc?.id,
+            account_name: state.fromAccount.trim(),
+            amount: -amt,
+            currency,
+          },
+          {
+            account_id: toAcc?.id,
+            account_name: state.toAccount.trim(),
+            amount: amt,
+            currency,
+          },
         ];
       }
 
       // Derive transaction type from the splits being submitted. The server
       // requires a non-empty type; client-side derivation keeps the UX honest
       // (the badge the user saw is what gets sent).
-      const accountByName = new Map<string, Account>(
-        (accountsQuery.data?.items ?? []).map((a) => [a.name, a]),
-      );
       const splitDetails: SplitDetail[] = splits.map((s) => ({
         id: s.id ?? 0,
         account_id: 0,

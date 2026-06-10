@@ -56,10 +56,14 @@ export function createTransaction(input: CreateTransactionInput): Promise<Transa
 }
 
 export function updateTransaction(input: UpdateTransactionInput): Promise<TransactionDetail> {
-  return apiFetch<TransactionDetail>(`/api/transactions/${input.id}`, {
+  // The Go handler reads ID from the URL path; the body struct has
+  // `json:"-"` on ID and rejects unknown fields. Strip `id` from the
+  // body so the strict decoder doesn't 400 on it.
+  const { id, ...body } = input;
+  return apiFetch<TransactionDetail>(`/api/transactions/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
   });
 }
 

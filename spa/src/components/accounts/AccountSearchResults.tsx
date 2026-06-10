@@ -1,0 +1,78 @@
+import { cn } from '@/lib/cn';
+import { formatCents } from '@/lib/format';
+import type { Account, AccountBalance } from '@/lib/types';
+import { Link } from '@tanstack/react-router';
+
+interface Props {
+  accounts: Account[];
+  balances?: AccountBalance[];
+  totalCount: number;
+}
+
+const TYPE_LABEL: Record<Account['type'], string> = {
+  A: 'Asset',
+  L: 'Liability',
+  C: 'Equity',
+  R: 'Revenue',
+  E: 'Expense',
+};
+
+export function AccountSearchResults({ accounts, balances, totalCount }: Props) {
+  const balanceById = new Map<number, { amount: number; currency: string }>();
+  if (balances) {
+    for (const b of balances) {
+      balanceById.set(b.account_id, { amount: b.amount, currency: b.currency });
+    }
+  }
+  return (
+    <div className="space-y-2">
+      {totalCount > accounts.length && (
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          Refine search — showing first {accounts.length} of {totalCount} matches.
+        </div>
+      )}
+      <div className="overflow-hidden rounded-md border bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-left">Type</th>
+              <th className="px-3 py-2 text-left">Currency</th>
+              <th className="px-3 py-2 text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {accounts.map((acc) => {
+              const bal = balanceById.get(acc.id);
+              return (
+                <tr key={acc.id} className="border-t hover:bg-muted/40">
+                  <td className="px-3 py-1.5">
+                    <Link
+                      to="/accounts/$id"
+                      params={{ id: String(acc.id) }}
+                      search={{ include_hidden: false }}
+                      className="hover:underline"
+                    >
+                      {acc.name}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-1.5">{TYPE_LABEL[acc.type]}</td>
+                  <td className="px-3 py-1.5">{acc.currency}</td>
+                  <td className="px-3 py-1.5 text-right tabular-nums">
+                    {bal ? (
+                      <span className={cn(bal.amount < 0 && 'text-destructive')}>
+                        {formatCents(bal.amount, bal.currency)}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

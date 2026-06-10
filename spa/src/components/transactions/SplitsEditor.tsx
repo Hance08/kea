@@ -3,6 +3,7 @@ import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { buildLeafFilter } from '@/lib/accountFilters';
 import { determineType } from '@/lib/determineType';
 import { listAccounts } from '@/lib/transactions';
 import type { TransactionType } from '@/lib/types';
@@ -56,6 +57,10 @@ export function SplitsEditor({ splits, onChange, splitsError }: Props) {
     queryFn: listAccounts,
     staleTime: 60_000,
   });
+
+  // Only leaf accounts can hold transactions; hide parents from every
+  // split's combobox to prevent invalid submissions.
+  const leafFilter = useMemo(() => buildLeafFilter(accounts.data?.items), [accounts.data]);
 
   const accountTypeMap = useMemo(() => {
     return new Map(accounts.data?.items.map((a) => [a.name, a.type]) ?? []);
@@ -132,6 +137,7 @@ export function SplitsEditor({ splits, onChange, splitsError }: Props) {
               value={s.account_name}
               onChange={(name) => updateRow(i, { account_name: name })}
               placeholder="Account…"
+              filter={leafFilter}
             />
             <Input
               type="text"

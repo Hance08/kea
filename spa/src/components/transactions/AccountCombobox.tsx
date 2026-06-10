@@ -10,6 +10,10 @@ interface Props {
   onChange: (name: string, account?: Account) => void;
   placeholder?: string;
   allowedTypes?: Account['type'][];
+  // Optional secondary filter applied AFTER allowedTypes. Use to hide
+  // accounts that aren't valid for the current input (e.g., parent
+  // accounts in transaction-entry contexts).
+  filter?: (acc: Account) => boolean;
   disabled?: boolean;
   id?: string;
   'aria-invalid'?: boolean;
@@ -20,6 +24,7 @@ export function AccountCombobox({
   onChange,
   placeholder = 'Account…',
   allowedTypes,
+  filter,
   disabled,
   id,
   ...aria
@@ -57,7 +62,9 @@ export function AccountCombobox({
   });
 
   const allItems = search.data?.items ?? [];
-  const items = allowedTypes ? allItems.filter((a) => allowedTypes.includes(a.type)) : allItems;
+  let items = allItems;
+  if (allowedTypes) items = items.filter((a) => allowedTypes.includes(a.type));
+  if (filter) items = items.filter(filter);
 
   return (
     <div ref={containerRef} className="relative">

@@ -2,6 +2,7 @@ import { AccountCombobox } from '@/components/transactions/AccountCombobox';
 import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { buildLeafFilter } from '@/lib/accountFilters';
 import { determineType } from '@/lib/determineType';
 import { listAccounts } from '@/lib/transactions';
 import type { TransactionType } from '@/lib/types';
@@ -24,6 +25,10 @@ export function SimpleFields(props: Props) {
     queryFn: listAccounts,
     staleTime: 60_000,
   });
+
+  // Only leaf accounts can hold transactions; hide parents from the
+  // From/To combobox suggestions to prevent invalid submissions.
+  const leafFilter = useMemo(() => buildLeafFilter(accounts.data?.items), [accounts.data]);
 
   const derivedType: TransactionType | '…' = useMemo(() => {
     if (!accounts.data) return '…';
@@ -65,6 +70,7 @@ export function SimpleFields(props: Props) {
             value={props.fromAccount}
             onChange={(name) => props.onFromChange(name)}
             placeholder="Money comes from…"
+            filter={leafFilter}
             aria-invalid={!!props.fieldErrors?.fromAccount}
           />
           {props.fieldErrors?.fromAccount && (
@@ -78,6 +84,7 @@ export function SimpleFields(props: Props) {
             value={props.toAccount}
             onChange={(name) => props.onToChange(name)}
             placeholder="Money goes to…"
+            filter={leafFilter}
             aria-invalid={!!props.fieldErrors?.toAccount}
           />
           {props.fieldErrors?.toAccount && (

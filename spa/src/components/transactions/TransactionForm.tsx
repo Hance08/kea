@@ -235,17 +235,26 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
       onSuccess(result);
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.field) {
-          const mapped =
-            err.field === 'splits'
-              ? 'splits'
-              : err.field === 'from_account'
-                ? 'fromAccount'
-                : err.field === 'to_account'
-                  ? 'toAccount'
-                  : err.field;
+        // Map server field names to the form field they refer to. Server
+        // fields that don't correspond to a single input on this form
+        // (e.g., "account" — used for parent-account / hidden / dup-source
+        // errors that could refer to any account input) fall through to
+        // the top-of-form alert so the message is at least visible.
+        const fieldMap: Record<string, string | undefined> = {
+          splits: 'splits',
+          from_account: 'fromAccount',
+          to_account: 'toAccount',
+          description: 'description',
+          timestamp: 'timestamp',
+          amount: 'amount',
+          status: 'status',
+          type: 'type',
+        };
+        const mapped = err.field ? fieldMap[err.field] : undefined;
+        if (mapped) {
           setFieldErrors({ [mapped]: err.message });
         } else {
+          // Unknown / generic field (including "account") → top alert.
           setTopError(err.message);
         }
       } else {

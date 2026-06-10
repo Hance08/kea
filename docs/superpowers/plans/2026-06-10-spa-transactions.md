@@ -242,7 +242,7 @@ export function createTransaction(input: CreateTransactionInput): Promise<Transa
 
 export function updateTransaction(input: UpdateTransactionInput): Promise<TransactionDetail> {
   return apiFetch<TransactionDetail>(`/api/transactions/${input.id}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
@@ -413,7 +413,7 @@ describe('determineType', () => {
   test('Opening memo override → Opening', () => {
     expect(
       determineType([
-        sp('Assets:Bank', 'A', 1000, '_kea_opening_balance'),
+        sp('Assets:Bank', 'A', 1000, 'Opening Balance'),
         sp('Equity:OpeningBalances_USD', 'C', -1000),
       ]),
     ).toBe('Opening');
@@ -428,7 +428,7 @@ Run from `/Users/hance/programming/kea`:
 grep -n 'OpeningAccountMemo' internal/model/*.go
 ```
 
-Expected: shows the exact string literal (e.g., `"_kea_opening_balance"`). If it differs from the value in the test above, update the test.
+Expected: shows the exact string literal (e.g., `"Opening Balance"`). If it differs from the value in the test above, update the test.
 
 - [ ] **Step 3: Run test and verify it fails**
 
@@ -444,7 +444,7 @@ Expected: FAIL with "Cannot find module '@/lib/determineType'".
 ```ts
 import type { SplitDetail, TransactionType } from './types';
 
-const OPENING_MEMO = '_kea_opening_balance'; // mirrors model.OpeningAccountMemo
+const OPENING_MEMO = 'Opening Balance'; // mirrors model.OpeningAccountMemo
 
 export function determineType(splits: SplitDetail[]): TransactionType {
   if (splits.length === 0) return 'Other';

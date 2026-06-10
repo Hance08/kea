@@ -1,11 +1,13 @@
 import { TransactionRow } from '@/components/transactions/TransactionRow';
 import type { TransactionDetail } from '@/lib/types';
+import type { TransactionsSearch } from '@/lib/transactions-search-params';
 
 interface Props {
   items: TransactionDetail[];
+  search: TransactionsSearch;
 }
 
-export function TransactionsTable({ items }: Props) {
+export function TransactionsTable({ items, search }: Props) {
   return (
     <div className="rounded-md border bg-card">
       <div className="grid grid-cols-[80px_80px_1fr_1fr_120px_90px] gap-3 bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -17,7 +19,7 @@ export function TransactionsTable({ items }: Props) {
         <span>Status</span>
       </div>
       {items.map((tx) => (
-        <TransactionRow key={tx.id} tx={tx} />
+        <TransactionRow key={tx.id} tx={tx} search={search} />
       ))}
     </div>
   );

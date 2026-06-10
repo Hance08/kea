@@ -9,10 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as BalancesRouteImport } from './routes/balances'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TransactionsIndexRouteImport } from './routes/transactions.index'
+import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
 
+const TransactionsRoute = TransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BalancesRoute = BalancesRouteImport.update({
   id: '/balances',
   path: '/balances',
@@ -23,44 +31,87 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TransactionsIndexRoute = TransactionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TransactionsRoute,
+} as any)
+const TransactionsNewRoute = TransactionsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => TransactionsRoute,
+} as any)
 const TransactionsIdRoute = TransactionsIdRouteImport.update({
-  id: '/transactions/$id',
-  path: '/transactions/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => TransactionsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
+  '/transactions': typeof TransactionsRouteWithChildren
   '/transactions/$id': typeof TransactionsIdRoute
+  '/transactions/new': typeof TransactionsNewRoute
+  '/transactions/': typeof TransactionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
   '/transactions/$id': typeof TransactionsIdRoute
+  '/transactions/new': typeof TransactionsNewRoute
+  '/transactions': typeof TransactionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
+  '/transactions': typeof TransactionsRouteWithChildren
   '/transactions/$id': typeof TransactionsIdRoute
+  '/transactions/new': typeof TransactionsNewRoute
+  '/transactions/': typeof TransactionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/balances' | '/transactions/$id'
+  fullPaths:
+    | '/'
+    | '/balances'
+    | '/transactions'
+    | '/transactions/$id'
+    | '/transactions/new'
+    | '/transactions/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/balances' | '/transactions/$id'
-  id: '__root__' | '/' | '/balances' | '/transactions/$id'
+  to:
+    | '/'
+    | '/balances'
+    | '/transactions/$id'
+    | '/transactions/new'
+    | '/transactions'
+  id:
+    | '__root__'
+    | '/'
+    | '/balances'
+    | '/transactions'
+    | '/transactions/$id'
+    | '/transactions/new'
+    | '/transactions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BalancesRoute: typeof BalancesRoute
-  TransactionsIdRoute: typeof TransactionsIdRoute
+  TransactionsRoute: typeof TransactionsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/transactions': {
+      id: '/transactions'
+      path: '/transactions'
+      fullPath: '/transactions'
+      preLoaderRoute: typeof TransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/balances': {
       id: '/balances'
       path: '/balances'
@@ -75,20 +126,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/transactions/': {
+      id: '/transactions/'
+      path: '/'
+      fullPath: '/transactions/'
+      preLoaderRoute: typeof TransactionsIndexRouteImport
+      parentRoute: typeof TransactionsRoute
+    }
+    '/transactions/new': {
+      id: '/transactions/new'
+      path: '/new'
+      fullPath: '/transactions/new'
+      preLoaderRoute: typeof TransactionsNewRouteImport
+      parentRoute: typeof TransactionsRoute
+    }
     '/transactions/$id': {
       id: '/transactions/$id'
-      path: '/transactions/$id'
+      path: '/$id'
       fullPath: '/transactions/$id'
       preLoaderRoute: typeof TransactionsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof TransactionsRoute
     }
   }
 }
 
+interface TransactionsRouteChildren {
+  TransactionsIdRoute: typeof TransactionsIdRoute
+  TransactionsNewRoute: typeof TransactionsNewRoute
+  TransactionsIndexRoute: typeof TransactionsIndexRoute
+}
+
+const TransactionsRouteChildren: TransactionsRouteChildren = {
+  TransactionsIdRoute: TransactionsIdRoute,
+  TransactionsNewRoute: TransactionsNewRoute,
+  TransactionsIndexRoute: TransactionsIndexRoute,
+}
+
+const TransactionsRouteWithChildren = TransactionsRoute._addFileChildren(
+  TransactionsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BalancesRoute: BalancesRoute,
-  TransactionsIdRoute: TransactionsIdRoute,
+  TransactionsRoute: TransactionsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

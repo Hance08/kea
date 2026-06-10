@@ -4,10 +4,12 @@ import { cn } from '@/lib/cn';
 import { formatCents } from '@/lib/format';
 import { displayAccount, displayAmount, displayOffsetAccount } from '@/lib/transactionDisplay';
 import type { TransactionDetail } from '@/lib/types';
+import type { TransactionsSearch } from '@/lib/transactions-search-params';
 import { Link } from '@tanstack/react-router';
 
 interface Props {
   tx: TransactionDetail;
+  search: TransactionsSearch;
 }
 
 function fmtDate(unix: number): string {
@@ -18,7 +20,7 @@ function fmtDate(unix: number): string {
   return `${y}-${m}-${day}`;
 }
 
-export function TransactionRow({ tx }: Props) {
+export function TransactionRow({ tx, search }: Props) {
   const acc = displayAccount(tx.splits, tx.type);
   const offset = displayOffsetAccount(tx.splits, tx.type, acc);
   const { amount, currency } = displayAmount(tx.splits, tx.type);
@@ -28,6 +30,7 @@ export function TransactionRow({ tx }: Props) {
     <Link
       to="/transactions/$id"
       params={{ id: String(tx.id) }}
+      search={search}
       className="grid grid-cols-[80px_80px_1fr_1fr_120px_90px] items-center gap-3 border-t px-3 py-2 text-sm hover:bg-muted/50"
     >
       <span className="text-muted-foreground">{fmtDate(tx.timestamp)}</span>

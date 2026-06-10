@@ -2,10 +2,10 @@ import { AccountCombobox } from '@/components/transactions/AccountCombobox';
 import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { buildLeafFilter } from '@/lib/accountFilters';
+import { buildCurrencyFilter, buildLeafFilter, combineFilters } from '@/lib/accountFilters';
 import { determineType } from '@/lib/determineType';
 import { listAccounts } from '@/lib/transactions';
-import type { TransactionType } from '@/lib/types';
+import type { Account, TransactionType } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
@@ -29,6 +29,20 @@ export function SimpleFields(props: Props) {
   // Only leaf accounts can hold transactions; hide parents from the
   // From/To combobox suggestions to prevent invalid submissions.
   const leafFilter = useMemo(() => buildLeafFilter(accounts.data?.items), [accounts.data]);
+
+  // Splits in one transaction must share a currency. Once From OR To
+  // is picked, lock the other combobox to that account's currency.
+  const accountByName = useMemo(() => {
+    const m = new Map<string, Account>();
+    for (const a of accounts.data?.items ?? []) m.set(a.name, a);
+    return m;
+  }, [accounts.data]);
+  const pickedCurrency =
+    accountByName.get(props.fromAccount)?.currency ?? accountByName.get(props.toAccount)?.currency;
+  const accountFilter = useMemo(
+    () => combineFilters(leafFilter, buildCurrencyFilter(pickedCurrency)),
+    [leafFilter, pickedCurrency],
+  );
 
   const derivedType: TransactionType | '…' = useMemo(() => {
     if (!accounts.data) return '…';
@@ -70,7 +84,7 @@ export function SimpleFields(props: Props) {
             value={props.fromAccount}
             onChange={(name) => props.onFromChange(name)}
             placeholder="Money comes from…"
-            filter={leafFilter}
+            filter={accountFilter}
             aria-invalid={!!props.fieldErrors?.fromAccount}
           />
           {props.fieldErrors?.fromAccount && (
@@ -84,7 +98,7 @@ export function SimpleFields(props: Props) {
             value={props.toAccount}
             onChange={(name) => props.onToChange(name)}
             placeholder="Money goes to…"
-            filter={leafFilter}
+            filter={accountFilter}
             aria-invalid={!!props.fieldErrors?.toAccount}
           />
           {props.fieldErrors?.toAccount && (

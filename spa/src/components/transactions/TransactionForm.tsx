@@ -251,7 +251,13 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           type: 'type',
         };
         const mapped = err.field ? fieldMap[err.field] : undefined;
-        if (mapped) {
+        // The `splits` banner only exists in Advanced mode (inside
+        // SplitsEditor). In Simple mode, fall back to the top alert
+        // so the user actually sees the message — otherwise a
+        // currency-mismatch (server field=splits) would be silent.
+        if (mapped === 'splits' && !advanced) {
+          setTopError(err.message);
+        } else if (mapped) {
           setFieldErrors({ [mapped]: err.message });
         } else {
           // Unknown / generic field (including "account") → top alert.

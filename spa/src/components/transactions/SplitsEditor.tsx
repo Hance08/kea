@@ -3,10 +3,10 @@ import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { buildLeafFilter } from '@/lib/accountFilters';
+import { buildCurrencyFilter, buildLeafFilter, combineFilters } from '@/lib/accountFilters';
 import { determineType } from '@/lib/determineType';
 import { listAccounts } from '@/lib/transactions';
-import type { TransactionType } from '@/lib/types';
+import type { Account, AccountType, TransactionType } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
@@ -62,9 +62,32 @@ export function SplitsEditor({ splits, onChange, splitsError }: Props) {
   // split's combobox to prevent invalid submissions.
   const leafFilter = useMemo(() => buildLeafFilter(accounts.data?.items), [accounts.data]);
 
-  const accountTypeMap = useMemo(() => {
-    return new Map(accounts.data?.items.map((a) => [a.name, a.type]) ?? []);
+  const accountByName = useMemo(() => {
+    const m = new Map<string, Account>();
+    for (const a of accounts.data?.items ?? []) m.set(a.name, a);
+    return m;
   }, [accounts.data]);
+
+  const accountTypeMap = useMemo(() => {
+    const m = new Map<string, AccountType>();
+    for (const a of accounts.data?.items ?? []) m.set(a.name, a.type);
+    return m;
+  }, [accounts.data]);
+
+  // Splits in one transaction must share a currency. Once any split
+  // has a picked account, lock every split's combobox to that
+  // account's currency.
+  const pickedCurrency = useMemo(() => {
+    for (const s of splits) {
+      const acc = accountByName.get(s.account_name);
+      if (acc) return acc.currency;
+    }
+    return undefined;
+  }, [accountByName, splits]);
+  const accountFilter = useMemo(
+    () => combineFilters(leafFilter, buildCurrencyFilter(pickedCurrency)),
+    [leafFilter, pickedCurrency],
+  );
 
   const derivedType: TransactionType | '…' = useMemo(() => {
     if (!accounts.data) return '…';
@@ -135,9 +158,17 @@ export function SplitsEditor({ splits, onChange, splitsError }: Props) {
           >
             <AccountCombobox
               value={s.account_name}
-              onChange={(name) => updateRow(i, { account_name: name })}
+              // When the user picks an account from the dropdown, sync
+              // the row's currency to that account so it doesn't get
+              // out of step with the picked currency lock.
+              onChange={(name, account) =>
+                updateRow(i, {
+                  account_name: name,
+                  ...(account ? { currency: account.currency } : {}),
+                })
+              }
               placeholder="Account…"
-              filter={leafFilter}
+              filter={accountFilter}
             />
             <Input
               type="text"

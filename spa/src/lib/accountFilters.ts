@@ -19,3 +19,29 @@ export function buildLeafFilter(
   }
   return (acc) => !parentIds.has(acc.id);
 }
+
+/**
+ * Build a single-currency predicate. Used to lock other comboboxes in
+ * a transaction to the currency of the first picked account (the
+ * service rejects mixed-currency splits in one transaction).
+ */
+export function buildCurrencyFilter(
+  currency: string | undefined,
+): ((acc: Account) => boolean) | undefined {
+  if (!currency) return undefined;
+  return (acc) => acc.currency === currency;
+}
+
+/**
+ * Compose multiple optional predicates with logical AND. Predicates
+ * that are undefined are skipped. Returns undefined if every input is
+ * undefined so callers can leave the combined filter unset.
+ */
+export function combineFilters<T>(
+  ...filters: (((x: T) => boolean) | undefined)[]
+): ((x: T) => boolean) | undefined {
+  const active = filters.filter((f): f is (x: T) => boolean => !!f);
+  if (active.length === 0) return undefined;
+  if (active.length === 1) return active[0];
+  return (x) => active.every((f) => f(x));
+}

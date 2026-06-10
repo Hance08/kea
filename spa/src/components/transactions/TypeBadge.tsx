@@ -19,8 +19,11 @@ interface Props {
 export function TypeBadge({ type, className }: Props) {
   return (
     <span
+      // min-w-[5.5rem] ensures every badge takes the same horizontal
+      // space regardless of label length (e.g., Income vs Withdrawal);
+      // justify-center centers the label within that fixed width.
       className={cn(
-        'inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium',
+        'inline-flex min-w-[5.5rem] items-center justify-center rounded px-1.5 py-0.5 text-xs font-medium',
         TYPE_CLASSES[type],
         className,
       )}

@@ -7,22 +7,22 @@ interface Props {
   search: TransactionsSearch;
 }
 
-// Fixed column widths (in px). Account → Offset is the widest because real
-// account paths are long ("Assets:Bank:Checking → Expenses:Coffee"); the
-// description column is narrower and ellipsis-truncates when it overflows.
-// Status is sized to fit "Reconciled" (the longest status) without leaving
-// dead space on the right. Total: 110 + 100 + 200 + 340 + 120 + 90 = 960px.
-// The wrapper scrolls horizontally on narrower viewports so the layout
-// stays predictable.
-export const TRANSACTIONS_GRID_COLS = '110px 100px 200px 340px 120px 90px';
+// Fixed widths for every column except Account → Offset, which uses
+// minmax(340px, 1fr) so it absorbs any extra width at wider viewports
+// (real account paths are long and benefit from the room) and stays at
+// 340px minimum on narrow viewports. Description is narrower and
+// ellipsis-truncates when it overflows.
+// Min total: 110 + 100 + 200 + 340 + 120 + 90 = 960px. The wrapper
+// scrolls horizontally below that.
+export const TRANSACTIONS_GRID_COLS = '110px 100px 200px minmax(340px, 1fr) 120px 90px';
 
 export function TransactionsTable({ items, search }: Props) {
   return (
-    // w-fit shrinks the bordered container to its content width on wide
-    // viewports so there's no dead space past the right-most column;
-    // max-w-full + overflow-x-auto preserves horizontal scrolling when
-    // the viewport is narrower than the fixed-width grid (~1020px).
-    <div className="w-fit max-w-full overflow-x-auto rounded-md border bg-card">
+    // overflow-x-auto preserves horizontal scrolling when the viewport
+    // is narrower than the grid's minimum (~1020px). At wider viewports
+    // the Account → Offset column (minmax(340px, 1fr)) absorbs the
+    // extra width so the table fills its parent container.
+    <div className="overflow-x-auto rounded-md border bg-card">
       <div
         className="grid gap-3 bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
         style={{ gridTemplateColumns: TRANSACTIONS_GRID_COLS }}

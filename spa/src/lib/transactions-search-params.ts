@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import type { TransactionFilter } from './types';
 
+// Single source of truth for default page size. Used by the URL search
+// schema and by every navigation that needs a fresh search context
+// (e.g., post-create redirect, "Back to transactions" link).
+export const DEFAULT_TRANSACTIONS_LIMIT = 10;
+
 export const transactionsSearchSchema = z.object({
   account_id: z.coerce.number().int().positive().optional(),
   type: z
@@ -10,7 +15,7 @@ export const transactionsSearchSchema = z.object({
   start_time: z.coerce.number().int().optional(),
   end_time: z.coerce.number().int().optional(),
   description: z.string().min(1).optional(),
-  limit: z.coerce.number().int().positive().default(50),
+  limit: z.coerce.number().int().positive().default(DEFAULT_TRANSACTIONS_LIMIT),
   offset: z.coerce.number().int().nonnegative().default(0),
 });
 

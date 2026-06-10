@@ -1,4 +1,5 @@
 import {
+  DEFAULT_TRANSACTIONS_LIMIT,
   parseTransactionsSearch,
   searchToFilter,
   searchToListOptions,
@@ -7,8 +8,11 @@ import {
 import { describe, expect, test } from 'vitest';
 
 describe('transactionsSearchSchema', () => {
-  test('all empty → defaults to limit=50 offset=0', () => {
-    expect(transactionsSearchSchema.parse({})).toEqual({ limit: 50, offset: 0 });
+  test('all empty → defaults from DEFAULT_TRANSACTIONS_LIMIT, offset=0', () => {
+    expect(transactionsSearchSchema.parse({})).toEqual({
+      limit: DEFAULT_TRANSACTIONS_LIMIT,
+      offset: 0,
+    });
   });
 
   test('valid full search', () => {
@@ -67,6 +71,9 @@ describe('searchToFilter / searchToListOptions', () => {
 
 describe('parseTransactionsSearch (lenient wrapper)', () => {
   test('returns defaults when input fails validation entirely', () => {
-    expect(parseTransactionsSearch({ type: 'Bogus' })).toEqual({ limit: 50, offset: 0 });
+    expect(parseTransactionsSearch({ type: 'Bogus' })).toEqual({
+      limit: DEFAULT_TRANSACTIONS_LIMIT,
+      offset: 0,
+    });
   });
 });

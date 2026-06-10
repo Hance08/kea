@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCents } from '@/lib/format';
 import { deleteTransaction, getTransaction } from '@/lib/transactions';
+import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -31,7 +32,7 @@ function TransactionDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
-      navigate({ to: '/transactions', search: { limit: 50, offset: 0 } });
+      navigate({ to: '/transactions', search: { limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 } });
     },
   });
 
@@ -59,7 +60,7 @@ function TransactionDetailPage() {
       <div className="flex items-center justify-between">
         <Link
           to="/transactions"
-          search={{ limit: 50, offset: 0 }}
+          search={{ limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 }}
           className="text-sm text-muted-foreground hover:underline"
         >
           ← Back to transactions
@@ -70,7 +71,7 @@ function TransactionDetailPage() {
               <Link
                 to="/transactions/$id/edit"
                 params={{ id: String(tx.id) }}
-                search={{ limit: 50, offset: 0 }}
+                search={{ limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 }}
               >
                 Edit
               </Link>

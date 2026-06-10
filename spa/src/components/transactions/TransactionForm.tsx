@@ -4,11 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ApiError } from '@/lib/api';
+import { determineType } from '@/lib/determineType';
 import { listAccounts } from '@/lib/transactions';
 import type {
+  Account,
   CreateTransactionInput,
+  SplitDetail,
   TransactionDetail,
   TransactionStatus,
+  TransactionType,
   UpdateTransactionInput,
 } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
@@ -163,6 +167,23 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
         ];
       }
 
+      // Derive transaction type from the splits being submitted. The server
+      // requires a non-empty type; client-side derivation keeps the UX honest
+      // (the badge the user saw is what gets sent).
+      const accountByName = new Map<string, Account>(
+        (accountsQuery.data?.items ?? []).map((a) => [a.name, a]),
+      );
+      const splitDetails: SplitDetail[] = splits.map((s) => ({
+        id: s.id ?? 0,
+        account_id: 0,
+        account_name: s.account_name,
+        account_type: accountByName.get(s.account_name)?.type ?? 'A',
+        amount: s.amount,
+        currency: s.currency,
+        memo: s.memo ?? '',
+      }));
+      const derivedType: TransactionType = determineType(splitDetails);
+
       let payload: CreateTransactionInput | UpdateTransactionInput;
       if (isEdit) {
         if (!initial) {
@@ -175,6 +196,7 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           description: state.description,
           timestamp,
           status: state.status,
+          type: derivedType,
           splits,
         } satisfies UpdateTransactionInput;
       } else {
@@ -182,6 +204,7 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           description: state.description,
           timestamp,
           status: state.status,
+          type: derivedType,
           splits,
         } satisfies CreateTransactionInput;
       }

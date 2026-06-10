@@ -106,6 +106,9 @@ test('Simple mode submits a 2-split transaction', async () => {
   expect(postedBody).toMatchObject({
     description: 'Coffee',
     status: 'Cleared',
+    // type must be present — the server rejects creates with empty type.
+    // SimpleFields derives it client-side from the picked accounts.
+    type: 'Expense',
     splits: [
       { account_name: 'Assets:Bank', amount: -1250, currency: 'USD' },
       { account_name: 'Expenses:Coffee', amount: 1250, currency: 'USD' },

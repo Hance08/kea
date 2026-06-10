@@ -14,6 +14,10 @@ export const Route = createFileRoute('/accounts/')({
   component: AccountsListPage,
 });
 
+function isFlatMode(search: AccountsSearch): boolean {
+  return Boolean(search.q) || Boolean(search.type);
+}
+
 function AccountsListPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/accounts' });
@@ -28,7 +32,7 @@ function AccountsListPage() {
   const treeQuery = useQuery({
     queryKey: ['accounts', 'tree', { include_hidden: search.include_hidden }],
     queryFn: () => getAccountTree({ include_hidden: search.include_hidden }),
-    enabled: !search.q,
+    enabled: !isFlatMode(search),
   });
 
   const balancesQuery = useQuery({
@@ -49,9 +53,9 @@ function AccountsListPage() {
 
       <AccountFilters search={search} onChange={setSearch} onClear={clear} />
 
-      {search.q && <SearchMode search={search} />}
+      {isFlatMode(search) && <SearchMode search={search} />}
 
-      {!search.q && treeQuery.isPending && (
+      {!isFlatMode(search) && treeQuery.isPending && (
         <div className="space-y-2">
           {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-8 w-full" />
@@ -59,7 +63,7 @@ function AccountsListPage() {
         </div>
       )}
 
-      {!search.q && treeQuery.isError && (
+      {!isFlatMode(search) && treeQuery.isError && (
         <Alert variant="destructive">
           <AlertTitle>Failed to load accounts</AlertTitle>
           <AlertDescription className="mt-2 space-y-3">
@@ -73,13 +77,13 @@ function AccountsListPage() {
         </Alert>
       )}
 
-      {!search.q && treeQuery.isSuccess && treeQuery.data.length === 0 && (
+      {!isFlatMode(search) && treeQuery.isSuccess && treeQuery.data.length === 0 && (
         <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
           No accounts yet — click + New account to create your first.
         </div>
       )}
 
-      {!search.q && treeQuery.isSuccess && treeQuery.data.length > 0 && (
+      {!isFlatMode(search) && treeQuery.isSuccess && treeQuery.data.length > 0 && (
         <AccountTree nodes={treeQuery.data} balances={balancesQuery.data?.items} />
       )}
     </div>
@@ -131,9 +135,12 @@ function SearchMode({ search }: { search: AccountsSearch }) {
   }
 
   if (query.data.items.length === 0) {
+    const summary = [search.q ? `"${search.q}"` : null, search.type ? `type ${search.type}` : null]
+      .filter(Boolean)
+      .join(' and ');
     return (
       <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-        No accounts match "{search.q}".
+        No accounts match {summary || 'these filters'}.
       </div>
     );
   }

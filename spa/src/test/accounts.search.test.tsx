@@ -56,4 +56,12 @@ describe('accounts list — search mode', () => {
     await waitFor(() => expect(screen.getByText('Assets:Bank:Checking')).toBeInTheDocument());
     expect(screen.getByText('Assets:Bank:Savings')).toBeInTheDocument();
   });
+
+  it('uses flat mode when only a type filter is set (no q)', async () => {
+    render(makeTestApp('/accounts?type=A'));
+    // The flat-mode SearchMode component issues listAccounts. If we land here
+    // without typing into the search box, the matches mock above resolves and
+    // the flat table renders.
+    await waitFor(() => expect(screen.getByText('Assets:Bank:Checking')).toBeInTheDocument());
+  });
 });

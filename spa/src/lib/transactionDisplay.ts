@@ -35,10 +35,17 @@ export function displayOffsetAccount(
   if (splits.length === 0) return '-';
 
   const seen = new Set<string>();
+  const primaryType =
+    type === 'Expense' ? 'E' : type === 'Income' ? 'R' : null;
 
-  // Collect all accounts except the primary one
-  for (const s of splits) {
-    if (s.account_name !== primaryAccount) seen.add(s.account_name);
+  if (primaryType !== null) {
+    for (const s of splits) {
+      if (s.account_type !== primaryType) seen.add(s.account_name);
+    }
+  } else {
+    for (const s of splits) {
+      if (s.account_name !== primaryAccount) seen.add(s.account_name);
+    }
   }
 
   if (seen.size === 0) return '-';

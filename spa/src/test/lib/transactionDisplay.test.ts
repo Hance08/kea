@@ -70,13 +70,34 @@ describe('displayOffsetAccount', () => {
     expect(displayOffsetAccount(splits, 'Transfer', 'Assets:Savings')).toBe('Assets:Checking');
   });
 
-  test('multiple offsets → returns "(multiple)"', () => {
+  test('Expense with multiple Expense splits collapses to the single non-Expense offset', () => {
+    // Splits: Cash(A), Food(E), Household(E). Go excludes ALL E-type, leaving {Assets:Cash}.
     const splits = [
       sp('Assets:Cash', 'A', -100),
       sp('Expenses:Food', 'E', 60),
       sp('Expenses:Household', 'E', 40),
     ];
+    expect(displayOffsetAccount(splits, 'Expense', 'Expenses:Food')).toBe('Assets:Cash');
+  });
+
+  test('Expense with multiple non-Expense offsets → returns "(multiple)"', () => {
+    // Splits: Cash(A), Bank(A), Food(E). Go excludes E-type, leaving {Assets:Cash, Assets:Bank}.
+    const splits = [
+      sp('Assets:Cash', 'A', -60),
+      sp('Assets:Bank', 'A', -40),
+      sp('Expenses:Food', 'E', 100),
+    ];
     expect(displayOffsetAccount(splits, 'Expense', 'Expenses:Food')).toBe('(multiple)');
+  });
+
+  test('Transfer with multiple non-primary accounts → returns "(multiple)"', () => {
+    // Default branch: excludes only by name. Three distinct names → (multiple) after excluding one.
+    const splits = [
+      sp('Assets:A', 'A', 100),
+      sp('Assets:B', 'A', -60),
+      sp('Assets:C', 'A', -40),
+    ];
+    expect(displayOffsetAccount(splits, 'Transfer', 'Assets:A')).toBe('(multiple)');
   });
 
   test('empty splits → "-"', () => {

@@ -1,9 +1,10 @@
 import { AccountFilters } from '@/components/accounts/AccountFilters';
+import { AccountSearchResults } from '@/components/accounts/AccountSearchResults';
 import { AccountTree } from '@/components/accounts/AccountTree';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getAccountTree } from '@/lib/accounts';
+import { getAccountTree, listAccounts } from '@/lib/accounts';
 import type { AccountsSearch } from '@/lib/accounts-search-params';
 import { getBalances } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
@@ -48,11 +49,7 @@ function AccountsListPage() {
 
       <AccountFilters search={search} onChange={setSearch} onClear={clear} />
 
-      {search.q && (
-        <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
-          Search mode is coming soon.
-        </div>
-      )}
+      {search.q && <SearchMode search={search} />}
 
       {!search.q && treeQuery.isPending && (
         <div className="space-y-2">
@@ -86,5 +83,66 @@ function AccountsListPage() {
         <AccountTree nodes={treeQuery.data} balances={balancesQuery.data?.items} />
       )}
     </div>
+  );
+}
+
+function SearchMode({ search }: { search: AccountsSearch }) {
+  const balancesQuery = useQuery({
+    queryKey: ['balances'],
+    queryFn: getBalances,
+  });
+  const query = useQuery({
+    queryKey: [
+      'accounts',
+      'search',
+      { q: search.q, type: search.type, include_hidden: search.include_hidden },
+    ],
+    queryFn: () =>
+      listAccounts({
+        q: search.q,
+        type: search.type,
+        include_hidden: search.include_hidden,
+        limit: 100,
+      }),
+  });
+
+  if (query.isPending) {
+    return (
+      <div className="space-y-2">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Search failed</AlertTitle>
+        <AlertDescription className="mt-2 space-y-3">
+          <div>{query.error instanceof Error ? query.error.message : 'Unknown error'}</div>
+          <Button onClick={() => query.refetch()} size="sm">
+            Retry
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (query.data.items.length === 0) {
+    return (
+      <div className="rounded-md border bg-card p-8 text-center text-sm text-muted-foreground">
+        No accounts match "{search.q}".
+      </div>
+    );
+  }
+
+  return (
+    <AccountSearchResults
+      accounts={query.data.items}
+      balances={balancesQuery.data?.items}
+      totalCount={query.data.total_count}
+    />
   );
 }

@@ -13,6 +13,7 @@ import {
   getAccountTree,
   isOpeningBalancesAccount,
 } from '@/lib/accounts';
+import { getBalances } from '@/lib/api';
 import { listTransactions } from '@/lib/transactions';
 import type { AccountNode } from '@/lib/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -50,6 +51,7 @@ function AccountDetailPage() {
     queryKey: ['accounts', 'tree', { include_hidden: true }],
     queryFn: () => getAccountTree({ include_hidden: true }),
   });
+  const balancesQuery = useQuery({ queryKey: ['balances'], queryFn: getBalances });
   const txQuery = useQuery({
     queryKey: ['transactions', { account_id: id, limit: 20 }],
     queryFn: () => listTransactions({ account_id: id }, { limit: 20 }),
@@ -119,7 +121,7 @@ function AccountDetailPage() {
       {isSystem && <SystemAccountBanner />}
       <AccountDetailHeader account={account} balance={balanceQuery.data} deleteSlot={deleteSlot} />
       {isParent ? (
-        <ChildAccountsCard accounts={children} />
+        <ChildAccountsCard accounts={children} balances={balancesQuery.data?.items} />
       ) : (
         <RecentTransactionsCard accountId={id} />
       )}

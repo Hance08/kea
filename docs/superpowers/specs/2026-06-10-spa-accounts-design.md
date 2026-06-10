@@ -134,8 +134,7 @@ export interface CreateAccountInput {
   parent_id?: number;
   currency: string;
   description?: string;
-  is_hidden?: boolean;
-  opening_balance?: number;    // optional; in cents
+  balance?: number;            // optional opening balance, in cents (matches Go field name)
 }
 
 export interface UpdateAccountInput {
@@ -211,7 +210,7 @@ API error envelope (already standard):
 | `type` | Type select helper text |
 | `currency` | Currency field helper text |
 | `description` | Description field helper text |
-| `opening_balance` | Opening-balance amount field helper text |
+| `balance` | Opening-balance amount field helper text |
 | absent | Top-of-form alert with `message` |
 
 ## Constraint & Lockout UI
@@ -359,7 +358,8 @@ Same banner renders on `/accounts/$id/edit` with the Name field read-only.
 │ Description                                     │
 │ [_______________________________________]       │
 │                                                 │
-│ ☐ Hidden                                        │
+│ (Hidden is set after creation — use the edit    │
+│  form to hide this account from default views.) │
 │                                                 │
 │ ☐ Set opening balance                           │
 │   ┌── revealed when checked ──────────────────┐ │

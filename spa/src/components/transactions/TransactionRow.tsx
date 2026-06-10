@@ -51,7 +51,7 @@ export function TransactionRow({ tx, search }: Props) {
       <span className="truncate text-center" title={tx.description}>
         {tx.description}
       </span>
-      <span className="truncate text-right text-muted-foreground" title={acc}>
+      <span className="truncate text-left text-muted-foreground" title={acc}>
         {acc}
       </span>
       <span className="truncate text-left text-muted-foreground" title={offset}>

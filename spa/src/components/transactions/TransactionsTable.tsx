@@ -31,7 +31,7 @@ export function TransactionsTable({ items, search }: Props) {
         <span className="text-left">Date</span>
         <span className="text-center">Type</span>
         <span className="text-center">Description</span>
-        <span className="text-right">Account</span>
+        <span className="text-left">Account</span>
         <span className="text-left">Offset</span>
         <span className="text-right">Amount</span>
         <span className="text-right">Status</span>

@@ -39,9 +39,18 @@ export function listAccounts(opts: ListAccountsOpts = {}): Promise<ListResult<Ac
   return apiFetch<ListResult<Account>>(`/api/accounts${q}`);
 }
 
+function normalizeNode(node: AccountNode): AccountNode {
+  return {
+    account: node.account,
+    children: (node.children ?? []).map(normalizeNode),
+  };
+}
+
 export function getAccountTree(opts: { include_hidden?: boolean } = {}): Promise<AccountNode[]> {
   const q = buildQuery({ include_hidden: opts.include_hidden });
-  return apiFetch<AccountNode[]>(`/api/accounts/tree${q}`);
+  return apiFetch<AccountNode[]>(`/api/accounts/tree${q}`).then((roots) =>
+    (roots ?? []).map(normalizeNode),
+  );
 }
 
 export function getAccount(id: number): Promise<Account> {

@@ -19,11 +19,11 @@ export const TRANSACTIONS_GRID_COLS =
 
 export function TransactionsTable({ items, search }: Props) {
   return (
-    // overflow-x-auto preserves horizontal scrolling when the viewport
-    // is narrower than the grid's minimum (~1020px). At wider viewports
-    // the Account and Offset columns (each minmax(170px, 1fr)) share
-    // the extra width so the table fills its parent container.
-    <div className="overflow-x-auto rounded-md border bg-card">
+    // w-full bounds the container to the parent's width so overflow-x-auto
+    // actually clips and scrolls instead of expanding the page. At wider
+    // viewports the Account and Offset columns (each minmax(170px, 1fr))
+    // share the extra width so the table fills its parent container.
+    <div className="w-full overflow-x-auto rounded-md border bg-card">
       <div
         className="grid gap-3 bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
         style={{ gridTemplateColumns: TRANSACTIONS_GRID_COLS }}

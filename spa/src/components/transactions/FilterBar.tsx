@@ -43,8 +43,11 @@ export function FilterBar({ search, onChange, onClear }: Props) {
     (search.description !== undefined && search.description !== '');
 
   return (
-    <div className="mb-4 grid grid-cols-1 gap-3 rounded-md border bg-card p-3 md:grid-cols-6">
-      <div className="md:col-span-2">
+    // Use 6 columns only at xl (>=1280px) where the inputs comfortably
+    // fit on one row; stack below that to avoid pushing the page wider
+    // than the viewport.
+    <div className="mb-4 grid grid-cols-1 gap-3 rounded-md border bg-card p-3 xl:grid-cols-6">
+      <div className="xl:col-span-2">
         <Label htmlFor="f-account">Account</Label>
         <AccountCombobox
           id="f-account"
@@ -114,7 +117,7 @@ export function FilterBar({ search, onChange, onClear }: Props) {
         />
       </div>
 
-      <div className="md:col-span-4">
+      <div className="xl:col-span-4">
         <Label htmlFor="f-desc">Description contains</Label>
         <Input
           id="f-desc"
@@ -127,7 +130,7 @@ export function FilterBar({ search, onChange, onClear }: Props) {
         />
       </div>
 
-      <div className="flex items-end gap-2 md:col-span-2">
+      <div className="flex items-end gap-2 xl:col-span-2">
         {hasAny && (
           <Button variant="outline" size="sm" onClick={onClear}>
             Clear filters

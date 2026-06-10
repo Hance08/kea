@@ -22,7 +22,7 @@ interface ApiErrorBody {
   field?: string;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(path, init);
   if (!resp.ok) {
     let body: ApiErrorBody = {};

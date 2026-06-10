@@ -33,3 +33,77 @@ export interface LedgerListResponse {
   active: string;
   items: LedgerInfo[];
 }
+
+export type TransactionType =
+  | 'Expense'
+  | 'Income'
+  | 'Transfer'
+  | 'Opening'
+  | 'Deposit'
+  | 'Withdrawal'
+  | 'Other';
+
+export type TransactionStatus = 'Pending' | 'Cleared' | 'Reconciled';
+
+export interface SplitDetail {
+  id: number;
+  account_id: number;
+  account_name: string;
+  account_type: AccountType;
+  amount: number; // int64 cents, signed
+  currency: string;
+  memo: string;
+}
+
+export interface TransactionDetail {
+  id: number;
+  timestamp: number; // Unix seconds
+  description: string;
+  status: TransactionStatus;
+  type: TransactionType;
+  splits: SplitDetail[];
+}
+
+export interface SplitInput {
+  id?: number;
+  account_name: string;
+  amount: number;
+  currency: string;
+  memo?: string;
+}
+
+export interface CreateTransactionInput {
+  splits: SplitInput[];
+  description: string;
+  timestamp: number;
+  status: TransactionStatus;
+  type?: TransactionType;
+}
+
+export interface UpdateTransactionInput {
+  id: number;
+  description: string;
+  timestamp: number;
+  status: TransactionStatus;
+  type?: TransactionType;
+  splits: SplitInput[];
+}
+
+export interface TransactionFilter {
+  account_id?: number;
+  type?: TransactionType;
+  status?: TransactionStatus;
+  start_time?: number;
+  end_time?: number;
+  description?: string;
+}
+
+export interface Account {
+  id: number;
+  name: string;
+  type: AccountType;
+  parent_id?: number;
+  currency: string;
+  description: string;
+  is_hidden: boolean;
+}

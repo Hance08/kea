@@ -10,7 +10,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { label: 'Balances', to: '/balances' },
   { label: 'Accounts' },
-  { label: 'Transactions' },
+  { label: 'Transactions', to: '/transactions' },
   { label: 'Reports' },
   { label: 'Reconcile' },
 ];

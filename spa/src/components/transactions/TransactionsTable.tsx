@@ -18,7 +18,11 @@ export const TRANSACTIONS_GRID_COLS = '110px 100px 200px 340px 120px 90px';
 
 export function TransactionsTable({ items, search }: Props) {
   return (
-    <div className="overflow-x-auto rounded-md border bg-card">
+    // w-fit shrinks the bordered container to its content width on wide
+    // viewports so there's no dead space past the right-most column;
+    // max-w-full + overflow-x-auto preserves horizontal scrolling when
+    // the viewport is narrower than the fixed-width grid (~1020px).
+    <div className="w-fit max-w-full overflow-x-auto rounded-md border bg-card">
       <div
         className="grid gap-3 bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
         style={{ gridTemplateColumns: TRANSACTIONS_GRID_COLS }}

@@ -26,7 +26,13 @@ export function AccountTree({ nodes, balances }: Props) {
   };
 
   return (
-    <div className="rounded-md border bg-card">
+    <div className="overflow-hidden rounded-md border bg-card">
+      <div className="grid grid-cols-[1fr_5rem_5rem_7rem] items-center gap-3 border-b bg-muted/40 px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
+        <span>Name</span>
+        <span>Type</span>
+        <span>Currency</span>
+        <span className="text-right">Balance</span>
+      </div>
       {nodes.map((node) => (
         <Branch
           key={node.account.id}

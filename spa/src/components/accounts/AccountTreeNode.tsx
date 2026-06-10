@@ -13,6 +13,14 @@ interface Props {
   balance?: { amount: number; currency: string };
 }
 
+const TYPE_LABEL: Record<Account['type'], string> = {
+  A: 'Asset',
+  L: 'Liability',
+  C: 'Equity',
+  R: 'Revenue',
+  E: 'Expense',
+};
+
 export function AccountTreeNode({
   account,
   depth,
@@ -25,12 +33,12 @@ export function AccountTreeNode({
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b border-border/60 px-2 py-1.5 text-sm hover:bg-muted/40',
+        'grid grid-cols-[1fr_5rem_5rem_7rem] items-center gap-3 border-b border-border/60 px-3 py-1.5 text-sm hover:bg-muted/40',
         account.is_hidden && 'text-muted-foreground',
       )}
-      style={{ paddingLeft: `${0.5 + depth * 1.25}rem` }}
     >
-      <div className="flex items-center gap-1">
+      {/* Name column with chevron + indent */}
+      <div className="flex items-center gap-1" style={{ paddingLeft: `${depth * 1.25}rem` }}>
         {hasChildren ? (
           <button
             type="button"
@@ -48,19 +56,27 @@ export function AccountTreeNode({
           to="/accounts/$id"
           params={{ id: String(account.id) }}
           search={{ include_hidden: false }}
-          className="hover:underline"
+          className="truncate hover:underline"
         >
           {leafName}
         </Link>
         {account.is_hidden && <span className="ml-2 text-xs uppercase">hidden</span>}
       </div>
-      <div className="tabular-nums">
+
+      {/* Type */}
+      <div className="text-xs text-muted-foreground">{TYPE_LABEL[account.type]}</div>
+
+      {/* Currency */}
+      <div className="text-xs text-muted-foreground">{account.currency}</div>
+
+      {/* Balance */}
+      <div className="text-right tabular-nums">
         {balance ? (
           <span className={cn(balance.amount < 0 && 'text-destructive')}>
             {formatCents(balance.amount, balance.currency)}
           </span>
         ) : (
-          <Skeleton className="h-4 w-16" />
+          <Skeleton className="ml-auto h-4 w-16" />
         )}
       </div>
     </div>

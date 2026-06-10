@@ -1,4 +1,10 @@
-import type { AccountBalance, ListResult, ServerConfig } from './types';
+import type {
+  AccountBalance,
+  LedgerInfo,
+  LedgerListResponse,
+  ListResult,
+  ServerConfig,
+} from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -36,4 +42,16 @@ export function getBalances(): Promise<ListResult<AccountBalance>> {
 
 export function getConfig(): Promise<ServerConfig> {
   return apiFetch<ServerConfig>('/api/config');
+}
+
+export function getLedgers(): Promise<LedgerListResponse> {
+  return apiFetch<LedgerListResponse>('/api/ledgers');
+}
+
+export function switchLedger(name: string): Promise<LedgerInfo> {
+  return apiFetch<LedgerInfo>('/api/ledgers/switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
 }

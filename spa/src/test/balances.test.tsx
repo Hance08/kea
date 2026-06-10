@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { makeTestApp } from './setup';
+import { makeTestApp } from './test-app';
 
 const okResponse = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -47,6 +47,14 @@ beforeEach(() => {
             total_count: 3,
             limit: 0,
             offset: 0,
+          }),
+        );
+      }
+      if (url === '/api/ledgers') {
+        return Promise.resolve(
+          okResponse({
+            active: 'personal',
+            items: [{ name: 'personal', path: '/p/personal.db', active: true }],
           }),
         );
       }

@@ -1,9 +1,10 @@
+import { LedgerSwitcher } from '@/components/LedgerSwitcher';
 import { cn } from '@/lib/cn';
 import { Link, useRouterState } from '@tanstack/react-router';
 
 interface NavItem {
   label: string;
-  to?: string; // undefined = disabled stub
+  to?: string;
 }
 
 const NAV: NavItem[] = [
@@ -18,7 +19,7 @@ export function Sidebar() {
   const { location } = useRouterState();
   return (
     <nav aria-label="Main navigation" className="w-56 shrink-0 border-r bg-muted/30 p-4">
-      <div className="mb-6 text-lg font-semibold tracking-tight">kea</div>
+      <LedgerSwitcher />
       <ul className="space-y-1">
         {NAV.map((item) => {
           if (!item.to) {

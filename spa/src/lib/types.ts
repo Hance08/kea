@@ -22,3 +22,14 @@ export interface ServerConfig {
     currency: string;
   };
 }
+
+export interface LedgerInfo {
+  name: string;
+  path: string;
+  active: boolean;
+}
+
+export interface LedgerListResponse {
+  active: string;
+  items: LedgerInfo[];
+}

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { AccountsSearch } from '@/lib/accounts-search-params';
+import { useEffect, useState } from 'react';
 
 interface Props {
   search: AccountsSearch;
@@ -18,13 +19,29 @@ const TYPE_OPTIONS: { value: AccountsSearch['type']; label: string }[] = [
 ];
 
 export function AccountFilters({ search, onChange, onClear }: Props) {
+  const [qText, setQText] = useState(search.q ?? '');
+
+  // Sync local text when the URL changes externally (e.g., back/forward, clear).
+  useEffect(() => {
+    setQText(search.q ?? '');
+  }, [search.q]);
+
+  // Debounce text changes back into the URL.
+  useEffect(() => {
+    if (qText === (search.q ?? '')) return;
+    const t = setTimeout(() => {
+      onChange({ q: qText || undefined });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [qText, search.q, onChange]);
+
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <Input
-        value={search.q ?? ''}
+        value={qText}
         placeholder="Search accounts…"
         className="w-56"
-        onChange={(e) => onChange({ q: e.target.value || undefined })}
+        onChange={(e) => setQText(e.target.value)}
       />
       <select
         value={search.type ?? ''}

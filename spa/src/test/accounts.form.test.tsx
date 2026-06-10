@@ -14,9 +14,38 @@ const createAccount = vi.hoisted(() =>
   }),
 );
 
+const updateAccount = vi.hoisted(() =>
+  vi.fn().mockImplementation((_id: number, patch: object) =>
+    Promise.resolve({
+      id: 7,
+      name: 'Assets:Bank:OldName',
+      type: 'A',
+      parent_id: 2,
+      currency: 'USD',
+      description: 'old',
+      is_hidden: false,
+      ...patch,
+    }),
+  ),
+);
+
+const getAccount = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({
+    id: 7,
+    name: 'Assets:Bank:OldName',
+    type: 'A',
+    parent_id: 2,
+    currency: 'USD',
+    description: 'old',
+    is_hidden: false,
+  }),
+);
+
 vi.mock('@/lib/accounts', async () => ({
   ...(await vi.importActual<object>('@/lib/accounts')),
   createAccount,
+  updateAccount,
+  getAccount,
   getAccountTree: vi.fn().mockResolvedValue([]),
   searchAccounts: vi.fn().mockResolvedValue({
     items: [],
@@ -74,5 +103,19 @@ describe('accounts create form', () => {
 
     expect(screen.getByText(/should not contain/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /create/i })).toBeDisabled();
+  });
+});
+
+describe('accounts edit form', () => {
+  it('submits only the changed fields (description)', async () => {
+    render(makeTestApp('/accounts/7/edit'));
+    await waitFor(() => expect(screen.getByText(/edit account/i)).toBeInTheDocument());
+
+    const desc = screen.getByLabelText(/description/i);
+    await userEvent.clear(desc);
+    await userEvent.type(desc, 'new');
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => expect(updateAccount).toHaveBeenCalledWith(7, { description: 'new' }));
   });
 });

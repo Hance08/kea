@@ -51,8 +51,11 @@ export function TransactionRow({ tx, search }: Props) {
       <span className="truncate text-center" title={tx.description}>
         {tx.description}
       </span>
-      <span className="truncate text-center text-muted-foreground" title={`${acc} → ${offset}`}>
-        {acc} → {offset}
+      <span className="truncate text-right text-muted-foreground" title={acc}>
+        {acc}
+      </span>
+      <span className="truncate text-left text-muted-foreground" title={offset}>
+        {offset}
       </span>
       <span className={cn('text-right tabular-nums', signClass)}>{formatDollars(absAmount)}</span>
       <span className="text-right">

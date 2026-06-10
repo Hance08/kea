@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { parseAccountsSearch } from '@/lib/accounts-search-params';
+import { describe, expect, it } from 'vitest';
 
 describe('parseAccountsSearch', () => {
   it('returns defaults when nothing is set', () => {

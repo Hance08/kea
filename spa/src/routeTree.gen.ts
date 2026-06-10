@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions.index'
 import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
+import { Route as TransactionsIdEditRouteImport } from './routes/transactions.$id.edit'
 
 const TransactionsRoute = TransactionsRouteImport.update({
   id: '/transactions',
@@ -46,30 +47,38 @@ const TransactionsIdRoute = TransactionsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => TransactionsRoute,
 } as any)
+const TransactionsIdEditRoute = TransactionsIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => TransactionsIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
   '/transactions': typeof TransactionsRouteWithChildren
-  '/transactions/$id': typeof TransactionsIdRoute
+  '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/transactions/': typeof TransactionsIndexRoute
+  '/transactions/$id/edit': typeof TransactionsIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
-  '/transactions/$id': typeof TransactionsIdRoute
+  '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/transactions': typeof TransactionsIndexRoute
+  '/transactions/$id/edit': typeof TransactionsIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
   '/transactions': typeof TransactionsRouteWithChildren
-  '/transactions/$id': typeof TransactionsIdRoute
+  '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/transactions/': typeof TransactionsIndexRoute
+  '/transactions/$id/edit': typeof TransactionsIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/transactions/$id'
     | '/transactions/new'
     | '/transactions/'
+    | '/transactions/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/transactions/$id'
     | '/transactions/new'
     | '/transactions'
+    | '/transactions/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/transactions/$id'
     | '/transactions/new'
     | '/transactions/'
+    | '/transactions/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -147,17 +159,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransactionsIdRouteImport
       parentRoute: typeof TransactionsRoute
     }
+    '/transactions/$id/edit': {
+      id: '/transactions/$id/edit'
+      path: '/edit'
+      fullPath: '/transactions/$id/edit'
+      preLoaderRoute: typeof TransactionsIdEditRouteImport
+      parentRoute: typeof TransactionsIdRoute
+    }
   }
 }
 
+interface TransactionsIdRouteChildren {
+  TransactionsIdEditRoute: typeof TransactionsIdEditRoute
+}
+
+const TransactionsIdRouteChildren: TransactionsIdRouteChildren = {
+  TransactionsIdEditRoute: TransactionsIdEditRoute,
+}
+
+const TransactionsIdRouteWithChildren = TransactionsIdRoute._addFileChildren(
+  TransactionsIdRouteChildren,
+)
+
 interface TransactionsRouteChildren {
-  TransactionsIdRoute: typeof TransactionsIdRoute
+  TransactionsIdRoute: typeof TransactionsIdRouteWithChildren
   TransactionsNewRoute: typeof TransactionsNewRoute
   TransactionsIndexRoute: typeof TransactionsIndexRoute
 }
 
 const TransactionsRouteChildren: TransactionsRouteChildren = {
-  TransactionsIdRoute: TransactionsIdRoute,
+  TransactionsIdRoute: TransactionsIdRouteWithChildren,
   TransactionsNewRoute: TransactionsNewRoute,
   TransactionsIndexRoute: TransactionsIndexRoute,
 }

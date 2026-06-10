@@ -2,7 +2,6 @@ import { StatusText } from '@/components/transactions/StatusText';
 import { TRANSACTIONS_GRID_COLS } from '@/components/transactions/TransactionsTable';
 import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { cn } from '@/lib/cn';
-import { formatCents } from '@/lib/format';
 import { displayAccount, displayAmount, displayOffsetAccount } from '@/lib/transactionDisplay';
 import type { TransactionsSearch } from '@/lib/transactions-search-params';
 import type { TransactionDetail } from '@/lib/types';
@@ -21,10 +20,17 @@ function fmtDate(unix: number): string {
   return `${y}-${m}-${day}`;
 }
 
+function formatDollars(cents: number): string {
+  return `$${(cents / 100).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 export function TransactionRow({ tx, search }: Props) {
   const acc = displayAccount(tx.splits, tx.type);
   const offset = displayOffsetAccount(tx.splits, tx.type, acc);
-  const { amount, currency } = displayAmount(tx.splits, tx.type);
+  const { amount } = displayAmount(tx.splits, tx.type);
   // Color reflects sign, but the rendered amount is always positive (the
   // negative sign is implied by the red color, per the design call).
   const signClass = amount < 0 ? 'text-red-600' : amount > 0 ? 'text-green-600' : '';
@@ -48,9 +54,7 @@ export function TransactionRow({ tx, search }: Props) {
       <span className="truncate text-center text-muted-foreground" title={`${acc} → ${offset}`}>
         {acc} → {offset}
       </span>
-      <span className={cn('text-center tabular-nums', signClass)}>
-        {formatCents(absAmount, currency)}
-      </span>
+      <span className={cn('text-right tabular-nums', signClass)}>{formatDollars(absAmount)}</span>
       <span className="text-right">
         <StatusText status={tx.status} />
       </span>

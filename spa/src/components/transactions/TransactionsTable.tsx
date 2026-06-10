@@ -10,9 +10,11 @@ interface Props {
 // Fixed column widths (in px). Account → Offset is the widest because real
 // account paths are long ("Assets:Bank:Checking → Expenses:Coffee"); the
 // description column is narrower and ellipsis-truncates when it overflows.
-// Total: 110 + 100 + 200 + 340 + 130 + 110 = 990px. The wrapper scrolls
-// horizontally on narrower viewports so the layout stays predictable.
-export const TRANSACTIONS_GRID_COLS = '110px 100px 200px 340px 130px 110px';
+// Status is sized to fit "Reconciled" (the longest status) without leaving
+// dead space on the right. Total: 110 + 100 + 200 + 340 + 120 + 90 = 960px.
+// The wrapper scrolls horizontally on narrower viewports so the layout
+// stays predictable.
+export const TRANSACTIONS_GRID_COLS = '110px 100px 200px 340px 120px 90px';
 
 export function TransactionsTable({ items, search }: Props) {
   return (
@@ -25,7 +27,7 @@ export function TransactionsTable({ items, search }: Props) {
         <span className="text-center">Type</span>
         <span className="text-center">Description</span>
         <span className="text-center">Account → Offset</span>
-        <span className="text-center">Amount</span>
+        <span className="text-right">Amount</span>
         <span className="text-right">Status</span>
       </div>
       {items.map((tx) => (

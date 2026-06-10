@@ -1,6 +1,6 @@
-import { describe, expect, test } from 'vitest';
 import { determineType } from '@/lib/determineType';
 import type { SplitDetail } from '@/lib/types';
+import { describe, expect, test } from 'vitest';
 
 const sp = (
   account_name: string,
@@ -23,15 +23,15 @@ describe('determineType', () => {
   });
 
   test('Expense: E + A', () => {
-    expect(
-      determineType([sp('Expenses:Food', 'E', 500), sp('Assets:Bank', 'A', -500)]),
-    ).toBe('Expense');
+    expect(determineType([sp('Expenses:Food', 'E', 500), sp('Assets:Bank', 'A', -500)])).toBe(
+      'Expense',
+    );
   });
 
   test('Income: R + A (positive total revenue dominates)', () => {
-    expect(
-      determineType([sp('Revenue:Salary', 'R', -3000), sp('Assets:Bank', 'A', 3000)]),
-    ).toBe('Income');
+    expect(determineType([sp('Revenue:Salary', 'R', -3000), sp('Assets:Bank', 'A', 3000)])).toBe(
+      'Income',
+    );
   });
 
   test('Transfer: A + A', () => {
@@ -41,9 +41,9 @@ describe('determineType', () => {
   });
 
   test('Transfer: A + L', () => {
-    expect(
-      determineType([sp('Assets:Bank', 'A', 1000), sp('Liabilities:Card', 'L', -1000)]),
-    ).toBe('Transfer');
+    expect(determineType([sp('Assets:Bank', 'A', 1000), sp('Liabilities:Card', 'L', -1000)])).toBe(
+      'Transfer',
+    );
   });
 
   test('Income + Expense where revenue > expense → Income', () => {
@@ -77,21 +77,21 @@ describe('determineType', () => {
   });
 
   test('Expense with single Asset → Expense', () => {
-    expect(
-      determineType([sp('Assets:Cash', 'A', -50), sp('Expenses:Food', 'E', 50)]),
-    ).toBe('Expense');
+    expect(determineType([sp('Assets:Cash', 'A', -50), sp('Expenses:Food', 'E', 50)])).toBe(
+      'Expense',
+    );
   });
 
   test('Equity + asset increase → Deposit', () => {
-    expect(
-      determineType([sp('Equity:Retained', 'C', -100), sp('Assets:Bank', 'A', 100)]),
-    ).toBe('Deposit');
+    expect(determineType([sp('Equity:Retained', 'C', -100), sp('Assets:Bank', 'A', 100)])).toBe(
+      'Deposit',
+    );
   });
 
   test('Equity + asset decrease → Withdrawal', () => {
-    expect(
-      determineType([sp('Equity:Retained', 'C', 100), sp('Assets:Bank', 'A', -100)]),
-    ).toBe('Withdrawal');
+    expect(determineType([sp('Equity:Retained', 'C', 100), sp('Assets:Bank', 'A', -100)])).toBe(
+      'Withdrawal',
+    );
   });
 
   test('Opening memo override → Opening', () => {

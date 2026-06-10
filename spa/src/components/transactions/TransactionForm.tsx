@@ -1,5 +1,5 @@
 import { SimpleFields } from '@/components/transactions/SimpleFields';
-import { SplitsEditor } from '@/components/transactions/SplitsEditor';
+import { SplitsEditor, newSplitRow } from '@/components/transactions/SplitsEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { useState } from 'react';
 
 interface SplitRow {
   id?: number;
+  clientKey: string;
   account_name: string;
   amountStr: string;
   currency: string;
@@ -58,13 +59,15 @@ function initialFromDetail(tx: TransactionDetail): FormState {
     fromAccount: '',
     toAccount: '',
     amount: '',
-    splits: tx.splits.map((s) => ({
-      id: s.id,
-      account_name: s.account_name,
-      amountStr: (s.amount / 100).toString(),
-      currency: s.currency,
-      memo: s.memo,
-    })),
+    splits: tx.splits.map((s) =>
+      newSplitRow({
+        id: s.id,
+        account_name: s.account_name,
+        amountStr: (s.amount / 100).toString(),
+        currency: s.currency,
+        memo: s.memo,
+      }),
+    ),
   };
 }
 
@@ -76,10 +79,7 @@ function initialEmpty(): FormState {
     fromAccount: '',
     toAccount: '',
     amount: '',
-    splits: [
-      { account_name: '', amountStr: '', currency: 'USD', memo: '' },
-      { account_name: '', amountStr: '', currency: 'USD', memo: '' },
-    ],
+    splits: [newSplitRow(), newSplitRow()],
   };
 }
 
@@ -155,9 +155,7 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           setSubmitting(false);
           return;
         }
-        const fromAcc = accountsQuery.data?.items.find(
-          (a) => a.name === state.fromAccount,
-        );
+        const fromAcc = accountsQuery.data?.items.find((a) => a.name === state.fromAccount);
         const currency = fromAcc?.currency ?? 'USD';
         splits = [
           { account_name: state.fromAccount.trim(), amount: -amt, currency },
@@ -165,20 +163,28 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
         ];
       }
 
-      const payload = isEdit
-        ? ({
-            id: initial!.id,
-            description: state.description,
-            timestamp,
-            status: state.status,
-            splits,
-          } satisfies UpdateTransactionInput)
-        : ({
-            description: state.description,
-            timestamp,
-            status: state.status,
-            splits,
-          } satisfies CreateTransactionInput);
+      let payload: CreateTransactionInput | UpdateTransactionInput;
+      if (isEdit) {
+        if (!initial) {
+          setTopError('Edit mode requires the initial transaction.');
+          setSubmitting(false);
+          return;
+        }
+        payload = {
+          id: initial.id,
+          description: state.description,
+          timestamp,
+          status: state.status,
+          splits,
+        } satisfies UpdateTransactionInput;
+      } else {
+        payload = {
+          description: state.description,
+          timestamp,
+          status: state.status,
+          splits,
+        } satisfies CreateTransactionInput;
+      }
 
       const result = await onSubmit(payload);
       onSuccess(result);
@@ -208,9 +214,7 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">
-          {isEdit ? 'Edit transaction' : 'New transaction'}
-        </h1>
+        <h1 className="text-xl font-semibold">{isEdit ? 'Edit transaction' : 'New transaction'}</h1>
         {!isEdit && (
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input

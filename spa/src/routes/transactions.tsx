@@ -1,7 +1,4 @@
-import {
-  parseTransactionsSearch,
-  type TransactionsSearch,
-} from '@/lib/transactions-search-params';
+import { type TransactionsSearch, parseTransactionsSearch } from '@/lib/transactions-search-params';
 import { Outlet, createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/transactions')({

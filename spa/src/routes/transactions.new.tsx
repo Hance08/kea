@@ -15,14 +15,18 @@ function NewTransactionPage() {
     <TransactionForm
       mode="create"
       onSubmit={async (payload) => {
-        const created = await createTransaction(
-          payload as Parameters<typeof createTransaction>[0],
-        );
+        const created = await createTransaction(payload as Parameters<typeof createTransaction>[0]);
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
         queryClient.invalidateQueries({ queryKey: ['balances'] });
         return created;
       }}
-      onSuccess={(tx) => navigate({ to: '/transactions/$id', params: { id: String(tx.id) }, search: { limit: 50, offset: 0 } })}
+      onSuccess={(tx) =>
+        navigate({
+          to: '/transactions/$id',
+          params: { id: String(tx.id) },
+          search: { limit: 50, offset: 0 },
+        })
+      }
       onCancel={() => navigate({ to: '/transactions', search: { limit: 50, offset: 0 } })}
     />
   );

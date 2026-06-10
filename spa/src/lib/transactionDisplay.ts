@@ -35,8 +35,7 @@ export function displayOffsetAccount(
   if (splits.length === 0) return '-';
 
   const seen = new Set<string>();
-  const primaryType =
-    type === 'Expense' ? 'E' : type === 'Income' ? 'R' : null;
+  const primaryType = type === 'Expense' ? 'E' : type === 'Income' ? 'R' : null;
 
   if (primaryType !== null) {
     for (const s of splits) {

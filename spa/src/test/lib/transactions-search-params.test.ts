@@ -1,10 +1,10 @@
-import { describe, expect, test } from 'vitest';
 import {
   parseTransactionsSearch,
   searchToFilter,
   searchToListOptions,
   transactionsSearchSchema,
 } from '@/lib/transactions-search-params';
+import { describe, expect, test } from 'vitest';
 
 describe('transactionsSearchSchema', () => {
   test('all empty → defaults to limit=50 offset=0', () => {

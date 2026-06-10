@@ -11,10 +11,24 @@ import { useMemo } from 'react';
 
 interface SplitRow {
   id?: number;
+  // Stable per-row identifier for React's reconciliation. Distinct from `id`
+  // which is the server-assigned split id (undefined for unsaved rows).
+  clientKey: string;
   account_name: string;
   amountStr: string;
   currency: string;
   memo?: string;
+}
+
+export function newSplitRow(initial?: Partial<SplitRow>): SplitRow {
+  return {
+    clientKey: crypto.randomUUID(),
+    account_name: '',
+    amountStr: '',
+    currency: 'USD',
+    memo: '',
+    ...initial,
+  };
 }
 
 interface Props {
@@ -76,7 +90,7 @@ export function SplitsEditor({ splits, onChange, splitsError }: Props) {
   };
 
   const addRow = () => {
-    onChange([...splits, { account_name: '', amountStr: '', currency: 'USD', memo: '' }]);
+    onChange([...splits, newSplitRow()]);
   };
 
   const removeRow = (i: number) => {
@@ -111,7 +125,7 @@ export function SplitsEditor({ splits, onChange, splitsError }: Props) {
         </div>
         {splits.map((s, i) => (
           <div
-            key={i}
+            key={s.clientKey}
             className="grid grid-cols-[2fr_1fr_1fr_120px_30px] items-center gap-2 border-t px-3 py-2 text-sm"
           >
             <AccountCombobox

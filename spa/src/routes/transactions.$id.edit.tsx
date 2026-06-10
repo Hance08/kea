@@ -57,9 +57,7 @@ function EditTransactionPage() {
       mode="edit"
       initial={tx}
       onSubmit={async (payload) => {
-        const updated = await updateTransaction(
-          payload as Parameters<typeof updateTransaction>[0],
-        );
+        const updated = await updateTransaction(payload as Parameters<typeof updateTransaction>[0]);
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
         queryClient.invalidateQueries({ queryKey: ['transaction', txId] });
         queryClient.invalidateQueries({ queryKey: ['balances'] });

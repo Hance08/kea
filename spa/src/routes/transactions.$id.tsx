@@ -142,19 +142,13 @@ function TransactionDetailPage() {
               >
                 Yes, delete
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setConfirmingDelete(false)}
-              >
+              <Button size="sm" variant="outline" onClick={() => setConfirmingDelete(false)}>
                 Cancel
               </Button>
             </div>
             {deleteMut.isError && (
               <div className="text-sm">
-                {deleteMut.error instanceof Error
-                  ? deleteMut.error.message
-                  : 'Delete failed'}
+                {deleteMut.error instanceof Error ? deleteMut.error.message : 'Delete failed'}
               </div>
             )}
           </AlertDescription>

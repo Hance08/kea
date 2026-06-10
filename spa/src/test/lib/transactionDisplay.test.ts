@@ -1,10 +1,6 @@
-import { describe, expect, test } from 'vitest';
-import {
-  displayAccount,
-  displayAmount,
-  displayOffsetAccount,
-} from '@/lib/transactionDisplay';
+import { displayAccount, displayAmount, displayOffsetAccount } from '@/lib/transactionDisplay';
 import type { SplitDetail } from '@/lib/types';
+import { describe, expect, test } from 'vitest';
 
 const sp = (
   account_name: string,
@@ -37,10 +33,7 @@ describe('displayAccount', () => {
   });
 
   test('Opening → returns the non-equity account', () => {
-    const splits = [
-      sp('Equity:OpeningBalances_USD', 'C', -1000),
-      sp('Assets:Bank', 'A', 1000),
-    ];
+    const splits = [sp('Equity:OpeningBalances_USD', 'C', -1000), sp('Assets:Bank', 'A', 1000)];
     expect(displayAccount(splits, 'Opening')).toBe('Assets:Bank');
   });
 
@@ -92,11 +85,7 @@ describe('displayOffsetAccount', () => {
 
   test('Transfer with multiple non-primary accounts → returns "(multiple)"', () => {
     // Default branch: excludes only by name. Three distinct names → (multiple) after excluding one.
-    const splits = [
-      sp('Assets:A', 'A', 100),
-      sp('Assets:B', 'A', -60),
-      sp('Assets:C', 'A', -40),
-    ];
+    const splits = [sp('Assets:A', 'A', 100), sp('Assets:B', 'A', -60), sp('Assets:C', 'A', -40)];
     expect(displayOffsetAccount(splits, 'Transfer', 'Assets:A')).toBe('(multiple)');
   });
 

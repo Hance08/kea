@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState } from 'react';
 
 interface Props {
-  value: string;             // account name (canonical identifier in API inputs)
+  value: string; // account name (canonical identifier in API inputs)
   onChange: (name: string, account?: Account) => void;
   placeholder?: string;
   allowedTypes?: Account['type'][];
@@ -57,9 +57,7 @@ export function AccountCombobox({
   });
 
   const allItems = search.data?.items ?? [];
-  const items = allowedTypes
-    ? allItems.filter((a) => allowedTypes.includes(a.type))
-    : allItems;
+  const items = allowedTypes ? allItems.filter((a) => allowedTypes.includes(a.type)) : allItems;
 
   return (
     <div ref={containerRef} className="relative">
@@ -77,17 +75,14 @@ export function AccountCombobox({
         {...aria}
       />
       {enabled && items.length > 0 && (
-        <ul
-          role="listbox"
-          className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover shadow-md"
-        >
+        <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover shadow-md">
           {items.map((acc) => (
-            <li
+            <button
+              type="button"
               key={acc.id}
-              role="option"
-              aria-selected={acc.name === value}
+              aria-pressed={acc.name === value}
               className={cn(
-                'cursor-pointer px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground',
+                'block w-full cursor-pointer px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground',
                 acc.name === value && 'bg-accent text-accent-foreground',
               )}
               onMouseDown={(e) => {
@@ -101,9 +96,9 @@ export function AccountCombobox({
               <div className="text-xs text-muted-foreground">
                 {acc.type} · {acc.currency}
               </div>
-            </li>
+            </button>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

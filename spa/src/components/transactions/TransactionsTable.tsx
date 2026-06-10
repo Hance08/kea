@@ -1,6 +1,6 @@
 import { TransactionRow } from '@/components/transactions/TransactionRow';
-import type { TransactionDetail } from '@/lib/types';
 import type { TransactionsSearch } from '@/lib/transactions-search-params';
+import type { TransactionDetail } from '@/lib/types';
 
 interface Props {
   items: TransactionDetail[];

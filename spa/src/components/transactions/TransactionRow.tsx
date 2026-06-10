@@ -3,8 +3,8 @@ import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { cn } from '@/lib/cn';
 import { formatCents } from '@/lib/format';
 import { displayAccount, displayAmount, displayOffsetAccount } from '@/lib/transactionDisplay';
-import type { TransactionDetail } from '@/lib/types';
 import type { TransactionsSearch } from '@/lib/transactions-search-params';
+import type { TransactionDetail } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
 interface Props {

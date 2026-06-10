@@ -4,12 +4,12 @@ import { TransactionsTable } from '@/components/transactions/TransactionsTable';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { listTransactions } from '@/lib/transactions';
 import {
+  type TransactionsSearch,
   searchToFilter,
   searchToListOptions,
-  type TransactionsSearch,
 } from '@/lib/transactions-search-params';
-import { listTransactions } from '@/lib/transactions';
 import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
@@ -66,9 +66,7 @@ function TransactionsListPage() {
         <Alert variant="destructive">
           <AlertTitle>Failed to load transactions</AlertTitle>
           <AlertDescription className="mt-2 space-y-3">
-            <div>
-              {query.error instanceof Error ? query.error.message : 'Unknown error'}
-            </div>
+            <div>{query.error instanceof Error ? query.error.message : 'Unknown error'}</div>
             <Button onClick={() => query.refetch()} size="sm">
               Retry
             </Button>

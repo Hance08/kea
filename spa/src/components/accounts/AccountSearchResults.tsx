@@ -52,21 +52,21 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
               const bal = balanceById.get(acc.id);
               return (
                 <tr key={acc.id} className="border-t hover:bg-muted/40">
-                  <td className="px-3 py-1.5">
+                  <td className="px-3 py-2">
                     <Link
                       to="/accounts/$id"
                       params={{ id: String(acc.id) }}
-                      search={{ include_hidden: false, show_parents: false }}
+                      search={{ include_hidden: false, show_parents: false, limit: 10, offset: 0 }}
                       className="block truncate hover:underline"
                     >
                       {acc.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-1.5 text-center">
+                  <td className="px-3 py-2 text-center">
                     <AccountTypeBadge type={acc.type} />
                   </td>
-                  <td className="px-3 py-1.5 text-center">{acc.currency}</td>
-                  <td className="px-3 py-1.5 text-right tabular-nums">
+                  <td className="px-3 py-2 text-center">{acc.currency}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
                     {bal ? (
                       <span
                         className={cn(

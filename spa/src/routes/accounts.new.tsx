@@ -26,7 +26,7 @@ function NewAccountPage() {
       navigate({
         to: '/accounts/$id',
         params: { id: String(acc.id) },
-        search: { include_hidden: false, show_parents: false },
+        search: { include_hidden: false, show_parents: false, limit: 10, offset: 0 },
       });
     },
     onError: (err: unknown) => {

@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 
 describe('parseAccountsSearch', () => {
   it('returns defaults when nothing is set', () => {
-    expect(parseAccountsSearch({})).toEqual({ include_hidden: false, show_parents: false });
+    expect(parseAccountsSearch({})).toEqual({
+      include_hidden: false,
+      show_parents: false,
+      limit: 10,
+      offset: 0,
+    });
   });
 
   it('coerces include_hidden from string', () => {
@@ -23,6 +28,17 @@ describe('parseAccountsSearch', () => {
       type: 'A',
       include_hidden: false,
       show_parents: false,
+      limit: 10,
+      offset: 0,
+    });
+  });
+
+  it('parses limit and offset from query strings', () => {
+    expect(parseAccountsSearch({ limit: '25', offset: '50' })).toEqual({
+      include_hidden: false,
+      show_parents: false,
+      limit: 25,
+      offset: 50,
     });
   });
 

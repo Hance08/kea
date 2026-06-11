@@ -1,5 +1,6 @@
 import { AccountFilters } from '@/components/accounts/AccountFilters';
 import { AccountSearchResults } from '@/components/accounts/AccountSearchResults';
+import { Pagination } from '@/components/transactions/Pagination';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,11 +20,18 @@ function AccountsListPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/accounts' });
 
+  // Filter changes reset offset to 0 — without this, narrowing a result
+  // set could land the user on a page that no longer exists.
   const setSearch = (partial: Partial<AccountsSearch>) => {
-    navigate({ search: (prev) => ({ ...prev, ...partial }) });
+    navigate({ search: (prev) => ({ ...prev, ...partial, offset: 0 }) });
   };
   const clear = () => {
-    navigate({ search: { include_hidden: false, show_parents: false } });
+    navigate({
+      search: { include_hidden: false, show_parents: false, limit: search.limit, offset: 0 },
+    });
+  };
+  const setOffset = (offset: number) => {
+    navigate({ search: (prev) => ({ ...prev, offset }) });
   };
 
   const balancesQuery = useQuery({
@@ -64,12 +72,22 @@ function AccountsListPage() {
     return items.filter((acc) => !parentIds.has(acc.id));
   }, [accountsQuery.data, parentIds, search.show_parents]);
 
+  // Paginate client-side. The leaf-vs-parent filter happens above, so the
+  // total count and slice both apply to the post-filter list.
+  const pagedItems = useMemo(
+    () => filteredItems.slice(search.offset, search.offset + search.limit),
+    [filteredItems, search.offset, search.limit],
+  );
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Accounts</h1>
         <Button asChild size="sm">
-          <Link to="/accounts/new" search={{ include_hidden: false, show_parents: false }}>
+          <Link
+            to="/accounts/new"
+            search={{ include_hidden: false, show_parents: false, limit: 10, offset: 0 }}
+          >
             + New account
           </Link>
         </Button>
@@ -108,11 +126,19 @@ function AccountsListPage() {
       )}
 
       {accountsQuery.isSuccess && filteredItems.length > 0 && (
-        <AccountSearchResults
-          accounts={filteredItems}
-          balances={balancesQuery.data?.items}
-          totalCount={accountsQuery.data.total_count}
-        />
+        <>
+          <AccountSearchResults
+            accounts={pagedItems}
+            balances={balancesQuery.data?.items}
+            totalCount={filteredItems.length}
+          />
+          <Pagination
+            total={filteredItems.length}
+            limit={search.limit}
+            offset={search.offset}
+            onChange={setOffset}
+          />
+        </>
       )}
     </div>
   );

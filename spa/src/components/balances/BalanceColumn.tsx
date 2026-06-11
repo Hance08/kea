@@ -66,6 +66,16 @@ export function BalanceColumn({
             {rows.map((row) => (
               <BalanceColumnRow key={row.account_id} row={row} />
             ))}
+            {Array.from({ length: BALANCE_COLUMN_PAGE_SIZE - rows.length }).map((_, i) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have no identity
+                key={`placeholder-${i}`}
+                aria-hidden="true"
+                className="px-3 py-2 text-sm"
+              >
+                &nbsp;
+              </div>
+            ))}
           </div>
           <div className="px-3 pb-3">
             <Pagination

@@ -14,9 +14,11 @@ function formatBalance(cents: number): string {
 interface Props {
   accounts: Account[];
   balances?: AccountBalance[];
+  sortDir?: 'asc' | 'desc';
+  onToggleSort?: () => void;
 }
 
-export function AccountSearchResults({ accounts, balances }: Props) {
+export function AccountSearchResults({ accounts, balances, sortDir, onToggleSort }: Props) {
   const balanceById = new Map<number, { amount: number; currency: string }>();
   if (balances) {
     for (const b of balances) {
@@ -38,7 +40,20 @@ export function AccountSearchResults({ accounts, balances }: Props) {
               <th className="px-3 py-2 text-left">Name</th>
               <th className="px-3 py-2 text-center">Type</th>
               <th className="px-3 py-2 text-center">Currency</th>
-              <th className="px-3 py-2 text-right">Balance</th>
+              <th className="px-3 py-2 text-right">
+                {onToggleSort ? (
+                  <button
+                    type="button"
+                    onClick={onToggleSort}
+                    className="inline-flex items-center gap-1 uppercase hover:text-foreground"
+                  >
+                    Balance
+                    <span aria-hidden="true">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                  </button>
+                ) : (
+                  'Balance'
+                )}
+              </th>
             </tr>
           </thead>
           <tbody>

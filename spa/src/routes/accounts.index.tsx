@@ -72,12 +72,47 @@ function AccountsListPage() {
     return items.filter((acc) => !parentIds.has(acc.id));
   }, [accountsQuery.data, parentIds, search.show_parents]);
 
+  // Sort by balance — accounts with no balance entry (still loading, or
+  // never had any transactions) sort to the end in either direction so
+  // they don't crowd out the meaningful rows on the first page.
+  const balanceById = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const b of balancesQuery.data?.items ?? []) m.set(b.account_id, b.amount);
+    return m;
+  }, [balancesQuery.data]);
+
+  const sortDir: 'asc' | 'desc' = search.sort === 'balance_asc' ? 'asc' : 'desc';
+
+  const sortedItems = useMemo(() => {
+    const items = [...filteredItems];
+    items.sort((a, b) => {
+      const av = balanceById.get(a.id);
+      const bv = balanceById.get(b.id);
+      // Missing balances sort to the end regardless of direction.
+      if (av === undefined && bv === undefined) return 0;
+      if (av === undefined) return 1;
+      if (bv === undefined) return -1;
+      return sortDir === 'asc' ? av - bv : bv - av;
+    });
+    return items;
+  }, [filteredItems, balanceById, sortDir]);
+
   // Paginate client-side. The leaf-vs-parent filter happens above, so the
   // total count and slice both apply to the post-filter list.
   const pagedItems = useMemo(
-    () => filteredItems.slice(search.offset, search.offset + search.limit),
-    [filteredItems, search.offset, search.limit],
+    () => sortedItems.slice(search.offset, search.offset + search.limit),
+    [sortedItems, search.offset, search.limit],
   );
+
+  const toggleSort = () => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        sort: sortDir === 'desc' ? 'balance_asc' : 'balance_desc',
+        offset: 0,
+      }),
+    });
+  };
 
   return (
     <div>
@@ -127,7 +162,12 @@ function AccountsListPage() {
 
       {accountsQuery.isSuccess && filteredItems.length > 0 && (
         <>
-          <AccountSearchResults accounts={pagedItems} balances={balancesQuery.data?.items} />
+          <AccountSearchResults
+            accounts={pagedItems}
+            balances={balancesQuery.data?.items}
+            sortDir={sortDir}
+            onToggleSort={toggleSort}
+          />
           <Pagination
             total={filteredItems.length}
             limit={search.limit}

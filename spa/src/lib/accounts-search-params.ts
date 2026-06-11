@@ -11,6 +11,10 @@ export const accountsSearchSchema = z.object({
     .default(false),
   limit: z.coerce.number().int().positive().default(10),
   offset: z.coerce.number().int().nonnegative().default(0),
+  // Sort is intentionally optional rather than `.default()` so the rest of
+  // the codebase doesn't have to thread it through every `<Link search>`.
+  // Consumers fall back to 'balance_desc' when undefined.
+  sort: z.enum(['balance_desc', 'balance_asc']).optional(),
 });
 
 export type AccountsSearch = z.infer<typeof accountsSearchSchema>;

@@ -3,9 +3,9 @@ import { SplitsEditor, newSplitRow } from '@/components/transactions/SplitsEdito
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { listAccounts } from '@/lib/accounts';
 import { ApiError } from '@/lib/api';
 import { determineType } from '@/lib/determineType';
-import { listAccounts } from '@/lib/transactions';
 import type {
   Account,
   CreateTransactionInput,
@@ -109,7 +109,7 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
 
   const accountsQuery = useQuery({
     queryKey: ['accounts', 'list'],
-    queryFn: listAccounts,
+    queryFn: () => listAccounts(),
     staleTime: 60_000,
   });
 

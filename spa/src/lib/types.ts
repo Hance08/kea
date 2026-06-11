@@ -107,3 +107,29 @@ export interface Account {
   description: string;
   is_hidden: boolean;
 }
+
+export interface AccountNode {
+  account: Account;
+  children: AccountNode[];
+}
+
+export interface CreateAccountInput {
+  name: string;
+  type: AccountType;
+  parent_id?: number;
+  currency: string;
+  description?: string;
+  balance?: number; // optional opening balance, in cents
+}
+
+export interface UpdateAccountInput {
+  name?: string;
+  description?: string;
+  is_hidden?: boolean;
+}
+
+export interface BalanceResponse {
+  account_id: number;
+  amount: number;
+  currency: string;
+}

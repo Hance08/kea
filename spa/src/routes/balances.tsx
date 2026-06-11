@@ -128,8 +128,6 @@ function BalancesPage() {
     <div>
       <NetWorthCard
         netWorth={summary.netWorth}
-        assetsTotal={summary.assetsTotal}
-        liabilitiesTotal={summary.liabilitiesTotal}
         currency={DEFAULT_CURRENCY}
         excludedCount={summary.excludedByCurrency.length}
       />

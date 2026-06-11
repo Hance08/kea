@@ -1,8 +1,15 @@
 import { AccountTypeBadge } from '@/components/accounts/AccountTypeBadge';
 import { cn } from '@/lib/cn';
-import { formatCents } from '@/lib/format';
 import type { Account, AccountBalance } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
+
+// Balance column shows just `$X,XXX.XX` (no currency code — that's in
+// its own column) and conveys sign via color: negative red, positive
+// green, zero unstyled. The `-` prefix is dropped from negatives.
+function formatBalance(cents: number): string {
+  const abs = Math.abs(cents / 100);
+  return `$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 interface Props {
   accounts: Account[];
@@ -61,8 +68,12 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
                   <td className="px-3 py-1.5 text-center">{acc.currency}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">
                     {bal ? (
-                      <span className={cn(bal.amount < 0 && 'text-destructive')}>
-                        {formatCents(bal.amount, bal.currency)}
+                      <span
+                        className={cn(
+                          bal.amount < 0 ? 'text-red-600' : bal.amount > 0 ? 'text-green-600' : '',
+                        )}
+                      >
+                        {formatBalance(bal.amount)}
                       </span>
                     ) : (
                       '—'

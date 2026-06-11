@@ -48,7 +48,7 @@ export function AccountFilters({ search, onChange, onClear }: Props) {
         onChange={(e) =>
           onChange({ type: (e.target.value || undefined) as AccountsSearch['type'] })
         }
-        className="rounded-md border bg-background px-2 py-1.5 text-sm"
+        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
       >
         {TYPE_OPTIONS.map((opt) => (
           <option key={opt.label} value={opt.value ?? ''}>

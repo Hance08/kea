@@ -1,20 +1,20 @@
-import { AccountCombobox } from '@/components/transactions/AccountCombobox';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import type { TransactionsSearch } from '@/lib/transactions-search-params';
-import type { TransactionStatus, TransactionType } from '@/lib/types';
+import { AccountCombobox } from "@/components/transactions/AccountCombobox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { TransactionsSearch } from "@/lib/transactions-search-params";
+import type { TransactionStatus, TransactionType } from "@/lib/types";
 
 const TYPES: TransactionType[] = [
-  'Expense',
-  'Income',
-  'Transfer',
-  'Opening',
-  'Deposit',
-  'Withdrawal',
-  'Other',
+  "Expense",
+  "Income",
+  "Transfer",
+  "Opening",
+  "Deposit",
+  "Withdrawal",
+  "Other",
 ];
-const STATUSES: TransactionStatus[] = ['Pending', 'Cleared', 'Reconciled'];
+const STATUSES: TransactionStatus[] = ["Pending", "Cleared", "Reconciled"];
 
 interface Props {
   search: TransactionsSearch;
@@ -23,13 +23,13 @@ interface Props {
 }
 
 function unixToDate(u?: number): string {
-  if (!u) return '';
+  if (!u) return "";
   return new Date(u * 1000).toISOString().slice(0, 10);
 }
 
 function dateToUnix(d: string, endOfDay: boolean): number | undefined {
   if (!d) return undefined;
-  const ms = new Date(`${d}T${endOfDay ? '23:59:59' : '00:00:00'}Z`).getTime();
+  const ms = new Date(`${d}T${endOfDay ? "23:59:59" : "00:00:00"}Z`).getTime();
   return Number.isNaN(ms) ? undefined : Math.floor(ms / 1000);
 }
 
@@ -40,7 +40,7 @@ export function FilterBar({ search, onChange, onClear }: Props) {
     search.status !== undefined ||
     search.start_time !== undefined ||
     search.end_time !== undefined ||
-    (search.description !== undefined && search.description !== '');
+    (search.description !== undefined && search.description !== "");
 
   return (
     // Use 6 columns only at xl (>=1280px) where the inputs comfortably
@@ -62,9 +62,13 @@ export function FilterBar({ search, onChange, onClear }: Props) {
         <select
           id="f-type"
           className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
-          value={search.type ?? ''}
+          value={search.type ?? ""}
           onChange={(e) =>
-            onChange({ type: (e.target.value || undefined) as TransactionType | undefined })
+            onChange({
+              type: (e.target.value || undefined) as
+                | TransactionType
+                | undefined,
+            })
           }
         >
           <option value="">Any</option>
@@ -81,10 +85,12 @@ export function FilterBar({ search, onChange, onClear }: Props) {
         <select
           id="f-status"
           className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
-          value={search.status ?? ''}
+          value={search.status ?? ""}
           onChange={(e) =>
             onChange({
-              status: (e.target.value || undefined) as TransactionStatus | undefined,
+              status: (e.target.value || undefined) as
+                | TransactionStatus
+                | undefined,
             })
           }
         >
@@ -103,7 +109,9 @@ export function FilterBar({ search, onChange, onClear }: Props) {
           id="f-from"
           type="date"
           value={unixToDate(search.start_time)}
-          onChange={(e) => onChange({ start_time: dateToUnix(e.target.value, false) })}
+          onChange={(e) =>
+            onChange({ start_time: dateToUnix(e.target.value, false) })
+          }
         />
       </div>
 
@@ -113,18 +121,21 @@ export function FilterBar({ search, onChange, onClear }: Props) {
           id="f-to"
           type="date"
           value={unixToDate(search.end_time)}
-          onChange={(e) => onChange({ end_time: dateToUnix(e.target.value, true) })}
+          onChange={(e) =>
+            onChange({ end_time: dateToUnix(e.target.value, true) })
+          }
         />
       </div>
 
       <div className="xl:col-span-4">
-        <Label htmlFor="f-desc">Description contains</Label>
         <Input
           id="f-desc"
           type="text"
-          value={search.description ?? ''}
+          value={search.description ?? ""}
           onChange={(e) =>
-            onChange({ description: e.target.value === '' ? undefined : e.target.value })
+            onChange({
+              description: e.target.value === "" ? undefined : e.target.value,
+            })
           }
           placeholder="Search description…"
         />

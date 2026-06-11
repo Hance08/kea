@@ -95,8 +95,10 @@ function CreateForm(props: CreateProps) {
             setParentAcc(acc);
           }}
         />
-        {props.fieldErrors?.parent_id && (
-          <p className="text-xs text-destructive">{props.fieldErrors.parent_id}</p>
+        {(props.fieldErrors?.parent_id ?? props.fieldErrors?.parent) && (
+          <p className="text-xs text-destructive">
+            {props.fieldErrors.parent_id ?? props.fieldErrors.parent}
+          </p>
         )}
       </div>
 

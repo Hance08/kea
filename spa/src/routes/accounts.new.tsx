@@ -31,12 +31,11 @@ function NewAccountPage() {
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError) {
-        if (err.field) {
-          setFieldErrors({ [err.field]: err.message });
-          setFormError(undefined);
-        } else {
-          setFormError(err.message);
-        }
+        // Always set the form-level alert so the user always sees the
+        // message, even if the `field` name doesn't have a matching
+        // inline error slot in the form.
+        setFormError(err.message);
+        setFieldErrors(err.field ? { [err.field]: err.message } : {});
         return;
       }
       setFormError(err instanceof Error ? err.message : 'Create failed');

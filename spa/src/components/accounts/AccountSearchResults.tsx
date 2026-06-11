@@ -25,7 +25,13 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
         </div>
       )}
       <div className="overflow-hidden rounded-md border bg-card">
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col />
+            <col className="w-28" />
+            <col className="w-24" />
+            <col className="w-32" />
+          </colgroup>
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Name</th>
@@ -44,7 +50,7 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
                       to="/accounts/$id"
                       params={{ id: String(acc.id) }}
                       search={{ include_hidden: false, show_parents: false }}
-                      className="hover:underline"
+                      className="block truncate hover:underline"
                     >
                       {acc.name}
                     </Link>

@@ -134,7 +134,7 @@ function BalancesPage() {
         excludedCount={summary.excludedByCurrency.length}
       />
 
-      <div className="mt-6 grid grid-cols-2 items-start gap-4">
+      <div className="grid grid-cols-2 items-start gap-4">
         <BalanceColumn
           label="Assets"
           total={summary.assetsTotal}

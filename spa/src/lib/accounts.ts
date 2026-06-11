@@ -97,6 +97,30 @@ export function isOpeningBalancesAccount(name: string): boolean {
   return /^Equity:OpeningBalances_[A-Z]{3}$/.test(name);
 }
 
+// Returns the balance in the account's "natural direction" — what the
+// user means by "the size of this account" regardless of the stored sign
+// convention. Used for sorting so descending = biggest of this thing.
+//
+// Liability and Revenue are stored negative when they grow (more debt /
+// more income earned), so we negate them to get a positive scale that
+// sort_desc can rank intuitively against Asset / Expense / Equity.
+export function naturalAmount(type: AccountType, stored: number): number {
+  return type === 'L' || type === 'R' ? -stored : stored;
+}
+
+// Colors a balance amount per accounting display convention:
+//   Asset / Liability / Equity → positive green, negative red (raw sign).
+//   Revenue / Expense          → inverted: positive red (refunds for Rev,
+//                                spending for Exp), negative green
+//                                (income for Rev, expense refunds for Exp).
+// Returns a Tailwind class string ('' for zero).
+export function balanceColor(type: AccountType, amount: number): string {
+  const inverted = type === 'R' || type === 'E';
+  if (amount > 0) return inverted ? 'text-red-600' : 'text-green-600';
+  if (amount < 0) return inverted ? 'text-green-600' : 'text-red-600';
+  return '';
+}
+
 export function searchAccounts(query: string): Promise<ListResult<Account>> {
   return apiFetch<ListResult<Account>>(`/api/accounts${buildQuery({ q: query, limit: 20 })}`);
 }

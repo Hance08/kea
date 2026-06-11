@@ -1,5 +1,5 @@
 import { AccountTypeBadge } from '@/components/accounts/AccountTypeBadge';
-import { cn } from '@/lib/cn';
+import { balanceColor } from '@/lib/accounts';
 import type { Account, AccountBalance } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
@@ -77,11 +77,7 @@ export function AccountSearchResults({ accounts, balances, sortDir, onToggleSort
                   <td className="px-3 py-2 text-center">{acc.currency}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {bal ? (
-                      <span
-                        className={cn(
-                          bal.amount < 0 ? 'text-red-600' : bal.amount > 0 ? 'text-green-600' : '',
-                        )}
-                      >
+                      <span className={balanceColor(acc.type, bal.amount)}>
                         {formatBalance(bal.amount)}
                       </span>
                     ) : (

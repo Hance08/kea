@@ -1,4 +1,10 @@
-import { getAccountTree, isOpeningBalancesAccount, listAccounts } from '@/lib/accounts';
+import {
+  balanceColor,
+  getAccountTree,
+  isOpeningBalancesAccount,
+  listAccounts,
+  naturalAmount,
+} from '@/lib/accounts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('isOpeningBalancesAccount', () => {
@@ -108,5 +114,48 @@ describe('listAccounts URL routing', () => {
     expect(captured[0]).toContain('include_count=true');
     expect(captured[0]).toContain('limit=100');
     expect(captured[0]).toContain('q=bank');
+  });
+});
+
+describe('naturalAmount', () => {
+  it('returns the raw stored amount for Asset / Equity / Expense', () => {
+    expect(naturalAmount('A', 5000)).toBe(5000);
+    expect(naturalAmount('C', 2000)).toBe(2000);
+    expect(naturalAmount('E', 1500)).toBe(1500);
+  });
+
+  it('negates the stored amount for Liability so descending sort puts biggest debt on top', () => {
+    expect(naturalAmount('L', -100000)).toBe(100000);
+    expect(naturalAmount('L', -1000)).toBe(1000);
+  });
+
+  it('negates the stored amount for Revenue so descending sort puts biggest income on top', () => {
+    expect(naturalAmount('R', -50000)).toBe(50000);
+    expect(naturalAmount('R', -100)).toBe(100);
+  });
+});
+
+describe('balanceColor', () => {
+  it('uses raw sign for Asset / Liability / Equity', () => {
+    expect(balanceColor('A', 5000)).toBe('text-green-600');
+    expect(balanceColor('A', -100)).toBe('text-red-600');
+    expect(balanceColor('L', -5000)).toBe('text-red-600');
+    expect(balanceColor('C', 1000)).toBe('text-green-600');
+  });
+
+  it('inverts the sign mapping for Revenue and Expense', () => {
+    // Revenue stored negative when earned → should display green.
+    expect(balanceColor('R', -5000)).toBe('text-green-600');
+    // Revenue stored positive (rare — refund) → red.
+    expect(balanceColor('R', 100)).toBe('text-red-600');
+    // Expense stored positive when spent → red.
+    expect(balanceColor('E', 2000)).toBe('text-red-600');
+    // Expense stored negative (refund) → green.
+    expect(balanceColor('E', -50)).toBe('text-green-600');
+  });
+
+  it('returns empty string for zero', () => {
+    expect(balanceColor('A', 0)).toBe('');
+    expect(balanceColor('R', 0)).toBe('');
   });
 });

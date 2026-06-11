@@ -4,7 +4,7 @@ import { Pagination } from '@/components/transactions/Pagination';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { listAccounts } from '@/lib/accounts';
+import { listAccounts, naturalAmount } from '@/lib/accounts';
 import type { AccountsSearch } from '@/lib/accounts-search-params';
 import { getBalances } from '@/lib/api';
 import type { Account } from '@/lib/types';
@@ -92,7 +92,11 @@ function AccountsListPage() {
       if (av === undefined && bv === undefined) return 0;
       if (av === undefined) return 1;
       if (bv === undefined) return -1;
-      return sortDir === 'asc' ? av - bv : bv - av;
+      // Sort by the natural-direction amount so descending = "biggest of
+      // this thing" regardless of the stored sign convention for the type.
+      const an = naturalAmount(a.type, av);
+      const bn = naturalAmount(b.type, bv);
+      return sortDir === 'asc' ? an - bn : bn - an;
     });
     return items;
   }, [filteredItems, balanceById, sortDir]);

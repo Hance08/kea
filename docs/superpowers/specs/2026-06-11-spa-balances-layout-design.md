@@ -18,7 +18,7 @@ The current layout shows a single flat list mixing Assets and Liabilities, with 
   2. A column-header row with `Account` (left) and `Balance` (right). The Balance label is a button with a sort arrow (`▼` for desc, `▲` for asc).
   3. Up to 8 rows. Each row is a link to `/accounts/$id` with the account name on the left and the balance on the right. Negative amounts render in `text-destructive`.
   4. A pagination control at the bottom — rendered only when the column has more than 8 rows.
-- When a column has zero rows, the body shows an empty-state message (`No assets` / `No liabilities`) in muted text in place of rows and pagination.
+- When a column has zero rows, the body shows an empty-state message (`No assets` / `No liabilities`) in muted text in place of the `Account` / `Balance` subheader, the rows, and the pagination control. The type-label header bar (label + total) is still rendered.
 - Currency excluded count remains surfaced on the `NetWorthCard` as today.
 
 ## Sort Behavior

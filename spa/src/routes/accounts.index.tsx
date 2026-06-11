@@ -127,11 +127,7 @@ function AccountsListPage() {
 
       {accountsQuery.isSuccess && filteredItems.length > 0 && (
         <>
-          <AccountSearchResults
-            accounts={pagedItems}
-            balances={balancesQuery.data?.items}
-            totalCount={filteredItems.length}
-          />
+          <AccountSearchResults accounts={pagedItems} balances={balancesQuery.data?.items} />
           <Pagination
             total={filteredItems.length}
             limit={search.limit}

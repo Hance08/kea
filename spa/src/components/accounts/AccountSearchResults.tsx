@@ -14,10 +14,9 @@ function formatBalance(cents: number): string {
 interface Props {
   accounts: Account[];
   balances?: AccountBalance[];
-  totalCount: number;
 }
 
-export function AccountSearchResults({ accounts, balances, totalCount }: Props) {
+export function AccountSearchResults({ accounts, balances }: Props) {
   const balanceById = new Map<number, { amount: number; currency: string }>();
   if (balances) {
     for (const b of balances) {
@@ -26,11 +25,6 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
   }
   return (
     <div className="space-y-2">
-      {totalCount > accounts.length && (
-        <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          Refine search — showing first {accounts.length} of {totalCount} matches.
-        </div>
-      )}
       <div className="overflow-hidden rounded-md border bg-card">
         <table className="w-full table-fixed text-sm">
           <colgroup>

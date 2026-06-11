@@ -29,8 +29,8 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-3 py-2 text-left">Name</th>
-              <th className="px-3 py-2 text-left">Type</th>
-              <th className="px-3 py-2 text-left">Currency</th>
+              <th className="px-3 py-2 text-center">Type</th>
+              <th className="px-3 py-2 text-center">Currency</th>
               <th className="px-3 py-2 text-right">Balance</th>
             </tr>
           </thead>
@@ -49,10 +49,10 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
                       {acc.name}
                     </Link>
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td className="px-3 py-1.5 text-center">
                     <AccountTypeBadge type={acc.type} />
                   </td>
-                  <td className="px-3 py-1.5">{acc.currency}</td>
+                  <td className="px-3 py-1.5 text-center">{acc.currency}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">
                     {bal ? (
                       <span className={cn(bal.amount < 0 && 'text-destructive')}>

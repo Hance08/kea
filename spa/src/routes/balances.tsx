@@ -138,7 +138,6 @@ function BalancesPage() {
         <BalanceColumn
           label="Assets"
           total={summary.assetsTotal}
-          currency={DEFAULT_CURRENCY}
           rows={assetsPaged}
           totalRowCount={assetsSorted.length}
           sortDir={assetsSortDir}
@@ -150,7 +149,6 @@ function BalancesPage() {
         <BalanceColumn
           label="Liabilities"
           total={summary.liabilitiesTotal}
-          currency={DEFAULT_CURRENCY}
           rows={liabilitiesPaged}
           totalRowCount={liabilitiesSorted.length}
           sortDir={liabilitiesSortDir}

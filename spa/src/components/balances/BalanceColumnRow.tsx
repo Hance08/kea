@@ -1,5 +1,6 @@
+import { balanceColor } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
-import { formatCents } from '@/lib/format';
+import { formatBalanceAbs } from '@/lib/format';
 import type { AccountBalance } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
@@ -8,7 +9,6 @@ interface Props {
 }
 
 export function BalanceColumnRow({ row }: Props) {
-  const negative = row.amount < 0;
   return (
     <Link
       to="/accounts/$id"
@@ -17,8 +17,8 @@ export function BalanceColumnRow({ row }: Props) {
       className="flex items-center justify-between border-t border-border/60 px-3 py-2 text-sm hover:bg-muted/40"
     >
       <span className="truncate">{row.name}</span>
-      <span className={cn('tabular-nums', negative && 'text-destructive')}>
-        {formatCents(row.amount, row.currency)}
+      <span className={cn('tabular-nums', balanceColor(row.type, row.amount))}>
+        {formatBalanceAbs(row.amount)}
       </span>
     </Link>
   );

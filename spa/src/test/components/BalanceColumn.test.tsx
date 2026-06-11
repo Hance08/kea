@@ -44,7 +44,6 @@ describe('BalanceColumn', () => {
   const baseProps = {
     label: 'Assets' as const,
     total: 24310_00,
-    currency: 'USD',
     sortDir: 'desc' as const,
     onToggleSort: vi.fn(),
     offset: 0,

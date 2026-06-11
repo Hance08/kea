@@ -48,7 +48,7 @@ export function AccountDetailHeader({ account, balance, deleteSlot }: Props) {
             <Link
               to="/accounts/$id/edit"
               params={{ id: String(account.id) }}
-              search={{ include_hidden: false }}
+              search={{ include_hidden: false, show_parents: false }}
             >
               Edit
             </Link>

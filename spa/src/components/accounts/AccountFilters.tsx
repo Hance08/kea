@@ -64,7 +64,15 @@ export function AccountFilters({ search, onChange, onClear }: Props) {
         />
         Show hidden
       </label>
-      {(search.q || search.type || search.include_hidden) && (
+      <label className="flex items-center gap-1.5 text-sm">
+        <input
+          type="checkbox"
+          checked={search.show_parents}
+          onChange={(e) => onChange({ show_parents: e.target.checked })}
+        />
+        Show parents
+      </label>
+      {(search.q || search.type || search.include_hidden || search.show_parents) && (
         <Button size="sm" variant="ghost" onClick={onClear}>
           Clear
         </Button>

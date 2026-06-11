@@ -43,7 +43,7 @@ export function AccountSearchResults({ accounts, balances, totalCount }: Props) 
                     <Link
                       to="/accounts/$id"
                       params={{ id: String(acc.id) }}
-                      search={{ include_hidden: false }}
+                      search={{ include_hidden: false, show_parents: false }}
                       className="hover:underline"
                     >
                       {acc.name}

@@ -6,6 +6,9 @@ export const accountsSearchSchema = z.object({
   include_hidden: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .default(false),
+  show_parents: z
+    .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
+    .default(false),
 });
 
 export type AccountsSearch = z.infer<typeof accountsSearchSchema>;

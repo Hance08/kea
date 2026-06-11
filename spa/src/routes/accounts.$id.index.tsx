@@ -64,7 +64,7 @@ function AccountDetailPage() {
       qc.invalidateQueries({ queryKey: ['account', id] });
       qc.invalidateQueries({ queryKey: ['balances'] });
       toast.success('Account deleted');
-      navigate({ to: '/accounts', search: { include_hidden: false } });
+      navigate({ to: '/accounts', search: { include_hidden: false, show_parents: false } });
     },
     onError: (e: unknown) => {
       toast.error(e instanceof Error ? e.message : 'Delete failed');

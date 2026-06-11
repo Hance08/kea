@@ -13,7 +13,7 @@ export function AccountListRow({ row }: Props) {
     <Link
       to="/accounts/$id"
       params={{ id: String(row.account_id) }}
-      search={{ include_hidden: false }}
+      search={{ include_hidden: false, show_parents: false }}
       className="flex items-center justify-between border-b border-border/60 px-2 py-2 text-sm hover:bg-muted/40"
     >
       <span>{row.name}</span>

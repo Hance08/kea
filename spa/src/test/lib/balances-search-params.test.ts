@@ -8,6 +8,7 @@ describe('parseBalancesSearch', () => {
       a_sort: 'balance_desc',
       l_offset: 0,
       l_sort: 'balance_desc',
+      view: 'list',
     });
   });
 
@@ -17,6 +18,7 @@ describe('parseBalancesSearch', () => {
       a_sort: 'balance_desc',
       l_offset: 8,
       l_sort: 'balance_desc',
+      view: 'list',
     });
   });
 
@@ -26,6 +28,7 @@ describe('parseBalancesSearch', () => {
       a_sort: 'balance_asc',
       l_offset: 0,
       l_sort: 'balance_desc',
+      view: 'list',
     });
   });
 
@@ -35,5 +38,14 @@ describe('parseBalancesSearch', () => {
 
   it('rejects unknown sort values', () => {
     expect(() => parseBalancesSearch({ a_sort: 'name_asc' })).toThrow();
+  });
+
+  it('defaults view to "list" and accepts "cards"', () => {
+    expect(parseBalancesSearch({}).view).toBe('list');
+    expect(parseBalancesSearch({ view: 'cards' }).view).toBe('cards');
+  });
+
+  it('rejects unknown view values', () => {
+    expect(() => parseBalancesSearch({ view: 'grid' })).toThrow();
   });
 });

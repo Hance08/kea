@@ -1,5 +1,6 @@
 import { NetWorthCard } from '@/components/NetWorthCard';
 import { BALANCE_COLUMN_PAGE_SIZE, BalanceColumn } from '@/components/balances/BalanceColumn';
+import { ViewToggle } from '@/components/balances/ViewToggle';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +29,14 @@ function sortByNatural(rows: AccountBalance[], dir: 'asc' | 'desc'): AccountBala
   return out;
 }
 
+// Pre-slice shares: each row's |amount| / |total| as a whole percent.
+// Returns nulls when total is zero (avoids 0/0 and the "0%" line on every card).
+function computeShares(rows: AccountBalance[], total: number): (number | null)[] {
+  if (total === 0) return rows.map(() => null);
+  const denom = Math.abs(total);
+  return rows.map((r) => Math.round((Math.abs(r.amount) / denom) * 100));
+}
+
 function BalancesPage() {
   const { defaults } = useServerConfig();
   const DEFAULT_CURRENCY = defaults.currency;
@@ -50,6 +59,10 @@ function BalancesPage() {
   const setOffset = (side: 'a' | 'l', offset: number) => {
     const key = side === 'a' ? 'a_offset' : 'l_offset';
     navigate({ search: (prev) => ({ ...prev, [key]: offset }) });
+  };
+
+  const setView = (next: 'list' | 'cards') => {
+    navigate({ search: (prev) => ({ ...prev, view: next }) });
   };
 
   const summary = useMemo(
@@ -78,6 +91,15 @@ function BalancesPage() {
     [liabilitiesAll, liabilitiesSortDir],
   );
 
+  const assetsSharesAll = useMemo(
+    () => computeShares(assetsSorted, summary?.assetsTotal ?? 0),
+    [assetsSorted, summary?.assetsTotal],
+  );
+  const liabilitiesSharesAll = useMemo(
+    () => computeShares(liabilitiesSorted, summary?.liabilitiesTotal ?? 0),
+    [liabilitiesSorted, summary?.liabilitiesTotal],
+  );
+
   const assetsPaged = useMemo(
     () => assetsSorted.slice(search.a_offset, search.a_offset + BALANCE_COLUMN_PAGE_SIZE),
     [assetsSorted, search.a_offset],
@@ -85,6 +107,15 @@ function BalancesPage() {
   const liabilitiesPaged = useMemo(
     () => liabilitiesSorted.slice(search.l_offset, search.l_offset + BALANCE_COLUMN_PAGE_SIZE),
     [liabilitiesSorted, search.l_offset],
+  );
+
+  const assetsPagedShares = useMemo(
+    () => assetsSharesAll.slice(search.a_offset, search.a_offset + BALANCE_COLUMN_PAGE_SIZE),
+    [assetsSharesAll, search.a_offset],
+  );
+  const liabilitiesPagedShares = useMemo(
+    () => liabilitiesSharesAll.slice(search.l_offset, search.l_offset + BALANCE_COLUMN_PAGE_SIZE),
+    [liabilitiesSharesAll, search.l_offset],
   );
 
   if (query.isPending) {
@@ -132,28 +163,36 @@ function BalancesPage() {
         excludedCount={summary.excludedByCurrency.length}
       />
 
+      <div className="mb-3 flex justify-end">
+        <ViewToggle value={search.view} onChange={setView} />
+      </div>
+
       <div className="grid grid-cols-2 items-start gap-4">
         <BalanceColumn
           label="Assets"
           total={summary.assetsTotal}
           rows={assetsPaged}
+          shares={assetsPagedShares}
           totalRowCount={assetsSorted.length}
           sortDir={assetsSortDir}
           onToggleSort={() => toggleSort('a')}
           offset={search.a_offset}
           onOffsetChange={(off) => setOffset('a', off)}
           emptyText="No assets"
+          view={search.view}
         />
         <BalanceColumn
           label="Liabilities"
           total={summary.liabilitiesTotal}
           rows={liabilitiesPaged}
+          shares={liabilitiesPagedShares}
           totalRowCount={liabilitiesSorted.length}
           sortDir={liabilitiesSortDir}
           onToggleSort={() => toggleSort('l')}
           offset={search.l_offset}
           onOffsetChange={(off) => setOffset('l', off)}
           emptyText="No liabilities"
+          view={search.view}
         />
       </div>
     </div>

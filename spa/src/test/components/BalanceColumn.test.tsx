@@ -109,7 +109,8 @@ describe('BalanceColumn', () => {
     renderWithRouter(
       <BalanceColumn {...baseProps} rows={makeRows(1, 'A')} totalRowCount={1} view="list" />,
     );
-    expect(await screen.findByRole('button', { name: /^Balance ▼$/i })).toBeInTheDocument();
+    const btn = await screen.findByRole('button', { name: /^Balance$/i });
+    expect(btn).toHaveTextContent('▼');
   });
 
   it('does not render the list-mode subheader Balance button when view is cards', async () => {
@@ -123,7 +124,7 @@ describe('BalanceColumn', () => {
       />,
     );
     await screen.findByText('Assets'); // wait for content
-    expect(screen.queryByRole('button', { name: /^Balance ▼$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Balance$/i })).not.toBeInTheDocument();
   });
 
   it('renders a header-bar sort button with the arrow + total amount in cards mode', async () => {

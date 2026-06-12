@@ -81,7 +81,8 @@ export function BalanceColumn({
               onClick={onToggleSort}
               className="inline-flex items-center gap-1 uppercase hover:text-foreground"
             >
-              Balance <span>{arrow}</span>
+              Balance
+              <span aria-hidden="true">{arrow}</span>
             </button>
           </div>
           <div>

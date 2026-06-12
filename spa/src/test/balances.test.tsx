@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { makeTestApp } from './test-app';
@@ -267,4 +267,51 @@ test('Assets pagination advances a_offset without touching the Liabilities colum
 
   // Liabilities side unchanged.
   expect(within(liabilitiesCol).getByText('Liab:Card')).toBeInTheDocument();
+});
+
+test('default view is list', async () => {
+  render(makeTestApp('/balances'));
+  // List-mode subheader has Balance buttons (accessible name is just "Balance"
+  // because the arrow span is aria-hidden) — one per populated column.
+  const btns = await screen.findAllByRole('button', { name: /^Balance$/i });
+  expect(btns.length).toBeGreaterThan(0);
+  for (const btn of btns) {
+    expect(btn).toHaveTextContent('▼');
+  }
+  // Cards-mode header sort button is absent.
+  expect(screen.queryByRole('button', { name: /Sort by balance/i })).not.toBeInTheDocument();
+});
+
+test('clicking the cards toggle switches both columns to cards mode', async () => {
+  render(makeTestApp('/balances'));
+  await screen.findAllByRole('button', { name: /^Balance$/i });
+
+  const cardsBtn = screen.getByRole('button', { name: /cards view/i });
+  await userEvent.click(cardsBtn);
+
+  // After switching: no list-mode subheader button.
+  await waitFor(() => {
+    expect(screen.queryByRole('button', { name: /^Balance$/i })).not.toBeInTheDocument();
+  });
+  // Cards-mode header sort buttons present on populated columns.
+  expect(screen.getAllByRole('button', { name: /Sort by balance/i }).length).toBeGreaterThan(0);
+});
+
+test('switching view preserves a_offset and a_sort', async () => {
+  render(makeTestApp('/balances?a_sort=balance_asc&view=list'));
+
+  // Initially in list mode with asc sort on the Assets column — the visible
+  // arrow becomes ▲.
+  const assetsHeader = await screen.findByText('Assets');
+  const assetsCol = assetsHeader.closest('[class*="overflow-hidden"]') as HTMLElement;
+  const balanceBtn = within(assetsCol).getByRole('button', { name: /^Balance$/i });
+  expect(balanceBtn).toHaveTextContent('▲');
+
+  await userEvent.click(screen.getByRole('button', { name: /cards view/i }));
+
+  // Cards-mode sort button on the Assets column still shows ascending.
+  await waitFor(() => {
+    const headerSort = within(assetsCol).getByRole('button', { name: /Sort by balance/i });
+    expect(headerSort).toHaveTextContent('▲');
+  });
 });

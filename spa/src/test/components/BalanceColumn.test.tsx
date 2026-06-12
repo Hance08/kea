@@ -32,7 +32,7 @@ function renderWithRouter(ui: React.ReactNode) {
 function makeRows(count: number, type: 'A' | 'L'): AccountBalance[] {
   return Array.from({ length: count }, (_, i) => ({
     account_id: i + 1,
-    name: `${type === 'A' ? 'Assets' : 'Liab'}:Acct${i + 1}`,
+    name: `${type === 'A' ? 'Assets' : 'Liabilities'}:Acct${i + 1}`,
     type,
     currency: 'USD',
     amount: type === 'A' ? (i + 1) * 1000 : -(i + 1) * 1000,
@@ -49,6 +49,8 @@ describe('BalanceColumn', () => {
     offset: 0,
     onOffsetChange: vi.fn(),
     emptyText: 'No assets',
+    view: 'list' as const,
+    shares: [] as (number | null)[],
   };
 
   it('renders the type label and total in the header bar', async () => {
@@ -101,5 +103,75 @@ describe('BalanceColumn', () => {
     expect(await screen.findByText('No assets')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Balance/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Page \d+ of/)).not.toBeInTheDocument();
+  });
+
+  it('renders the list-mode subheader Balance button when view is list', async () => {
+    renderWithRouter(
+      <BalanceColumn {...baseProps} rows={makeRows(1, 'A')} totalRowCount={1} view="list" />,
+    );
+    expect(await screen.findByRole('button', { name: /^Balance ▼$/i })).toBeInTheDocument();
+  });
+
+  it('does not render the list-mode subheader Balance button when view is cards', async () => {
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(1, 'A')}
+        totalRowCount={1}
+        shares={[100]}
+        view="cards"
+      />,
+    );
+    await screen.findByText('Assets'); // wait for content
+    expect(screen.queryByRole('button', { name: /^Balance ▼$/i })).not.toBeInTheDocument();
+  });
+
+  it('renders a header-bar sort button with the arrow + total amount in cards mode', async () => {
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(1, 'A')}
+        totalRowCount={1}
+        shares={[100]}
+        view="cards"
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Sort by balance/i });
+    expect(btn).toHaveTextContent('▼');
+    expect(btn).toHaveTextContent('$24,310.00');
+  });
+
+  it('header-bar sort button toggles when clicked in cards mode', async () => {
+    const onToggleSort = vi.fn();
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(1, 'A')}
+        totalRowCount={1}
+        shares={[100]}
+        view="cards"
+        onToggleSort={onToggleSort}
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Sort by balance/i });
+    await userEvent.click(btn);
+    expect(onToggleSort).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders cards-grid content in cards mode', async () => {
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(2, 'A')}
+        totalRowCount={2}
+        shares={[60, 40]}
+        view="cards"
+      />,
+    );
+    // BalanceCard renders the stripped name and share line.
+    expect(await screen.findByText('Acct1')).toBeInTheDocument();
+    expect(screen.getByText('Acct2')).toBeInTheDocument();
+    expect(screen.getByText('60% of assets')).toBeInTheDocument();
+    expect(screen.getByText('40% of assets')).toBeInTheDocument();
   });
 });

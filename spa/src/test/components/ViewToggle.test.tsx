@@ -24,9 +24,12 @@ describe('ViewToggle', () => {
 
   it('calls onChange with the clicked view', async () => {
     const onChange = vi.fn();
-    render(<ViewToggle value="list" onChange={onChange} />);
+    const { rerender } = render(<ViewToggle value="list" onChange={onChange} />);
     await userEvent.click(screen.getByRole('button', { name: /cards view/i }));
     expect(onChange).toHaveBeenCalledWith('cards');
+
+    // Parent would update the value prop in response — simulate that.
+    rerender(<ViewToggle value="cards" onChange={onChange} />);
     await userEvent.click(screen.getByRole('button', { name: /list view/i }));
     expect(onChange).toHaveBeenCalledWith('list');
   });

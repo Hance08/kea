@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import { LayoutGrid, List } from 'lucide-react';
-import { useState } from 'react';
 
 export type BalancesView = 'list' | 'cards';
 
@@ -11,23 +10,19 @@ interface Props {
 }
 
 export function ViewToggle({ value, onChange }: Props) {
-  const [active, setActive] = useState<BalancesView>(value);
-
-  const select = (next: BalancesView) => {
-    if (active === next) return;
-    setActive(next);
-    onChange(next);
-  };
-
   return (
     <div className="inline-flex items-center gap-1 rounded-md border bg-card p-0.5">
-      <ToggleButton active={active === 'list'} label="List view" onClick={() => select('list')}>
+      <ToggleButton
+        active={value === 'list'}
+        label="List view"
+        onClick={() => value !== 'list' && onChange('list')}
+      >
         <List className="h-4 w-4" />
       </ToggleButton>
       <ToggleButton
-        active={active === 'cards'}
+        active={value === 'cards'}
         label="Cards view"
-        onClick={() => select('cards')}
+        onClick={() => value !== 'cards' && onChange('cards')}
       >
         <LayoutGrid className="h-4 w-4" />
       </ToggleButton>

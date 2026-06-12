@@ -8,37 +8,22 @@ import {
   RouterProvider,
   createMemoryHistory,
 } from '@tanstack/react-router';
-import { act, render, screen } from '@testing-library/react';
-import { useState } from 'react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 function renderWithRouter(ui: React.ReactNode) {
-  let setUi: (next: React.ReactNode) => void = () => {};
-  function Root() {
-    const [current, setCurrent] = useState(ui);
-    setUi = setCurrent;
-    return <>{current}</>;
-  }
-  const rootRoute = new RootRoute({ component: Root });
-  const dummy = new Route({
-    getParentRoute: () => rootRoute,
-    path: '/',
-    component: () => null,
-  });
+  const rootRoute = new RootRoute({ component: () => <>{ui}</> });
+  const dummy = new Route({ getParentRoute: () => rootRoute, path: '/', component: () => null });
   const router = new Router({
     routeTree: rootRoute.addChildren([dummy]),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  const result = render(
+  return render(
     <QueryClientProvider client={qc}>
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return {
-    ...result,
-    rerender: (next: React.ReactNode) => act(() => setUi(next)),
-  };
 }
 
 const assetRow: AccountBalance = {
@@ -106,12 +91,13 @@ describe('BalanceCard', () => {
     expect(nameSpan).toHaveAttribute('title', 'Assets:Investments:00878');
   });
 
-  it('applies red color to a negative balance and green to a positive one', async () => {
-    const { rerender } = renderWithRouter(
-      <BalanceCard row={liabilityRow} columnLabel="Liabilities" share={56} />,
-    );
+  it('applies red color to a negative balance', async () => {
+    renderWithRouter(<BalanceCard row={liabilityRow} columnLabel="Liabilities" share={56} />);
     expect(await screen.findByText('$2,140.00')).toHaveClass('text-red-600');
-    rerender(<BalanceCard row={assetRow} columnLabel="Assets" share={75} />);
+  });
+
+  it('applies green color to a positive balance', async () => {
+    renderWithRouter(<BalanceCard row={assetRow} columnLabel="Assets" share={75} />);
     expect(await screen.findByText('$162,979.00')).toHaveClass('text-green-600');
   });
 });

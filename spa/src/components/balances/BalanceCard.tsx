@@ -32,7 +32,7 @@ export function BalanceCard({ row, columnLabel, share }: Props) {
         <span className="truncate text-xs text-muted-foreground" title={row.name}>
           {displayName}
         </span>
-        <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+        <span className="shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-200">
           {row.currency}
         </span>
       </div>

@@ -1,5 +1,5 @@
 import { BalanceCard } from '@/components/balances/BalanceCard';
-import { BALANCE_COLUMN_PAGE_SIZE } from '@/components/balances/BalanceColumn';
+import { CARDS_PAGE_SIZE } from '@/components/balances/BalanceColumn';
 import type { AccountBalance } from '@/lib/types';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function BalanceCardGrid({ rows, shares, columnLabel }: Props) {
-  const placeholderCount = BALANCE_COLUMN_PAGE_SIZE - rows.length;
+  const placeholderCount = CARDS_PAGE_SIZE - rows.length;
   return (
     <div className="grid grid-cols-2 gap-3 p-3">
       {rows.map((row, i) => (

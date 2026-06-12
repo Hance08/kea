@@ -1,5 +1,5 @@
 import { NetWorthCard } from '@/components/NetWorthCard';
-import { BALANCE_COLUMN_PAGE_SIZE, BalanceColumn } from '@/components/balances/BalanceColumn';
+import { BalanceColumn, balanceColumnPageSize } from '@/components/balances/BalanceColumn';
 import { ViewToggle } from '@/components/balances/ViewToggle';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -100,22 +100,24 @@ function BalancesPage() {
     [liabilitiesSorted, summary?.liabilitiesTotal],
   );
 
+  const pageSize = balanceColumnPageSize(search.view);
+
   const assetsPaged = useMemo(
-    () => assetsSorted.slice(search.a_offset, search.a_offset + BALANCE_COLUMN_PAGE_SIZE),
-    [assetsSorted, search.a_offset],
+    () => assetsSorted.slice(search.a_offset, search.a_offset + pageSize),
+    [assetsSorted, search.a_offset, pageSize],
   );
   const liabilitiesPaged = useMemo(
-    () => liabilitiesSorted.slice(search.l_offset, search.l_offset + BALANCE_COLUMN_PAGE_SIZE),
-    [liabilitiesSorted, search.l_offset],
+    () => liabilitiesSorted.slice(search.l_offset, search.l_offset + pageSize),
+    [liabilitiesSorted, search.l_offset, pageSize],
   );
 
   const assetsPagedShares = useMemo(
-    () => assetsSharesAll.slice(search.a_offset, search.a_offset + BALANCE_COLUMN_PAGE_SIZE),
-    [assetsSharesAll, search.a_offset],
+    () => assetsSharesAll.slice(search.a_offset, search.a_offset + pageSize),
+    [assetsSharesAll, search.a_offset, pageSize],
   );
   const liabilitiesPagedShares = useMemo(
-    () => liabilitiesSharesAll.slice(search.l_offset, search.l_offset + BALANCE_COLUMN_PAGE_SIZE),
-    [liabilitiesSharesAll, search.l_offset],
+    () => liabilitiesSharesAll.slice(search.l_offset, search.l_offset + pageSize),
+    [liabilitiesSharesAll, search.l_offset, pageSize],
   );
 
   if (query.isPending) {

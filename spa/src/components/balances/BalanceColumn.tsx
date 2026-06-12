@@ -7,7 +7,16 @@ import { cn } from '@/lib/cn';
 import { formatBalanceAbs } from '@/lib/format';
 import type { AccountBalance } from '@/lib/types';
 
-export const BALANCE_COLUMN_PAGE_SIZE = 8;
+export const LIST_PAGE_SIZE = 8;
+export const CARDS_PAGE_SIZE = 6;
+
+// Per-view page size for slicing/pagination/placeholder count.
+export function balanceColumnPageSize(view: 'list' | 'cards'): number {
+  return view === 'cards' ? CARDS_PAGE_SIZE : LIST_PAGE_SIZE;
+}
+
+// Retained so existing list-mode tests/imports keep working.
+export const BALANCE_COLUMN_PAGE_SIZE = LIST_PAGE_SIZE;
 
 interface Props {
   label: 'Assets' | 'Liabilities';
@@ -89,7 +98,7 @@ export function BalanceColumn({
             {rows.map((row) => (
               <BalanceColumnRow key={row.account_id} row={row} />
             ))}
-            {Array.from({ length: BALANCE_COLUMN_PAGE_SIZE - rows.length }).map((_, i) => (
+            {Array.from({ length: LIST_PAGE_SIZE - rows.length }).map((_, i) => (
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have no identity
                 key={`placeholder-${i}`}
@@ -103,7 +112,7 @@ export function BalanceColumn({
           <div className="px-3 pb-3">
             <Pagination
               total={totalRowCount}
-              limit={BALANCE_COLUMN_PAGE_SIZE}
+              limit={LIST_PAGE_SIZE}
               offset={offset}
               onChange={onOffsetChange}
             />
@@ -115,7 +124,7 @@ export function BalanceColumn({
           <div className="px-3 pb-3">
             <Pagination
               total={totalRowCount}
-              limit={BALANCE_COLUMN_PAGE_SIZE}
+              limit={CARDS_PAGE_SIZE}
               offset={offset}
               onChange={onOffsetChange}
             />

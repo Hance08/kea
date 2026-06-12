@@ -1,5 +1,5 @@
-import { BALANCE_COLUMN_PAGE_SIZE } from '@/components/balances/BalanceColumn';
 import { BalanceCard } from '@/components/balances/BalanceCard';
+import { BALANCE_COLUMN_PAGE_SIZE } from '@/components/balances/BalanceColumn';
 import type { AccountBalance } from '@/lib/types';
 
 interface Props {

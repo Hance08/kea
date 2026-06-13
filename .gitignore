@@ -58,7 +58,8 @@ docs/superpowers
 
 # SPA workspace
 spa/node_modules/
-spa/dist/
+spa/dist/*
+!spa/dist/index.html
 spa/.env
 spa/.env.*
 !spa/.env.example

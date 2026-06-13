@@ -1,0 +1,178 @@
+import { BalanceColumn } from '@/components/balances/BalanceColumn';
+import type { AccountBalance } from '@/lib/types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  RootRoute,
+  Route,
+  Router,
+  RouterProvider,
+  createMemoryHistory,
+} from '@tanstack/react-router';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+
+// BalanceColumn renders <Link>, so it needs a router context. Build a
+// minimal one with a single dummy route so the link has somewhere to go.
+function renderWithRouter(ui: React.ReactNode) {
+  const rootRoute = new RootRoute({ component: () => <>{ui}</> });
+  const dummy = new Route({ getParentRoute: () => rootRoute, path: '/', component: () => null });
+  const router = new Router({
+    routeTree: rootRoute.addChildren([dummy]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  });
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+}
+
+function makeRows(count: number, type: 'A' | 'L'): AccountBalance[] {
+  return Array.from({ length: count }, (_, i) => ({
+    account_id: i + 1,
+    name: `${type === 'A' ? 'Assets' : 'Liabilities'}:Acct${i + 1}`,
+    type,
+    currency: 'USD',
+    amount: type === 'A' ? (i + 1) * 1000 : -(i + 1) * 1000,
+    is_hidden: false,
+  }));
+}
+
+describe('BalanceColumn', () => {
+  const baseProps = {
+    label: 'Assets' as const,
+    total: 24310_00,
+    sortDir: 'desc' as const,
+    onToggleSort: vi.fn(),
+    offset: 0,
+    onOffsetChange: vi.fn(),
+    emptyText: 'No assets',
+    view: 'list' as const,
+    shares: [] as (number | null)[],
+  };
+
+  it('renders the type label and total in the header bar', async () => {
+    renderWithRouter(<BalanceColumn {...baseProps} rows={makeRows(3, 'A')} totalRowCount={3} />);
+    expect(await screen.findByText('Assets')).toBeInTheDocument();
+    expect(screen.getByText('$24,310.00')).toBeInTheDocument();
+  });
+
+  it('renders a descending sort arrow when sortDir is desc', async () => {
+    renderWithRouter(
+      <BalanceColumn {...baseProps} rows={makeRows(1, 'A')} totalRowCount={1} sortDir="desc" />,
+    );
+    expect(await screen.findByRole('button', { name: /Balance/i })).toHaveTextContent('▼');
+  });
+
+  it('renders an ascending sort arrow when sortDir is asc', async () => {
+    renderWithRouter(
+      <BalanceColumn {...baseProps} rows={makeRows(1, 'A')} totalRowCount={1} sortDir="asc" />,
+    );
+    expect(await screen.findByRole('button', { name: /Balance/i })).toHaveTextContent('▲');
+  });
+
+  it('calls onToggleSort when the Balance header is clicked', async () => {
+    const onToggleSort = vi.fn();
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(1, 'A')}
+        totalRowCount={1}
+        onToggleSort={onToggleSort}
+      />,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: /Balance/i }));
+    expect(onToggleSort).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides pagination when totalRowCount is 8 or fewer', async () => {
+    renderWithRouter(<BalanceColumn {...baseProps} rows={makeRows(8, 'A')} totalRowCount={8} />);
+    expect(await screen.findByText('Assets')).toBeInTheDocument();
+    expect(screen.queryByText(/Page \d+ of/)).not.toBeInTheDocument();
+  });
+
+  it('shows pagination when totalRowCount exceeds 8', async () => {
+    renderWithRouter(<BalanceColumn {...baseProps} rows={makeRows(8, 'A')} totalRowCount={15} />);
+    expect(await screen.findByText(/Page 1 of 2/)).toBeInTheDocument();
+  });
+
+  it('shows the empty text and hides sort/pagination when rows is empty', async () => {
+    renderWithRouter(<BalanceColumn {...baseProps} rows={[]} totalRowCount={0} />);
+    expect(await screen.findByText('No assets')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Balance/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Page \d+ of/)).not.toBeInTheDocument();
+  });
+
+  it('renders the list-mode subheader Balance button when view is list', async () => {
+    renderWithRouter(
+      <BalanceColumn {...baseProps} rows={makeRows(1, 'A')} totalRowCount={1} view="list" />,
+    );
+    const btn = await screen.findByRole('button', { name: /^Balance$/i });
+    expect(btn).toHaveTextContent('▼');
+  });
+
+  it('does not render the list-mode subheader Balance button when view is cards', async () => {
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(1, 'A')}
+        totalRowCount={1}
+        shares={[100]}
+        view="cards"
+      />,
+    );
+    await screen.findByText('Assets'); // wait for content
+    expect(screen.queryByRole('button', { name: /^Balance$/i })).not.toBeInTheDocument();
+  });
+
+  it('renders a header-bar sort button with the arrow + total amount in cards mode', async () => {
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(1, 'A')}
+        totalRowCount={1}
+        shares={[100]}
+        view="cards"
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Sort by balance/i });
+    expect(btn).toHaveTextContent('▼');
+    expect(btn).toHaveTextContent('$24,310.00');
+  });
+
+  it('header-bar sort button toggles when clicked in cards mode', async () => {
+    const onToggleSort = vi.fn();
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(1, 'A')}
+        totalRowCount={1}
+        shares={[100]}
+        view="cards"
+        onToggleSort={onToggleSort}
+      />,
+    );
+    const btn = await screen.findByRole('button', { name: /Sort by balance/i });
+    await userEvent.click(btn);
+    expect(onToggleSort).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders cards-grid content in cards mode', async () => {
+    renderWithRouter(
+      <BalanceColumn
+        {...baseProps}
+        rows={makeRows(2, 'A')}
+        totalRowCount={2}
+        shares={[60, 40]}
+        view="cards"
+      />,
+    );
+    // BalanceCard renders the stripped name and share line.
+    expect(await screen.findByText('Acct1')).toBeInTheDocument();
+    expect(screen.getByText('Acct2')).toBeInTheDocument();
+    expect(screen.getByText('60% of assets')).toBeInTheDocument();
+    expect(screen.getByText('40% of assets')).toBeInTheDocument();
+  });
+});

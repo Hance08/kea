@@ -7,6 +7,7 @@ import { buildCurrencyFilter, buildLeafFilter, combineFilters } from '@/lib/acco
 import { listAccounts } from '@/lib/accounts';
 import { determineType } from '@/lib/determineType';
 import type { Account, AccountType, TransactionType } from '@/lib/types';
+import { safeRandomUUID } from '@/lib/uuid';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
@@ -23,7 +24,7 @@ interface SplitRow {
 
 export function newSplitRow(initial?: Partial<SplitRow>): SplitRow {
   return {
-    clientKey: crypto.randomUUID(),
+    clientKey: safeRandomUUID(),
     account_name: '',
     amountStr: '',
     currency: 'USD',

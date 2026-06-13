@@ -58,8 +58,11 @@ docs/superpowers
 
 # SPA workspace
 spa/node_modules/
-spa/dist/*
-!spa/dist/index.html
+spa/dist/
 spa/.env
 spa/.env.*
 !spa/.env.example
+
+# Embedded SPA bundle (vite writes here; only the placeholder is tracked)
+internal/web/dist/*
+!internal/web/dist/index.html

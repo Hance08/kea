@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hance08/kea/internal/config"
@@ -105,6 +106,34 @@ func TestCORSPreflightAllowed(t *testing.T) {
 	}
 	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
 		t.Errorf("Allow-Origin: got %q, want %q", got, "http://localhost:5173")
+	}
+}
+
+func TestRouter_SPADoesNotShadowAPI(t *testing.T) {
+	ts := newTestServer(t)
+
+	resp, err := http.Get(ts.URL + "/api/health")
+	if err != nil {
+		t.Fatalf("GET /api/health: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("api status = %d, want 200", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("api Content-Type = %q, want application/json", ct)
+	}
+
+	resp2, err := http.Get(ts.URL + "/accounts")
+	if err != nil {
+		t.Fatalf("GET /accounts: %v", err)
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusOK {
+		t.Fatalf("spa fallback status = %d, want 200", resp2.StatusCode)
+	}
+	if ct := resp2.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("spa fallback Content-Type = %q, want text/html", ct)
 	}
 }
 

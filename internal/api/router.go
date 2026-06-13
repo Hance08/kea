@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+
+	"github.com/hance08/kea/internal/web"
 )
 
 func (s *Server) routes() http.Handler {
@@ -52,6 +54,8 @@ func (s *Server) routes() http.Handler {
 		r.Method(http.MethodPost, "/ledgers/switch", apiHandler(s.handleSwitchLedger))
 		r.Method(http.MethodDelete, "/ledgers/{name}", apiHandler(s.handleDeleteLedger))
 	})
+
+	r.Handle("/*", spaHandler(web.FS()))
 
 	return r
 }

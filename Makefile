@@ -15,3 +15,9 @@ spa-dev:
 
 spa-build:
 	cd spa && npm run build
+
+build-all: spa-build build
+
+spa-clean:
+	rm -rf internal/web/dist
+	git checkout internal/web/dist/index.html

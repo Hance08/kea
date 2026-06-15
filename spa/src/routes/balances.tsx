@@ -5,11 +5,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { naturalAmount } from '@/lib/accounts';
-import { getBalances } from '@/lib/api';
+import { getBalanceHistory, getBalances } from '@/lib/api';
 import { summarizeBalances } from '@/lib/balances';
 import { type BalancesSearch, parseBalancesSearch } from '@/lib/balances-search-params';
 import { useServerConfig } from '@/lib/server-config';
-import type { AccountBalance } from '@/lib/types';
+import type { AccountBalance, BalanceHistoryPoint } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
@@ -43,6 +43,21 @@ function BalancesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/balances' });
   const query = useQuery({ queryKey: ['balances'], queryFn: getBalances });
+
+  const historyQuery = useQuery({
+    queryKey: ['balance-history'],
+    queryFn: getBalanceHistory,
+  });
+
+  const historyByAccount = useMemo(() => {
+    const m = new Map<number, BalanceHistoryPoint[]>();
+    if (historyQuery.data) {
+      for (const s of historyQuery.data.items) {
+        m.set(s.account_id, s.points);
+      }
+    }
+    return m;
+  }, [historyQuery.data]);
 
   const toggleSort = (side: 'a' | 'l') => {
     const key = side === 'a' ? 'a_sort' : 'l_sort';
@@ -182,6 +197,7 @@ function BalancesPage() {
           onOffsetChange={(off) => setOffset('a', off)}
           emptyText="No assets"
           view={search.view}
+          historyByAccount={historyByAccount}
         />
         <BalanceColumn
           label="Liabilities"
@@ -195,6 +211,7 @@ function BalancesPage() {
           onOffsetChange={(off) => setOffset('l', off)}
           emptyText="No liabilities"
           view={search.view}
+          historyByAccount={historyByAccount}
         />
       </div>
     </div>

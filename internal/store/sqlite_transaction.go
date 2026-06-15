@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/hance08/kea/internal/repository"
 	sqlite "github.com/mattn/go-sqlite3"
 )
 
@@ -662,5 +663,46 @@ func (s *Store) FilterTransactions(ctx context.Context, filter model.Transaction
 		items = []*model.Transaction{}
 	}
 	result.Items = items
+	return result, nil
+}
+
+// GetMonthlySplitTotalsForAssetsAndLiabilities returns, for every
+// (account_id, month) with activity on an Asset or Liability account,
+// the sum of split amounts in that month. Months are UTC "YYYY-MM"
+// strings derived from each transaction's Unix timestamp.
+func (s *Store) GetMonthlySplitTotalsForAssetsAndLiabilities(ctx context.Context) ([]repository.MonthlySplitTotal, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rows, err := s.db.QueryContext(ctx, `
+        SELECT
+            s.account_id,
+            a.type,
+            a.currency,
+            strftime('%Y-%m', t.timestamp, 'unixepoch') AS month,
+            SUM(s.amount) AS total
+        FROM splits s
+        JOIN transactions t ON t.id = s.transaction_id
+        JOIN accounts     a ON a.id = s.account_id
+        WHERE a.type IN ('A', 'L')
+        GROUP BY s.account_id, month
+        ORDER BY s.account_id, month
+    `)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query monthly split totals: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var result []repository.MonthlySplitTotal
+	for rows.Next() {
+		var r repository.MonthlySplitTotal
+		if err := rows.Scan(&r.AccountID, &r.AccountType, &r.Currency, &r.Month, &r.Amount); err != nil {
+			return nil, fmt.Errorf("failed to scan monthly split total: %w", err)
+		}
+		result = append(result, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
 	return result, nil
 }

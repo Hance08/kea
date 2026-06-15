@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/hance08/kea/internal/model"
 )
@@ -414,6 +415,57 @@ func TestHandleListBalances_AsOfDefault(t *testing.T) {
 	}
 	// We do not assert the as_of value the service was called with — the spec
 	// accepts this gap deliberately (no nowFunc test seam).
+}
+
+// Reproduces the bug where same-day transactions were silently excluded from
+// the balance: the SPA encodes a picked date as noon UTC, but the default
+// asOf was time.Now(). For any caller whose UTC clock is before noon, a
+// transaction dated "today" would have timestamp > asOf and be filtered out
+// by the t.timestamp <= asOf query. Defaulting asOf to end-of-day UTC fixes
+// this so a same-day transaction is reflected in the bulk balance.
+func TestHandleListBalances_SameDayTransactionIncluded(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+
+	now := time.Now().UTC()
+	noonToday := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.UTC).Unix()
+	seedTransaction(t, svc, "Assets:Bank", "Expenses:Coffee", 500, noonToday,
+		"same-day expense", model.TxTypeExpense, model.StatusCleared)
+
+	resp, err := http.Get(ts.URL + "/api/balances")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.ListResult[model.AccountBalance]
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	var bank, coffee int64
+	var foundBank, foundCoffee bool
+	for _, row := range got.Items {
+		switch row.Name {
+		case "Assets:Bank":
+			foundBank = true
+			bank = row.Amount
+		case "Expenses:Coffee":
+			foundCoffee = true
+			coffee = row.Amount
+		}
+	}
+	if !foundBank || !foundCoffee {
+		t.Fatalf("missing rows: bank=%v coffee=%v", foundBank, foundCoffee)
+	}
+	if bank != -500 {
+		t.Errorf("Bank amount: got %d, want -500 (same-day expense not reflected)", bank)
+	}
+	if coffee != 500 {
+		t.Errorf("Coffee amount: got %d, want 500 (same-day expense not reflected)", coffee)
+	}
 }
 
 func TestHandleListBalances_HistoricalAsOf(t *testing.T) {

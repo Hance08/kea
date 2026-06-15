@@ -77,12 +77,22 @@ func (s *Server) handleAccountBalance(w http.ResponseWriter, r *http.Request) er
 	})
 }
 
+// endOfTodayUTC returns 23:59:59 UTC on the same calendar day as now.
+// The web form encodes a user-picked date as noon UTC of that day, so a
+// transaction "dated today" lands ahead of the wall-clock instant for users
+// east of UTC. Defaulting the balance cutoff to end-of-day prevents same-day
+// transactions from being silently excluded.
+func endOfTodayUTC(now time.Time) int64 {
+	u := now.UTC()
+	return time.Date(u.Year(), u.Month(), u.Day(), 23, 59, 59, 0, time.UTC).Unix()
+}
+
 func (s *Server) handleListBalances(w http.ResponseWriter, r *http.Request) error {
 	asOfPtr, err := parseInt64Query(r, "as_of")
 	if err != nil {
 		return err
 	}
-	asOf := time.Now().Unix()
+	asOf := endOfTodayUTC(time.Now())
 	if asOfPtr != nil {
 		asOf = *asOfPtr
 	}

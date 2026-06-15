@@ -158,3 +158,41 @@ func (ts *TransactionService) GetTransactionHistory(ctx context.Context, account
 
 	return transactions, nil
 }
+
+// GetMonthlyBalanceHistory returns, for every Asset and Liability account
+// with activity, the full monthly end-of-month balance series in the
+// account's natural-amount direction. Accounts with no activity are omitted.
+// Series are ordered by AccountID ASC; points within each series ascend by month.
+func (ts *TransactionService) GetMonthlyBalanceHistory(ctx context.Context) ([]model.AccountMonthlySeries, error) {
+	rows, err := ts.txRepo.GetMonthlySplitTotalsForAssetsAndLiabilities(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get monthly split totals: %w", err)
+	}
+
+	// rows are already ordered by account_id, month ASC.
+	var out []model.AccountMonthlySeries
+	var cur *model.AccountMonthlySeries
+	var running int64
+	for _, r := range rows {
+		if cur == nil || cur.AccountID != r.AccountID {
+			out = append(out, model.AccountMonthlySeries{
+				AccountID: r.AccountID,
+				Currency:  r.Currency,
+				Points:    nil,
+			})
+			cur = &out[len(out)-1]
+			running = 0
+		}
+		running += r.Amount
+		balance := running
+		// Liability: stored is negative when the debt grows, so natural-amount = -stored.
+		if r.AccountType == model.AccountTypeLiability {
+			balance = -balance
+		}
+		cur.Points = append(cur.Points, model.MonthlyBalancePoint{
+			Month:   r.Month,
+			Balance: balance,
+		})
+	}
+	return out, nil
+}

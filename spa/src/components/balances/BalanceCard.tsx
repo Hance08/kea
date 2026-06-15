@@ -1,13 +1,15 @@
-import { balanceColor } from '@/lib/accounts';
+import { Sparkline } from '@/components/balances/Sparkline';
+import { balanceColor, balanceStrokeColor } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
 import { formatBalanceAbs } from '@/lib/format';
-import type { AccountBalance } from '@/lib/types';
+import type { AccountBalance, BalanceHistoryPoint } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
 interface Props {
   row: AccountBalance;
   columnLabel: 'Assets' | 'Liabilities';
   share: number | null;
+  points?: BalanceHistoryPoint[];
 }
 
 // Strip the canonical column-type prefix when present; leave non-canonical
@@ -17,7 +19,7 @@ function stripColumnPrefix(name: string, columnLabel: 'Assets' | 'Liabilities'):
   return name.startsWith(prefix) ? name.slice(prefix.length) : name;
 }
 
-export function BalanceCard({ row, columnLabel, share }: Props) {
+export function BalanceCard({ row, columnLabel, share, points }: Props) {
   const displayName = stripColumnPrefix(row.name, columnLabel);
   const shareWording = columnLabel.toLowerCase(); // 'assets' | 'liabilities'
 
@@ -36,15 +38,25 @@ export function BalanceCard({ row, columnLabel, share }: Props) {
           {row.currency}
         </span>
       </div>
-      <div className="mt-2">
-        <div className={cn('text-lg font-bold tabular-nums', balanceColor(row.type, row.amount))}>
-          {formatBalanceAbs(row.amount)}
-        </div>
-        {share !== null && (
-          <div className="mt-0.5 text-[11px] text-muted-foreground">
-            {share}% of {shareWording}
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <div className={cn('text-lg font-bold tabular-nums', balanceColor(row.type, row.amount))}>
+            {formatBalanceAbs(row.amount)}
           </div>
-        )}
+          {share !== null && (
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {share}% of {shareWording}
+            </div>
+          )}
+        </div>
+        <div className="shrink-0">
+          {points && points.length >= 2 && (
+            <Sparkline
+              points={points}
+              strokeClassName={balanceStrokeColor(row.type, row.amount)}
+            />
+          )}
+        </div>
       </div>
     </Link>
   );

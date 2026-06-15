@@ -170,3 +170,34 @@ func TestGetMonthlyBalanceHistory_RepoError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func TestGetMonthlyBalanceHistory_SkipsAllZeroSeries(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+	accRepo.accountsByID[40] = &model.Account{
+		ID: 40, Name: "Assets:Wash", Type: model.AccountTypeAsset, Currency: "USD",
+	}
+	accRepo.accountsByID[41] = &model.Account{
+		ID: 41, Name: "Assets:Real", Type: model.AccountTypeAsset, Currency: "USD",
+	}
+	txRepo.monthlySplitTotals = []repository.MonthlySplitTotal{
+		// Account 40: every cumulative balance is zero — series should be skipped.
+		{AccountID: 40, AccountType: model.AccountTypeAsset, Currency: "USD", Month: "2024-01", Amount: 0},
+		{AccountID: 40, AccountType: model.AccountTypeAsset, Currency: "USD", Month: "2024-02", Amount: 0},
+		// Account 41: real activity — should appear.
+		{AccountID: 41, AccountType: model.AccountTypeAsset, Currency: "USD", Month: "2024-01", Amount: 5000},
+	}
+
+	got, err := svc.GetMonthlyBalanceHistory(context.Background())
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("series count: got %d, want 1 (account 40 should be skipped): %+v", len(got), got)
+	}
+	if got[0].AccountID != 41 {
+		t.Errorf("AccountID: got %d, want 41", got[0].AccountID)
+	}
+}

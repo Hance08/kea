@@ -163,6 +163,7 @@ func (ts *TransactionService) GetTransactionHistory(ctx context.Context, account
 // with activity, the full monthly end-of-month balance series in the
 // account's natural-amount direction. Accounts with no activity are omitted.
 // Series are ordered by AccountID ASC; points within each series ascend by month.
+// Accounts whose cumulative balance is zero at every month are also omitted.
 func (ts *TransactionService) GetMonthlyBalanceHistory(ctx context.Context) ([]model.AccountMonthlySeries, error) {
 	rows, err := ts.txRepo.GetMonthlySplitTotalsForAssetsAndLiabilities(ctx)
 	if err != nil {
@@ -171,16 +172,22 @@ func (ts *TransactionService) GetMonthlyBalanceHistory(ctx context.Context) ([]m
 
 	// rows are already ordered by account_id, month ASC.
 	var out []model.AccountMonthlySeries
-	var cur *model.AccountMonthlySeries
+	var cur model.AccountMonthlySeries
 	var running int64
 	for _, r := range rows {
-		if cur == nil || cur.AccountID != r.AccountID {
-			out = append(out, model.AccountMonthlySeries{
+		if cur.AccountID != 0 && cur.AccountID != r.AccountID {
+			// Transitioning to a new account: evaluate the just-completed series.
+			if hasNonZeroBalance(cur.Points) {
+				out = append(out, cur)
+			}
+		}
+		if cur.AccountID != r.AccountID {
+			// Starting a new account.
+			cur = model.AccountMonthlySeries{
 				AccountID: r.AccountID,
 				Currency:  r.Currency,
 				Points:    nil,
-			})
-			cur = &out[len(out)-1]
+			}
 			running = 0
 		}
 		running += r.Amount
@@ -194,5 +201,19 @@ func (ts *TransactionService) GetMonthlyBalanceHistory(ctx context.Context) ([]m
 			Balance: balance,
 		})
 	}
+	// Don't forget the last series.
+	if len(cur.Points) > 0 && hasNonZeroBalance(cur.Points) {
+		out = append(out, cur)
+	}
 	return out, nil
+}
+
+// hasNonZeroBalance reports whether the given points list contains at least one non-zero balance.
+func hasNonZeroBalance(points []model.MonthlyBalancePoint) bool {
+	for _, p := range points {
+		if p.Balance != 0 {
+			return true
+		}
+	}
+	return false
 }

@@ -1,6 +1,6 @@
+import { Sparkline } from '@/components/balances/Sparkline';
 import { render } from '@testing-library/react';
 import { expect, test } from 'vitest';
-import { Sparkline } from '@/components/balances/Sparkline';
 
 test('renders nothing when fewer than 2 points', () => {
   const { container } = render(

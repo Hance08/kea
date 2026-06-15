@@ -135,7 +135,7 @@ export interface BalanceResponse {
 }
 
 export interface BalanceHistoryPoint {
-  month: string;   // "YYYY-MM"
+  month: string; // "YYYY-MM"
   balance: number; // cents, natural-amount
 }
 

@@ -51,10 +51,7 @@ export function BalanceCard({ row, columnLabel, share, points }: Props) {
         </div>
         <div className="shrink-0">
           {points && points.length >= 2 && (
-            <Sparkline
-              points={points}
-              strokeClassName={balanceStrokeColor(row.type, row.amount)}
-            />
+            <Sparkline points={points} strokeClassName={balanceStrokeColor(row.type, row.amount)} />
           )}
         </div>
       </div>

@@ -311,6 +311,10 @@ type mockTransactionRepo struct {
 	listTxErr          error
 	listTxByAccountErr error
 	filterErr          error
+
+	// monthly history support
+	monthlySplitTotals    []repository.MonthlySplitTotal
+	monthlySplitTotalsErr error
 }
 
 func newMockTransactionRepo() *mockTransactionRepo {
@@ -667,6 +671,13 @@ func (m *mockTransactionRepo) FilterTransactions(_ context.Context, filter model
 		Limit:      opts.Limit,
 		Offset:     opts.Offset,
 	}, nil
+}
+
+func (m *mockTransactionRepo) GetMonthlySplitTotalsForAssetsAndLiabilities(_ context.Context) ([]repository.MonthlySplitTotal, error) {
+	if m.monthlySplitTotalsErr != nil {
+		return nil, m.monthlySplitTotalsErr
+	}
+	return m.monthlySplitTotals, nil
 }
 
 // ──────────────────────────────────────────────

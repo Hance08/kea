@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { balanceColor } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
 import { formatBalanceAbs } from '@/lib/format';
-import type { AccountBalance } from '@/lib/types';
+import type { AccountBalance, BalanceHistoryPoint } from '@/lib/types';
 
 export const LIST_PAGE_SIZE = 8;
 export const CARDS_PAGE_SIZE = 6;
@@ -30,6 +30,7 @@ interface Props {
   onOffsetChange: (offset: number) => void;
   emptyText: string;
   view: 'list' | 'cards';
+  historyByAccount?: Map<number, BalanceHistoryPoint[]>;
 }
 
 export function BalanceColumn({
@@ -44,6 +45,7 @@ export function BalanceColumn({
   onOffsetChange,
   emptyText,
   view,
+  historyByAccount,
 }: Props) {
   const isEmpty = rows.length === 0;
   const totalType = label === 'Assets' ? 'A' : 'L';
@@ -120,7 +122,12 @@ export function BalanceColumn({
         </>
       ) : (
         <>
-          <BalanceCardGrid rows={rows} shares={shares} columnLabel={label} />
+          <BalanceCardGrid
+            rows={rows}
+            shares={shares}
+            columnLabel={label}
+            historyByAccount={historyByAccount}
+          />
           <div className="px-3 pb-3">
             <Pagination
               total={totalRowCount}

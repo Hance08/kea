@@ -9,6 +9,8 @@ interface Props {
 
 const VIEWBOX_W = 100;
 const VIEWBOX_H = 30;
+// Inset the drawing area so the line's stroke isn't clipped at the viewBox edges.
+const PAD = 2;
 
 export function Sparkline({ points, strokeClassName, className }: Props) {
   if (points.length < 2) return null;
@@ -17,12 +19,17 @@ export function Sparkline({ points, strokeClassName, className }: Props) {
   const min = Math.min(...balances);
   const max = Math.max(...balances);
   const range = max - min;
-  const xStep = VIEWBOX_W / (points.length - 1);
+  const drawW = VIEWBOX_W - PAD * 2;
+  const drawH = VIEWBOX_H - PAD * 2;
+  const xStep = drawW / (points.length - 1);
 
   const coords = points
     .map((p, i) => {
-      const x = i * xStep;
-      const y = range === 0 ? VIEWBOX_H / 2 : VIEWBOX_H - ((p.balance - min) / range) * VIEWBOX_H;
+      const x = PAD + i * xStep;
+      const y =
+        range === 0
+          ? VIEWBOX_H / 2
+          : PAD + drawH - ((p.balance - min) / range) * drawH;
       return `${x},${y}`;
     })
     .join(' ');

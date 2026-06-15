@@ -54,7 +54,7 @@ test('scales points to the line min/max', () => {
       strokeClassName="stroke-green-600"
     />,
   );
-  // 2 points → x = 0 and 100. Min balance maps to y=30 (bottom), max to y=0 (top).
+  // viewBox 0 0 100 30, PAD=2 → x spans 2→98, y spans 2 (top, max) → 28 (bottom, min).
   const points = container.querySelector('polyline')?.getAttribute('points') ?? '';
-  expect(points).toBe('0,30 100,0');
+  expect(points).toBe('2,28 98,2');
 });

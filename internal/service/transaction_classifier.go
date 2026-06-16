@@ -378,6 +378,39 @@ func (ts *TransactionService) ValidateSplitsMatchType(ctx context.Context, txTyp
 			}
 		}
 
+	case model.TxTypeInvestment:
+		var hasInvestment, hasOtherAssetOrLiab bool
+		for _, s := range splits {
+			accType, err := ts.resolveAccountType(ctx, s)
+			if err != nil {
+				return err
+			}
+			if accType != model.AccountTypeAsset && accType != model.AccountTypeLiability {
+				continue
+			}
+			name := s.AccountName
+			if name == "" {
+				acc, err := ts.accRepo.GetAccountByID(ctx, s.AccountID)
+				if err != nil {
+					return err
+				}
+				name = acc.Name
+			}
+			if model.IsInvestmentAccount(name) {
+				hasInvestment = true
+			} else {
+				hasOtherAssetOrLiab = true
+			}
+		}
+		if !hasInvestment {
+			return validationErrorf("type",
+				"investment transaction requires at least one Assets:Investments:* account")
+		}
+		if !hasOtherAssetOrLiab {
+			return validationErrorf("type",
+				"investment transaction requires at least one other Asset or Liability account (the cash side)")
+		}
+
 	default:
 		return validationErrorf("type", "unknown transaction type %q", txType)
 	}

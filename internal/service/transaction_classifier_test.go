@@ -614,6 +614,44 @@ func TestValidateSplitsMatchType(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:   "investment: valid sell with realized gain",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+				split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "investment: valid buy with fee",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 20490),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -20519),
+				split("Expenses:Fees:Stocks", model.AccountTypeExpense, 29),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "investment: missing Investments split → error",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, 100),
+				split("Assets:Cash", model.AccountTypeAsset, -100),
+			},
+			wantErr: true,
+		},
+		{
+			name:   "investment: missing cash side → error",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 100),
+				split("Assets:Investments:00878", model.AccountTypeAsset, -100),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

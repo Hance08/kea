@@ -95,6 +95,13 @@ type TransactionRepository interface {
 	// that dimension). When filter.AccountID is set the query joins on splits.
 	// Results are ordered by timestamp DESC, id DESC.
 	FilterTransactions(ctx context.Context, filter model.TransactionFilter, opts model.ListOptions) (*model.ListResult[*model.Transaction], error)
+
+	// GetMonthlySplitTotalsForAssetsAndLiabilities returns, for every
+	// (account_id, month) with activity on an Asset or Liability account,
+	// the sum of split amounts in that month. Months are UTC "YYYY-MM"
+	// strings derived from transaction timestamps. Ordered by account_id
+	// ASC, month ASC. Used to build per-account monthly balance series.
+	GetMonthlySplitTotalsForAssetsAndLiabilities(ctx context.Context) ([]MonthlySplitTotal, error)
 }
 
 type Repository interface {
@@ -104,4 +111,15 @@ type Repository interface {
 
 type TransactionManager interface {
 	ExecTx(ctx context.Context, fn func(Repository) error) error
+}
+
+// MonthlySplitTotal is one (account, month) bucket of summed split amounts.
+// Amount is stored-sign (not natural-amount); the service layer applies the
+// natural-amount conversion based on AccountType.
+type MonthlySplitTotal struct {
+	AccountID   int64
+	AccountType model.AccountType
+	Currency    string
+	Month       string // "YYYY-MM" UTC
+	Amount      int64  // cents, stored sign, sum within the month
 }

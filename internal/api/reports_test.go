@@ -201,3 +201,52 @@ func TestHandleNetWorth_BadAt(t *testing.T) {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
 	}
 }
+
+func TestHandleBalanceHistory(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Revenue:Salary", model.AccountTypeRevenue, 0)
+
+	jan1 := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC).Unix()
+	feb1 := time.Date(2026, 2, 5, 12, 0, 0, 0, time.UTC).Unix()
+	seedTransaction(t, svc, "Revenue:Salary", "Assets:Cash", 100000, jan1, "pay1", model.TxTypeIncome, model.StatusCleared)
+	seedTransaction(t, svc, "Revenue:Salary", "Assets:Cash", 200000, feb1, "pay2", model.TxTypeIncome, model.StatusCleared)
+
+	resp, err := http.Get(ts.URL + "/api/balances/history")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: %d", resp.StatusCode)
+	}
+
+	var got struct {
+		Items []struct {
+			AccountID int64  `json:"account_id"`
+			Currency  string `json:"currency"`
+			Points    []struct {
+				Month   string `json:"month"`
+				Balance int64  `json:"balance"`
+			} `json:"points"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	// Only the Asset account should appear; Revenue is excluded.
+	if len(got.Items) != 1 {
+		t.Fatalf("items: got %d, want 1: %+v", len(got.Items), got)
+	}
+	pts := got.Items[0].Points
+	if len(pts) != 2 {
+		t.Fatalf("points: got %d, want 2", len(pts))
+	}
+	if pts[0].Month != "2026-01" || pts[0].Balance != 100000 {
+		t.Errorf("pts[0]: got %+v, want {2026-01 100000}", pts[0])
+	}
+	if pts[1].Month != "2026-02" || pts[1].Balance != 300000 {
+		t.Errorf("pts[1]: got %+v, want {2026-02 300000}", pts[1])
+	}
+}

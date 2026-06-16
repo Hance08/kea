@@ -133,3 +133,18 @@ export interface BalanceResponse {
   amount: number;
   currency: string;
 }
+
+export interface BalanceHistoryPoint {
+  month: string; // "YYYY-MM"
+  balance: number; // cents, natural-amount
+}
+
+export interface AccountBalanceHistory {
+  account_id: number;
+  currency: string;
+  points: BalanceHistoryPoint[];
+}
+
+export interface BalanceHistoryResponse {
+  items: AccountBalanceHistory[];
+}

@@ -6,6 +6,8 @@ package api
 import (
 	"net/http"
 	"time"
+
+	"github.com/hance08/kea/internal/model"
 )
 
 func (s *Server) handleIncomeStatement(w http.ResponseWriter, r *http.Request) error {
@@ -73,4 +75,19 @@ func (s *Server) handleNetWorth(w http.ResponseWriter, r *http.Request) error {
 		nw = map[string]int64{}
 	}
 	return writeJSON(w, http.StatusOK, netWorthResponse{At: at, NetWorth: nw})
+}
+
+type balanceHistoryResponse struct {
+	Items []model.AccountMonthlySeries `json:"items"`
+}
+
+func (s *Server) handleBalanceHistory(w http.ResponseWriter, r *http.Request) error {
+	items, err := s.svc.Transaction().GetMonthlyBalanceHistory(r.Context())
+	if err != nil {
+		return err
+	}
+	if items == nil {
+		items = []model.AccountMonthlySeries{}
+	}
+	return writeJSON(w, http.StatusOK, balanceHistoryResponse{Items: items})
 }

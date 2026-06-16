@@ -1,5 +1,6 @@
 import type {
   AccountBalance,
+  BalanceHistoryResponse,
   LedgerInfo,
   LedgerListResponse,
   ListResult,
@@ -38,6 +39,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
 export function getBalances(): Promise<ListResult<AccountBalance>> {
   return apiFetch<ListResult<AccountBalance>>('/api/balances');
+}
+
+export function getBalanceHistory(): Promise<BalanceHistoryResponse> {
+  return apiFetch<BalanceHistoryResponse>('/api/balances/history');
 }
 
 export function getConfig(): Promise<ServerConfig> {

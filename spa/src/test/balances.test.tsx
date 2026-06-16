@@ -59,6 +59,22 @@ beforeEach(() => {
           }),
         );
       }
+      if (url === '/api/balances/history') {
+        return Promise.resolve(
+          okResponse({
+            items: [
+              {
+                account_id: 1,
+                currency: 'USD',
+                points: [
+                  { month: '2024-01', balance: 100000 },
+                  { month: '2024-02', balance: 125000 },
+                ],
+              },
+            ],
+          }),
+        );
+      }
       throw new Error(`unexpected fetch: ${url}`);
     }),
   );

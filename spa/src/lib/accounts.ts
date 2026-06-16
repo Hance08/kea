@@ -121,6 +121,16 @@ export function balanceColor(type: AccountType, amount: number): string {
   return '';
 }
 
+// Same rule as balanceColor, but returns an SVG stroke-* Tailwind class for
+// use with the Sparkline component. Zero amount stays neutral (no stroke
+// override; caller may default to a muted color).
+export function balanceStrokeColor(type: AccountType, amount: number): string {
+  const inverted = type === 'R' || type === 'E';
+  if (amount > 0) return inverted ? 'stroke-red-600' : 'stroke-green-600';
+  if (amount < 0) return inverted ? 'stroke-green-600' : 'stroke-red-600';
+  return 'stroke-muted-foreground';
+}
+
 export function searchAccounts(query: string): Promise<ListResult<Account>> {
   return apiFetch<ListResult<Account>>(`/api/accounts${buildQuery({ q: query, limit: 20 })}`);
 }

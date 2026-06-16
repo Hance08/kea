@@ -10,10 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as BalancesRouteImport } from './routes/balances'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions.index'
+import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
@@ -27,6 +29,11 @@ import { Route as AccountsIdEditRouteImport } from './routes/accounts.$id.edit'
 const TransactionsRoute = TransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BalancesRoute = BalancesRouteImport.update({
@@ -48,6 +55,11 @@ const TransactionsIndexRoute = TransactionsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => TransactionsRoute,
+} as any)
+const ReportsIndexRoute = ReportsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReportsRoute,
 } as any)
 const AccountsIndexRoute = AccountsIndexRouteImport.update({
   id: '/',
@@ -99,12 +111,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRouteWithChildren
   '/balances': typeof BalancesRoute
+  '/reports': typeof ReportsRouteWithChildren
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
+  '/reports/': typeof ReportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
   '/accounts/$id/edit': typeof AccountsIdEditRoute
   '/transactions/$id/edit': typeof TransactionsIdEditRoute
@@ -117,6 +131,7 @@ export interface FileRoutesByTo {
   '/accounts/new': typeof AccountsNewRoute
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts': typeof AccountsIndexRoute
+  '/reports': typeof ReportsIndexRoute
   '/transactions': typeof TransactionsIndexRoute
   '/accounts/$id/edit': typeof AccountsIdEditRoute
   '/transactions/$id/edit': typeof TransactionsIdEditRoute
@@ -128,12 +143,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRouteWithChildren
   '/balances': typeof BalancesRoute
+  '/reports': typeof ReportsRouteWithChildren
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
+  '/reports/': typeof ReportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
   '/accounts/$id/edit': typeof AccountsIdEditRoute
   '/transactions/$id/edit': typeof TransactionsIdEditRoute
@@ -146,12 +163,14 @@ export interface FileRouteTypes {
     | '/'
     | '/accounts'
     | '/balances'
+    | '/reports'
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
+    | '/reports/'
     | '/transactions/'
     | '/accounts/$id/edit'
     | '/transactions/$id/edit'
@@ -164,6 +183,7 @@ export interface FileRouteTypes {
     | '/accounts/new'
     | '/transactions/new'
     | '/accounts'
+    | '/reports'
     | '/transactions'
     | '/accounts/$id/edit'
     | '/transactions/$id/edit'
@@ -174,12 +194,14 @@ export interface FileRouteTypes {
     | '/'
     | '/accounts'
     | '/balances'
+    | '/reports'
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
+    | '/reports/'
     | '/transactions/'
     | '/accounts/$id/edit'
     | '/transactions/$id/edit'
@@ -191,6 +213,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRouteWithChildren
   BalancesRoute: typeof BalancesRoute
+  ReportsRoute: typeof ReportsRouteWithChildren
   TransactionsRoute: typeof TransactionsRouteWithChildren
 }
 
@@ -201,6 +224,13 @@ declare module '@tanstack/react-router' {
       path: '/transactions'
       fullPath: '/transactions'
       preLoaderRoute: typeof TransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/balances': {
@@ -230,6 +260,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/transactions/'
       preLoaderRoute: typeof TransactionsIndexRouteImport
       parentRoute: typeof TransactionsRoute
+    }
+    '/reports/': {
+      id: '/reports/'
+      path: '/'
+      fullPath: '/reports/'
+      preLoaderRoute: typeof ReportsIndexRouteImport
+      parentRoute: typeof ReportsRoute
     }
     '/accounts/': {
       id: '/accounts/'
@@ -327,6 +364,17 @@ const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
   AccountsRouteChildren,
 )
 
+interface ReportsRouteChildren {
+  ReportsIndexRoute: typeof ReportsIndexRoute
+}
+
+const ReportsRouteChildren: ReportsRouteChildren = {
+  ReportsIndexRoute: ReportsIndexRoute,
+}
+
+const ReportsRouteWithChildren =
+  ReportsRoute._addFileChildren(ReportsRouteChildren)
+
 interface TransactionsIdRouteChildren {
   TransactionsIdEditRoute: typeof TransactionsIdEditRoute
   TransactionsIdIndexRoute: typeof TransactionsIdIndexRoute
@@ -361,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRouteWithChildren,
   BalancesRoute: BalancesRoute,
+  ReportsRoute: ReportsRouteWithChildren,
   TransactionsRoute: TransactionsRouteWithChildren,
 }
 export const routeTree = rootRouteImport

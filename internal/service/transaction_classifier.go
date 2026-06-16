@@ -23,12 +23,14 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 	var totalPositiveAssetLiabAmount int64
 
 	var (
-		hasExpense      bool
-		hasRevenue      bool
-		hasEquity       bool
-		assetOrLiabCnt  int
-		isOpening       bool
-		isAssetIncrease bool
+		hasExpense                  bool
+		hasRevenue                  bool
+		hasEquity                   bool
+		assetOrLiabCnt              int
+		isOpening                   bool
+		isAssetIncrease             bool
+		hasInvestmentAccount        bool
+		nonInvestmentAssetOrLiabCnt int
 	)
 
 	for _, split := range splits {
@@ -50,12 +52,18 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 			totalRevenueAmount += utils.AbsInt64(split.Amount)
 		case model.AccountTypeAsset:
 			assetOrLiabCnt++
+			if model.IsInvestmentAccount(split.AccountName) {
+				hasInvestmentAccount = true
+			} else {
+				nonInvestmentAssetOrLiabCnt++
+			}
 			if split.Amount > 0 {
 				isAssetIncrease = true
 				totalPositiveAssetLiabAmount += split.Amount
 			}
 		case model.AccountTypeLiability:
 			assetOrLiabCnt++
+			nonInvestmentAssetOrLiabCnt++
 			if split.Amount > 0 {
 				totalPositiveAssetLiabAmount += split.Amount
 			}
@@ -66,6 +74,10 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 
 	if isOpening {
 		return model.TxTypeOpening, nil
+	}
+
+	if hasInvestmentAccount && nonInvestmentAssetOrLiabCnt >= 1 {
+		return model.TxTypeInvestment, nil
 	}
 
 	if hasExpense && hasRevenue {

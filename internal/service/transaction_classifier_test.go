@@ -172,7 +172,7 @@ func TestDetermineType(t *testing.T) {
 		{
 			name: "transfer with fee: A/L dominates E → Transfer",
 			splits: []model.SplitDetail{
-				split("Assets:Investments:00878", model.AccountTypeAsset, 5160),
+				split("Assets:Savings", model.AccountTypeAsset, 5160),
 				split("Expenses:Fees:Stocks", model.AccountTypeExpense, 7),
 				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -5167),
 			},
@@ -195,6 +195,40 @@ func TestDetermineType(t *testing.T) {
 				split("Assets:Bank", model.AccountTypeAsset, -140),
 			},
 			want: model.TxTypeExpense,
+		},
+		{
+			name: "investment: sell stock with realized gain → Investment",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+				split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+			},
+			want: model.TxTypeInvestment,
+		},
+		{
+			name: "investment: buy stock with fee → Investment",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 20490),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -20519),
+				split("Expenses:Fees:Stocks", model.AccountTypeExpense, 29),
+			},
+			want: model.TxTypeInvestment,
+		},
+		{
+			name: "investment: clean transfer between brokerages → Investment",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 1000),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -1000),
+			},
+			want: model.TxTypeInvestment,
+		},
+		{
+			name: "investment account alone (no cash side) falls through to Transfer",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 100),
+				split("Assets:Investments:00878", model.AccountTypeAsset, -100),
+			},
+			want: model.TxTypeTransfer,
 		},
 	}
 

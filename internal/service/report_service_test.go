@@ -591,6 +591,15 @@ func TestGenerateIncomeBreakdown(t *testing.T) {
 		require.Len(t, result.IncomeRows, 2)
 		assert.GreaterOrEqual(t, result.IncomeRows[0].Amount, result.IncomeRows[1].Amount)
 	})
+
+	t.Run("unused expense rows slice is non-nil so it serializes as []", func(t *testing.T) {
+		// Reason: JSON marshals a nil slice as `null`, which crashes the SPA's
+		// `result.expense_rows.filter(...)`. The handler must emit `[]`.
+		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		result, err := svc.GenerateIncomeBreakdown(context.Background(), 0, 0)
+		require.NoError(t, err)
+		require.NotNil(t, result.ExpenseRows)
+	})
 }
 
 // ──────────────────────────────────────────────
@@ -617,6 +626,14 @@ func TestGenerateExpenseBreakdown(t *testing.T) {
 		assert.Equal(t, int64(500), result.TotalExpense["USD"])
 		assert.NotEmpty(t, result.ExpenseRows)
 		assert.Empty(t, result.IncomeRows)
+	})
+
+	t.Run("unused income rows slice is non-nil so it serializes as []", func(t *testing.T) {
+		// Reason: a nil slice JSON-marshals to `null` and crashes the SPA.
+		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		result, err := svc.GenerateExpenseBreakdown(context.Background(), 0, 0)
+		require.NoError(t, err)
+		require.NotNil(t, result.IncomeRows)
 	})
 }
 
@@ -817,5 +834,17 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		assert.Equal(t, int64(8000), result.NetWorth["USD"]) // 7000 - (-1000)
 		require.Len(t, result.Liabilities, 1)
 		assert.Equal(t, int64(-1000), result.Liabilities[0].Amount)
+	})
+
+	t.Run("empty ledger returns non-nil slices that serialize as []", func(t *testing.T) {
+		// Reason: a nil slice JSON-marshals to `null` and crashes the SPA's
+		// `result.liabilities.filter(...)` on databases with no liabilities (or
+		// no assets, or no equity accounts).
+		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		result, err := svc.GenerateBalanceSheet(context.Background(), 9999999999)
+		require.NoError(t, err)
+		require.NotNil(t, result.Assets)
+		require.NotNil(t, result.Liabilities)
+		require.NotNil(t, result.Equity)
 	})
 }

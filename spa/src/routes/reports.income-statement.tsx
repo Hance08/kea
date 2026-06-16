@@ -73,8 +73,8 @@ function IncomeStatementPage() {
   }
 
   const result = query.data;
-  const incomeRows = result.income_rows.filter((r) => r.currency === currency);
-  const expenseRows = result.expense_rows.filter((r) => r.currency === currency);
+  const incomeRows = (result.income_rows ?? []).filter((r) => r.currency === currency);
+  const expenseRows = (result.expense_rows ?? []).filter((r) => r.currency === currency);
   const isEmpty = incomeRows.length === 0 && expenseRows.length === 0;
 
   const income = result.total_income[currency] ?? 0;

@@ -73,7 +73,9 @@ function IncomeStatementPage() {
   }
 
   const result = query.data;
-  const isEmpty = result.income_rows.length === 0 && result.expense_rows.length === 0;
+  const incomeRows = result.income_rows.filter((r) => r.currency === currency);
+  const expenseRows = result.expense_rows.filter((r) => r.currency === currency);
+  const isEmpty = incomeRows.length === 0 && expenseRows.length === 0;
 
   const income = result.total_income[currency] ?? 0;
   const expense = result.total_expense[currency] ?? 0;
@@ -111,7 +113,7 @@ function IncomeStatementPage() {
             <section>
               <h2 className="mb-2 text-sm font-semibold">Income mix</h2>
               <ProportionBar
-                rows={result.income_rows.filter((r) => r.currency === currency)}
+                rows={incomeRows}
                 total={income}
                 currency={currency}
                 limit={8}
@@ -121,7 +123,7 @@ function IncomeStatementPage() {
             <section>
               <h2 className="mb-2 text-sm font-semibold">Expense mix</h2>
               <ProportionBar
-                rows={result.expense_rows.filter((r) => r.currency === currency)}
+                rows={expenseRows}
                 total={expense}
                 currency={currency}
                 limit={8}
@@ -134,7 +136,7 @@ function IncomeStatementPage() {
             <section>
               <h2 className="mb-2 text-sm font-semibold">Income detail</h2>
               <ReportRowTable
-                rows={result.income_rows.filter((r) => r.currency === currency)}
+                rows={incomeRows}
                 currency={currency}
                 nameToId={nameToId}
                 period={{ startUnix: period.startUnix, endUnix: period.endUnix }}
@@ -143,7 +145,7 @@ function IncomeStatementPage() {
             <section>
               <h2 className="mb-2 text-sm font-semibold">Expense detail</h2>
               <ReportRowTable
-                rows={result.expense_rows.filter((r) => r.currency === currency)}
+                rows={expenseRows}
                 currency={currency}
                 nameToId={nameToId}
                 period={{ startUnix: period.startUnix, endUnix: period.endUnix }}

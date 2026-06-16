@@ -7,7 +7,7 @@ import { formatCents } from '@/lib/format';
 import { useNetWorth } from '@/lib/hooks/useReport';
 import { type AtSearchParams, parseAtSearch } from '@/lib/reports-search-params';
 import { useServerConfig } from '@/lib/server-config';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/reports/net-worth')({
   validateSearch: (s): AtSearchParams => parseAtSearch(s),
@@ -59,7 +59,17 @@ function NetWorthPage() {
         <div className="text-xs uppercase tracking-wide text-muted-foreground">Net Worth</div>
         <div className="mt-1 text-4xl font-semibold">{formatCents(nw, currency)}</div>
         {Object.keys(query.data.net_worth).length === 0 && (
-          <p className="mt-3 text-sm text-muted-foreground">No accounts yet.</p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            No accounts yet —{' '}
+            <Link
+              to="/accounts/new"
+              className="underline hover:text-foreground"
+              search={{ include_hidden: false, show_parents: false, limit: 10, offset: 0 }}
+            >
+              create one
+            </Link>
+            .
+          </p>
         )}
       </section>
       {otherCurrencies.length > 0 && (

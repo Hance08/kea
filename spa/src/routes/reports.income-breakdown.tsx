@@ -67,7 +67,7 @@ function IncomeBreakdownPage() {
 
   const result = query.data;
   const income = result.total_income[currency] ?? 0;
-  const rows = result.income_rows.filter((r) => r.currency === currency);
+  const rows = (result.income_rows ?? []).filter((r) => r.currency === currency);
 
   return (
     <div className="space-y-6">

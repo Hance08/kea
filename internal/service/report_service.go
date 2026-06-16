@@ -257,6 +257,7 @@ func (ts *TransactionService) GenerateIncomeBreakdown(ctx context.Context, start
 
 	return &model.ReportResult{
 		IncomeRows:  rows,
+		ExpenseRows: []model.ReportRow{},
 		TotalIncome: total,
 	}, nil
 }
@@ -277,6 +278,7 @@ func (ts *TransactionService) GenerateExpenseBreakdown(ctx context.Context, star
 	}
 
 	return &model.ReportResult{
+		IncomeRows:   []model.ReportRow{},
 		ExpenseRows:  rows,
 		TotalExpense: total,
 	}, nil
@@ -297,6 +299,9 @@ func (ts *TransactionService) GenerateBalanceSheet(ctx context.Context, asOf int
 
 	result := &model.BalanceSheetResult{
 		AsOf:             asOf,
+		Assets:           []model.ReportRow{},
+		Liabilities:      []model.ReportRow{},
+		Equity:           []model.ReportRow{},
 		TotalAssets:      map[string]int64{},
 		TotalLiabilities: map[string]int64{},
 		TotalEquity:      map[string]int64{},

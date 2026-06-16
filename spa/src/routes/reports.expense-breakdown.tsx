@@ -67,7 +67,7 @@ function ExpenseBreakdownPage() {
 
   const result = query.data;
   const expense = result.total_expense[currency] ?? 0;
-  const rows = result.expense_rows.filter((r) => r.currency === currency);
+  const rows = (result.expense_rows ?? []).filter((r) => r.currency === currency);
 
   return (
     <div className="space-y-6">

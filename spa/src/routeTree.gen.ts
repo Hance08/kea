@@ -20,6 +20,7 @@ import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
 import { Route as ReportsIncomeStatementRouteImport } from './routes/reports.income-statement'
+import { Route as ReportsIncomeBreakdownRouteImport } from './routes/reports.income-breakdown'
 import { Route as AccountsNewRouteImport } from './routes/accounts.new'
 import { Route as AccountsIdRouteImport } from './routes/accounts.$id'
 import { Route as TransactionsIdIndexRouteImport } from './routes/transactions.$id.index'
@@ -82,6 +83,11 @@ const ReportsIncomeStatementRoute = ReportsIncomeStatementRouteImport.update({
   path: '/income-statement',
   getParentRoute: () => ReportsRoute,
 } as any)
+const ReportsIncomeBreakdownRoute = ReportsIncomeBreakdownRouteImport.update({
+  id: '/income-breakdown',
+  path: '/income-breakdown',
+  getParentRoute: () => ReportsRoute,
+} as any)
 const AccountsNewRoute = AccountsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
+  '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
   '/accounts/new': typeof AccountsNewRoute
+  '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts': typeof AccountsIndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
+  '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
+    | '/reports/income-breakdown'
     | '/reports/income-statement'
     | '/transactions/$id'
     | '/transactions/new'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/'
     | '/balances'
     | '/accounts/new'
+    | '/reports/income-breakdown'
     | '/reports/income-statement'
     | '/transactions/new'
     | '/accounts'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
+    | '/reports/income-breakdown'
     | '/reports/income-statement'
     | '/transactions/$id'
     | '/transactions/new'
@@ -308,6 +320,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsIncomeStatementRouteImport
       parentRoute: typeof ReportsRoute
     }
+    '/reports/income-breakdown': {
+      id: '/reports/income-breakdown'
+      path: '/income-breakdown'
+      fullPath: '/reports/income-breakdown'
+      preLoaderRoute: typeof ReportsIncomeBreakdownRouteImport
+      parentRoute: typeof ReportsRoute
+    }
     '/accounts/new': {
       id: '/accounts/new'
       path: '/new'
@@ -384,11 +403,13 @@ const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
 )
 
 interface ReportsRouteChildren {
+  ReportsIncomeBreakdownRoute: typeof ReportsIncomeBreakdownRoute
   ReportsIncomeStatementRoute: typeof ReportsIncomeStatementRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
 }
 
 const ReportsRouteChildren: ReportsRouteChildren = {
+  ReportsIncomeBreakdownRoute: ReportsIncomeBreakdownRoute,
   ReportsIncomeStatementRoute: ReportsIncomeStatementRoute,
   ReportsIndexRoute: ReportsIndexRoute,
 }

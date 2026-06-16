@@ -15,6 +15,8 @@ export function determineType(splits: SplitDetail[]): TransactionType {
   let assetOrLiabCnt = 0;
   let isOpening = false;
   let isAssetIncrease = false;
+  let hasInvestmentAccount = false;
+  let nonInvestmentAssetOrLiabCnt = 0;
 
   for (const s of splits) {
     if (s.memo === OPENING_MEMO) isOpening = true;
@@ -29,6 +31,11 @@ export function determineType(splits: SplitDetail[]): TransactionType {
         break;
       case 'A':
         assetOrLiabCnt++;
+        if (s.account_name.startsWith('Assets:Investments:')) {
+          hasInvestmentAccount = true;
+        } else {
+          nonInvestmentAssetOrLiabCnt++;
+        }
         if (s.amount > 0) {
           isAssetIncrease = true;
           totalPositiveAssetLiabAmount += s.amount;
@@ -36,6 +43,7 @@ export function determineType(splits: SplitDetail[]): TransactionType {
         break;
       case 'L':
         assetOrLiabCnt++;
+        nonInvestmentAssetOrLiabCnt++;
         if (s.amount > 0) totalPositiveAssetLiabAmount += s.amount;
         break;
       case 'C':
@@ -45,6 +53,8 @@ export function determineType(splits: SplitDetail[]): TransactionType {
   }
 
   if (isOpening) return 'Opening';
+
+  if (hasInvestmentAccount && nonInvestmentAssetOrLiabCnt >= 1) return 'Investment';
 
   if (hasExpense && hasRevenue) {
     return totalRevenueAmount >= totalExpenseAmount ? 'Income' : 'Expense';

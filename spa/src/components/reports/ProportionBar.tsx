@@ -25,14 +25,7 @@ export function ProportionBar({ rows, total, currency, limit, variant = 'income'
     return <p className="text-sm text-muted-foreground">No data to display.</p>;
   }
 
-  // When total is positive (income/asset side), scale bars relative to the
-  // largest row so the biggest item always fills 100%.  When total is
-  // negative (expense side), scale against |total| so each bar shows its
-  // share of the overall pool.
-  const denom =
-    total >= 0
-      ? Math.max(...rows.map((r) => Math.abs(r.amount)))
-      : Math.abs(total);
+  const denom = Math.abs(total);
   const shown = limit && !expanded ? rows.slice(0, limit) : rows;
   const hiddenCount = rows.length - shown.length;
 

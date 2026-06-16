@@ -49,10 +49,10 @@ test('clicking expand renders all rows', async () => {
 });
 
 test('bar width is proportional to amount/total', () => {
-  const { container } = render(<ProportionBar rows={rows} total={524800} currency="USD" />);
+  const { container } = render(<ProportionBar rows={rows} total={520000} currency="USD" />);
   const bars = container.querySelectorAll('[data-testid="prop-bar"] [data-testid="bar-fill"]');
   expect(bars[0].getAttribute('style')).toContain('width: 100%');
-  // 4800/524800 ≈ 0.91%
+  // 4800/520000 ≈ 0.92%
   expect(bars[1].getAttribute('style')).toMatch(/width: 0\.\d+%|width: 1%/);
 });
 

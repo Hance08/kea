@@ -196,9 +196,10 @@ func (r *addRunner) validateAccountSelectable(ctx context.Context, accountName s
 
 
 var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
-	model.TxTypeExpense:  {"Payment Source:", "Expense Type:"},
-	model.TxTypeIncome:   {"Revenue Type:", "Deposit To:"},
-	model.TxTypeTransfer: {"From Account:", "To Account:"},
+	model.TxTypeExpense:    {"Payment Source:", "Expense Type:"},
+	model.TxTypeIncome:     {"Revenue Type:", "Deposit To:"},
+	model.TxTypeTransfer:   {"From Account:", "To Account:"},
+	model.TxTypeInvestment: {"Cash Account:", "Investment Account:"},
 }
 
 func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, error) {

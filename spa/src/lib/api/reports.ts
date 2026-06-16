@@ -1,7 +1,7 @@
 import { apiFetch } from '../api';
 import type { BalanceSheetResult, NetWorthResponse, ReportResult } from '../types';
 
-function buildQuery(params: Record<string, string | number | undefined>): string {
+function buildQuery(params: { [k: string]: string | number | undefined }): string {
   const usp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined || v === '') continue;
@@ -12,27 +12,28 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 }
 
 export interface PeriodApiParams {
+  [k: string]: string | undefined;
   month?: string;
   from?: string;
   to?: string;
 }
 
 export function fetchIncomeStatement(params: PeriodApiParams): Promise<ReportResult> {
-  return apiFetch<ReportResult>(`/api/reports/income-statement${buildQuery(params as Record<string, string | undefined>)}`);
+  return apiFetch<ReportResult>(`/api/reports/income-statement${buildQuery(params)}`);
 }
 
 export function fetchIncomeBreakdown(params: PeriodApiParams): Promise<ReportResult> {
-  return apiFetch<ReportResult>(`/api/reports/income-breakdown${buildQuery(params as Record<string, string | undefined>)}`);
+  return apiFetch<ReportResult>(`/api/reports/income-breakdown${buildQuery(params)}`);
 }
 
 export function fetchExpenseBreakdown(params: PeriodApiParams): Promise<ReportResult> {
-  return apiFetch<ReportResult>(`/api/reports/expense-breakdown${buildQuery(params as Record<string, string | undefined>)}`);
+  return apiFetch<ReportResult>(`/api/reports/expense-breakdown${buildQuery(params)}`);
 }
 
-export function fetchBalanceSheet(params: { as_of?: number }): Promise<BalanceSheetResult> {
-  return apiFetch<BalanceSheetResult>(`/api/reports/balance-sheet${buildQuery(params as Record<string, number | undefined>)}`);
+export function fetchBalanceSheet(params: { [k: string]: number | undefined; as_of?: number }): Promise<BalanceSheetResult> {
+  return apiFetch<BalanceSheetResult>(`/api/reports/balance-sheet${buildQuery(params)}`);
 }
 
-export function fetchNetWorth(params: { at?: number }): Promise<NetWorthResponse> {
-  return apiFetch<NetWorthResponse>(`/api/reports/net-worth${buildQuery(params as Record<string, number | undefined>)}`);
+export function fetchNetWorth(params: { [k: string]: number | undefined; at?: number }): Promise<NetWorthResponse> {
+  return apiFetch<NetWorthResponse>(`/api/reports/net-worth${buildQuery(params)}`);
 }

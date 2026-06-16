@@ -176,24 +176,41 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 	return "-", nil
 }
 
-func (ts *TransactionService) GetDisplayAmount(splits []model.SplitDetail) (int64, string) {
+func (ts *TransactionService) GetDisplayAmount(splits []model.SplitDetail, txType string) (int64, string) {
 	if len(splits) == 0 {
 		return 0, ""
 	}
 
-	var maxAmount int64
-	var currency string
-	if len(splits) > 0 {
-		currency = splits[0].Currency
+	if txType == string(model.TxTypeInvestment) {
+		var bestAmount int64
+		currency := splits[0].Currency
+		for _, s := range splits {
+			if s.AccountType != model.AccountTypeAsset && s.AccountType != model.AccountTypeLiability {
+				continue
+			}
+			if model.IsInvestmentAccount(s.AccountName) {
+				continue
+			}
+			abs := s.Amount
+			if abs < 0 {
+				abs = -abs
+			}
+			if abs > bestAmount {
+				bestAmount = abs
+				currency = s.Currency
+			}
+		}
+		return bestAmount, currency
 	}
 
+	var maxAmount int64
+	currency := splits[0].Currency
 	for _, split := range splits {
 		if split.Amount > maxAmount {
 			maxAmount = split.Amount
 			currency = split.Currency
 		}
 	}
-
 	return maxAmount, currency
 }
 
@@ -263,7 +280,7 @@ func (ts *TransactionService) BuildTransactionListItems(ctx context.Context, txs
 			offsetAccount = "-"
 		}
 
-		amountCents, currency := ts.GetDisplayAmount(detail.Splits)
+		amountCents, currency := ts.GetDisplayAmount(detail.Splits, txType)
 
 		items = append(items, model.TransactionListItem{
 			ID:            tx.ID,

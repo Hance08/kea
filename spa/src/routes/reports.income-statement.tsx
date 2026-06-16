@@ -1,6 +1,7 @@
 import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { KpiCard } from '@/components/reports/KpiCard';
 import { PeriodPicker } from '@/components/reports/PeriodPicker';
+import { ProportionBar } from '@/components/reports/ProportionBar';
 import { ReportRowTable } from '@/components/reports/ReportRowTable';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -103,6 +104,29 @@ function IncomeStatementPage() {
               variant="neutral"
               subLine={netSubLine}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <section>
+              <h2 className="mb-2 text-sm font-semibold">Income mix</h2>
+              <ProportionBar
+                rows={result.income_rows.filter((r) => r.currency === currency)}
+                total={income}
+                currency={currency}
+                limit={8}
+                variant="income"
+              />
+            </section>
+            <section>
+              <h2 className="mb-2 text-sm font-semibold">Expense mix</h2>
+              <ProportionBar
+                rows={result.expense_rows.filter((r) => r.currency === currency)}
+                total={expense}
+                currency={currency}
+                limit={8}
+                variant="expense"
+              />
+            </section>
           </div>
 
           <div className="grid grid-cols-2 gap-6">

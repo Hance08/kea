@@ -11,7 +11,7 @@ const NAV: NavItem[] = [
   { label: 'Balances', to: '/balances' },
   { label: 'Accounts', to: '/accounts' },
   { label: 'Transactions', to: '/transactions' },
-  { label: 'Reports' },
+  { label: 'Reports', to: '/reports' },
   { label: 'Reconcile' },
 ];
 

@@ -13,18 +13,18 @@ export function ViewToggle({ value, onChange }: Props) {
   return (
     <div className="inline-flex items-center gap-1 rounded-md border bg-card p-0.5">
       <ToggleButton
-        active={value === 'list'}
-        label="List view"
-        onClick={() => value !== 'list' && onChange('list')}
-      >
-        <List className="h-4 w-4" />
-      </ToggleButton>
-      <ToggleButton
         active={value === 'cards'}
         label="Cards view"
         onClick={() => value !== 'cards' && onChange('cards')}
       >
         <LayoutGrid className="h-4 w-4" />
+      </ToggleButton>
+      <ToggleButton
+        active={value === 'list'}
+        label="List view"
+        onClick={() => value !== 'list' && onChange('list')}
+      >
+        <List className="h-4 w-4" />
       </ToggleButton>
     </div>
   );

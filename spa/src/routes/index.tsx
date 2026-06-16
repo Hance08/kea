@@ -9,7 +9,7 @@ export const Route = createFileRoute('/')({
         a_sort: 'balance_desc',
         l_offset: 0,
         l_sort: 'balance_desc',
-        view: 'list',
+        view: 'cards',
       },
     });
   },

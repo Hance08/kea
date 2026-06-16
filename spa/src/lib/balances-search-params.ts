@@ -8,7 +8,7 @@ export const balancesSearchSchema = z.object({
   a_sort: sortSchema.default('balance_desc'),
   l_offset: z.coerce.number().int().nonnegative().default(0),
   l_sort: sortSchema.default('balance_desc'),
-  view: viewSchema.default('list'),
+  view: viewSchema.default('cards'),
 });
 
 export type BalancesSearch = z.infer<typeof balancesSearchSchema>;

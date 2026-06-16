@@ -2,6 +2,6 @@ import { createFileRoute, redirect } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/reports/')({
   beforeLoad: () => {
-    throw redirect({ to: '/reports/income-statement' });
+    throw redirect({ to: '/reports/income-statement', search: { range: 'this-month' } });
   },
 });

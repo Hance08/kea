@@ -19,6 +19,7 @@ import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
+import { Route as ReportsIncomeStatementRouteImport } from './routes/reports.income-statement'
 import { Route as AccountsNewRouteImport } from './routes/accounts.new'
 import { Route as AccountsIdRouteImport } from './routes/accounts.$id'
 import { Route as TransactionsIdIndexRouteImport } from './routes/transactions.$id.index'
@@ -76,6 +77,11 @@ const TransactionsIdRoute = TransactionsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => TransactionsRoute,
 } as any)
+const ReportsIncomeStatementRoute = ReportsIncomeStatementRouteImport.update({
+  id: '/income-statement',
+  path: '/income-statement',
+  getParentRoute: () => ReportsRoute,
+} as any)
 const AccountsNewRoute = AccountsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
+  '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
   '/accounts/new': typeof AccountsNewRoute
+  '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts': typeof AccountsIndexRoute
   '/reports': typeof ReportsIndexRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
+  '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
+    | '/reports/income-statement'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
     | '/'
     | '/balances'
     | '/accounts/new'
+    | '/reports/income-statement'
     | '/transactions/new'
     | '/accounts'
     | '/reports'
@@ -198,6 +209,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
+    | '/reports/income-statement'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
@@ -289,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransactionsIdRouteImport
       parentRoute: typeof TransactionsRoute
     }
+    '/reports/income-statement': {
+      id: '/reports/income-statement'
+      path: '/income-statement'
+      fullPath: '/reports/income-statement'
+      preLoaderRoute: typeof ReportsIncomeStatementRouteImport
+      parentRoute: typeof ReportsRoute
+    }
     '/accounts/new': {
       id: '/accounts/new'
       path: '/new'
@@ -365,10 +384,12 @@ const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
 )
 
 interface ReportsRouteChildren {
+  ReportsIncomeStatementRoute: typeof ReportsIncomeStatementRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
 }
 
 const ReportsRouteChildren: ReportsRouteChildren = {
+  ReportsIncomeStatementRoute: ReportsIncomeStatementRoute,
   ReportsIndexRoute: ReportsIndexRoute,
 }
 

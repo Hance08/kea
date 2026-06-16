@@ -1,31 +1,31 @@
-import { FilterBar } from "@/components/transactions/FilterBar";
-import { Pagination } from "@/components/transactions/Pagination";
-import { TransactionsTable } from "@/components/transactions/TransactionsTable";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { listTransactions } from "@/lib/transactions";
+import { FilterBar } from '@/components/transactions/FilterBar';
+import { Pagination } from '@/components/transactions/Pagination';
+import { TransactionsTable } from '@/components/transactions/TransactionsTable';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { listTransactions } from '@/lib/transactions';
 import {
   type TransactionsSearch,
   searchToFilter,
   searchToListOptions,
-} from "@/lib/transactions-search-params";
-import { useQuery } from "@tanstack/react-query";
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+} from '@/lib/transactions-search-params';
+import { useQuery } from '@tanstack/react-query';
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
-export const Route = createFileRoute("/transactions/")({
+export const Route = createFileRoute('/transactions/')({
   component: TransactionsListPage,
 });
 
 function TransactionsListPage() {
   const search = Route.useSearch();
-  const navigate = useNavigate({ from: "/transactions" });
+  const navigate = useNavigate({ from: '/transactions' });
 
   const filter = searchToFilter(search);
   const opts = searchToListOptions(search);
 
   const query = useQuery({
-    queryKey: ["transactions", { ...filter, ...opts }],
+    queryKey: ['transactions', { ...filter, ...opts }],
     queryFn: () => listTransactions(filter, opts),
   });
 
@@ -66,11 +66,7 @@ function TransactionsListPage() {
         <Alert variant="destructive">
           <AlertTitle>Failed to load transactions</AlertTitle>
           <AlertDescription className="mt-2 space-y-3">
-            <div>
-              {query.error instanceof Error
-                ? query.error.message
-                : "Unknown error"}
-            </div>
+            <div>{query.error instanceof Error ? query.error.message : 'Unknown error'}</div>
             <Button onClick={() => query.refetch()} size="sm">
               Retry
             </Button>

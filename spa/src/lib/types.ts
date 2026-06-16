@@ -148,3 +148,42 @@ export interface AccountBalanceHistory {
 export interface BalanceHistoryResponse {
   items: AccountBalanceHistory[];
 }
+
+// Report shapes (mirror Go JSON from internal/model/report.go
+// and internal/api/reports.go).
+
+export interface ReportRow {
+  account_name: string;
+  offset_account: string;
+  amount: number;
+  currency: string;
+  tx_count: number;
+}
+
+export interface ReportResult {
+  period: string;
+  total_income: Record<string, number>;
+  total_expense: Record<string, number>;
+  net_amount: Record<string, number>;
+  net_worth: Record<string, number>;
+  previous_net_worth: Record<string, number>;
+  net_worth_growth_pct: Record<string, number>;
+  income_rows: ReportRow[];
+  expense_rows: ReportRow[];
+}
+
+export interface BalanceSheetResult {
+  assets: ReportRow[];
+  liabilities: ReportRow[];
+  equity: ReportRow[];
+  total_assets: Record<string, number>;
+  total_liabilities: Record<string, number>;
+  total_equity: Record<string, number>;
+  net_worth: Record<string, number>;
+  as_of: number;
+}
+
+export interface NetWorthResponse {
+  at: number;
+  net_worth: Record<string, number>;
+}

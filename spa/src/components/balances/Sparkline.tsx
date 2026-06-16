@@ -26,10 +26,7 @@ export function Sparkline({ points, strokeClassName, className }: Props) {
   const coords = points
     .map((p, i) => {
       const x = PAD + i * xStep;
-      const y =
-        range === 0
-          ? VIEWBOX_H / 2
-          : PAD + drawH - ((p.balance - min) / range) * drawH;
+      const y = range === 0 ? VIEWBOX_H / 2 : PAD + drawH - ((p.balance - min) / range) * drawH;
       return `${x},${y}`;
     })
     .join(' ');

@@ -5,13 +5,14 @@ import { Link, useRouterState } from '@tanstack/react-router';
 interface NavItem {
   label: string;
   to?: string;
+  prefix?: boolean; // when true, isActive matches any pathname starting with `to`
 }
 
 const NAV: NavItem[] = [
   { label: 'Balances', to: '/balances' },
   { label: 'Accounts', to: '/accounts' },
   { label: 'Transactions', to: '/transactions' },
-  { label: 'Reports' },
+  { label: 'Reports', to: '/reports', prefix: true },
   { label: 'Reconcile' },
 ];
 
@@ -35,7 +36,9 @@ export function Sidebar() {
               </li>
             );
           }
-          const isActive = location.pathname === item.to;
+          const isActive = item.prefix
+            ? location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)
+            : location.pathname === item.to;
           return (
             <li key={item.label}>
               <Link

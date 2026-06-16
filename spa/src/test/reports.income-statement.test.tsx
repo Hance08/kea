@@ -17,11 +17,29 @@ const REPORT_PAYLOAD = {
   previous_net_worth: { USD: 4700000 },
   net_worth_growth_pct: { USD: 6.2 },
   income_rows: [
-    { account_name: 'Income:Salary', offset_account: 'Assets:Bank', amount: 520000, currency: 'USD', tx_count: 1 },
+    {
+      account_name: 'Income:Salary',
+      offset_account: 'Assets:Bank',
+      amount: 520000,
+      currency: 'USD',
+      tx_count: 1,
+    },
   ],
   expense_rows: [
-    { account_name: 'Expenses:Rent', offset_account: 'Assets:Bank', amount: 180000, currency: 'USD', tx_count: 1 },
-    { account_name: 'Expenses:Food', offset_account: 'Assets:Bank', amount: 73000, currency: 'USD', tx_count: 4 },
+    {
+      account_name: 'Expenses:Rent',
+      offset_account: 'Assets:Bank',
+      amount: 180000,
+      currency: 'USD',
+      tx_count: 1,
+    },
+    {
+      account_name: 'Expenses:Food',
+      offset_account: 'Assets:Bank',
+      amount: 73000,
+      currency: 'USD',
+      tx_count: 4,
+    },
   ],
 };
 
@@ -41,9 +59,30 @@ beforeEach(() => {
         return Promise.resolve(
           okResponse({
             items: [
-              { account_id: 11, name: 'Expenses:Rent', type: 'E', currency: 'USD', amount: 180000, is_hidden: false },
-              { account_id: 12, name: 'Expenses:Food', type: 'E', currency: 'USD', amount: 73000, is_hidden: false },
-              { account_id: 13, name: 'Income:Salary', type: 'R', currency: 'USD', amount: -520000, is_hidden: false },
+              {
+                account_id: 11,
+                name: 'Expenses:Rent',
+                type: 'E',
+                currency: 'USD',
+                amount: 180000,
+                is_hidden: false,
+              },
+              {
+                account_id: 12,
+                name: 'Expenses:Food',
+                type: 'E',
+                currency: 'USD',
+                amount: 73000,
+                is_hidden: false,
+              },
+              {
+                account_id: 13,
+                name: 'Income:Salary',
+                type: 'R',
+                currency: 'USD',
+                amount: -520000,
+                is_hidden: false,
+              },
             ],
             total_count: 3,
             limit: 0,

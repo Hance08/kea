@@ -63,7 +63,9 @@ function IncomeStatementPage() {
           <AlertTitle>Failed to load income statement</AlertTitle>
           <AlertDescription className="mt-2 space-y-3">
             <div>{query.error instanceof Error ? query.error.message : 'Unknown error'}</div>
-            <Button onClick={() => query.refetch()} size="sm">Retry</Button>
+            <Button onClick={() => query.refetch()} size="sm">
+              Retry
+            </Button>
           </AlertDescription>
         </Alert>
       </div>
@@ -71,8 +73,7 @@ function IncomeStatementPage() {
   }
 
   const result = query.data;
-  const isEmpty =
-    result.income_rows.length === 0 && result.expense_rows.length === 0;
+  const isEmpty = result.income_rows.length === 0 && result.expense_rows.length === 0;
 
   const income = result.total_income[currency] ?? 0;
   const expense = result.total_expense[currency] ?? 0;

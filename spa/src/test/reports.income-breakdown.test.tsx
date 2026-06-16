@@ -24,9 +24,18 @@ beforeEach(() => {
         return Promise.resolve(
           okResponse({
             items: [
-              { account_id: 13, name: 'Income:Salary', type: 'R', currency: 'USD', amount: -520000, is_hidden: false },
+              {
+                account_id: 13,
+                name: 'Income:Salary',
+                type: 'R',
+                currency: 'USD',
+                amount: -520000,
+                is_hidden: false,
+              },
             ],
-            total_count: 1, limit: 0, offset: 0,
+            total_count: 1,
+            limit: 0,
+            offset: 0,
           }),
         );
       }
@@ -41,8 +50,20 @@ beforeEach(() => {
             previous_net_worth: {},
             net_worth_growth_pct: {},
             income_rows: [
-              { account_name: 'Income:Salary', offset_account: 'Assets:Bank', amount: 520000, currency: 'USD', tx_count: 1 },
-              { account_name: 'Income:Interest', offset_account: 'Assets:Bank', amount: 4800, currency: 'USD', tx_count: 1 },
+              {
+                account_name: 'Income:Salary',
+                offset_account: 'Assets:Bank',
+                amount: 520000,
+                currency: 'USD',
+                tx_count: 1,
+              },
+              {
+                account_name: 'Income:Interest',
+                offset_account: 'Assets:Bank',
+                amount: 4800,
+                currency: 'USD',
+                tx_count: 1,
+              },
             ],
             expense_rows: [],
           }),

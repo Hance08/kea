@@ -12,7 +12,8 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
-      if (url === '/api/config') return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+      if (url === '/api/config')
+        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
       if (url === '/api/ledgers')
         return Promise.resolve(
           okResponse({ active: 'p', items: [{ name: 'p', path: '/p.db', active: true }] }),
@@ -31,8 +32,20 @@ beforeEach(() => {
             net_worth_growth_pct: {},
             income_rows: [],
             expense_rows: [
-              { account_name: 'Expenses:Rent', offset_account: '', amount: 180000, currency: 'USD', tx_count: 1 },
-              { account_name: 'Expenses:Food', offset_account: '', amount: 73000, currency: 'USD', tx_count: 5 },
+              {
+                account_name: 'Expenses:Rent',
+                offset_account: '',
+                amount: 180000,
+                currency: 'USD',
+                tx_count: 1,
+              },
+              {
+                account_name: 'Expenses:Food',
+                offset_account: '',
+                amount: 73000,
+                currency: 'USD',
+                tx_count: 5,
+              },
             ],
           }),
         );

@@ -12,13 +12,16 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
-      if (url === '/api/config') return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+      if (url === '/api/config')
+        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
       if (url === '/api/ledgers')
         return Promise.resolve(
           okResponse({ active: 'p', items: [{ name: 'p', path: '/p.db', active: true }] }),
         );
       if (url.startsWith('/api/reports/net-worth'))
-        return Promise.resolve(okResponse({ at: 1781697600, net_worth: { USD: 5000000, JPY: 12000000 } }));
+        return Promise.resolve(
+          okResponse({ at: 1781697600, net_worth: { USD: 5000000, JPY: 12000000 } }),
+        );
       throw new Error(`unexpected fetch: ${url}`);
     }),
   );

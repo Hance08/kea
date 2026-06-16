@@ -41,9 +41,7 @@ test('clicking expand renders all rows', async () => {
     currency: 'USD',
     tx_count: 1,
   }));
-  const { container } = render(
-    <ProportionBar rows={many} total={1000} currency="USD" limit={5} />,
-  );
+  const { container } = render(<ProportionBar rows={many} total={1000} currency="USD" limit={5} />);
   await userEvent.click(screen.getByRole('button', { name: /5 more/i }));
   expect(container.querySelectorAll('[data-testid="prop-bar"]').length).toBe(10);
 });

@@ -31,7 +31,8 @@ function IncomeBreakdownPage() {
   const balancesQuery = useQuery({ queryKey: ['balances'], queryFn: getBalances });
   const nameToId = useMemo(() => {
     const m = new Map<string, number>();
-    if (balancesQuery.data) for (const row of balancesQuery.data.items) m.set(row.name, row.account_id);
+    if (balancesQuery.data)
+      for (const row of balancesQuery.data.items) m.set(row.name, row.account_id);
     return m;
   }, [balancesQuery.data]);
 
@@ -55,7 +56,9 @@ function IncomeBreakdownPage() {
           <AlertTitle>Failed to load income breakdown</AlertTitle>
           <AlertDescription className="mt-2 space-y-3">
             <div>{query.error instanceof Error ? query.error.message : 'Unknown error'}</div>
-            <Button onClick={() => query.refetch()} size="sm">Retry</Button>
+            <Button onClick={() => query.refetch()} size="sm">
+              Retry
+            </Button>
           </AlertDescription>
         </Alert>
       </div>

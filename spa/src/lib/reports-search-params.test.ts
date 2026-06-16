@@ -1,9 +1,5 @@
 import { expect, test } from 'vitest';
-import {
-  parseAsOfSearch,
-  parseAtSearch,
-  parsePeriodSearch,
-} from './reports-search-params';
+import { parseAsOfSearch, parseAtSearch, parsePeriodSearch } from './reports-search-params';
 
 test('period schema defaults to this-month with no params', () => {
   expect(parsePeriodSearch({})).toEqual({ range: 'this-month' });

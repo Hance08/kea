@@ -7,10 +7,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getBalances } from '@/lib/api';
+import { formatCents } from '@/lib/format';
 import { useBalanceSheet } from '@/lib/hooks/useReport';
 import { type AsOfSearchParams, parseAsOfSearch } from '@/lib/reports-search-params';
 import { useServerConfig } from '@/lib/server-config';
-import { formatCents } from '@/lib/format';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
@@ -30,7 +30,8 @@ function BalanceSheetPage() {
   const balancesQuery = useQuery({ queryKey: ['balances'], queryFn: getBalances });
   const nameToId = useMemo(() => {
     const m = new Map<string, number>();
-    if (balancesQuery.data) for (const row of balancesQuery.data.items) m.set(row.name, row.account_id);
+    if (balancesQuery.data)
+      for (const row of balancesQuery.data.items) m.set(row.name, row.account_id);
     return m;
   }, [balancesQuery.data]);
 
@@ -54,7 +55,9 @@ function BalanceSheetPage() {
           <AlertTitle>Failed to load balance sheet</AlertTitle>
           <AlertDescription className="mt-2 space-y-3">
             <div>{query.error instanceof Error ? query.error.message : 'Unknown error'}</div>
-            <Button onClick={() => query.refetch()} size="sm">Retry</Button>
+            <Button onClick={() => query.refetch()} size="sm">
+              Retry
+            </Button>
           </AlertDescription>
         </Alert>
       </div>
@@ -117,7 +120,12 @@ function BalanceSheetPage() {
       {liabilities.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-semibold">Liabilities</h2>
-          <ReportRowTable rows={liabilities} currency={currency} nameToId={nameToId} period={null} />
+          <ReportRowTable
+            rows={liabilities}
+            currency={currency}
+            nameToId={nameToId}
+            period={null}
+          />
         </section>
       )}
       {equity.length > 0 && (

@@ -12,7 +12,8 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
-      if (url === '/api/config') return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+      if (url === '/api/config')
+        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
       if (url === '/api/ledgers')
         return Promise.resolve(
           okResponse({ active: 'p', items: [{ name: 'p', path: '/p.db', active: true }] }),
@@ -21,20 +22,41 @@ beforeEach(() => {
         return Promise.resolve(
           okResponse({
             items: [
-              { account_id: 1, name: 'Assets:Bank', type: 'A', currency: 'USD', amount: 125000, is_hidden: false },
+              {
+                account_id: 1,
+                name: 'Assets:Bank',
+                type: 'A',
+                currency: 'USD',
+                amount: 125000,
+                is_hidden: false,
+              },
             ],
-            total_count: 1, limit: 0, offset: 0,
+            total_count: 1,
+            limit: 0,
+            offset: 0,
           }),
         );
       if (url.startsWith('/api/reports/balance-sheet'))
         return Promise.resolve(
           okResponse({
             assets: [
-              { account_name: 'Assets:Bank', offset_account: '', amount: 125000, currency: 'USD', tx_count: 4 },
+              {
+                account_name: 'Assets:Bank',
+                offset_account: '',
+                amount: 125000,
+                currency: 'USD',
+                tx_count: 4,
+              },
             ],
             liabilities: [],
             equity: [
-              { account_name: 'Equity:OpeningBalances_USD', offset_account: '', amount: 125000, currency: 'USD', tx_count: 1 },
+              {
+                account_name: 'Equity:OpeningBalances_USD',
+                offset_account: '',
+                amount: 125000,
+                currency: 'USD',
+                tx_count: 1,
+              },
             ],
             total_assets: { USD: 125000 },
             total_liabilities: {},

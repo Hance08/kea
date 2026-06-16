@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 
 interface Props {
-  label: string;       // "As of" or "At"
+  label: string; // "As of" or "At"
   value: number | undefined; // Unix seconds; undefined = now
   onChange: (next: number | undefined) => void;
 }

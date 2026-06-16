@@ -55,9 +55,7 @@ export function PeriodPicker({ value, onChange, label }: Props) {
               type="date"
               className="rounded border bg-background px-2 py-1"
               value={value.to ?? ''}
-              onChange={(e) =>
-                onChange({ range: 'custom', from: value.from, to: e.target.value })
-              }
+              onChange={(e) => onChange({ range: 'custom', from: value.from, to: e.target.value })}
             />
           </label>
         </div>

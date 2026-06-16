@@ -1,5 +1,3 @@
-import { ReportRowTable } from '../components/reports/ReportRowTable';
-import type { ReportRow } from '../lib/types';
 import {
   RootRoute,
   Route,
@@ -9,6 +7,8 @@ import {
 } from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
 import { expect, test } from 'vitest';
+import { ReportRowTable } from '../components/reports/ReportRowTable';
+import type { ReportRow } from '../lib/types';
 
 function harness(node: React.ReactNode) {
   const rootRoute = new RootRoute({ component: () => <>{node}</> });
@@ -96,11 +96,7 @@ test('rows without a resolvable id omit account_id', async () => {
 });
 
 test('with period=null, rows link to /accounts/{id}', async () => {
-  render(
-    harness(
-      <ReportRowTable rows={rows} currency="USD" nameToId={nameToId} period={null} />,
-    ),
-  );
+  render(harness(<ReportRowTable rows={rows} currency="USD" nameToId={nameToId} period={null} />));
   const link = await screen.findByRole('link', { name: /Expenses:Food:Groceries/ });
   expect(link.getAttribute('href')).toMatch(/\/accounts\/11/);
 });

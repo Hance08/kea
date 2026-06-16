@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { resolvePeriod, type PeriodSearch } from './period';
+import { type PeriodSearch, resolvePeriod } from './period';
 
 // Fix "now" so tests are deterministic. 2026-06-16T12:00:00Z → 1781697600.
 const NOW = new Date('2026-06-16T12:00:00Z').getTime() / 1000;

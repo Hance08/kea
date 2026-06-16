@@ -30,10 +30,16 @@ export function fetchExpenseBreakdown(params: PeriodApiParams): Promise<ReportRe
   return apiFetch<ReportResult>(`/api/reports/expense-breakdown${buildQuery(params)}`);
 }
 
-export function fetchBalanceSheet(params: { [k: string]: number | undefined; as_of?: number }): Promise<BalanceSheetResult> {
+export function fetchBalanceSheet(params: {
+  [k: string]: number | undefined;
+  as_of?: number;
+}): Promise<BalanceSheetResult> {
   return apiFetch<BalanceSheetResult>(`/api/reports/balance-sheet${buildQuery(params)}`);
 }
 
-export function fetchNetWorth(params: { [k: string]: number | undefined; at?: number }): Promise<NetWorthResponse> {
+export function fetchNetWorth(params: {
+  [k: string]: number | undefined;
+  at?: number;
+}): Promise<NetWorthResponse> {
   return apiFetch<NetWorthResponse>(`/api/reports/net-worth${buildQuery(params)}`);
 }

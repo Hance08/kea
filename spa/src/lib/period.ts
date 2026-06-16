@@ -3,8 +3,8 @@ export type PeriodRange = 'this-month' | 'last-month' | 'ytd' | 'last-12mo' | 'c
 export interface PeriodSearch {
   range: PeriodRange;
   month?: string; // 'YYYY-MM'
-  from?: string;  // 'YYYY-MM-DD'
-  to?: string;    // 'YYYY-MM-DD'
+  from?: string; // 'YYYY-MM-DD'
+  to?: string; // 'YYYY-MM-DD'
 }
 
 export interface ResolvedPeriod {
@@ -15,12 +15,32 @@ export interface ResolvedPeriod {
 }
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 const MONTH_SHORT = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 function pad2(n: number): string {
@@ -74,7 +94,10 @@ function formatRangeLabel(from: string, to: string): string {
   return sameYear ? `${fStr} – ${tStr}` : `${fStr}, ${f.year} – ${tStr}`;
 }
 
-export function resolvePeriod(search: PeriodSearch, nowUnix: number = Date.now() / 1000): ResolvedPeriod {
+export function resolvePeriod(
+  search: PeriodSearch,
+  nowUnix: number = Date.now() / 1000,
+): ResolvedPeriod {
   const now = new Date(nowUnix * 1000);
   const curYear = now.getUTCFullYear();
   const curMonth = now.getUTCMonth() + 1; // 1-12

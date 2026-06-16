@@ -3,8 +3,8 @@ import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useNetWorth } from '@/lib/hooks/useReport';
 import { formatCents } from '@/lib/format';
+import { useNetWorth } from '@/lib/hooks/useReport';
 import { type AtSearchParams, parseAtSearch } from '@/lib/reports-search-params';
 import { useServerConfig } from '@/lib/server-config';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
@@ -40,7 +40,9 @@ function NetWorthPage() {
           <AlertTitle>Failed to load net worth</AlertTitle>
           <AlertDescription className="mt-2 space-y-3">
             <div>{query.error instanceof Error ? query.error.message : 'Unknown error'}</div>
-            <Button onClick={() => query.refetch()} size="sm">Retry</Button>
+            <Button onClick={() => query.refetch()} size="sm">
+              Retry
+            </Button>
           </AlertDescription>
         </Alert>
       </div>

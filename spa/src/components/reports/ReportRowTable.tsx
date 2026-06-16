@@ -1,4 +1,5 @@
 import { formatCents } from '@/lib/format';
+import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
 import type { ReportRow } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
@@ -40,6 +41,7 @@ export function ReportRowTable({ rows, currency, nameToId, period }: Props) {
                     <Link
                       to="/accounts/$id"
                       params={{ id: String(id) }}
+                      search={{ include_hidden: false, show_parents: false, limit: 10, offset: 0 }}
                       className="hover:underline"
                     >
                       {linkContent}
@@ -54,6 +56,8 @@ export function ReportRowTable({ rows, currency, nameToId, period }: Props) {
                       ...(id !== undefined ? { account_id: id } : {}),
                       start_time: period.startUnix,
                       end_time: period.endUnix,
+                      limit: DEFAULT_TRANSACTIONS_LIMIT,
+                      offset: 0,
                     }}
                     className="hover:underline"
                   >

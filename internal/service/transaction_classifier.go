@@ -159,6 +159,13 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 			}
 		}
 
+	case "Investment":
+		for _, split := range splits {
+			if model.IsInvestmentAccount(split.AccountName) {
+				return split.AccountName, nil
+			}
+		}
+
 	case "Other":
 		// For other types, return the first account with positive amount
 		for _, split := range splits {
@@ -239,6 +246,16 @@ func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, split
 				seen[split.AccountName] = struct{}{}
 			}
 		}
+	case string(model.TxTypeInvestment):
+		for _, split := range splits {
+			if split.AccountType != model.AccountTypeAsset && split.AccountType != model.AccountTypeLiability {
+				continue
+			}
+			if model.IsInvestmentAccount(split.AccountName) {
+				continue
+			}
+			seen[split.AccountName] = struct{}{}
+		}
 	default:
 		for _, split := range splits {
 			if split.AccountName != primaryAccount {
@@ -313,6 +330,14 @@ func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, c
 
 	case model.TxTypeTransfer:
 		return ts.filterAccountsByTypes(allAccounts, []model.AccountType{model.AccountTypeAsset, model.AccountTypeLiability})
+
+	case model.TxTypeInvestment:
+		return ts.filterAccountsByTypes(allAccounts, []model.AccountType{
+			model.AccountTypeAsset,
+			model.AccountTypeLiability,
+			model.AccountTypeRevenue,
+			model.AccountTypeExpense,
+		})
 
 	default:
 		return allAccounts

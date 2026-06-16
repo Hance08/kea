@@ -848,3 +848,57 @@ func TestBuildTransactionListItems_MultipleTransactions(t *testing.T) {
 	assert.Equal(t, "Revenue:Salary", items[1].Account)
 	assert.Equal(t, "Assets:Bank", items[1].OffsetAccount)
 }
+
+func TestGetDisplayAccount_Investment(t *testing.T) {
+	svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
+	splits := []model.SplitDetail{
+		split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+		split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+		split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+	}
+	got, err := svc.GetDisplayAccount(context.Background(), splits, string(model.TxTypeInvestment))
+	require.NoError(t, err)
+	assert.Equal(t, "Assets:Investments:00878", got)
+}
+
+func TestGetDisplayOffsetAccount_Investment(t *testing.T) {
+	svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
+	splits := []model.SplitDetail{
+		split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+		split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+		split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+	}
+	got, err := svc.GetDisplayOffsetAccount(
+		context.Background(), splits, string(model.TxTypeInvestment), "Assets:Investments:00878",
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "Assets:Bank:DAWHO", got)
+}
+
+func TestGetAllowedAccounts_Investment(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+	accs := []*model.Account{
+		{Name: "Assets:Investments:0050", Type: model.AccountTypeAsset},
+		{Name: "Liabilities:Card", Type: model.AccountTypeLiability},
+		{Name: "Revenue:Realized", Type: model.AccountTypeRevenue},
+		{Name: "Expenses:Fees", Type: model.AccountTypeExpense},
+		{Name: "Equity:Retained", Type: model.AccountTypeEquity},
+	}
+	got := svc.GetAllowedAccounts(model.TxTypeInvestment, model.AccountTypeAsset, accs)
+	var names []string
+	for _, a := range got {
+		names = append(names, a.Name)
+	}
+	assert.ElementsMatch(t,
+		[]string{"Assets:Investments:0050", "Liabilities:Card", "Revenue:Realized", "Expenses:Fees"},
+		names)
+}
+
+func TestGetTransactionRule_Investment(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+	rule, err := svc.GetTransactionRule(model.TxTypeInvestment)
+	require.NoError(t, err)
+	assert.Equal(t, model.TxTypeInvestment, rule.TxType)
+	assert.ElementsMatch(t, []string{"A", "L"}, rule.SourceTypes)
+	assert.ElementsMatch(t, []string{"A", "L"}, rule.DestTypes)
+}

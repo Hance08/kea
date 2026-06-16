@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { expect, test } from 'vitest';
 import { resolvePeriod, type PeriodSearch } from './period';
 
 // Fix "now" so tests are deterministic. 2026-06-16T12:00:00Z → 1781697600.

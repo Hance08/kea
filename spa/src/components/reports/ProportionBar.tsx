@@ -1,0 +1,70 @@
+import { Button } from '@/components/ui/button';
+import { formatCents } from '@/lib/format';
+import type { ReportRow } from '@/lib/types';
+import { useState } from 'react';
+
+interface Props {
+  rows: ReportRow[];
+  total: number; // same currency as rows; may be negative or zero
+  currency: string;
+  // If set, only the first `limit` rows render until the user expands.
+  // Omit (or undefined) to render everything.
+  limit?: number;
+  variant?: 'income' | 'expense';
+}
+
+const COLOR: Record<NonNullable<Props['variant']>, string> = {
+  income: 'bg-green-600',
+  expense: 'bg-red-600',
+};
+
+export function ProportionBar({ rows, total, currency, limit, variant = 'income' }: Props) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground">No data to display.</p>;
+  }
+
+  // When total is positive (income/asset side), scale bars relative to the
+  // largest row so the biggest item always fills 100%.  When total is
+  // negative (expense side), scale against |total| so each bar shows its
+  // share of the overall pool.
+  const denom =
+    total >= 0
+      ? Math.max(...rows.map((r) => Math.abs(r.amount)))
+      : Math.abs(total);
+  const shown = limit && !expanded ? rows.slice(0, limit) : rows;
+  const hiddenCount = rows.length - shown.length;
+
+  return (
+    <div className="space-y-2">
+      {shown.map((row) => {
+        const pct = denom === 0 ? 0 : (Math.abs(row.amount) / denom) * 100;
+        return (
+          <div key={row.account_name} data-testid="prop-bar" className="text-sm">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="truncate" title={row.account_name}>
+                {row.account_name}
+              </span>
+              <span className="font-mono text-xs tabular-nums">
+                {formatCents(row.amount, currency)}
+              </span>
+            </div>
+            <div className="mt-1 h-2 w-full overflow-hidden rounded bg-muted">
+              <div
+                data-testid="bar-fill"
+                className={COLOR[variant]}
+                style={{ width: `${pct}%`, height: '100%' }}
+              />
+            </div>
+          </div>
+        );
+      })}
+      {hiddenCount > 0 && (
+        <Button variant="ghost" size="sm" onClick={() => setExpanded(true)}>
+          + {hiddenCount} more
+        </Button>
+      )}
+    </div>
+  );
+}

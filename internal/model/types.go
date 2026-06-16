@@ -149,12 +149,14 @@ const (
 	TxTypeDeposit    TransactionType = "Deposit"
 	TxTypeWithdrawal TransactionType = "Withdrawal"
 	TxTypeOther      TransactionType = "Other"
+	TxTypeInvestment TransactionType = "Investment"
 )
 
 func (t TransactionType) IsValid() bool {
 	switch t {
 	case TxTypeExpense, TxTypeIncome, TxTypeTransfer,
-		TxTypeOpening, TxTypeDeposit, TxTypeWithdrawal, TxTypeOther:
+		TxTypeOpening, TxTypeDeposit, TxTypeWithdrawal, TxTypeOther,
+		TxTypeInvestment:
 		return true
 	}
 	return false
@@ -195,6 +197,12 @@ func IsOpeningBalancesAccount(name string) bool {
 	return strings.HasPrefix(name, "Equity:OpeningBalances_")
 }
 
+const InvestmentAccountPrefix = "Assets:Investments:"
+
+func IsInvestmentAccount(name string) bool {
+	return strings.HasPrefix(name, InvestmentAccountPrefix)
+}
+
 func ParseTransactionType(s string) (TransactionType, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "expense":
@@ -211,8 +219,10 @@ func ParseTransactionType(s string) (TransactionType, error) {
 		return TxTypeWithdrawal, nil
 	case "other":
 		return TxTypeOther, nil
+	case "investment":
+		return TxTypeInvestment, nil
 	default:
-		return "", fmt.Errorf("invalid transaction type %q: must be expense, income, transfer, opening, deposit, withdrawal, or other", s)
+		return "", fmt.Errorf("invalid transaction type %q: must be expense, income, transfer, opening, deposit, withdrawal, other, or investment", s)
 	}
 }
 
@@ -223,6 +233,9 @@ func ParseTransactionTypeLabel(s string) TransactionType {
 	}
 	if strings.Contains(lower, "income") {
 		return TxTypeIncome
+	}
+	if strings.Contains(lower, "investment") {
+		return TxTypeInvestment
 	}
 	return TxTypeTransfer
 }

@@ -19,6 +19,7 @@ import { Route as ReportsIndexRouteImport } from './routes/reports.index'
 import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
+import { Route as ReportsNetWorthRouteImport } from './routes/reports.net-worth'
 import { Route as ReportsIncomeStatementRouteImport } from './routes/reports.income-statement'
 import { Route as ReportsIncomeBreakdownRouteImport } from './routes/reports.income-breakdown'
 import { Route as ReportsExpenseBreakdownRouteImport } from './routes/reports.expense-breakdown'
@@ -79,6 +80,11 @@ const TransactionsIdRoute = TransactionsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => TransactionsRoute,
+} as any)
+const ReportsNetWorthRoute = ReportsNetWorthRouteImport.update({
+  id: '/net-worth',
+  path: '/net-worth',
+  getParentRoute: () => ReportsRoute,
 } as any)
 const ReportsIncomeStatementRoute = ReportsIncomeStatementRouteImport.update({
   id: '/income-statement',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
+  '/reports/net-worth': typeof ReportsNetWorthRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
+  '/reports/net-worth': typeof ReportsNetWorthRoute
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts': typeof AccountsIndexRoute
   '/reports': typeof ReportsIndexRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
+  '/reports/net-worth': typeof ReportsNetWorthRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
     | '/reports/income-statement'
+    | '/reports/net-worth'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
     | '/reports/income-statement'
+    | '/reports/net-worth'
     | '/transactions/new'
     | '/accounts'
     | '/reports'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
     | '/reports/income-statement'
+    | '/reports/net-worth'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
@@ -336,6 +348,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/transactions/$id'
       preLoaderRoute: typeof TransactionsIdRouteImport
       parentRoute: typeof TransactionsRoute
+    }
+    '/reports/net-worth': {
+      id: '/reports/net-worth'
+      path: '/net-worth'
+      fullPath: '/reports/net-worth'
+      preLoaderRoute: typeof ReportsNetWorthRouteImport
+      parentRoute: typeof ReportsRoute
     }
     '/reports/income-statement': {
       id: '/reports/income-statement'
@@ -445,6 +464,7 @@ interface ReportsRouteChildren {
   ReportsExpenseBreakdownRoute: typeof ReportsExpenseBreakdownRoute
   ReportsIncomeBreakdownRoute: typeof ReportsIncomeBreakdownRoute
   ReportsIncomeStatementRoute: typeof ReportsIncomeStatementRoute
+  ReportsNetWorthRoute: typeof ReportsNetWorthRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
 }
 
@@ -453,6 +473,7 @@ const ReportsRouteChildren: ReportsRouteChildren = {
   ReportsExpenseBreakdownRoute: ReportsExpenseBreakdownRoute,
   ReportsIncomeBreakdownRoute: ReportsIncomeBreakdownRoute,
   ReportsIncomeStatementRoute: ReportsIncomeStatementRoute,
+  ReportsNetWorthRoute: ReportsNetWorthRoute,
   ReportsIndexRoute: ReportsIndexRoute,
 }
 

@@ -53,8 +53,12 @@ test('renders rows with account name, amount, tx count', async () => {
       />,
     ),
   );
-  expect(await screen.findByText('Expenses:Food:Groceries')).toBeInTheDocument();
-  expect(screen.getByText('Expenses:Rent')).toBeInTheDocument();
+  // Type prefix is stripped in the rendered cell; the original full name
+  // stays on the wrapping span's `title` for hover.
+  expect(await screen.findByText('Food:Groceries')).toBeInTheDocument();
+  expect(screen.getByText('Rent')).toBeInTheDocument();
+  expect(screen.queryByText('Expenses:Food:Groceries')).toBeNull();
+  expect(screen.queryByText('Expenses:Rent')).toBeNull();
   expect(screen.getByText('$520.00')).toBeInTheDocument();
   expect(screen.getByText('$1,800.00')).toBeInTheDocument();
 });
@@ -70,7 +74,7 @@ test('rows link to /transactions with account_id and bounds', async () => {
       />,
     ),
   );
-  const link = await screen.findByRole('link', { name: /Expenses:Food:Groceries/ });
+  const link = await screen.findByRole('link', { name: /Food:Groceries/ });
   const href = link.getAttribute('href') ?? '';
   expect(href).toContain('/transactions');
   expect(href).toContain('account_id=11');
@@ -89,7 +93,7 @@ test('rows without a resolvable id omit account_id', async () => {
       />,
     ),
   );
-  const link = await screen.findByRole('link', { name: /Expenses:Food:Groceries/ });
+  const link = await screen.findByRole('link', { name: /Food:Groceries/ });
   const href = link.getAttribute('href') ?? '';
   expect(href).not.toContain('account_id=');
   expect(href).toContain('start_time=100');
@@ -97,7 +101,7 @@ test('rows without a resolvable id omit account_id', async () => {
 
 test('with period=null, rows link to /accounts/{id}', async () => {
   render(harness(<ReportRowTable rows={rows} currency="USD" nameToId={nameToId} period={null} />));
-  const link = await screen.findByRole('link', { name: /Expenses:Food:Groceries/ });
+  const link = await screen.findByRole('link', { name: /Food:Groceries/ });
   expect(link.getAttribute('href')).toMatch(/\/accounts\/11/);
 });
 

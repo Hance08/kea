@@ -1,4 +1,3 @@
-import { stripAccountTypePrefix } from '@/lib/accounts';
 import { formatCents } from '@/lib/format';
 import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
 import type { ReportRow } from '@/lib/types';
@@ -31,7 +30,7 @@ export function ReportRowTable({ rows, currency, nameToId, period }: Props) {
           const id = nameToId.get(row.account_name);
           const linkContent = (
             <span className="truncate" title={row.account_name}>
-              {stripAccountTypePrefix(row.account_name)}
+              {row.account_name}
             </span>
           );
           return (
@@ -66,12 +65,7 @@ export function ReportRowTable({ rows, currency, nameToId, period }: Props) {
                   </Link>
                 )}
               </td>
-              <td
-                className="py-1.5 text-muted-foreground"
-                title={row.offset_account}
-              >
-                {stripAccountTypePrefix(row.offset_account)}
-              </td>
+              <td className="py-1.5 text-muted-foreground">{row.offset_account}</td>
               <td className="py-1.5 text-right font-mono tabular-nums">
                 {formatCents(row.amount, currency)}
               </td>

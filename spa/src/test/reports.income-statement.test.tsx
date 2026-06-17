@@ -127,18 +127,14 @@ test('renders KPI cards, charts, and tables for income statement', async () => {
   expect(screen.getByText('$2,530.00')).toBeInTheDocument();
   expect(screen.getByText('$2,718.00')).toBeInTheDocument();
   expect(screen.getByText(/6\.2% net worth/)).toBeInTheDocument();
-  // Row labels appear in the mix bars; the account-type prefix is
-  // stripped in the visible text. `Income:Salary` is a non-canonical
-  // fixture name whose prefix isn't in the strip set, so it renders
-  // unchanged.
-  expect(screen.getByText('Rent')).toBeInTheDocument();
-  expect(screen.queryByText('Expenses:Rent')).toBeNull();
+  // Row labels appear in the mix bars (not in any detail table).
+  expect(screen.getByText('Expenses:Rent')).toBeInTheDocument();
   expect(screen.getByText('Income:Salary')).toBeInTheDocument();
   // No detail-table headings.
   expect(screen.queryByRole('heading', { name: /Income detail/i })).toBeNull();
   expect(screen.queryByRole('heading', { name: /Expense detail/i })).toBeNull();
   // No drill-down links to /transactions.
-  expect(screen.queryByRole('link', { name: /Rent/ })).toBeNull();
+  expect(screen.queryByRole('link', { name: /Expenses:Rent/ })).toBeNull();
 
   // Diff lines (current minus previous) appear on each KPI card.
   await waitFor(() => {

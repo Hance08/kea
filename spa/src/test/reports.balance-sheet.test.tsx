@@ -78,16 +78,14 @@ test('renders Assets and Equity sections; hides empty Liabilities', async () => 
   });
   expect(screen.getByText('Total Equity')).toBeInTheDocument();
   expect(screen.queryByText('Total Liabilities')).not.toBeInTheDocument();
-  // Account-type prefix stripped in rendered text on report pages.
-  expect(screen.getAllByText('Bank').length).toBeGreaterThan(0);
-  expect(screen.queryByText('Assets:Bank')).toBeNull();
+  expect(screen.getAllByText('Assets:Bank').length).toBeGreaterThan(0);
 });
 
 test('asset rows link to /accounts/{id}', async () => {
   render(makeTestApp('/reports/balance-sheet'));
   await waitFor(() => {
-    expect(screen.getAllByText('Bank').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Assets:Bank').length).toBeGreaterThan(0);
   });
-  const link = screen.getByRole('link', { name: /Bank/ });
+  const link = screen.getByRole('link', { name: /Assets:Bank/ });
   expect(link.getAttribute('href')).toMatch(/\/accounts\/1/);
 });

@@ -61,7 +61,5 @@ test('renders total expense KPI and rows', async () => {
     expect(screen.getByText('Total Expense')).toBeInTheDocument();
   });
   expect(screen.getByText('$2,530.00')).toBeInTheDocument();
-  // Account-type prefix stripped in rendered text on report pages.
-  expect(screen.getAllByText('Rent').length).toBeGreaterThan(0);
-  expect(screen.queryByText('Expenses:Rent')).toBeNull();
+  expect(screen.getAllByText('Expenses:Rent').length).toBeGreaterThan(0);
 });

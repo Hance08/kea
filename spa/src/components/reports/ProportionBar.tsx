@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { stripAccountTypePrefix } from '@/lib/accounts';
 import { formatCents } from '@/lib/format';
 import type { ReportRow } from '@/lib/types';
 import { useState } from 'react';
@@ -42,7 +41,7 @@ export function ProportionBar({ rows, total, currency, limit, variant = 'income'
           >
             <div className="flex items-baseline justify-between gap-2">
               <span className="truncate" title={row.account_name}>
-                {stripAccountTypePrefix(row.account_name)}
+                {row.account_name}
               </span>
               <span className="font-mono text-xs tabular-nums">
                 {formatCents(row.amount, currency)}

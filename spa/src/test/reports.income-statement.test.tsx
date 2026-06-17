@@ -43,7 +43,17 @@ const REPORT_PAYLOAD = {
   ],
 };
 
+const PREV_REPORT_PAYLOAD = {
+  ...REPORT_PAYLOAD,
+  period: 'May 2026',
+  total_income: { USD: 400000 },   // prev income = $4,000.00; current = $5,248.00 → +$1,248.00 (+31.2%)
+  total_expense: { USD: 300000 },  // prev expense = $3,000.00; current = $2,530.00 → -$470.00 (-15.7%)
+  net_amount: { USD: 100000 },     // prev net = $1,000.00; current = $2,718.00 → +$1,718.00 (+171.8%)
+};
+
 beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-06-17T00:00:00Z'));
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) => {
@@ -91,6 +101,9 @@ beforeEach(() => {
         );
       }
       if (url.startsWith('/api/reports/income-statement')) {
+        if (url.includes('month=2026-05')) {
+          return Promise.resolve(okResponse(PREV_REPORT_PAYLOAD));
+        }
         return Promise.resolve(okResponse(REPORT_PAYLOAD));
       }
       throw new Error(`unexpected fetch: ${url}`);
@@ -100,6 +113,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 test('renders KPI cards, charts, and tables for income statement', async () => {
@@ -113,19 +127,29 @@ test('renders KPI cards, charts, and tables for income statement', async () => {
   expect(screen.getByText('$2,530.00')).toBeInTheDocument();
   expect(screen.getByText('$2,718.00')).toBeInTheDocument();
   expect(screen.getByText(/6\.2% net worth/)).toBeInTheDocument();
-  expect(screen.getAllByText('Expenses:Rent').length).toBeGreaterThan(0);
-  expect(screen.getAllByText('Income:Salary').length).toBeGreaterThan(0);
-});
+  // Row labels appear in the mix bars (not in any detail table).
+  expect(screen.getByText('Expenses:Rent')).toBeInTheDocument();
+  expect(screen.getByText('Income:Salary')).toBeInTheDocument();
+  // No detail-table headings.
+  expect(screen.queryByRole('heading', { name: /Income detail/i })).toBeNull();
+  expect(screen.queryByRole('heading', { name: /Expense detail/i })).toBeNull();
+  // No drill-down links to /transactions.
+  expect(screen.queryByRole('link', { name: /Expenses:Rent/ })).toBeNull();
 
-test('drill-down row links to /transactions with account_id and time bounds', async () => {
-  render(makeTestApp('/reports/income-statement'));
+  // Diff lines (current minus previous) appear on each KPI card.
   await waitFor(() => {
-    expect(screen.getAllByText('Expenses:Rent').length).toBeGreaterThan(0);
+    const diffs = document.querySelectorAll('[data-testid="kpi-diff"]');
+    expect(diffs.length).toBe(3);
   });
-  const link = screen.getByRole('link', { name: /Expenses:Rent/ });
-  const href = link.getAttribute('href') ?? '';
-  expect(href).toContain('/transactions');
-  expect(href).toContain('account_id=11');
+  const diffTexts = Array.from(
+    document.querySelectorAll('[data-testid="kpi-diff"]'),
+  ).map((el) => el.textContent ?? '');
+  // Income: +$1,248.00 vs prev $4,000.00
+  expect(diffTexts.some((t) => t.includes('+$1,248.00'))).toBe(true);
+  // Expense: -$470.00 vs prev $3,000.00
+  expect(diffTexts.some((t) => t.includes('-$470.00'))).toBe(true);
+  // Net: +$1,718.00 vs prev $1,000.00
+  expect(diffTexts.some((t) => t.includes('+$1,718.00'))).toBe(true);
 });
 
 test('renders empty state when there are no rows', async () => {
@@ -161,5 +185,39 @@ test('renders empty state when there are no rows', async () => {
   render(makeTestApp('/reports/income-statement'));
   await waitFor(() => {
     expect(screen.getByText(/no income or expenses/i)).toBeInTheDocument();
+  });
+});
+
+test('omits diff lines when previous-period query is errored', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url === '/api/config') {
+        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+      }
+      if (url === '/api/ledgers') {
+        return Promise.resolve(
+          okResponse({ active: 'p', items: [{ name: 'p', path: '/p.db', active: true }] }),
+        );
+      }
+      if (url === '/api/balances') {
+        return Promise.resolve(okResponse({ items: [], total_count: 0, limit: 0, offset: 0 }));
+      }
+      if (url.startsWith('/api/reports/income-statement')) {
+        if (url.includes('month=2026-05')) {
+          return Promise.resolve(new Response('boom', { status: 500 }));
+        }
+        return Promise.resolve(okResponse(REPORT_PAYLOAD));
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }),
+  );
+  render(makeTestApp('/reports/income-statement'));
+  await waitFor(() => {
+    expect(screen.getByText('Income')).toBeInTheDocument();
+  });
+  // Give the previous-period query time to settle.
+  await waitFor(() => {
+    expect(document.querySelectorAll('[data-testid="kpi-diff"]').length).toBe(0);
   });
 });

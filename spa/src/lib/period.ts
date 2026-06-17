@@ -1,3 +1,5 @@
+import type { PeriodApiParams } from './api/reports';
+
 export type PeriodRange = 'this-month' | 'last-month' | 'ytd' | 'last-12mo' | 'custom';
 
 export interface PeriodSearch {
@@ -175,4 +177,52 @@ export function resolvePeriod(
 
   // fallback: this-month
   return resolvePeriod({ range: 'this-month' }, nowUnix);
+}
+
+export function previousPeriod(
+  search: PeriodSearch,
+  resolved: ResolvedPeriod,
+  nowUnix: number = Date.now() / 1000,
+): { apiParams: PeriodApiParams } | null {
+  // this-month and last-month → step back exactly one calendar month
+  // from the resolved month string ("YYYY-MM" via apiParams.month).
+  if (search.range === 'this-month' || search.range === 'last-month') {
+    const monthStr = resolved.apiParams.month;
+    if (!monthStr) return null;
+    const parsed = /^(\d{4})-(\d{2})$/.exec(monthStr);
+    if (!parsed) return null;
+    let y = Number(parsed[1]);
+    let m = Number(parsed[2]) - 1;
+    if (m === 0) {
+      m = 12;
+      y -= 1;
+    }
+    return { apiParams: { month: `${y}-${pad2(m)}` } };
+  }
+
+  if (search.range === 'ytd') {
+    const now = new Date(nowUnix * 1000);
+    const y = now.getUTCFullYear() - 1;
+    const month = now.getUTCMonth() + 1;
+    const day = Math.min(now.getUTCDate(), daysInMonth(y, month));
+    return {
+      apiParams: { from: `${y}-01-01`, to: `${y}-${pad2(month)}-${pad2(day)}` },
+    };
+  }
+
+  if (search.range === 'last-12mo' || search.range === 'custom') {
+    if (!resolved.apiParams.from || !resolved.apiParams.to) return null;
+    const lengthSec = resolved.endUnix - resolved.startUnix;
+    // Previous window ends one second before current start; subtract length to get its start.
+    const prevEnd = resolved.startUnix - 1;
+    const prevStart = prevEnd - lengthSec;
+    return {
+      apiParams: {
+        from: isoDate(prevStart),
+        to: isoDate(prevEnd),
+      },
+    };
+  }
+
+  return null;
 }

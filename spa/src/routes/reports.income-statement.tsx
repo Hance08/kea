@@ -116,7 +116,7 @@ function IncomeStatementPage() {
                 rows={incomeRows}
                 total={income}
                 currency={currency}
-                limit={8}
+                limit={5}
                 variant="income"
               />
             </section>
@@ -126,7 +126,7 @@ function IncomeStatementPage() {
                 rows={expenseRows}
                 total={expense}
                 currency={currency}
-                limit={8}
+                limit={5}
                 variant="expense"
               />
             </section>

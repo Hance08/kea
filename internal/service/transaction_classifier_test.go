@@ -172,7 +172,7 @@ func TestDetermineType(t *testing.T) {
 		{
 			name: "transfer with fee: A/L dominates E → Transfer",
 			splits: []model.SplitDetail{
-				split("Assets:Investments:00878", model.AccountTypeAsset, 5160),
+				split("Assets:Savings", model.AccountTypeAsset, 5160),
 				split("Expenses:Fees:Stocks", model.AccountTypeExpense, 7),
 				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -5167),
 			},
@@ -195,6 +195,40 @@ func TestDetermineType(t *testing.T) {
 				split("Assets:Bank", model.AccountTypeAsset, -140),
 			},
 			want: model.TxTypeExpense,
+		},
+		{
+			name: "investment: sell stock with realized gain → Investment",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+				split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+			},
+			want: model.TxTypeInvestment,
+		},
+		{
+			name: "investment: buy stock with fee → Investment",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 20490),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -20519),
+				split("Expenses:Fees:Stocks", model.AccountTypeExpense, 29),
+			},
+			want: model.TxTypeInvestment,
+		},
+		{
+			name: "investment: clean transfer between brokerages → Investment",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 1000),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -1000),
+			},
+			want: model.TxTypeInvestment,
+		},
+		{
+			name: "investment account alone (no cash side) falls through to Transfer",
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 100),
+				split("Assets:Investments:00878", model.AccountTypeAsset, -100),
+			},
+			want: model.TxTypeTransfer,
 		},
 	}
 
@@ -245,7 +279,7 @@ func TestGetDisplayAmount(t *testing.T) {
 	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
 
 	t.Run("empty splits returns 0 and empty currency", func(t *testing.T) {
-		amount, currency := svc.GetDisplayAmount(nil)
+		amount, currency := svc.GetDisplayAmount(nil, "")
 		assert.Equal(t, int64(0), amount)
 		assert.Equal(t, "", currency)
 	})
@@ -255,7 +289,7 @@ func TestGetDisplayAmount(t *testing.T) {
 			{Amount: 500, Currency: "USD"},
 			{Amount: 1000, Currency: "TWD"},
 		}
-		amount, currency := svc.GetDisplayAmount(splits)
+		amount, currency := svc.GetDisplayAmount(splits, "")
 		assert.Equal(t, int64(1000), amount)
 		assert.Equal(t, "TWD", currency)
 	})
@@ -264,7 +298,7 @@ func TestGetDisplayAmount(t *testing.T) {
 		splits := []model.SplitDetail{
 			{Amount: 300, Currency: "USD"},
 		}
-		amount, currency := svc.GetDisplayAmount(splits)
+		amount, currency := svc.GetDisplayAmount(splits, "")
 		assert.Equal(t, int64(300), amount)
 		assert.Equal(t, "USD", currency)
 	})
@@ -274,9 +308,33 @@ func TestGetDisplayAmount(t *testing.T) {
 			{Amount: -500, Currency: "USD"},
 			{Amount: -200, Currency: "TWD"},
 		}
-		amount, currency := svc.GetDisplayAmount(splits)
+		amount, currency := svc.GetDisplayAmount(splits, "")
 		assert.Equal(t, int64(0), amount)
 		assert.Equal(t, "USD", currency) // initialized from the first split
+	})
+
+	t.Run("Investment: returns cash-side magnitude for buy", func(t *testing.T) {
+		svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Investments:00878", AccountType: model.AccountTypeAsset, Amount: 20490, Currency: "TWD"},
+			{AccountName: "Assets:Bank:DAWHO", AccountType: model.AccountTypeAsset, Amount: -20519, Currency: "TWD"},
+			{AccountName: "Expenses:Fees:Stocks", AccountType: model.AccountTypeExpense, Amount: 29, Currency: "TWD"},
+		}
+		amount, currency := svc.GetDisplayAmount(splits, string(model.TxTypeInvestment))
+		assert.Equal(t, int64(20519), amount)
+		assert.Equal(t, "TWD", currency)
+	})
+
+	t.Run("Investment: returns cash-side magnitude for sell", func(t *testing.T) {
+		svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
+		splits := []model.SplitDetail{
+			{AccountName: "Assets:Investments:00878", AccountType: model.AccountTypeAsset, Amount: -5287, Currency: "TWD"},
+			{AccountName: "Assets:Bank:DAWHO", AccountType: model.AccountTypeAsset, Amount: 8118, Currency: "TWD"},
+			{AccountName: "Revenue:Salary", AccountType: model.AccountTypeRevenue, Amount: -2831, Currency: "TWD"},
+		}
+		amount, currency := svc.GetDisplayAmount(splits, string(model.TxTypeInvestment))
+		assert.Equal(t, int64(8118), amount)
+		assert.Equal(t, "TWD", currency)
 	})
 }
 
@@ -580,6 +638,44 @@ func TestValidateSplitsMatchType(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name:   "investment: valid sell with realized gain",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+				split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "investment: valid buy with fee",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 20490),
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, -20519),
+				split("Expenses:Fees:Stocks", model.AccountTypeExpense, 29),
+			},
+			wantErr: false,
+		},
+		{
+			name:   "investment: missing Investments split → error",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Bank:DAWHO", model.AccountTypeAsset, 100),
+				split("Assets:Cash", model.AccountTypeAsset, -100),
+			},
+			wantErr: true,
+		},
+		{
+			name:   "investment: missing cash side → error",
+			txType: model.TxTypeInvestment,
+			splits: []model.SplitDetail{
+				split("Assets:Investments:00878", model.AccountTypeAsset, 100),
+				split("Assets:Investments:00878", model.AccountTypeAsset, -100),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -751,4 +847,58 @@ func TestBuildTransactionListItems_MultipleTransactions(t *testing.T) {
 	assert.Equal(t, "Income", items[1].Type)
 	assert.Equal(t, "Revenue:Salary", items[1].Account)
 	assert.Equal(t, "Assets:Bank", items[1].OffsetAccount)
+}
+
+func TestGetDisplayAccount_Investment(t *testing.T) {
+	svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
+	splits := []model.SplitDetail{
+		split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+		split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+		split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+	}
+	got, err := svc.GetDisplayAccount(context.Background(), splits, string(model.TxTypeInvestment))
+	require.NoError(t, err)
+	assert.Equal(t, "Assets:Investments:00878", got)
+}
+
+func TestGetDisplayOffsetAccount_Investment(t *testing.T) {
+	svc := newTestTransactionService(classifierAccRepo(), newMockTransactionRepo())
+	splits := []model.SplitDetail{
+		split("Assets:Investments:00878", model.AccountTypeAsset, -5287),
+		split("Assets:Bank:DAWHO", model.AccountTypeAsset, 8118),
+		split("Revenue:Salary", model.AccountTypeRevenue, -2831),
+	}
+	got, err := svc.GetDisplayOffsetAccount(
+		context.Background(), splits, string(model.TxTypeInvestment), "Assets:Investments:00878",
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "Assets:Bank:DAWHO", got)
+}
+
+func TestGetAllowedAccounts_Investment(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+	accs := []*model.Account{
+		{Name: "Assets:Investments:0050", Type: model.AccountTypeAsset},
+		{Name: "Liabilities:Card", Type: model.AccountTypeLiability},
+		{Name: "Revenue:Realized", Type: model.AccountTypeRevenue},
+		{Name: "Expenses:Fees", Type: model.AccountTypeExpense},
+		{Name: "Equity:Retained", Type: model.AccountTypeEquity},
+	}
+	got := svc.GetAllowedAccounts(model.TxTypeInvestment, model.AccountTypeAsset, accs)
+	var names []string
+	for _, a := range got {
+		names = append(names, a.Name)
+	}
+	assert.ElementsMatch(t,
+		[]string{"Assets:Investments:0050", "Liabilities:Card", "Revenue:Realized", "Expenses:Fees"},
+		names)
+}
+
+func TestGetTransactionRule_Investment(t *testing.T) {
+	svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+	rule, err := svc.GetTransactionRule(model.TxTypeInvestment)
+	require.NoError(t, err)
+	assert.Equal(t, model.TxTypeInvestment, rule.TxType)
+	assert.ElementsMatch(t, []string{"A", "L"}, rule.SourceTypes)
+	assert.ElementsMatch(t, []string{"A", "L"}, rule.DestTypes)
 }

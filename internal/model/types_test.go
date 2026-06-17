@@ -25,6 +25,28 @@ func TestIsOpeningBalancesAccount(t *testing.T) {
 	assert.False(t, IsOpeningBalancesAccount(""))
 }
 
+func TestIsInvestmentAccount(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"matches investment account", "Assets:Investments:00878", true},
+		{"matches with multi-segment ticker", "Assets:Investments:NYSE:AAPL", true},
+		{"rejects similar prefix without final colon", "Assets:Investments", false},
+		{"rejects sibling singular name", "Assets:Investment:foo", false},
+		{"rejects unrelated asset", "Assets:Bank:DAWHO", false},
+		{"rejects empty", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsInvestmentAccount(tt.in); got != tt.want {
+				t.Errorf("IsInvestmentAccount(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseTransactionType(t *testing.T) {
 	tests := []struct {
 		input   string
@@ -44,6 +66,8 @@ func TestParseTransactionType(t *testing.T) {
 		{"deposit", TxTypeDeposit, false},
 		{"withdrawal", TxTypeWithdrawal, false},
 		{"  Other  ", TxTypeOther, false},
+		{"investment", TxTypeInvestment, false},
+		{"INVESTMENT", TxTypeInvestment, false},
 		{"unknown", "", true},
 		{"", "", true},
 		{"garbage", "", true},
@@ -74,6 +98,7 @@ func TestParseTransactionTypeLabel(t *testing.T) {
 		{"income", TxTypeIncome},
 		{"Transfer (move between accounts)", TxTypeTransfer},
 		{"transfer", TxTypeTransfer},
+		{"Record Investment", TxTypeInvestment},
 		{"something else", TxTypeTransfer},
 		{"", TxTypeTransfer},
 	}
@@ -164,6 +189,7 @@ func TestTransactionType_IsValid(t *testing.T) {
 	valid := []TransactionType{
 		TxTypeExpense, TxTypeIncome, TxTypeTransfer,
 		TxTypeOpening, TxTypeDeposit, TxTypeWithdrawal, TxTypeOther,
+		TxTypeInvestment,
 	}
 	for _, v := range valid {
 		assert.True(t, v.IsValid(), "expected %q to be valid", v)
@@ -180,6 +206,7 @@ func TestTransactionType_MarshalJSON(t *testing.T) {
 		all := []TransactionType{
 			TxTypeExpense, TxTypeIncome, TxTypeTransfer,
 			TxTypeOpening, TxTypeDeposit, TxTypeWithdrawal, TxTypeOther,
+			TxTypeInvestment,
 		}
 		for _, want := range all {
 			data, err := json.Marshal(want)

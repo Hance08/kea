@@ -9,6 +9,7 @@ const TYPE_CLASSES: Record<TransactionType, string> = {
   Deposit: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
   Withdrawal: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
   Other: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200',
+  Investment: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200',
 };
 
 interface Props {

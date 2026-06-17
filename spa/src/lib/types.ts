@@ -41,7 +41,8 @@ export type TransactionType =
   | 'Opening'
   | 'Deposit'
   | 'Withdrawal'
-  | 'Other';
+  | 'Other'
+  | 'Investment';
 
 export type TransactionStatus = 'Pending' | 'Cleared' | 'Reconciled';
 

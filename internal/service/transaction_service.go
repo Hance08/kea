@@ -44,6 +44,12 @@ func (ts *TransactionService) GetTransactionRule(txType model.TransactionType) (
 			SourceTypes: []string{"A", "L"},
 			DestTypes:   []string{"A", "L"},
 		}, nil
+	case model.TxTypeInvestment:
+		return model.TransactionRule{
+			TxType:      model.TxTypeInvestment,
+			SourceTypes: []string{"A", "L"},
+			DestTypes:   []string{"A", "L"},
+		}, nil
 	default:
 		return model.TransactionRule{}, validationErrorf("type", "unknown transaction mode: %s", txType)
 	}

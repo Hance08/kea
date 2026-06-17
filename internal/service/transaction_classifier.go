@@ -23,12 +23,14 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 	var totalPositiveAssetLiabAmount int64
 
 	var (
-		hasExpense      bool
-		hasRevenue      bool
-		hasEquity       bool
-		assetOrLiabCnt  int
-		isOpening       bool
-		isAssetIncrease bool
+		hasExpense                  bool
+		hasRevenue                  bool
+		hasEquity                   bool
+		assetOrLiabCnt              int
+		isOpening                   bool
+		isAssetIncrease             bool
+		hasInvestmentAccount        bool
+		nonInvestmentAssetOrLiabCnt int
 	)
 
 	for _, split := range splits {
@@ -50,12 +52,18 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 			totalRevenueAmount += utils.AbsInt64(split.Amount)
 		case model.AccountTypeAsset:
 			assetOrLiabCnt++
+			if model.IsInvestmentAccount(split.AccountName) {
+				hasInvestmentAccount = true
+			} else {
+				nonInvestmentAssetOrLiabCnt++
+			}
 			if split.Amount > 0 {
 				isAssetIncrease = true
 				totalPositiveAssetLiabAmount += split.Amount
 			}
 		case model.AccountTypeLiability:
 			assetOrLiabCnt++
+			nonInvestmentAssetOrLiabCnt++
 			if split.Amount > 0 {
 				totalPositiveAssetLiabAmount += split.Amount
 			}
@@ -66,6 +74,10 @@ func (ts *TransactionService) DetermineType(ctx context.Context, splits []model.
 
 	if isOpening {
 		return model.TxTypeOpening, nil
+	}
+
+	if hasInvestmentAccount && nonInvestmentAssetOrLiabCnt >= 1 {
+		return model.TxTypeInvestment, nil
 	}
 
 	if hasExpense && hasRevenue {
@@ -147,6 +159,13 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 			}
 		}
 
+	case "Investment":
+		for _, split := range splits {
+			if model.IsInvestmentAccount(split.AccountName) {
+				return split.AccountName, nil
+			}
+		}
+
 	case "Other":
 		// For other types, return the first account with positive amount
 		for _, split := range splits {
@@ -164,24 +183,41 @@ func (ts *TransactionService) GetDisplayAccount(ctx context.Context, splits []mo
 	return "-", nil
 }
 
-func (ts *TransactionService) GetDisplayAmount(splits []model.SplitDetail) (int64, string) {
+func (ts *TransactionService) GetDisplayAmount(splits []model.SplitDetail, txType string) (int64, string) {
 	if len(splits) == 0 {
 		return 0, ""
 	}
 
-	var maxAmount int64
-	var currency string
-	if len(splits) > 0 {
-		currency = splits[0].Currency
+	if txType == string(model.TxTypeInvestment) {
+		var bestAmount int64
+		currency := splits[0].Currency
+		for _, s := range splits {
+			if s.AccountType != model.AccountTypeAsset && s.AccountType != model.AccountTypeLiability {
+				continue
+			}
+			if model.IsInvestmentAccount(s.AccountName) {
+				continue
+			}
+			abs := s.Amount
+			if abs < 0 {
+				abs = -abs
+			}
+			if abs > bestAmount {
+				bestAmount = abs
+				currency = s.Currency
+			}
+		}
+		return bestAmount, currency
 	}
 
+	var maxAmount int64
+	currency := splits[0].Currency
 	for _, split := range splits {
 		if split.Amount > maxAmount {
 			maxAmount = split.Amount
 			currency = split.Currency
 		}
 	}
-
 	return maxAmount, currency
 }
 
@@ -209,6 +245,16 @@ func (ts *TransactionService) GetDisplayOffsetAccount(ctx context.Context, split
 			if typeVal != primaryType {
 				seen[split.AccountName] = struct{}{}
 			}
+		}
+	case string(model.TxTypeInvestment):
+		for _, split := range splits {
+			if split.AccountType != model.AccountTypeAsset && split.AccountType != model.AccountTypeLiability {
+				continue
+			}
+			if model.IsInvestmentAccount(split.AccountName) {
+				continue
+			}
+			seen[split.AccountName] = struct{}{}
 		}
 	default:
 		for _, split := range splits {
@@ -251,7 +297,7 @@ func (ts *TransactionService) BuildTransactionListItems(ctx context.Context, txs
 			offsetAccount = "-"
 		}
 
-		amountCents, currency := ts.GetDisplayAmount(detail.Splits)
+		amountCents, currency := ts.GetDisplayAmount(detail.Splits, txType)
 
 		items = append(items, model.TransactionListItem{
 			ID:            tx.ID,
@@ -284,6 +330,14 @@ func (ts *TransactionService) GetAllowedAccounts(txType model.TransactionType, c
 
 	case model.TxTypeTransfer:
 		return ts.filterAccountsByTypes(allAccounts, []model.AccountType{model.AccountTypeAsset, model.AccountTypeLiability})
+
+	case model.TxTypeInvestment:
+		return ts.filterAccountsByTypes(allAccounts, []model.AccountType{
+			model.AccountTypeAsset,
+			model.AccountTypeLiability,
+			model.AccountTypeRevenue,
+			model.AccountTypeExpense,
+		})
 
 	default:
 		return allAccounts
@@ -364,6 +418,39 @@ func (ts *TransactionService) ValidateSplitsMatchType(ctx context.Context, txTyp
 			if accType != model.AccountTypeAsset && accType != model.AccountTypeLiability {
 				return validationErrorf("type", "transfer transaction must only contain Asset and Liability accounts (found account type %q)", accType)
 			}
+		}
+
+	case model.TxTypeInvestment:
+		var hasInvestment, hasOtherAssetOrLiab bool
+		for _, s := range splits {
+			accType, err := ts.resolveAccountType(ctx, s)
+			if err != nil {
+				return err
+			}
+			if accType != model.AccountTypeAsset && accType != model.AccountTypeLiability {
+				continue
+			}
+			name := s.AccountName
+			if name == "" {
+				acc, err := ts.accRepo.GetAccountByID(ctx, s.AccountID)
+				if err != nil {
+					return err
+				}
+				name = acc.Name
+			}
+			if model.IsInvestmentAccount(name) {
+				hasInvestment = true
+			} else {
+				hasOtherAssetOrLiab = true
+			}
+		}
+		if !hasInvestment {
+			return validationErrorf("type",
+				"investment transaction requires at least one Assets:Investments:* account")
+		}
+		if !hasOtherAssetOrLiab {
+			return validationErrorf("type",
+				"investment transaction requires at least one other Asset or Liability account (the cash side)")
 		}
 
 	default:

@@ -13,6 +13,7 @@ const TYPES: TransactionType[] = [
   'Deposit',
   'Withdrawal',
   'Other',
+  'Investment',
 ];
 const STATUSES: TransactionStatus[] = ['Pending', 'Cleared', 'Reconciled'];
 

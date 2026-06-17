@@ -17,6 +17,7 @@ func PromptTransactionType() (string, error) {
 		"Record Expense",
 		"Record Income",
 		"Transfer",
+		"Record Investment",
 	}
 
 	selected, err := PromptSelect("Choose the transaction type:", options, "Record Expense")

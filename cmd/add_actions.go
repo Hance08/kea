@@ -126,21 +126,41 @@ func (r *addRunner) runInteractive(ctx context.Context) (addTransactionInput, er
 		return addTransactionInput{}, fmt.Errorf("UI config missing for mode: %s", mode)
 	}
 
-	fromAccount, err := r.selectAccount(ctx, accounts, rule.SourceTypes, uiConf.Src, true, "")
-	if err != nil {
-		return addTransactionInput{}, err
-	}
+	var fromAccount, toAccount string
+	if mode == model.TxTypeInvestment {
+		// Cash side: any A/L NOT under Assets:Investments:*
+		cashAccounts := filterNonInvestmentAccounts(accounts)
+		fromAccount, err = r.selectAccount(ctx, cashAccounts, rule.SourceTypes, uiConf.Src, true, "")
+		if err != nil {
+			return addTransactionInput{}, err
+		}
 
-	// Resolve the selected account's currency so the offset account list
-	// is filtered to the same currency, preventing mixed-currency splits.
-	fromAcc, err := r.accSvc.GetAccountByName(ctx, fromAccount)
-	if err != nil {
-		return addTransactionInput{}, fmt.Errorf("failed to load account %q: %w", fromAccount, err)
-	}
+		fromAcc, err := r.accSvc.GetAccountByName(ctx, fromAccount)
+		if err != nil {
+			return addTransactionInput{}, fmt.Errorf("failed to load account %q: %w", fromAccount, err)
+		}
 
-	toAccount, err := r.selectAccount(ctx, accounts, rule.DestTypes, uiConf.Dst, mode != model.TxTypeExpense, fromAcc.Currency)
-	if err != nil {
-		return addTransactionInput{}, err
+		// Investment side: ONLY Assets:Investments:*
+		invAccounts := filterInvestmentAccounts(accounts)
+		toAccount, err = r.selectAccount(ctx, invAccounts, rule.DestTypes, uiConf.Dst, true, fromAcc.Currency)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+	} else {
+		fromAccount, err = r.selectAccount(ctx, accounts, rule.SourceTypes, uiConf.Src, true, "")
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+
+		fromAcc, err := r.accSvc.GetAccountByName(ctx, fromAccount)
+		if err != nil {
+			return addTransactionInput{}, fmt.Errorf("failed to load account %q: %w", fromAccount, err)
+		}
+
+		toAccount, err = r.selectAccount(ctx, accounts, rule.DestTypes, uiConf.Dst, mode != model.TxTypeExpense, fromAcc.Currency)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
 	}
 
 	// Step 6: Transaction status
@@ -194,11 +214,32 @@ func (r *addRunner) validateAccountSelectable(ctx context.Context, accountName s
 	return nil
 }
 
+func filterInvestmentAccounts(accounts []*model.Account) []*model.Account {
+	var out []*model.Account
+	for _, a := range accounts {
+		if model.IsInvestmentAccount(a.Name) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+func filterNonInvestmentAccounts(accounts []*model.Account) []*model.Account {
+	var out []*model.Account
+	for _, a := range accounts {
+		if !model.IsInvestmentAccount(a.Name) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 
 var modeUIConfigs = map[model.TransactionType]struct{ Src, Dst string }{
-	model.TxTypeExpense:  {"Payment Source:", "Expense Type:"},
-	model.TxTypeIncome:   {"Revenue Type:", "Deposit To:"},
-	model.TxTypeTransfer: {"From Account:", "To Account:"},
+	model.TxTypeExpense:    {"Payment Source:", "Expense Type:"},
+	model.TxTypeIncome:     {"Revenue Type:", "Deposit To:"},
+	model.TxTypeTransfer:   {"From Account:", "To Account:"},
+	model.TxTypeInvestment: {"Cash Account:", "Investment Account:"},
 }
 
 func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, error) {

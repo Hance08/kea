@@ -103,3 +103,43 @@ describe('determineType', () => {
     ).toBe('Opening');
   });
 });
+
+describe('determineType: Investment', () => {
+  test('sell with realized gain', () => {
+    expect(
+      determineType([
+        sp('Assets:Investments:00878', 'A', -5287),
+        sp('Assets:Bank:DAWHO', 'A', 8118),
+        sp('Revenue:Realized', 'R', -2831),
+      ]),
+    ).toBe('Investment');
+  });
+
+  test('buy with fee', () => {
+    expect(
+      determineType([
+        sp('Assets:Investments:0050', 'A', 20490),
+        sp('Assets:Bank:DAWHO', 'A', -20519),
+        sp('Expenses:Fees:Stocks', 'E', 29),
+      ]),
+    ).toBe('Investment');
+  });
+
+  test('clean broker-to-broker transfer', () => {
+    expect(
+      determineType([
+        sp('Assets:Investments:0050', 'A', 1000),
+        sp('Assets:Bank:DAWHO', 'A', -1000),
+      ]),
+    ).toBe('Investment');
+  });
+
+  test('falls through to Transfer when no non-Investments A/L cash side', () => {
+    expect(
+      determineType([
+        sp('Assets:Investments:0050', 'A', 100),
+        sp('Assets:Investments:0050', 'A', -100),
+      ]),
+    ).toBe('Transfer');
+  });
+});

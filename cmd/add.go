@@ -50,7 +50,7 @@ Examples:
 	cmd.Flags().StringVarP(&flags.To, "to", "t", "", "Destination account (where money goes to)")
 	cmd.Flags().StringVarP(&flags.Status, "status", "s", "cleared", "Transaction status: pending or cleared")
 	cmd.Flags().StringVar(&flags.Timestamp, "date", "", "Transaction date (YYYY-MM-DD), default is today")
-	cmd.Flags().StringVar(&flags.Type, "type", "", "Transaction type: expense, income, transfer")
+	cmd.Flags().StringVar(&flags.Type, "type", "", "Transaction type: expense, income, transfer, investment (in flag mode, investment creates two splits; use 'kea transaction edit' to add fee or gain splits)")
 	cmd.Flags().StringArrayVar(&flags.Splits, "split", nil, "Split as AccountName=amount, e.g. Assets:Bank=-1000 (repeatable)")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created transaction as JSON")
 

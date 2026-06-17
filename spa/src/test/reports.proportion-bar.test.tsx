@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { ProportionBar } from '../components/reports/ProportionBar';
 import type { ReportRow } from '../lib/types';
 
@@ -66,6 +66,28 @@ test('handles total=0 without dividing by zero', () => {
   const { container } = render(<ProportionBar rows={r} total={0} currency="USD" />);
   const fill = container.querySelector('[data-testid="bar-fill"]');
   expect(fill?.getAttribute('style')).toContain('width: 0%');
+});
+
+test('row keys are unique when account_name repeats across offset accounts', () => {
+  // The report API returns one row per (account, offset) pair, so the same
+  // account_name commonly appears multiple times. React keys must reflect
+  // that uniqueness — otherwise reconciliation logs a warning and can mix
+  // DOM nodes across period switches.
+  const rows: ReportRow[] = [
+    { account_name: 'Food', offset_account: 'Bank', amount: 100000, currency: 'USD', tx_count: 1 },
+    { account_name: 'Food', offset_account: 'Card', amount: 50000, currency: 'USD', tx_count: 1 },
+    { account_name: 'Rent', offset_account: 'Bank', amount: 80000, currency: 'USD', tx_count: 1 },
+  ];
+  const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  try {
+    render(<ProportionBar rows={rows} total={230000} currency="USD" />);
+    const dupKeyWarning = errorSpy.mock.calls.find((args) =>
+      String(args[0]).includes('two children with the same key'),
+    );
+    expect(dupKeyWarning).toBeUndefined();
+  } finally {
+    errorSpy.mockRestore();
+  }
 });
 
 test('uses absolute values for negative amounts', () => {

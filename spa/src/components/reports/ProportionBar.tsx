@@ -34,7 +34,11 @@ export function ProportionBar({ rows, total, currency, limit, variant = 'income'
       {shown.map((row) => {
         const pct = denom === 0 ? 0 : (Math.abs(row.amount) / denom) * 100;
         return (
-          <div key={row.account_name} data-testid="prop-bar" className="text-sm">
+          <div
+            key={`${row.account_name}|${row.offset_account}`}
+            data-testid="prop-bar"
+            className="text-sm"
+          >
             <div className="flex items-baseline justify-between gap-2">
               <span className="truncate" title={row.account_name}>
                 {row.account_name}

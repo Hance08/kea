@@ -1,6 +1,6 @@
 import { balanceColor } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
-import { formatBalanceAbs } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 import type { AccountBalance } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
@@ -9,6 +9,7 @@ interface Props {
 }
 
 export function BalanceColumnRow({ row }: Props) {
+  const { formatBalanceAbs } = useAmountFormat();
   return (
     <Link
       to="/accounts/$id"

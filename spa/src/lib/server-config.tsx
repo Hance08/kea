@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, createContext, useContext } from 'react';
 import { getConfig } from './api';
+import { formatBalanceAbs, formatCents } from './format';
 import type { ServerConfig } from './types';
 
-const ServerConfigContext = createContext<ServerConfig | null>(null);
+export const ServerConfigContext = createContext<ServerConfig | null>(null);
 
 interface ServerConfigProviderProps {
   fallback: ReactNode;
@@ -34,4 +35,13 @@ export function useServerConfig(): ServerConfig {
     throw new Error('useServerConfig must be used inside ServerConfigProvider');
   }
   return cfg;
+}
+
+export function useAmountFormat() {
+  const cfg = useServerConfig();
+  const opts = { hideDecimals: cfg.display.hide_decimals };
+  return {
+    formatCents: (cents: number, currency: string) => formatCents(cents, currency, opts),
+    formatBalanceAbs: (cents: number) => formatBalanceAbs(cents, opts),
+  };
 }

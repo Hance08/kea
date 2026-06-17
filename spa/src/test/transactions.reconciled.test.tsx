@@ -43,7 +43,9 @@ function setupFetch(tx: typeof RECONCILED_TX) {
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
       }
       if (url === '/api/ledgers') {
         return Promise.resolve(

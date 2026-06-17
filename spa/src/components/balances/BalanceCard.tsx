@@ -1,7 +1,7 @@
 import { Sparkline } from '@/components/balances/Sparkline';
 import { balanceColor, balanceStrokeColor } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
-import { formatBalanceAbs } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 import type { AccountBalance, BalanceHistoryPoint } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
@@ -20,6 +20,7 @@ function stripColumnPrefix(name: string, columnLabel: 'Assets' | 'Liabilities'):
 }
 
 export function BalanceCard({ row, columnLabel, share, points }: Props) {
+  const { formatBalanceAbs } = useAmountFormat();
   const displayName = stripColumnPrefix(row.name, columnLabel);
   const shareWording = columnLabel.toLowerCase(); // 'assets' | 'liabilities'
 

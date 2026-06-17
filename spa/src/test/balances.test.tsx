@@ -14,7 +14,9 @@ beforeEach(() => {
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
       }
       if (url === '/api/balances') {
         return Promise.resolve(
@@ -159,7 +161,9 @@ test('sorts liabilities by natural amount so biggest debt comes first by default
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
       }
       if (url === '/api/ledgers') {
         return Promise.resolve(
@@ -233,7 +237,9 @@ test('Assets pagination advances a_offset without touching the Liabilities colum
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
       }
       if (url === '/api/ledgers') {
         return Promise.resolve(

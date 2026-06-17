@@ -9,6 +9,7 @@ import { render, screen } from '@testing-library/react';
 import { expect, test } from 'vitest';
 import { ReportRowTable } from '../components/reports/ReportRowTable';
 import type { ReportRow } from '../lib/types';
+import { withServerConfig } from './test-app';
 
 function harness(node: React.ReactNode) {
   const rootRoute = new RootRoute({ component: () => <>{node}</> });
@@ -17,7 +18,7 @@ function harness(node: React.ReactNode) {
     routeTree: rootRoute.addChildren([dummy]),
     history: createMemoryHistory({ initialEntries: ['/'] }),
   });
-  return <RouterProvider router={router} />;
+  return withServerConfig(<RouterProvider router={router} />);
 }
 
 const rows: ReportRow[] = [

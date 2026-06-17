@@ -1,4 +1,4 @@
-import { formatCents } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 
 export interface CurrencyEntry {
   label: string;
@@ -11,6 +11,7 @@ interface Props {
 }
 
 export function CurrencyFooter({ defaultCurrency, entries }: Props) {
+  const { formatCents } = useAmountFormat();
   const lines = entries
     .map((entry) => {
       const others = Object.entries(entry.byCurrency).filter(([cur]) => cur !== defaultCurrency);

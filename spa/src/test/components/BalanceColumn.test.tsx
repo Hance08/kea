@@ -11,6 +11,7 @@ import {
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { withServerConfig } from '../test-app';
 
 // BalanceColumn renders <Link>, so it needs a router context. Build a
 // minimal one with a single dummy route so the link has somewhere to go.
@@ -23,9 +24,11 @@ function renderWithRouter(ui: React.ReactNode) {
   });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
-    <QueryClientProvider client={qc}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
+    withServerConfig(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    ),
   );
 }
 

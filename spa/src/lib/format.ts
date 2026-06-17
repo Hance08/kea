@@ -1,19 +1,34 @@
-export function formatCents(cents: number, currency: string): string {
+export interface AmountFormatOptions {
+  hideDecimals?: boolean;
+}
+
+export function formatCents(
+  cents: number,
+  currency: string,
+  options: AmountFormatOptions = {},
+): string {
   const value = cents / 100;
+  const digits = options.hideDecimals ? 0 : 2;
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
     }).format(value);
   } catch {
     // Unknown currency code — fall back to plain number with the code.
-    return `${value.toFixed(2)} ${currency}`;
+    return `${value.toFixed(digits)} ${currency}`;
   }
 }
 
 // `$X,XXX.XX` with no currency code and no minus sign. Used where the row's
 // type/column already conveys account and the surrounding color conveys sign.
-export function formatBalanceAbs(cents: number): string {
+export function formatBalanceAbs(cents: number, options: AmountFormatOptions = {}): string {
   const abs = Math.abs(cents / 100);
-  return `$${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const digits = options.hideDecimals ? 0 : 2;
+  return `$${abs.toLocaleString('en-US', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}`;
 }

@@ -4,7 +4,7 @@ import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCents } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 import { deleteTransaction, getTransaction } from '@/lib/transactions';
 import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +21,7 @@ function TransactionDetailPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { formatCents } = useAmountFormat();
 
   const query = useQuery({
     queryKey: ['transaction', txId],

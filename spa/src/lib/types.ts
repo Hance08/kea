@@ -21,6 +21,9 @@ export interface ServerConfig {
   defaults: {
     currency: string;
   };
+  display: {
+    hide_decimals: boolean;
+  };
 }
 
 export interface LedgerInfo {

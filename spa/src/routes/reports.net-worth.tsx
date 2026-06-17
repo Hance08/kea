@@ -3,10 +3,9 @@ import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCents } from '@/lib/format';
 import { useNetWorth } from '@/lib/hooks/useReport';
 import { type AtSearchParams, parseAtSearch } from '@/lib/reports-search-params';
-import { useServerConfig } from '@/lib/server-config';
+import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/reports/net-worth')({
@@ -16,6 +15,7 @@ export const Route = createFileRoute('/reports/net-worth')({
 
 function NetWorthPage() {
   const { defaults } = useServerConfig();
+  const { formatCents } = useAmountFormat();
   const currency = defaults.currency;
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/reports/net-worth' });

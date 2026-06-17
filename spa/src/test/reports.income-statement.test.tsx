@@ -46,9 +46,9 @@ const REPORT_PAYLOAD = {
 const PREV_REPORT_PAYLOAD = {
   ...REPORT_PAYLOAD,
   period: 'May 2026',
-  total_income: { USD: 400000 },   // prev income = $4,000.00; current = $5,248.00 → +$1,248.00 (+31.2%)
-  total_expense: { USD: 300000 },  // prev expense = $3,000.00; current = $2,530.00 → -$470.00 (-15.7%)
-  net_amount: { USD: 100000 },     // prev net = $1,000.00; current = $2,718.00 → +$1,718.00 (+171.8%)
+  total_income: { USD: 400000 }, // prev income = $4,000.00; current = $5,248.00 → +$1,248.00 (+31.2%)
+  total_expense: { USD: 300000 }, // prev expense = $3,000.00; current = $2,530.00 → -$470.00 (-15.7%)
+  net_amount: { USD: 100000 }, // prev net = $1,000.00; current = $2,718.00 → +$1,718.00 (+171.8%)
 };
 
 beforeEach(() => {
@@ -58,7 +58,9 @@ beforeEach(() => {
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
       }
       if (url === '/api/ledgers') {
         return Promise.resolve(
@@ -145,9 +147,9 @@ test('renders KPI cards, charts, and tables for income statement', async () => {
     const diffs = document.querySelectorAll('[data-testid="kpi-diff"]');
     expect(diffs.length).toBe(3);
   });
-  const diffTexts = Array.from(
-    document.querySelectorAll('[data-testid="kpi-diff"]'),
-  ).map((el) => el.textContent ?? '');
+  const diffTexts = Array.from(document.querySelectorAll('[data-testid="kpi-diff"]')).map(
+    (el) => el.textContent ?? '',
+  );
   // Income: +$1,248.00 vs prev $4,000.00
   expect(diffTexts.some((t) => t.includes('+$1,248.00'))).toBe(true);
   // Expense: -$470.00 vs prev $3,000.00
@@ -161,7 +163,9 @@ test('renders empty state when there are no rows', async () => {
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
       }
       if (url === '/api/ledgers') {
         return Promise.resolve(
@@ -197,7 +201,9 @@ test('omits diff lines when previous-period query is errored', async () => {
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'USD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
       }
       if (url === '/api/ledgers') {
         return Promise.resolve(

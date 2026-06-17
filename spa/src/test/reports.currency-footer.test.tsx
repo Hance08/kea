@@ -1,6 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { expect, test } from 'vitest';
 import { CurrencyFooter } from '../components/reports/CurrencyFooter';
+import { withServerConfig } from './test-app';
+
+const render = (ui: ReactNode) => rtlRender(withServerConfig(ui));
 
 test('renders nothing when only the default currency is present', () => {
   const { container } = render(

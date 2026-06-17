@@ -44,7 +44,9 @@ vi.mock('@/lib/accounts', async () => {
 
 vi.mock('@/lib/api', async () => ({
   ...(await vi.importActual<object>('@/lib/api')),
-  getConfig: vi.fn().mockResolvedValue({ defaults: { currency: 'USD' } }),
+  getConfig: vi
+    .fn()
+    .mockResolvedValue({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
   getBalances: vi.fn().mockResolvedValue({
     items: [
       { account_id: 1, name: 'Assets', type: 'A', currency: 'USD', amount: 0, is_hidden: false },

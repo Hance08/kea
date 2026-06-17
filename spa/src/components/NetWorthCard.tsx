@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { formatCents } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 
 interface Props {
   netWorth: number;
@@ -8,6 +8,7 @@ interface Props {
 }
 
 export function NetWorthCard({ netWorth, currency, excludedCount }: Props) {
+  const { formatCents } = useAmountFormat();
   return (
     <Card className="mb-4 bg-gradient-to-br from-blue-700 to-blue-500 text-white">
       <CardContent className="p-6">

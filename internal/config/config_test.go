@@ -18,3 +18,11 @@ func TestNewDefault_ServerConfig(t *testing.T) {
 		t.Errorf("expected default CORS origins [http://localhost:5173], got %v", cfg.Server.CORSOrigins)
 	}
 }
+
+func TestNewDefault_DisplayConfig(t *testing.T) {
+	cfg := NewDefault()
+
+	if cfg.Display.HideDecimals != false {
+		t.Errorf("expected default HideDecimals=false, got %v", cfg.Display.HideDecimals)
+	}
+}

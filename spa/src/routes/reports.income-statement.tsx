@@ -144,22 +144,20 @@ function IncomeStatementPage() {
 
           <div className="grid grid-cols-2 gap-6">
             <section>
-              <h2 className="mb-2 text-sm font-semibold">Income mix</h2>
+              <h2 className="mb-2 text-sm font-semibold">Top 5 Income</h2>
               <ProportionBar
-                rows={incomeRows}
+                rows={incomeRows.slice(0, 5)}
                 total={income}
                 currency={currency}
-                limit={5}
                 variant="income"
               />
             </section>
             <section>
-              <h2 className="mb-2 text-sm font-semibold">Expense mix</h2>
+              <h2 className="mb-2 text-sm font-semibold">Top 5 Expense</h2>
               <ProportionBar
-                rows={expenseRows}
+                rows={expenseRows.slice(0, 5)}
                 total={expense}
                 currency={currency}
-                limit={5}
                 variant="expense"
               />
             </section>

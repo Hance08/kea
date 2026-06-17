@@ -203,9 +203,11 @@ export function previousPeriod(
   if (search.range === 'ytd') {
     const now = new Date(nowUnix * 1000);
     const y = now.getUTCFullYear() - 1;
-    const mm = pad2(now.getUTCMonth() + 1);
-    const dd = pad2(now.getUTCDate());
-    return { apiParams: { from: `${y}-01-01`, to: `${y}-${mm}-${dd}` } };
+    const month = now.getUTCMonth() + 1;
+    const day = Math.min(now.getUTCDate(), daysInMonth(y, month));
+    return {
+      apiParams: { from: `${y}-01-01`, to: `${y}-${pad2(month)}-${pad2(day)}` },
+    };
   }
 
   if (search.range === 'last-12mo' || search.range === 'custom') {

@@ -82,4 +82,22 @@ describe('previousPeriod', () => {
     const resolved = resolvePeriod(search, now);
     expect(previousPeriod(search, resolved, now)).toBeNull();
   });
+
+  test('ytd: Feb 29 of a leap year clamps to Feb 28 in previous (non-leap) year', () => {
+    const now = utc(2028, 2, 29);
+    const search = { range: 'ytd' as const };
+    const resolved = resolvePeriod(search, now);
+    expect(previousPeriod(search, resolved, now)).toEqual({
+      apiParams: { from: '2027-01-01', to: '2027-02-28' },
+    });
+  });
+
+  test('ytd: non-leap-day still preserves exact MM-DD', () => {
+    const now = utc(2028, 3, 1);
+    const search = { range: 'ytd' as const };
+    const resolved = resolvePeriod(search, now);
+    expect(previousPeriod(search, resolved, now)).toEqual({
+      apiParams: { from: '2027-01-01', to: '2027-03-01' },
+    });
+  });
 });

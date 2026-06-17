@@ -52,7 +52,9 @@ export function TransactionRow({ tx, search }: Props) {
       <span className="truncate text-left text-muted-foreground" title={offset}>
         {offset}
       </span>
-      <span className={cn('text-right tabular-nums', signClass)}>{formatBalanceAbs(absAmount)}</span>
+      <span className={cn('text-right tabular-nums', signClass)}>
+        {formatBalanceAbs(absAmount)}
+      </span>
       <span className="text-right">
         <StatusText status={tx.status} />
       </span>

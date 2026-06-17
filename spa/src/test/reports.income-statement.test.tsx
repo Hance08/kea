@@ -113,19 +113,14 @@ test('renders KPI cards, charts, and tables for income statement', async () => {
   expect(screen.getByText('$2,530.00')).toBeInTheDocument();
   expect(screen.getByText('$2,718.00')).toBeInTheDocument();
   expect(screen.getByText(/6\.2% net worth/)).toBeInTheDocument();
-  expect(screen.getAllByText('Expenses:Rent').length).toBeGreaterThan(0);
-  expect(screen.getAllByText('Income:Salary').length).toBeGreaterThan(0);
-});
-
-test('drill-down row links to /transactions with account_id and time bounds', async () => {
-  render(makeTestApp('/reports/income-statement'));
-  await waitFor(() => {
-    expect(screen.getAllByText('Expenses:Rent').length).toBeGreaterThan(0);
-  });
-  const link = screen.getByRole('link', { name: /Expenses:Rent/ });
-  const href = link.getAttribute('href') ?? '';
-  expect(href).toContain('/transactions');
-  expect(href).toContain('account_id=11');
+  // Row labels appear in the mix bars (not in any detail table).
+  expect(screen.getByText('Expenses:Rent')).toBeInTheDocument();
+  expect(screen.getByText('Income:Salary')).toBeInTheDocument();
+  // No detail-table headings.
+  expect(screen.queryByRole('heading', { name: /Income detail/i })).toBeNull();
+  expect(screen.queryByRole('heading', { name: /Expense detail/i })).toBeNull();
+  // No drill-down links to /transactions.
+  expect(screen.queryByRole('link', { name: /Expenses:Rent/ })).toBeNull();
 });
 
 test('renders empty state when there are no rows', async () => {

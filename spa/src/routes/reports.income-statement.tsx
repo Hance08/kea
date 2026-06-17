@@ -5,10 +5,12 @@ import { ProportionBar } from '@/components/reports/ProportionBar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { fetchIncomeStatement } from '@/lib/api/reports';
 import { useIncomeStatement } from '@/lib/hooks/useReport';
-import { resolvePeriod } from '@/lib/period';
+import { previousPeriod, resolvePeriod } from '@/lib/period';
 import { type PeriodSearchParams, parsePeriodSearch } from '@/lib/reports-search-params';
 import { useServerConfig } from '@/lib/server-config';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
@@ -24,6 +26,12 @@ function IncomeStatementPage() {
   const navigate = useNavigate({ from: '/reports/income-statement' });
   const period = useMemo(() => resolvePeriod(search), [search]);
   const query = useIncomeStatement(period.apiParams);
+  const previous = useMemo(() => previousPeriod(search, period), [search, period]);
+  const previousQuery = useQuery({
+    queryKey: ['reports', 'income-statement', 'previous', previous?.apiParams],
+    queryFn: () => fetchIncomeStatement(previous!.apiParams),
+    enabled: previous !== null,
+  });
 
   const setSearch = (next: Partial<PeriodSearchParams>) => {
     navigate({ search: () => ({ ...search, ...next }) });
@@ -86,14 +94,51 @@ function IncomeStatementPage() {
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <KpiCard label="Income" amount={income} currency={currency} variant="green" />
-            <KpiCard label="Expense" amount={expense} currency={currency} variant="red" />
+            <KpiCard
+              label="Income"
+              amount={income}
+              currency={currency}
+              variant="green"
+              diff={
+                previousQuery.isSuccess
+                  ? {
+                      delta: income - (previousQuery.data.total_income[currency] ?? 0),
+                      prevAmount: previousQuery.data.total_income[currency] ?? 0,
+                      goodWhen: 'up',
+                    }
+                  : undefined
+              }
+            />
+            <KpiCard
+              label="Expense"
+              amount={expense}
+              currency={currency}
+              variant="red"
+              diff={
+                previousQuery.isSuccess
+                  ? {
+                      delta: expense - (previousQuery.data.total_expense[currency] ?? 0),
+                      prevAmount: previousQuery.data.total_expense[currency] ?? 0,
+                      goodWhen: 'down',
+                    }
+                  : undefined
+              }
+            />
             <KpiCard
               label="Net"
               amount={net}
               currency={currency}
               variant="neutral"
               subLine={netSubLine}
+              diff={
+                previousQuery.isSuccess
+                  ? {
+                      delta: net - (previousQuery.data.net_amount[currency] ?? 0),
+                      prevAmount: previousQuery.data.net_amount[currency] ?? 0,
+                      goodWhen: 'up',
+                    }
+                  : undefined
+              }
             />
           </div>
 

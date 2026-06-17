@@ -7,10 +7,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getBalances } from '@/lib/api';
-import { formatCents } from '@/lib/format';
 import { useBalanceSheet } from '@/lib/hooks/useReport';
 import { type AsOfSearchParams, parseAsOfSearch } from '@/lib/reports-search-params';
-import { useServerConfig } from '@/lib/server-config';
+import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
@@ -22,6 +21,7 @@ export const Route = createFileRoute('/reports/balance-sheet')({
 
 function BalanceSheetPage() {
   const { defaults } = useServerConfig();
+  const { formatCents } = useAmountFormat();
   const currency = defaults.currency;
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/reports/balance-sheet' });

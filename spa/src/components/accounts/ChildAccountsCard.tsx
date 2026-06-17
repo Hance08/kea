@@ -1,5 +1,5 @@
 import { cn } from '@/lib/cn';
-import { formatCents } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 import type { AccountBalance, AccountNode } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 
@@ -9,6 +9,7 @@ interface Props {
 }
 
 export function ChildAccountsCard({ accounts, balances }: Props) {
+  const { formatCents } = useAmountFormat();
   const balanceById = new Map<number, { amount: number; currency: string }>();
   if (balances) {
     for (const b of balances) {

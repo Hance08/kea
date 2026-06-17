@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { withServerConfig } from '../test-app';
 
 function renderWithRouter(ui: React.ReactNode) {
   const rootRoute = new RootRoute({ component: () => <>{ui}</> });
@@ -20,9 +21,11 @@ function renderWithRouter(ui: React.ReactNode) {
   });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
-    <QueryClientProvider client={qc}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
+    withServerConfig(
+      <QueryClientProvider client={qc}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    ),
   );
 }
 

@@ -1,6 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { expect, test } from 'vitest';
 import { KpiCard } from '../components/reports/KpiCard';
+import { withServerConfig } from './test-app';
+
+const render = (ui: ReactNode) => rtlRender(withServerConfig(ui));
 
 test('renders label, formatted amount, and currency', () => {
   render(<KpiCard label="Income" amount={524800} currency="USD" variant="green" />);

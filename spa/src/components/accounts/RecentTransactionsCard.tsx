@@ -2,6 +2,7 @@ import { StatusText } from '@/components/transactions/StatusText';
 import { TypeBadge } from '@/components/transactions/TypeBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/cn';
+import { useAmountFormat } from '@/lib/server-config';
 import { displayAmount } from '@/lib/transactionDisplay';
 import { listTransactions } from '@/lib/transactions';
 import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
@@ -20,16 +21,8 @@ function formatDate(unix: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Plain "$X,XXX.XX" — sign conveyed by color, transfer-coloring handled
-// at the call site.
-function formatDollars(cents: number): string {
-  return `$${(Math.abs(cents) / 100).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
 export function RecentTransactionsCard({ accountId }: Props) {
+  const { formatBalanceAbs } = useAmountFormat();
   const query = useQuery({
     queryKey: ['transactions', { account_id: accountId, limit: RECENT_LIMIT }],
     queryFn: () => listTransactions({ account_id: accountId }, { limit: RECENT_LIMIT }),
@@ -82,7 +75,7 @@ export function RecentTransactionsCard({ accountId }: Props) {
               <TypeBadge type={tx.type} />
               <span className="truncate">{tx.description}</span>
               <span className={cn('text-right tabular-nums', signClass)}>
-                {formatDollars(amount)}
+                {formatBalanceAbs(amount)}
               </span>
               <span className="text-right">
                 <StatusText status={tx.status} />

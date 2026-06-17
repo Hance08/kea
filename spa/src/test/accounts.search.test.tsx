@@ -44,7 +44,9 @@ vi.mock('@/lib/api', async () => ({
     limit: 0,
     offset: 0,
   }),
-  getConfig: vi.fn().mockResolvedValue({ defaults: { currency: 'USD' } }),
+  getConfig: vi
+    .fn()
+    .mockResolvedValue({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
 }));
 
 describe('accounts list — search mode', () => {

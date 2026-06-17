@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
-import { formatCents } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 import type { Account, BalanceResponse } from '@/lib/types';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -20,6 +20,7 @@ const TYPE_LABEL: Record<Account['type'], string> = {
 };
 
 export function AccountDetailHeader({ account, balance, deleteSlot }: Props) {
+  const { formatCents } = useAmountFormat();
   return (
     <div className="mb-4 rounded-md border bg-card p-4">
       <div className="flex items-start justify-between gap-3">

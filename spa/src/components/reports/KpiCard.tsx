@@ -1,5 +1,5 @@
 import { cn } from '@/lib/cn';
-import { formatCents } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 
 export type KpiVariant = 'green' | 'red' | 'neutral';
 
@@ -28,30 +28,30 @@ const GOOD_CLASS = 'text-green-700 dark:text-green-400';
 const BAD_CLASS = 'text-red-700 dark:text-red-400';
 const NEUTRAL_DIFF_CLASS = 'text-muted-foreground';
 
-function formatDiff(diff: KpiDiff, currency: string): { text: string; className: string } {
-  if (diff.delta === 0) {
-    return { text: '— no change vs last period', className: NEUTRAL_DIFF_CLASS };
-  }
-  const arrow = diff.delta > 0 ? '▲' : '▼';
-  const sign = diff.delta > 0 ? '+' : '-';
-  const absAmount = formatCents(Math.abs(diff.delta), currency);
-  let pctPart = '';
-  if (diff.prevAmount !== 0) {
-    const pct = (diff.delta / Math.abs(diff.prevAmount)) * 100;
-    const pctSign = pct > 0 ? '+' : pct < 0 ? '-' : '';
-    pctPart = ` (${pctSign}${Math.abs(pct).toFixed(1)}%)`;
-  }
-  const isGood =
-    (diff.delta > 0 && diff.goodWhen === 'up') ||
-    (diff.delta < 0 && diff.goodWhen === 'down');
-  return {
-    text: `${arrow} ${sign}${absAmount}${pctPart} vs last period`,
-    className: isGood ? GOOD_CLASS : BAD_CLASS,
-  };
-}
-
 export function KpiCard({ label, amount, currency, variant, subLine, diff }: Props) {
-  const diffRendered = diff ? formatDiff(diff, currency) : null;
+  const { formatCents } = useAmountFormat();
+
+  const formatDiff = (d: KpiDiff): { text: string; className: string } => {
+    if (d.delta === 0) {
+      return { text: '— no change vs last period', className: NEUTRAL_DIFF_CLASS };
+    }
+    const arrow = d.delta > 0 ? '▲' : '▼';
+    const sign = d.delta > 0 ? '+' : '-';
+    const absAmount = formatCents(Math.abs(d.delta), currency);
+    let pctPart = '';
+    if (d.prevAmount !== 0) {
+      const pct = (d.delta / Math.abs(d.prevAmount)) * 100;
+      const pctSign = pct > 0 ? '+' : pct < 0 ? '-' : '';
+      pctPart = ` (${pctSign}${Math.abs(pct).toFixed(1)}%)`;
+    }
+    const isGood = (d.delta > 0 && d.goodWhen === 'up') || (d.delta < 0 && d.goodWhen === 'down');
+    return {
+      text: `${arrow} ${sign}${absAmount}${pctPart} vs last period`,
+      className: isGood ? GOOD_CLASS : BAD_CLASS,
+    };
+  };
+
+  const diffRendered = diff ? formatDiff(diff) : null;
   return (
     <div className="rounded-md border bg-card p-4">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>

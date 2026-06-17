@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { stripAccountTypePrefix } from '@/lib/accounts';
-import { formatCents } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 import type { ReportRow } from '@/lib/types';
 import { useState } from 'react';
 
@@ -20,6 +20,7 @@ const COLOR: Record<NonNullable<Props['variant']>, string> = {
 };
 
 export function ProportionBar({ rows, total, currency, limit, variant = 'income' }: Props) {
+  const { formatCents } = useAmountFormat();
   const [expanded, setExpanded] = useState(false);
 
   if (rows.length === 0) {

@@ -1,8 +1,12 @@
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { expect, test, vi } from 'vitest';
 import { ProportionBar } from '../components/reports/ProportionBar';
 import type { ReportRow } from '../lib/types';
+import { withServerConfig } from './test-app';
+
+const render = (ui: ReactNode) => rtlRender(withServerConfig(ui));
 
 const rows: ReportRow[] = [
   { account_name: 'Salary', offset_account: '', amount: 520000, currency: 'USD', tx_count: 1 },

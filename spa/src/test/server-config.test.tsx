@@ -32,7 +32,9 @@ beforeEach(() => {
     'fetch',
     vi.fn((url: string) => {
       if (url === '/api/config') {
-        return Promise.resolve(okResponse({ defaults: { currency: 'TWD' } }));
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'TWD' }, display: { hide_decimals: false } }),
+        );
       }
       throw new Error(`unexpected fetch: ${url}`);
     }),

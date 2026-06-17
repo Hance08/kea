@@ -4,7 +4,7 @@ import { Pagination } from '@/components/transactions/Pagination';
 import { Card, CardContent } from '@/components/ui/card';
 import { balanceColor } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
-import { formatBalanceAbs } from '@/lib/format';
+import { useAmountFormat } from '@/lib/server-config';
 import type { AccountBalance, BalanceHistoryPoint } from '@/lib/types';
 
 export const LIST_PAGE_SIZE = 8;
@@ -47,6 +47,7 @@ export function BalanceColumn({
   view,
   historyByAccount,
 }: Props) {
+  const { formatBalanceAbs } = useAmountFormat();
   const isEmpty = rows.length === 0;
   const totalType = label === 'Assets' ? 'A' : 'L';
   const totalText = formatBalanceAbs(total);

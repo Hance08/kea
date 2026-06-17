@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router';
-import { ServerConfigProvider } from '../lib/server-config';
+import type { ReactNode } from 'react';
+import { ServerConfigContext, ServerConfigProvider } from '../lib/server-config';
+import type { ServerConfig } from '../lib/types';
 import { routeTree } from '../routeTree.gen';
 
 export function makeTestApp(initialPath: string) {
@@ -16,4 +18,14 @@ export function makeTestApp(initialPath: string) {
       </ServerConfigProvider>
     </QueryClientProvider>
   );
+}
+
+// Test helper for component-level tests that render outside makeTestApp.
+// Wraps children with a stubbed ServerConfig so useServerConfig/useAmountFormat
+// can be called without standing up the full /api/config fetch stack.
+export function withServerConfig(
+  children: ReactNode,
+  config: ServerConfig = { defaults: { currency: 'USD' }, display: { hide_decimals: false } },
+) {
+  return <ServerConfigContext.Provider value={config}>{children}</ServerConfigContext.Provider>;
 }

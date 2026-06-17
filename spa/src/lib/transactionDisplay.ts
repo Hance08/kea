@@ -23,6 +23,11 @@ export function displayAccount(splits: SplitDetail[], type: TransactionType | st
     case 'Other':
       for (const s of splits) if (s.amount > 0) return s.account_name;
       break;
+    case 'Investment':
+      for (const s of splits) {
+        if (s.account_name.startsWith('Assets:Investments:')) return s.account_name;
+      }
+      break;
   }
   return splits[0]?.account_name ?? '-';
 }
@@ -35,15 +40,23 @@ export function displayOffsetAccount(
   if (splits.length === 0) return '-';
 
   const seen = new Set<string>();
-  const primaryType = type === 'Expense' ? 'E' : type === 'Income' ? 'R' : null;
 
-  if (primaryType !== null) {
+  if (type === 'Investment') {
     for (const s of splits) {
-      if (s.account_type !== primaryType) seen.add(s.account_name);
+      if (s.account_type !== 'A' && s.account_type !== 'L') continue;
+      if (s.account_name.startsWith('Assets:Investments:')) continue;
+      seen.add(s.account_name);
     }
   } else {
-    for (const s of splits) {
-      if (s.account_name !== primaryAccount) seen.add(s.account_name);
+    const primaryType = type === 'Expense' ? 'E' : type === 'Income' ? 'R' : null;
+    if (primaryType !== null) {
+      for (const s of splits) {
+        if (s.account_type !== primaryType) seen.add(s.account_name);
+      }
+    } else {
+      for (const s of splits) {
+        if (s.account_name !== primaryAccount) seen.add(s.account_name);
+      }
     }
   }
 
@@ -77,6 +90,20 @@ export function displayAmount(
       );
       if (positive) return { amount: positive.amount, currency: positive.currency };
       break;
+    }
+    case 'Investment': {
+      let best = 0;
+      let chosen = currency;
+      for (const s of splits) {
+        if (s.account_type !== 'A' && s.account_type !== 'L') continue;
+        if (s.account_name.startsWith('Assets:Investments:')) continue;
+        const abs = Math.abs(s.amount);
+        if (abs > best) {
+          best = abs;
+          chosen = s.currency;
+        }
+      }
+      return { amount: best, currency: chosen };
     }
   }
 

@@ -119,3 +119,35 @@ describe('displayAmount', () => {
     expect(displayAmount([], 'Expense')).toEqual({ amount: 0, currency: '' });
   });
 });
+
+describe('Investment display helpers', () => {
+  const sellSplits: SplitDetail[] = [
+    sp('Assets:Investments:00878', 'A', -5287),
+    sp('Assets:Bank:DAWHO', 'A', 8118),
+    sp('Revenue:Realized', 'R', -2831),
+  ];
+  const buySplits: SplitDetail[] = [
+    sp('Assets:Investments:0050', 'A', 20490),
+    sp('Assets:Bank:DAWHO', 'A', -20519),
+    sp('Expenses:Fees:Stocks', 'E', 29),
+  ];
+
+  test('displayAccount returns the Investments account', () => {
+    expect(displayAccount(sellSplits, 'Investment')).toBe('Assets:Investments:00878');
+    expect(displayAccount(buySplits, 'Investment')).toBe('Assets:Investments:0050');
+  });
+
+  test('displayOffsetAccount returns the cash account', () => {
+    expect(displayOffsetAccount(sellSplits, 'Investment', 'Assets:Investments:00878')).toBe(
+      'Assets:Bank:DAWHO',
+    );
+    expect(displayOffsetAccount(buySplits, 'Investment', 'Assets:Investments:0050')).toBe(
+      'Assets:Bank:DAWHO',
+    );
+  });
+
+  test('displayAmount returns the cash-side magnitude', () => {
+    expect(displayAmount(sellSplits, 'Investment')).toEqual({ amount: 8118, currency: 'USD' });
+    expect(displayAmount(buySplits, 'Investment')).toEqual({ amount: 20519, currency: 'USD' });
+  });
+});

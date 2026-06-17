@@ -9,7 +9,16 @@ export const DEFAULT_TRANSACTIONS_LIMIT = 10;
 export const transactionsSearchSchema = z.object({
   account_id: z.coerce.number().int().positive().optional(),
   type: z
-    .enum(['Expense', 'Income', 'Transfer', 'Opening', 'Deposit', 'Withdrawal', 'Other'])
+    .enum([
+      'Expense',
+      'Income',
+      'Transfer',
+      'Opening',
+      'Deposit',
+      'Withdrawal',
+      'Other',
+      'Investment',
+    ])
     .optional(),
   status: z.enum(['Pending', 'Cleared', 'Reconciled']).optional(),
   start_time: z.coerce.number().int().optional(),

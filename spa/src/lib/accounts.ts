@@ -97,6 +97,15 @@ export function isOpeningBalancesAccount(name: string): boolean {
   return /^Equity:OpeningBalances_[A-Z]{3}$/.test(name);
 }
 
+// "Assets:Bank:Checking" → "Bank:Checking". The account-type prefix is
+// redundant in views that already convey type via surrounding context
+// (e.g. a report titled "Top 5 Expense"). Returns the input unchanged when
+// no recognized prefix is present, so unusual or non-prefixed names pass
+// through safely.
+export function stripAccountTypePrefix(name: string): string {
+  return name.replace(/^(Assets|Liabilities|Equity|Revenue|Expenses):/, '');
+}
+
 // Returns the balance in the account's "natural direction" — what the
 // user means by "the size of this account" regardless of the stored sign
 // convention. Used for sorting so descending = biggest of this thing.

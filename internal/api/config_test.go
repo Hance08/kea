@@ -13,17 +13,19 @@ import (
 
 func TestGetConfig(t *testing.T) {
 	tests := []struct {
-		name     string
-		currency string
-		wantBody string
+		name         string
+		currency     string
+		hideDecimals bool
+		wantBody     string
 	}{
-		{"populated", "USD", `{"defaults":{"currency":"USD"}}`},
-		{"empty", "", `{"defaults":{"currency":""}}`},
-		{"non_default", "TWD", `{"defaults":{"currency":"TWD"}}`},
+		{"populated", "USD", false, `{"defaults":{"currency":"USD"},"display":{"hide_decimals":false}}`},
+		{"empty", "", false, `{"defaults":{"currency":""},"display":{"hide_decimals":false}}`},
+		{"non_default", "TWD", false, `{"defaults":{"currency":"TWD"},"display":{"hide_decimals":false}}`},
+		{"hide_decimals", "USD", true, `{"defaults":{"currency":"USD"},"display":{"hide_decimals":true}}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ts, _, _ := newServerForWriteWithCurrency(t, tt.currency)
+			ts, _, _ := newServerForWriteWithDisplay(t, tt.currency, tt.hideDecimals)
 
 			resp, err := http.Get(ts.URL + "/api/config")
 			if err != nil {
@@ -51,12 +53,18 @@ func TestGetConfig(t *testing.T) {
 				Defaults struct {
 					Currency string `json:"currency"`
 				} `json:"defaults"`
+				Display struct {
+					HideDecimals bool `json:"hide_decimals"`
+				} `json:"display"`
 			}
 			if err := json.Unmarshal(raw, &parsed); err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}
 			if parsed.Defaults.Currency != tt.currency {
 				t.Errorf("parsed currency: got %q, want %q", parsed.Defaults.Currency, tt.currency)
+			}
+			if parsed.Display.HideDecimals != tt.hideDecimals {
+				t.Errorf("parsed hide_decimals: got %v, want %v", parsed.Display.HideDecimals, tt.hideDecimals)
 			}
 		})
 	}

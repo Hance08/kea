@@ -89,6 +89,31 @@ func newServerForWriteWithCurrency(t *testing.T, currency string) (*httptest.Ser
 	return ts, svc, st
 }
 
+// newServerForWriteWithDisplay is a variant of newServerForWriteWithCurrency
+// that also lets the caller set cfg.Display.HideDecimals. Used by /api/config
+// tests that exercise the display option.
+func newServerForWriteWithDisplay(t *testing.T, currency string, hideDecimals bool) (*httptest.Server, *service.Service, *store.Store) {
+	t.Helper()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.NewStore(dbPath, migrations.FS)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	cfg := config.NewDefault()
+	cfg.Defaults.Currency = currency
+	cfg.Display.HideDecimals = hideDecimals
+
+	svc := service.NewService(st, st, st, cfg)
+	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
+	ts := httptest.NewServer(srv.routes())
+	t.Cleanup(ts.Close)
+
+	return ts, svc, st
+}
+
 // newServerForWrite is a variant of newServerWithStore that also returns the
 // underlying *store.Store, so write tests can manipulate reconcile state and
 // inject a parent cycle directly via the repo (bypassing the service layer

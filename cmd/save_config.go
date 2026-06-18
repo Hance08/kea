@@ -19,8 +19,9 @@ import (
 // the entire merged in-memory state — including defaults the user never wrote
 // — which would silently grow the user's config file with keys they did not
 // type. Instead, we round-trip the YAML as a generic map and update only the
-// single key in place, preserving every other key (comments are still lost,
-// but no foreign data is added or dropped).
+// single key in place. Unrelated keys (and their comments) are preserved
+// verbatim; a comment trailing the rewritten hide_decimals value itself is
+// dropped, since we rebuild that leaf node.
 func saveDisplayHideDecimals(cfg *config.Config) error {
 	if cfg.ConfigPath == "" {
 		return fmt.Errorf("save display.hide_decimals: config path is empty")

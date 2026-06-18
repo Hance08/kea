@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/hance08/kea/internal/config"
 	"github.com/hance08/kea/internal/service"
 )
 
@@ -23,12 +24,16 @@ type configDisplay struct {
 	HideDecimals bool `json:"hide_decimals"`
 }
 
-func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) error {
-	cfg := s.svc.Config()
-	return writeJSON(w, http.StatusOK, configResponse{
+func buildConfigResponse(cfg *config.Config) configResponse {
+	return configResponse{
 		Defaults: configDefaults{Currency: cfg.Defaults.Currency},
 		Display:  configDisplay{HideDecimals: cfg.Display.HideDecimals},
-	})
+	}
+}
+
+func (s *Server) handleGetConfig(w http.ResponseWriter, r *http.Request) error {
+	cfg := s.svc.Config()
+	return writeJSON(w, http.StatusOK, buildConfigResponse(cfg))
 }
 
 type configPatchRequest struct {
@@ -55,8 +60,5 @@ func (s *Server) handlePatchConfig(w http.ResponseWriter, r *http.Request) error
 		return fmt.Errorf("save config: %w", err)
 	}
 
-	return writeJSON(w, http.StatusOK, configResponse{
-		Defaults: configDefaults{Currency: cfg.Defaults.Currency},
-		Display:  configDisplay{HideDecimals: cfg.Display.HideDecimals},
-	})
+	return writeJSON(w, http.StatusOK, buildConfigResponse(cfg))
 }

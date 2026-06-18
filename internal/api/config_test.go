@@ -190,6 +190,41 @@ func TestPatchConfig_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestPatchConfig_ResponseEchoesUpdatedConfig(t *testing.T) {
+	ts, _, _, _ := newServerForPatchConfig(t, "TWD", false)
+
+	req, _ := http.NewRequest(http.MethodPatch, ts.URL+"/api/config",
+		strings.NewReader(`{"display":{"hide_decimals":true}}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PATCH: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+
+	var parsed struct {
+		Defaults struct {
+			Currency string `json:"currency"`
+		} `json:"defaults"`
+		Display struct {
+			HideDecimals bool `json:"hide_decimals"`
+		} `json:"display"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if parsed.Defaults.Currency != "TWD" {
+		t.Errorf("defaults.currency: got %q, want %q", parsed.Defaults.Currency, "TWD")
+	}
+	if parsed.Display.HideDecimals != true {
+		t.Errorf("display.hide_decimals: got %v, want true", parsed.Display.HideDecimals)
+	}
+}
+
 func TestPatchConfig_SaveErrorReturns500(t *testing.T) {
 	ts, _, _, saveErr := newServerForPatchConfig(t, "USD", false)
 	*saveErr = errors.New("disk full")

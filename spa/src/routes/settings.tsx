@@ -18,7 +18,7 @@ function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['server-config'] });
     },
     onError: (err: Error) => {
-      toast.error(`Failed to update setting: ${err.message}`);
+      toast.error(err.message);
     },
   });
 
@@ -34,13 +34,13 @@ function SettingsPage() {
             <Label htmlFor="hide-decimals" className="text-sm">
               Hide decimal places in amounts
             </Label>
-            <p className="text-sm text-muted-foreground">
+            <p id="hide-decimals-desc" className="text-sm text-muted-foreground">
               When on, amounts like $12.00 display as $12 across all pages.
             </p>
           </div>
           <Switch
             id="hide-decimals"
-            aria-label="Hide decimal places in amounts"
+            aria-describedby="hide-decimals-desc"
             checked={cfg.display.hide_decimals}
             disabled={mutation.isPending}
             onCheckedChange={(checked) => mutation.mutate(checked)}

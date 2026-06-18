@@ -1,3 +1,4 @@
+import { Route as SettingsRoute } from '@/routes/settings';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,16 +17,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderSettings(hideDecimals: boolean) {
-  const SettingsRouteModule = await import('@/routes/settings');
-  const SettingsPage = SettingsRouteModule.Route.options.component as React.FC;
+function renderSettings(hideDecimals: boolean) {
+  const SettingsPage = SettingsRoute.options.component as React.FC;
 
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
-  queryClient.setQueryData(['server-config'], {
-    defaults: { currency: 'USD' },
-    display: { hide_decimals: hideDecimals },
   });
   const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -37,8 +33,8 @@ async function renderSettings(hideDecimals: boolean) {
   return { ...tree, queryClient, invalidateSpy };
 }
 
-test('renders the hide_decimals switch with the current value', async () => {
-  await renderSettings(false);
+test('renders the hide_decimals switch with the current value', () => {
+  renderSettings(false);
   const sw = screen.getByRole('switch', { name: /hide decimal places/i });
   expect(sw).toHaveAttribute('aria-checked', 'false');
 });
@@ -51,7 +47,7 @@ test('clicking the switch PATCHes /api/config and invalidates server-config', as
     ),
   );
 
-  const { invalidateSpy } = await renderSettings(false);
+  const { invalidateSpy } = renderSettings(false);
 
   await userEvent.click(screen.getByRole('switch', { name: /hide decimal places/i }));
 
@@ -74,7 +70,7 @@ test('does not invalidate the server-config query when PATCH fails', async () =>
     }),
   );
 
-  const { invalidateSpy } = await renderSettings(false);
+  const { invalidateSpy } = renderSettings(false);
 
   await userEvent.click(screen.getByRole('switch', { name: /hide decimal places/i }));
 

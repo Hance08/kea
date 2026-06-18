@@ -41,6 +41,9 @@ func NewServeCmd(application *app.App, migrationFS fs.FS, appDir string) *cobra.
 				migrationFS,
 				appDir,
 				application.SwitchLedger,
+				func() error {
+					return saveDisplayHideDecimals(application.Config())
+				},
 				logger,
 			)
 			return srv.Run(cmd.Context())

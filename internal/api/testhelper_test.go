@@ -82,7 +82,7 @@ func newServerForWriteWithCurrency(t *testing.T, currency string) (*httptest.Ser
 	cfg.Defaults.Currency = currency
 
 	svc := service.NewService(st, st, st, cfg)
-	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
+	srv := NewServer(cfg, svc, nil, nil, "", nil, func() error { return nil }, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 
@@ -107,11 +107,48 @@ func newServerForWriteWithDisplay(t *testing.T, currency string, hideDecimals bo
 	cfg.Display.HideDecimals = hideDecimals
 
 	svc := service.NewService(st, st, st, cfg)
-	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
+	srv := NewServer(cfg, svc, nil, nil, "", nil, func() error { return nil }, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 
 	return ts, svc, st
+}
+
+// newServerForPatchConfig builds a server whose saveConfig closure records
+// every call into the returned counter and returns the *config.Config so
+// tests can assert in-memory mutation independently of persistence. The
+// saveConfig stub returns nil unless tests inject an error via *saveErr.
+func newServerForPatchConfig(t *testing.T, currency string, hideDecimals bool) (
+	ts *httptest.Server,
+	cfg *config.Config,
+	saveCalls *int,
+	saveErr *error,
+) {
+	t.Helper()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.NewStore(dbPath, migrations.FS)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	cfg = config.NewDefault()
+	cfg.Defaults.Currency = currency
+	cfg.Display.HideDecimals = hideDecimals
+
+	svc := service.NewService(st, st, st, cfg)
+
+	calls := 0
+	var injErr error
+	save := func() error {
+		calls++
+		return injErr
+	}
+	srv := NewServer(cfg, svc, nil, nil, "", nil, save, discardLogger())
+	ts = httptest.NewServer(srv.routes())
+	t.Cleanup(ts.Close)
+	return ts, cfg, &calls, &injErr
 }
 
 // newServerForWrite is a variant of newServerWithStore that also returns the
@@ -189,7 +226,7 @@ func newTestServerWithLedger(t *testing.T) (
 	}
 
 	cfg := config.NewDefault()
-	srv := NewServer(cfg, nil, reg, migrations.FS, appDir, switchLedger, discardLogger())
+	srv := NewServer(cfg, nil, reg, migrations.FS, appDir, switchLedger, func() error { return nil }, discardLogger())
 	ts = httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 

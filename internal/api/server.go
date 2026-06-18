@@ -27,6 +27,7 @@ type Server struct {
 	migrations fs.FS
 	appDir     string
 	switchLedger func(name string) error
+	saveConfig func() error
 	logger     *slog.Logger
 	http       *http.Server
 }
@@ -38,6 +39,7 @@ func NewServer(
 	migrations fs.FS,
 	appDir string,
 	switchLedger func(name string) error,
+	saveConfig func() error,
 	logger *slog.Logger,
 ) *Server {
 	s := &Server{
@@ -47,6 +49,7 @@ func NewServer(
 		migrations: migrations,
 		appDir:     appDir,
 		switchLedger: switchLedger,
+		saveConfig: saveConfig,
 		logger:     logger,
 	}
 	addr := net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port))

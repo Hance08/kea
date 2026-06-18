@@ -49,6 +49,18 @@ export function getConfig(): Promise<ServerConfig> {
   return apiFetch<ServerConfig>('/api/config');
 }
 
+export interface ConfigPatch {
+  display?: { hide_decimals?: boolean };
+}
+
+export function setConfig(patch: ConfigPatch): Promise<ServerConfig> {
+  return apiFetch<ServerConfig>('/api/config', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+}
+
 export function getLedgers(): Promise<LedgerListResponse> {
   return apiFetch<LedgerListResponse>('/api/ledgers');
 }

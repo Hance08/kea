@@ -114,6 +114,43 @@ func newServerForWriteWithDisplay(t *testing.T, currency string, hideDecimals bo
 	return ts, svc, st
 }
 
+// newServerForPatchConfig builds a server whose saveConfig closure records
+// every call into the returned counter and returns the *config.Config so
+// tests can assert in-memory mutation independently of persistence. The
+// saveConfig stub returns nil unless tests inject an error via *saveErr.
+func newServerForPatchConfig(t *testing.T, currency string, hideDecimals bool) (
+	ts *httptest.Server,
+	cfg *config.Config,
+	saveCalls *int,
+	saveErr *error,
+) {
+	t.Helper()
+
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	st, err := store.NewStore(dbPath, migrations.FS)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	cfg = config.NewDefault()
+	cfg.Defaults.Currency = currency
+	cfg.Display.HideDecimals = hideDecimals
+
+	svc := service.NewService(st, st, st, cfg)
+
+	calls := 0
+	var injErr error
+	save := func() error {
+		calls++
+		return injErr
+	}
+	srv := NewServer(cfg, svc, nil, nil, "", nil, save, discardLogger())
+	ts = httptest.NewServer(srv.routes())
+	t.Cleanup(ts.Close)
+	return ts, cfg, &calls, &injErr
+}
+
 // newServerForWrite is a variant of newServerWithStore that also returns the
 // underlying *store.Store, so write tests can manipulate reconcile state and
 // inject a parent cycle directly via the repo (bypassing the service layer

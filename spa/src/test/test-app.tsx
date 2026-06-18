@@ -25,7 +25,11 @@ export function makeTestApp(initialPath: string) {
 // can be called without standing up the full /api/config fetch stack.
 export function withServerConfig(
   children: ReactNode,
-  config: ServerConfig = { defaults: { currency: 'USD' }, display: { hide_decimals: false } },
+  override?: Partial<ServerConfig>,
 ) {
+  const config: ServerConfig = {
+    defaults: { currency: 'USD', ...(override?.defaults ?? {}) },
+    display: { hide_decimals: false, ...(override?.display ?? {}) },
+  };
   return <ServerConfigContext.Provider value={config}>{children}</ServerConfigContext.Provider>;
 }

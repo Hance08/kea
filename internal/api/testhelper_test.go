@@ -82,7 +82,7 @@ func newServerForWriteWithCurrency(t *testing.T, currency string) (*httptest.Ser
 	cfg.Defaults.Currency = currency
 
 	svc := service.NewService(st, st, st, cfg)
-	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
+	srv := NewServer(cfg, svc, nil, nil, "", nil, func() error { return nil }, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 
@@ -107,7 +107,7 @@ func newServerForWriteWithDisplay(t *testing.T, currency string, hideDecimals bo
 	cfg.Display.HideDecimals = hideDecimals
 
 	svc := service.NewService(st, st, st, cfg)
-	srv := NewServer(cfg, svc, nil, nil, "", nil, discardLogger())
+	srv := NewServer(cfg, svc, nil, nil, "", nil, func() error { return nil }, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 
@@ -189,7 +189,7 @@ func newTestServerWithLedger(t *testing.T) (
 	}
 
 	cfg := config.NewDefault()
-	srv := NewServer(cfg, nil, reg, migrations.FS, appDir, switchLedger, discardLogger())
+	srv := NewServer(cfg, nil, reg, migrations.FS, appDir, switchLedger, func() error { return nil }, discardLogger())
 	ts = httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
 

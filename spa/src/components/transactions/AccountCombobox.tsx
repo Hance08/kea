@@ -73,6 +73,7 @@ export function AccountCombobox({
         value={query}
         disabled={disabled}
         placeholder={placeholder}
+        autoComplete="off"
         onFocus={() => setOpen(true)}
         onChange={(e) => {
           setQuery(e.target.value);

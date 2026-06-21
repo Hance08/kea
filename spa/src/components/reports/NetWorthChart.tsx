@@ -11,6 +11,7 @@ interface Props {
 
 const VIEWBOX_W = 600;
 const VIEWBOX_H = 180;
+const PAD_Y = 4;
 
 export function NetWorthChart({ points, currency, formatCents, asOfDate, className }: Props) {
   if (points.length < 2) return null;
@@ -21,9 +22,10 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
   const range = max - min || 1;
 
   const xStep = VIEWBOX_W / (points.length - 1);
+  const drawH = VIEWBOX_H - PAD_Y * 2;
   const xy = points.map((p, i) => {
     const x = i * xStep;
-    const y = VIEWBOX_H - ((p.balance - min) / range) * VIEWBOX_H;
+    const y = PAD_Y + drawH - ((p.balance - min) / range) * drawH;
     return { x, y };
   });
 

@@ -91,3 +91,18 @@ func (s *Server) handleBalanceHistory(w http.ResponseWriter, r *http.Request) er
 	}
 	return writeJSON(w, http.StatusOK, balanceHistoryResponse{Items: items})
 }
+
+type netWorthSeriesResponse struct {
+	Items []model.CurrencyDailySeries `json:"items"`
+}
+
+func (s *Server) handleNetWorthSeries(w http.ResponseWriter, r *http.Request) error {
+	items, err := s.svc.Transaction().GetDailyNetWorthSeries(r.Context())
+	if err != nil {
+		return err
+	}
+	if items == nil {
+		items = []model.CurrencyDailySeries{}
+	}
+	return writeJSON(w, http.StatusOK, netWorthSeriesResponse{Items: items})
+}

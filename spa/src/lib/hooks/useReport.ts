@@ -5,7 +5,7 @@ import {
   fetchExpenseBreakdown,
   fetchIncomeBreakdown,
   fetchIncomeStatement,
-  fetchNetWorth,
+  fetchNetWorthSeries,
 } from '../api/reports';
 
 export function useIncomeStatement(params: PeriodApiParams) {
@@ -36,9 +36,9 @@ export function useBalanceSheet(params: { as_of?: number }) {
   });
 }
 
-export function useNetWorth(params: { at?: number }) {
+export function useNetWorthSeries() {
   return useQuery({
-    queryKey: ['reports', 'net-worth', params],
-    queryFn: () => fetchNetWorth(params),
+    queryKey: ['reports', 'net-worth-series'],
+    queryFn: fetchNetWorthSeries,
   });
 }

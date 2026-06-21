@@ -250,3 +250,33 @@ func TestHandleBalanceHistory(t *testing.T) {
 		t.Errorf("pts[1]: got %+v, want {2026-02 300000}", pts[1])
 	}
 }
+
+func TestHandleNetWorthSeries(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 0)
+	seedAccount(t, svc, "Revenue:Salary", model.AccountTypeRevenue, 0)
+
+	day := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC).Unix()
+	seedTransaction(t, svc, "Revenue:Salary", "Assets:Cash", 10000, day, "pay", model.TxTypeIncome, model.StatusCleared)
+
+	resp, err := http.Get(ts.URL + "/api/reports/net-worth-series")
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	var got struct {
+		Items []model.CurrencyDailySeries `json:"items"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got.Items) != 1 || got.Items[0].Currency != "USD" {
+		t.Fatalf("unexpected items: %+v", got.Items)
+	}
+	if len(got.Items[0].Points) < 1 || got.Items[0].Points[0].Balance != 10000 {
+		t.Fatalf("unexpected points: %+v", got.Items[0].Points)
+	}
+}

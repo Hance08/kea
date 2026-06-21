@@ -67,29 +67,50 @@ beforeEach(() => {
             as_of: 1781697600,
           }),
         );
+      if (url === '/api/reports/net-worth-series')
+        return Promise.resolve(
+          okResponse({
+            items: [
+              {
+                currency: 'USD',
+                points: [
+                  { date: '2026-01-01', balance: 50000 },
+                  { date: '2026-01-02', balance: 100000 },
+                  { date: '2026-01-03', balance: 125000 },
+                ],
+              },
+            ],
+          }),
+        );
       throw new Error(`unexpected fetch: ${url}`);
     }),
   );
 });
 afterEach(() => vi.unstubAllGlobals());
 
-test('renders Assets and Equity sections; hides empty Liabilities', async () => {
+test('renders 4-column KPI grid with Net Worth and hides empty Liabilities card', async () => {
   render(makeTestApp('/reports/balance-sheet'));
   await waitFor(() => {
     expect(screen.getByText('Total Assets')).toBeInTheDocument();
   });
   expect(screen.getByText('Total Equity')).toBeInTheDocument();
+  expect(screen.getByText('Net Worth')).toBeInTheDocument();
   expect(screen.queryByText('Total Liabilities')).not.toBeInTheDocument();
-  // Account-type prefix stripped in rendered text on report pages.
-  expect(screen.getAllByText('Bank').length).toBeGreaterThan(0);
-  expect(screen.queryByText('Assets:Bank')).toBeNull();
 });
 
-test('asset rows link to /accounts/{id}', async () => {
+test('removes Asset mix, Assets, and Equity sections', async () => {
   render(makeTestApp('/reports/balance-sheet'));
   await waitFor(() => {
-    expect(screen.getAllByText('Bank').length).toBeGreaterThan(0);
+    expect(screen.getByText('Total Assets')).toBeInTheDocument();
   });
-  const link = screen.getByRole('link', { name: /Bank/ });
-  expect(link.getAttribute('href')).toMatch(/\/accounts\/1/);
+  expect(screen.queryByRole('heading', { name: 'Asset mix' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Assets' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Equity' })).toBeNull();
+});
+
+test('renders the Net worth over time chart heading', async () => {
+  render(makeTestApp('/reports/balance-sheet'));
+  await waitFor(() => {
+    expect(screen.getByRole('heading', { name: /net worth over time/i })).toBeInTheDocument();
+  });
 });

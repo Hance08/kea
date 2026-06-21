@@ -848,3 +848,128 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		require.NotNil(t, result.Equity)
 	})
 }
+
+// ──────────────────────────────────────────────
+// GetDailyNetWorthSeries
+// ──────────────────────────────────────────────
+
+func TestGetDailyNetWorthSeries(t *testing.T) {
+	// 2026-01-01 00:00:00 UTC and 2026-01-03 00:00:00 UTC.
+	day1 := int64(1767225600)
+	day3 := day1 + 2*86400
+
+	t.Run("empty ledger returns empty slice", func(t *testing.T) {
+		svc := newTestTransactionService(newMockAccountRepo(), newMockTransactionRepo())
+		out, err := svc.GetDailyNetWorthSeries(context.Background())
+		require.NoError(t, err)
+		assert.Empty(t, out)
+	})
+
+	t.Run("single-day single-currency emits one point", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Timestamp: day1}, nil)
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -10000, Currency: "USD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		out, err := svc.GetDailyNetWorthSeriesUntil(context.Background(), day1)
+		require.NoError(t, err)
+		require.Len(t, out, 1)
+		assert.Equal(t, "USD", out[0].Currency)
+		require.Len(t, out[0].Points, 1)
+		assert.Equal(t, "2026-01-01", out[0].Points[0].Date)
+		assert.Equal(t, int64(10000), out[0].Points[0].Balance)
+	})
+
+	t.Run("front-fills days without activity", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Timestamp: day1}, nil)
+		txRepo.addTransaction(&model.Transaction{ID: 2, Timestamp: day3}, nil)
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -10000, Currency: "USD"},
+		)
+		addTxSplits(txRepo.splitsWithAccts, 2,
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 5000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -5000, Currency: "USD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		out, err := svc.GetDailyNetWorthSeriesUntil(context.Background(), day3)
+		require.NoError(t, err)
+		require.Len(t, out, 1)
+		pts := out[0].Points
+		require.Len(t, pts, 3)
+		assert.Equal(t, "2026-01-01", pts[0].Date)
+		assert.Equal(t, int64(10000), pts[0].Balance)
+		assert.Equal(t, "2026-01-02", pts[1].Date)
+		assert.Equal(t, int64(10000), pts[1].Balance) // front-filled
+		assert.Equal(t, "2026-01-03", pts[2].Date)
+		assert.Equal(t, int64(15000), pts[2].Balance)
+	})
+
+	t.Run("multi-currency keeps series separate", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Timestamp: day1}, nil)
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Assets:USD_Bank", AccountType: model.AccountTypeAsset, Amount: 10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Assets:TWD_Bank", AccountType: model.AccountTypeAsset, Amount: 50000, Currency: "TWD"},
+			model.SplitDetail{AccountName: "Equity:Opening_USD", AccountType: model.AccountTypeEquity, Amount: -10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening_TWD", AccountType: model.AccountTypeEquity, Amount: -50000, Currency: "TWD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		out, err := svc.GetDailyNetWorthSeriesUntil(context.Background(), day1)
+		require.NoError(t, err)
+		require.Len(t, out, 2)
+		bySeries := map[string]int64{}
+		for _, s := range out {
+			require.Len(t, s.Points, 1)
+			bySeries[s.Currency] = s.Points[0].Balance
+		}
+		assert.Equal(t, int64(10000), bySeries["USD"])
+		assert.Equal(t, int64(50000), bySeries["TWD"])
+	})
+
+	t.Run("excludes income and expense splits", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Timestamp: day1}, nil)
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Expenses:Food", AccountType: model.AccountTypeExpense, Amount: 500, Currency: "USD"},
+			model.SplitDetail{AccountName: "Revenue:Salary", AccountType: model.AccountTypeRevenue, Amount: -500, Currency: "USD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		out, err := svc.GetDailyNetWorthSeriesUntil(context.Background(), day1)
+		require.NoError(t, err)
+		assert.Empty(t, out)
+	})
+
+	t.Run("liability reduces net worth", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Timestamp: day1}, nil)
+		addTxSplits(txRepo.splitsWithAccts, 1,
+			model.SplitDetail{AccountName: "Assets:Bank", AccountType: model.AccountTypeAsset, Amount: 10000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Liabilities:Card", AccountType: model.AccountTypeLiability, Amount: -3000, Currency: "USD"},
+			model.SplitDetail{AccountName: "Equity:Opening", AccountType: model.AccountTypeEquity, Amount: -7000, Currency: "USD"},
+		)
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		out, err := svc.GetDailyNetWorthSeriesUntil(context.Background(), day1)
+		require.NoError(t, err)
+		require.Len(t, out, 1)
+		assert.Equal(t, int64(7000), out[0].Points[0].Balance)
+	})
+
+	t.Run("repo failure returns error", func(t *testing.T) {
+		txRepo := newMockTransactionRepo()
+		txRepo.addTransaction(&model.Transaction{ID: 1, Timestamp: day1}, nil)
+		txRepo.splitsRangeErr = assert.AnError
+		svc := newTestTransactionService(newMockAccountRepo(), txRepo)
+
+		_, err := svc.GetDailyNetWorthSeriesUntil(context.Background(), day1)
+		assert.Error(t, err)
+	})
+}

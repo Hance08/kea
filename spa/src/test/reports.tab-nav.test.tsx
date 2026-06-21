@@ -58,7 +58,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test('renders all 5 report tabs', async () => {
+test('renders all 4 report tabs', async () => {
   render(makeTestApp('/reports/income-statement'));
   await waitFor(() => {
     expect(screen.getByRole('link', { name: /Income Statement/i })).toBeInTheDocument();
@@ -66,7 +66,7 @@ test('renders all 5 report tabs', async () => {
   expect(screen.getByRole('link', { name: /Income Breakdown/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Expense Breakdown/i })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Balance Sheet/i })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: /Net Worth/i })).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /Net Worth/i })).toBeNull();
 });
 
 test('marks the active tab', async () => {

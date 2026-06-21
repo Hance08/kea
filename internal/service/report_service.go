@@ -464,3 +464,86 @@ func computeNetWorthGrowthPctMap(current, previous map[string]int64) map[string]
 	}
 	return result
 }
+
+// GetDailyNetWorthSeries returns daily net-worth points across all currencies,
+// dense from the earliest transaction day through today (UTC), front-filled
+// over days without activity. Income/expense splits are excluded.
+func (ts *TransactionService) GetDailyNetWorthSeries(ctx context.Context) ([]model.CurrencyDailySeries, error) {
+	return ts.GetDailyNetWorthSeriesUntil(ctx, time.Now().Unix())
+}
+
+// GetDailyNetWorthSeriesUntil is the deterministic variant used by tests; it
+// pins the upper bound of the series to a fixed Unix timestamp.
+func (ts *TransactionService) GetDailyNetWorthSeriesUntil(ctx context.Context, until int64) ([]model.CurrencyDailySeries, error) {
+	txs, err := ts.txRepo.GetTransactionsByDateRange(ctx, 0, until)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch transactions: %w", err)
+	}
+	if len(txs) == 0 {
+		return []model.CurrencyDailySeries{}, nil
+	}
+
+	splitsByTx, err := ts.txRepo.GetSplitsWithAccountsByDateRange(ctx, 0, until)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch splits: %w", err)
+	}
+
+	// Bucket day deltas per currency: map[currency]map[YYYY-MM-DD]int64.
+	deltas := map[string]map[string]int64{}
+	firstDay := ""
+	for _, tx := range txs {
+		day := time.Unix(tx.Timestamp, 0).UTC().Format("2006-01-02")
+		if firstDay == "" || day < firstDay {
+			firstDay = day
+		}
+		for _, sp := range splitsByTx[tx.ID] {
+			if sp.AccountType != model.AccountTypeAsset && sp.AccountType != model.AccountTypeLiability {
+				continue
+			}
+			byDay, ok := deltas[sp.Currency]
+			if !ok {
+				byDay = map[string]int64{}
+				deltas[sp.Currency] = byDay
+			}
+			byDay[day] += sp.Amount
+		}
+	}
+	if len(deltas) == 0 {
+		return []model.CurrencyDailySeries{}, nil
+	}
+
+	lastDay := time.Unix(until, 0).UTC().Format("2006-01-02")
+	currencies := make([]string, 0, len(deltas))
+	for c := range deltas {
+		currencies = append(currencies, c)
+	}
+	sort.Strings(currencies)
+
+	out := make([]model.CurrencyDailySeries, 0, len(currencies))
+	for _, ccy := range currencies {
+		byDay := deltas[ccy]
+		var points []model.DailyBalancePoint
+		var running int64
+		day, _ := time.Parse("2006-01-02", firstDay)
+		end, _ := time.Parse("2006-01-02", lastDay)
+		for !day.After(end) {
+			d := day.Format("2006-01-02")
+			running += byDay[d]
+			points = append(points, model.DailyBalancePoint{Date: d, Balance: running})
+			day = day.Add(24 * time.Hour)
+		}
+		// Skip series that never moved off zero.
+		nonZero := false
+		for _, p := range points {
+			if p.Balance != 0 {
+				nonZero = true
+				break
+			}
+		}
+		if !nonZero {
+			continue
+		}
+		out = append(out, model.CurrencyDailySeries{Currency: ccy, Points: points})
+	}
+	return out, nil
+}

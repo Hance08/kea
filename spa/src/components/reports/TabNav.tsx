@@ -6,7 +6,6 @@ const TABS = [
   { to: '/reports/income-breakdown', label: 'Income Breakdown' },
   { to: '/reports/expense-breakdown', label: 'Expense Breakdown' },
   { to: '/reports/balance-sheet', label: 'Balance Sheet' },
-  { to: '/reports/net-worth', label: 'Net Worth' },
 ] as const;
 
 export function TabNav() {

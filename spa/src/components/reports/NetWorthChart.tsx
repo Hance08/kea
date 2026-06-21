@@ -61,7 +61,7 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
 
   return (
     <div className={cn('w-full', className)}>
-      <div className="relative h-40 w-full">
+      <div className="relative mt-4 h-40 w-full">
         <svg
           role="img"
           aria-label={`Net worth over time, ${currency}`}
@@ -102,7 +102,7 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
           <span
             className={cn(
               'absolute whitespace-nowrap text-[10px] font-medium text-foreground',
-              maxLeftPct > 50 ? 'right-2 top-1' : 'left-2 top-1',
+              maxLeftPct > 50 ? 'bottom-1 right-2' : 'bottom-1 left-2',
             )}
           >
             {formatCents(max)}

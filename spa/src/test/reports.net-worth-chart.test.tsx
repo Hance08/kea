@@ -34,13 +34,13 @@ describe('NetWorthChart', () => {
     expect(screen.getByText('2026-01-03')).toBeInTheDocument();
   });
 
-  test('renders a marker circle at the asOfDate', () => {
+  test('renders a marker at the asOfDate', () => {
     const points = [
       { date: '2026-01-01', balance: 100 },
       { date: '2026-01-02', balance: 200 },
       { date: '2026-01-03', balance: 300 },
     ];
-    const { container } = render(
+    render(
       <NetWorthChart
         points={points}
         currency="USD"
@@ -48,7 +48,6 @@ describe('NetWorthChart', () => {
         asOfDate="2026-01-02"
       />,
     );
-    const circles = container.querySelectorAll('circle');
-    expect(circles.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTestId('net-worth-marker')).toBeInTheDocument();
   });
 });

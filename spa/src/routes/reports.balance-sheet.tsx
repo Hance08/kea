@@ -1,13 +1,13 @@
 import { AsOfPicker } from '@/components/reports/AsOfPicker';
 import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { KpiCard } from '@/components/reports/KpiCard';
-import { ProportionBar } from '@/components/reports/ProportionBar';
+import { NetWorthChart } from '@/components/reports/NetWorthChart';
 import { ReportRowTable } from '@/components/reports/ReportRowTable';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getBalances } from '@/lib/api';
-import { useBalanceSheet } from '@/lib/hooks/useReport';
+import { useBalanceSheet, useNetWorthSeries } from '@/lib/hooks/useReport';
 import { type AsOfSearchParams, parseAsOfSearch } from '@/lib/reports-search-params';
 import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import { useQuery } from '@tanstack/react-query';
@@ -26,6 +26,7 @@ function BalanceSheetPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/reports/balance-sheet' });
   const query = useBalanceSheet(search);
+  const seriesQuery = useNetWorthSeries();
 
   const balancesQuery = useQuery({ queryKey: ['balances'], queryFn: getBalances });
   const nameToId = useMemo(() => {
@@ -69,11 +70,23 @@ function BalanceSheetPage() {
   const tl = result.total_liabilities[currency] ?? 0;
   const te = result.total_equity[currency] ?? 0;
   const nw = result.net_worth[currency] ?? 0;
-  const assets = (result.assets ?? []).filter((r) => r.currency === currency);
   const liabilities = (result.liabilities ?? []).filter((r) => r.currency === currency);
-  const equity = (result.equity ?? []).filter((r) => r.currency === currency);
 
-  if (assets.length === 0 && liabilities.length === 0 && equity.length === 0) {
+  const assetsCount = (result.assets ?? []).filter((r) => r.currency === currency).length;
+  const equityCount = (result.equity ?? []).filter((r) => r.currency === currency).length;
+
+  const seriesForCurrency = seriesQuery.data?.items.find((s) => s.currency === currency);
+  const asOfDate =
+    search.as_of !== undefined
+      ? new Date(search.as_of * 1000).toISOString().slice(0, 10)
+      : undefined;
+  const chartPoints = seriesForCurrency
+    ? asOfDate
+      ? seriesForCurrency.points.filter((p) => p.date <= asOfDate)
+      : seriesForCurrency.points
+    : [];
+
+  if (assetsCount === 0 && liabilities.length === 0 && equityCount === 0) {
     return (
       <div className="space-y-4">
         <AsOfPicker label="As of" value={search.as_of} onChange={setAsOf} />
@@ -86,37 +99,47 @@ function BalanceSheetPage() {
     <div className="space-y-6">
       <AsOfPicker label="As of" value={search.as_of} onChange={setAsOf} />
 
-      <div className="grid grid-cols-3 gap-3">
-        {assets.length > 0 && (
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {assetsCount > 0 && (
           <KpiCard label="Total Assets" amount={ta} currency={currency} variant="green" />
         )}
         {liabilities.length > 0 && (
           <KpiCard label="Total Liabilities" amount={tl} currency={currency} variant="red" />
         )}
-        {equity.length > 0 && (
-          <KpiCard
-            label="Total Equity"
-            amount={te}
-            currency={currency}
-            variant="neutral"
-            subLine={`Net worth: ${formatCents(nw, currency)}`}
-          />
+        {equityCount > 0 && (
+          <KpiCard label="Total Equity" amount={te} currency={currency} variant="neutral" />
         )}
+        <KpiCard label="Net Worth" amount={nw} currency={currency} variant="neutral" />
       </div>
 
-      {assets.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">Asset mix</h2>
-          <ProportionBar rows={assets} total={ta} currency={currency} variant="income" />
-        </section>
-      )}
+      <section>
+        <h2 className="mb-2 text-sm font-semibold">Net worth over time</h2>
+        {seriesQuery.isPending ? (
+          <Skeleton className="h-48 w-full" />
+        ) : seriesQuery.isError ? (
+          <Alert variant="destructive">
+            <AlertTitle>Failed to load net worth history</AlertTitle>
+            <AlertDescription className="mt-2 space-y-3">
+              <div>
+                {seriesQuery.error instanceof Error ? seriesQuery.error.message : 'Unknown error'}
+              </div>
+              <Button onClick={() => seriesQuery.refetch()} size="sm">
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : chartPoints.length < 2 ? (
+          <p className="text-sm text-muted-foreground">Not enough history to chart net worth.</p>
+        ) : (
+          <NetWorthChart
+            points={chartPoints}
+            currency={currency}
+            formatCents={(c) => formatCents(c, currency)}
+            asOfDate={asOfDate}
+          />
+        )}
+      </section>
 
-      {assets.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">Assets</h2>
-          <ReportRowTable rows={assets} currency={currency} nameToId={nameToId} period={null} />
-        </section>
-      )}
       {liabilities.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-semibold">Liabilities</h2>
@@ -126,12 +149,6 @@ function BalanceSheetPage() {
             nameToId={nameToId}
             period={null}
           />
-        </section>
-      )}
-      {equity.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">Equity</h2>
-          <ReportRowTable rows={equity} currency={currency} nameToId={nameToId} period={null} />
         </section>
       )}
 

@@ -200,8 +200,3 @@ export interface BalanceSheetResult {
   net_worth: Record<string, number>;
   as_of: number;
 }
-
-export interface NetWorthResponse {
-  at: number;
-  net_worth: Record<string, number>;
-}

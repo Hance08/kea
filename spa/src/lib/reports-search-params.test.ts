@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { parseAsOfSearch, parseAtSearch, parsePeriodSearch } from './reports-search-params';
+import { parseAsOfSearch, parsePeriodSearch } from './reports-search-params';
 
 test('period schema defaults to this-month with no params', () => {
   expect(parsePeriodSearch({})).toEqual({ range: 'this-month' });
@@ -44,12 +44,4 @@ test('as-of schema coerces string', () => {
 
 test('as-of schema returns empty object when missing', () => {
   expect(parseAsOfSearch({})).toEqual({});
-});
-
-test('at schema accepts numeric at', () => {
-  expect(parseAtSearch({ at: 1781697600 })).toEqual({ at: 1781697600 });
-});
-
-test('at schema returns empty object when missing', () => {
-  expect(parseAtSearch({})).toEqual({});
 });

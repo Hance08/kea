@@ -43,15 +43,3 @@ export function parseAsOfSearch(input: unknown): AsOfSearchParams {
   if (!result.success) return {};
   return result.data.as_of === undefined ? {} : { as_of: result.data.as_of };
 }
-
-export const atSearchSchema = z.object({
-  at: z.coerce.number().int().positive().optional(),
-});
-
-export type AtSearchParams = z.infer<typeof atSearchSchema>;
-
-export function parseAtSearch(input: unknown): AtSearchParams {
-  const result = atSearchSchema.safeParse(input);
-  if (!result.success) return {};
-  return result.data.at === undefined ? {} : { at: result.data.at };
-}

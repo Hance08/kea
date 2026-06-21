@@ -124,12 +124,7 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
             vectorEffect="non-scaling-stroke"
             className="stroke-muted-foreground/40"
           />
-          <circle
-            cx={xy[markerIdx].x}
-            cy={xy[markerIdx].y}
-            r={3}
-            className="fill-primary"
-          />
+          <circle cx={xy[markerIdx].x} cy={xy[markerIdx].y} r={3} className="fill-primary" />
         </>
       )}
     </svg>

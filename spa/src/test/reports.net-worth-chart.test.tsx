@@ -1,6 +1,6 @@
+import { NetWorthChart } from '@/components/reports/NetWorthChart';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import { NetWorthChart } from '@/components/reports/NetWorthChart';
 
 const formatUSD = (cents: number) =>
   `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

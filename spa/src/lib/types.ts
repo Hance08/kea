@@ -153,6 +153,20 @@ export interface BalanceHistoryResponse {
   items: AccountBalanceHistory[];
 }
 
+export interface DailyBalancePoint {
+  date: string; // "YYYY-MM-DD"
+  balance: number; // cents
+}
+
+export interface CurrencyDailySeries {
+  currency: string;
+  points: DailyBalancePoint[];
+}
+
+export interface NetWorthSeriesResponse {
+  items: CurrencyDailySeries[];
+}
+
 // Report shapes (mirror Go JSON from internal/model/report.go
 // and internal/api/reports.go).
 

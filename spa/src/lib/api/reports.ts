@@ -1,5 +1,5 @@
 import { apiFetch } from '../api';
-import type { BalanceSheetResult, NetWorthResponse, ReportResult } from '../types';
+import type { BalanceSheetResult, NetWorthSeriesResponse, ReportResult } from '../types';
 
 function buildQuery(params: { [k: string]: string | number | undefined }): string {
   const usp = new URLSearchParams();
@@ -37,9 +37,6 @@ export function fetchBalanceSheet(params: {
   return apiFetch<BalanceSheetResult>(`/api/reports/balance-sheet${buildQuery(params)}`);
 }
 
-export function fetchNetWorth(params: {
-  [k: string]: number | undefined;
-  at?: number;
-}): Promise<NetWorthResponse> {
-  return apiFetch<NetWorthResponse>(`/api/reports/net-worth${buildQuery(params)}`);
+export function fetchNetWorthSeries(): Promise<NetWorthSeriesResponse> {
+  return apiFetch<NetWorthSeriesResponse>('/api/reports/net-worth-series');
 }

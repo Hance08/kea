@@ -42,6 +42,14 @@ function parseAmount(s: string): number | undefined {
   return Math.round(n * 100);
 }
 
+const ROOT_NAME_BY_TYPE: Record<AccountType, string> = {
+  A: 'Assets',
+  L: 'Liabilities',
+  C: 'Equity',
+  R: 'Revenue',
+  E: 'Expenses',
+};
+
 export function AccountForm(props: Props) {
   return props.mode === 'create' ? <CreateForm {...props} /> : <EditForm {...props} />;
 }
@@ -64,7 +72,8 @@ function CreateForm(props: CreateProps) {
     e.preventDefault();
     if (!effectiveType) return;
     if (!name) return;
-    const fullName = parentName ? `${parentName}:${name}` : name;
+    const prefix = parentName || ROOT_NAME_BY_TYPE[effectiveType];
+    const fullName = `${prefix}:${name}`;
     const balanceCents = balanceEnabled ? parseAmount(balanceText) : undefined;
     props.onSubmit({
       name: fullName,

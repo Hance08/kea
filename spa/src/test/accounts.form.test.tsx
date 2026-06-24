@@ -90,7 +90,7 @@ describe('accounts create form', () => {
 
     await waitFor(() =>
       expect(createAccount).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'NewBank', type: 'A', currency: 'USD' }),
+        expect.objectContaining({ name: 'Assets:NewBank', type: 'A', currency: 'USD' }),
       ),
     );
   });

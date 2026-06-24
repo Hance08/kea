@@ -101,3 +101,22 @@ describe('previousPeriod', () => {
     });
   });
 });
+
+describe('resolvePeriod: integer Unix timestamps', () => {
+  // Regression: ResolvedPeriod's startUnix/endUnix flow into URL search params
+  // (start_time/end_time) that the transactions page validates as int. A
+  // fractional nowUnix (the default — Date.now()/1000) must not leak through.
+  const fractionalNow = 1717200000.456;
+
+  test.each([
+    ['this-month', { range: 'this-month' } as const],
+    ['last-month', { range: 'last-month' } as const],
+    ['ytd', { range: 'ytd' } as const],
+    ['last-12mo', { range: 'last-12mo' } as const],
+    ['custom', { range: 'custom', from: '2026-01-15', to: '2026-03-20' } as const],
+  ])('%s returns integer startUnix and endUnix', (_label, search) => {
+    const resolved = resolvePeriod(search, fractionalNow);
+    expect(Number.isInteger(resolved.startUnix)).toBe(true);
+    expect(Number.isInteger(resolved.endUnix)).toBe(true);
+  });
+});

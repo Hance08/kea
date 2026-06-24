@@ -98,8 +98,12 @@ function formatRangeLabel(from: string, to: string): string {
 
 export function resolvePeriod(
   search: PeriodSearch,
-  nowUnix: number = Date.now() / 1000,
+  nowUnixRaw: number = Date.now() / 1000,
 ): ResolvedPeriod {
+  // Unix-second values flow out to URL search params (start_time/end_time) which
+  // are validated as integers by the transactions page schema. Floor at the
+  // source so every branch returns integer-valued startUnix/endUnix.
+  const nowUnix = Math.floor(nowUnixRaw);
   const now = new Date(nowUnix * 1000);
   const curYear = now.getUTCFullYear();
   const curMonth = now.getUTCMonth() + 1; // 1-12

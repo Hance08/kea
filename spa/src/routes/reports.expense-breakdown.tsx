@@ -1,7 +1,7 @@
+import { CompositionBar, partitionForComposition } from '@/components/reports/CompositionBar';
 import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { KpiCard } from '@/components/reports/KpiCard';
 import { PeriodPicker } from '@/components/reports/PeriodPicker';
-import { ProportionBar } from '@/components/reports/ProportionBar';
 import { ReportRowTable } from '@/components/reports/ReportRowTable';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,13 @@ export const Route = createFileRoute('/reports/expense-breakdown')({
 });
 
 function ExpenseBreakdownPage() {
+  // Force a fresh mount on every period change so no stale closure or
+  // child state can leak across query-key changes.
+  const search = Route.useSearch();
+  return <ExpenseBreakdownPageBody key={JSON.stringify(search)} />;
+}
+
+function ExpenseBreakdownPageBody() {
   const { defaults } = useServerConfig();
   const currency = defaults.currency;
   const search = Route.useSearch();
@@ -69,8 +76,10 @@ function ExpenseBreakdownPage() {
   const expense = result.total_expense[currency] ?? 0;
   const rows = (result.expense_rows ?? []).filter((r) => r.currency === currency);
 
+  const { swatchColors } = partitionForComposition(rows, expense, 'expense');
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PeriodPicker value={search} onChange={setSearch} label={period.label} />
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No expenses in {period.label}.</p>
@@ -79,12 +88,17 @@ function ExpenseBreakdownPage() {
           <div className="max-w-xs">
             <KpiCard label="Total Expense" amount={expense} currency={currency} variant="red" />
           </div>
-          <ProportionBar rows={rows} total={expense} currency={currency} variant="expense" />
+          <section>
+            <h2 className="mb-2 text-sm font-semibold">Composition</h2>
+            <CompositionBar rows={rows} total={expense} currency={currency} variant="expense" />
+          </section>
           <ReportRowTable
             rows={rows}
             currency={currency}
             nameToId={nameToId}
             period={{ startUnix: period.startUnix, endUnix: period.endUnix }}
+            swatchColors={swatchColors}
+            maxVisibleRows={8}
           />
           <CurrencyFooter
             defaultCurrency={currency}

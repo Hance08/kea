@@ -57,9 +57,7 @@ test('clicking the switch PATCHes /api/config and invalidates server-config', as
   expect(init?.method).toBe('PATCH');
   expect(init?.body).toBe('{"display":{"hide_decimals":true}}');
 
-  await waitFor(() =>
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['server-config'] }),
-  );
+  await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['server-config'] }));
 });
 
 test('does not invalidate the server-config query when PATCH fails', async () => {

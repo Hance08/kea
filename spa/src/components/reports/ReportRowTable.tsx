@@ -1,4 +1,5 @@
 import { stripAccountTypePrefix } from '@/lib/accounts';
+import { cn } from '@/lib/cn';
 import { useAmountFormat } from '@/lib/server-config';
 import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
 import type { ReportRow } from '@/lib/types';
@@ -10,16 +11,33 @@ interface Props {
   nameToId: Map<string, number>;
   // null → link to /accounts/{id} (Balance Sheet); otherwise drill into Transactions
   period: { startUnix: number; endUnix: number } | null;
+  // parallel to rows; if provided, renders a colored swatch before each account name
+  swatchColors?: string[];
+  // when set, the table scrolls vertically and the header sticks to the top
+  // after this many rows fit. Unset → render unchanged (no wrapper, no sticky).
+  maxVisibleRows?: number;
 }
 
-export function ReportRowTable({ rows, currency, nameToId, period }: Props) {
+export function ReportRowTable({
+  rows,
+  currency,
+  nameToId,
+  period,
+  swatchColors,
+  maxVisibleRows,
+}: Props) {
   const { formatCents } = useAmountFormat();
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">No rows.</p>;
   }
-  return (
+  const table = (
     <table className="w-full text-sm">
-      <thead className="text-xs uppercase text-muted-foreground">
+      <thead
+        className={cn(
+          'text-xs uppercase text-muted-foreground',
+          maxVisibleRows !== undefined && 'sticky top-0 z-10 bg-background',
+        )}
+      >
         <tr>
           <th className="py-1 text-left font-medium">Account</th>
           <th className="py-1 text-left font-medium">Offset</th>
@@ -28,12 +46,30 @@ export function ReportRowTable({ rows, currency, nameToId, period }: Props) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((row) => {
+        {rows.map((row, rowIndex) => {
           const id = nameToId.get(row.account_name);
-          const linkContent = (
+          const labelSpan = (
             <span className="truncate" title={row.account_name}>
               {stripAccountTypePrefix(row.account_name)}
             </span>
+          );
+          const swatch = swatchColors?.[rowIndex] ? (
+            <span
+              data-testid="row-swatch"
+              className={cn(
+                'mr-2 inline-block h-2 w-2 rounded-[2px] align-middle',
+                swatchColors[rowIndex],
+              )}
+              aria-hidden="true"
+            />
+          ) : null;
+          const linkContent = swatch ? (
+            <span className="inline-flex min-w-0 items-center">
+              {swatch}
+              {labelSpan}
+            </span>
+          ) : (
+            labelSpan
           );
           return (
             <tr key={row.account_name} className="border-t hover:bg-muted/40">
@@ -79,5 +115,17 @@ export function ReportRowTable({ rows, currency, nameToId, period }: Props) {
         })}
       </tbody>
     </table>
+  );
+
+  if (maxVisibleRows === undefined) return table;
+
+  return (
+    <div
+      data-testid="report-row-scroll"
+      className="overflow-y-auto rounded-md border px-3"
+      style={{ maxHeight: `${maxVisibleRows * 2 + 2}rem` }}
+    >
+      {table}
+    </div>
   );
 }

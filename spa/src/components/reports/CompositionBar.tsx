@@ -175,7 +175,7 @@ export function CompositionBar({ rows, total, currency, variant, className }: Pr
               <div
                 aria-hidden="true"
                 data-testid="composition-tooltip"
-                className="pointer-events-none absolute z-10 mt-1 rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm"
+                className="pointer-events-none absolute z-20 mt-1 rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm"
                 style={{
                   left: `${centerPct}%`,
                   top: '100%',

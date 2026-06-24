@@ -103,26 +103,47 @@ function buildAriaLabel(segments: CompositionSegment[], variant: CompositionVari
   return `${which} composition: ${top}`;
 }
 
+function labelFor(seg: CompositionSegment): string {
+  const rounded = Math.round(seg.pct);
+  if (seg.pct >= 9) return `${seg.label} · ${rounded}%`;
+  if (seg.pct >= 5) return `${rounded}%`;
+  return '';
+}
+
 export function CompositionBar({ rows, total, currency: _currency, variant, className }: Props) {
   if (rows.length === 0 || total === 0) return null;
   const { segments } = partitionForComposition(rows, total, variant);
   return (
-    <div
-      data-testid="composition-bar"
-      role="img"
-      aria-label={buildAriaLabel(segments, variant)}
-      className={cn('flex h-7 w-full overflow-hidden rounded text-[10px] font-medium', className)}
-    >
-      {segments.map((seg) => (
-        <div
-          // label is unique per segment (account name, or the single "Other" bucket).
-          key={seg.label}
-          data-testid="composition-segment"
-          className={cn('flex items-center justify-start', seg.colorClass, seg.textClass)}
-          style={{ width: `${seg.pct}%` }}
-          title={`${seg.label}: ${Math.round(seg.pct)}%`}
-        />
-      ))}
+    <div className={cn('w-full', className)}>
+      <div
+        data-testid="composition-bar"
+        role="img"
+        aria-label={buildAriaLabel(segments, variant)}
+        className="flex h-7 w-full overflow-hidden rounded text-[10px] font-medium"
+      >
+        {segments.map((seg) => (
+          <div
+            // label is unique per segment (account name, or the single "Other" bucket).
+            key={seg.label}
+            data-testid="composition-segment"
+            className={cn(
+              'flex items-center overflow-hidden whitespace-nowrap',
+              seg.colorClass,
+              seg.textClass,
+              seg.pct >= 9 ? 'px-1.5' : seg.pct >= 5 ? 'px-1 justify-center' : '',
+            )}
+            style={{ width: `${seg.pct}%` }}
+            title={`${seg.label}: ${Math.round(seg.pct)}%`}
+          >
+            {labelFor(seg)}
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
+        <span>0%</span>
+        <span>50%</span>
+        <span>100%</span>
+      </div>
     </div>
   );
 }

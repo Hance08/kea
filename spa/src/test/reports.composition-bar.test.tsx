@@ -165,3 +165,44 @@ test('component: container has role=img and an aria-label', () => {
   expect(bar?.getAttribute('role')).toBe('img');
   expect(bar?.getAttribute('aria-label')).toMatch(/Rent/);
 });
+
+test('inline label: segment ≥9% shows "name · NN%"', () => {
+  // 1800/2962 ≈ 60.8% → ≥9%
+  const rows = [row('Rent', 1800), row('Groceries', 642), row('Dining', 520)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={2962} currency="USD" variant="expense" />,
+  );
+  const big = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]')[0];
+  expect(big.textContent).toContain('Rent');
+  expect(big.textContent).toMatch(/61%/);
+});
+
+test('inline label: segment between 5% and 9% shows only "NN%"', () => {
+  // Construct: total 100, one row at 7
+  const rows = [row('Big', 93), row('Tiny', 7)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={100} currency="USD" variant="expense" />,
+  );
+  const small = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]')[1];
+  expect(small.textContent?.trim()).toBe('7%');
+  expect(small.textContent).not.toContain('Tiny');
+});
+
+test('inline label: segment <5% shows nothing', () => {
+  const rows = [row('Big', 98), row('Tiny', 2)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={100} currency="USD" variant="expense" />,
+  );
+  const small = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]')[1];
+  expect(small.textContent?.trim()).toBe('');
+});
+
+test('ticks: 0% / 50% / 100% labels render below the bar', () => {
+  const rows = [row('A', 100)];
+  const { getByText } = renderBar(
+    <CompositionBar rows={rows} total={100} currency="USD" variant="expense" />,
+  );
+  expect(getByText('0%')).toBeInTheDocument();
+  expect(getByText('50%')).toBeInTheDocument();
+  expect(getByText('100%')).toBeInTheDocument();
+});

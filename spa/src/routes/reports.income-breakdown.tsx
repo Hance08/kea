@@ -21,6 +21,13 @@ export const Route = createFileRoute('/reports/income-breakdown')({
 });
 
 function IncomeBreakdownPage() {
+  // Force a fresh mount on every period change so no stale closure or
+  // child state can leak across query-key changes.
+  const search = Route.useSearch();
+  return <IncomeBreakdownPageBody key={JSON.stringify(search)} />;
+}
+
+function IncomeBreakdownPageBody() {
   const { defaults } = useServerConfig();
   const currency = defaults.currency;
   const search = Route.useSearch();

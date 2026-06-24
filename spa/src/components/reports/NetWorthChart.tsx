@@ -179,7 +179,11 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
               aria-live="polite"
               className={cn(
                 'pointer-events-none absolute z-10 -translate-y-full rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm',
-                hoverLeftPct > 70 ? '-translate-x-full' : hoverLeftPct < 30 ? '' : '-translate-x-1/2',
+                hoverLeftPct > 70
+                  ? '-translate-x-full'
+                  : hoverLeftPct < 30
+                    ? ''
+                    : '-translate-x-1/2',
               )}
               style={{ left: `${hoverLeftPct}%`, top: `${Math.max(hoverTopPct - 4, 0)}%` }}
             >

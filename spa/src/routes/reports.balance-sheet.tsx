@@ -65,8 +65,7 @@ function BalanceSheetPage() {
   const tl = result.total_liabilities[currency] ?? 0;
   const te = result.total_equity[currency] ?? 0;
   const nw = result.net_worth[currency] ?? 0;
-  const liabilitiesCount = (result.liabilities ?? []).filter((r) => r.currency === currency)
-    .length;
+  const liabilitiesCount = (result.liabilities ?? []).filter((r) => r.currency === currency).length;
 
   const assetsCount = (result.assets ?? []).filter((r) => r.currency === currency).length;
   const equityCount = (result.equity ?? []).filter((r) => r.currency === currency).length;

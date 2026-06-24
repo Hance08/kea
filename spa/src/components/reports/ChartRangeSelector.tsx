@@ -19,11 +19,7 @@ interface Props {
 
 export function ChartRangeSelector({ value, onChange, className }: Props) {
   return (
-    <div
-      role="radiogroup"
-      aria-label="Chart range"
-      className={cn('flex gap-0.5', className)}
-    >
+    <div role="radiogroup" aria-label="Chart range" className={cn('flex gap-0.5', className)}>
       {OPTIONS.map((opt) => {
         const isActive = value === opt.value;
         return (

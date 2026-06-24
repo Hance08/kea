@@ -96,7 +96,10 @@ interface Props {
 
 function buildAriaLabel(segments: CompositionSegment[], variant: CompositionVariant): string {
   const which = variant === 'income' ? 'Income' : 'Expense';
-  const top = segments.slice(0, 3).map((s) => `${s.label} ${Math.round(s.pct)}%`).join(', ');
+  const top = segments
+    .slice(0, 3)
+    .map((s) => `${s.label} ${Math.round(s.pct)}%`)
+    .join(', ');
   return `${which} composition: ${top}`;
 }
 

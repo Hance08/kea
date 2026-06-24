@@ -1,4 +1,5 @@
 import { stripAccountTypePrefix } from '@/lib/accounts';
+import { cn } from '@/lib/cn';
 import type { ReportRow } from '@/lib/types';
 
 export type CompositionVariant = 'income' | 'expense';
@@ -83,4 +84,42 @@ export function partitionForComposition(
   }
 
   return { segments, swatchColors };
+}
+
+interface Props {
+  rows: ReportRow[];
+  total: number;
+  currency: string;
+  variant: CompositionVariant;
+  className?: string;
+}
+
+function buildAriaLabel(segments: CompositionSegment[], variant: CompositionVariant): string {
+  const which = variant === 'income' ? 'Income' : 'Expense';
+  const top = segments.slice(0, 3).map((s) => `${s.label} ${Math.round(s.pct)}%`).join(', ');
+  return `${which} composition: ${top}`;
+}
+
+export function CompositionBar({ rows, total, currency: _currency, variant, className }: Props) {
+  if (rows.length === 0 || total === 0) return null;
+  const { segments } = partitionForComposition(rows, total, variant);
+  return (
+    <div
+      data-testid="composition-bar"
+      role="img"
+      aria-label={buildAriaLabel(segments, variant)}
+      className={cn('flex h-7 w-full overflow-hidden rounded text-[10px] font-medium', className)}
+    >
+      {segments.map((seg) => (
+        <div
+          // label is unique per segment (account name, or the single "Other" bucket).
+          key={seg.label}
+          data-testid="composition-segment"
+          className={cn('flex items-center justify-start', seg.colorClass, seg.textClass)}
+          style={{ width: `${seg.pct}%` }}
+          title={`${seg.label}: ${Math.round(seg.pct)}%`}
+        />
+      ))}
+    </div>
+  );
 }

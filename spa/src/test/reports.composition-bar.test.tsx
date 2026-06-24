@@ -1,6 +1,9 @@
+import { render as rtlRender } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { expect, test } from 'vitest';
-import { partitionForComposition } from '../components/reports/CompositionBar';
+import { CompositionBar, partitionForComposition } from '../components/reports/CompositionBar';
 import type { ReportRow } from '../lib/types';
+import { withServerConfig } from './test-app';
 
 const row = (name: string, amount: number, offset = ''): ReportRow => ({
   account_name: name,
@@ -103,4 +106,62 @@ test('partition: pct is clamped to 100 when |amount| exceeds |total|', () => {
   const { segments } = partitionForComposition(rows, 5000, 'expense');
   expect(segments[0].pct).toBeLessThanOrEqual(100);
   expect(segments[0].pct).toBe(100);
+});
+
+// All component tests wrap with withServerConfig so they keep working once
+// Task 4 adds useAmountFormat() to the component.
+const renderBar = (ui: ReactNode) => rtlRender(withServerConfig(ui));
+
+test('component: returns null when rows is empty', () => {
+  const { container } = renderBar(
+    <CompositionBar rows={[]} total={0} currency="USD" variant="expense" />,
+  );
+  // ServerConfig wrapper renders, but the component itself returns null.
+  expect(container.querySelector('[data-testid="composition-bar"]')).toBeNull();
+});
+
+test('component: returns null when total is 0', () => {
+  const rows = [row('A', 0)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={0} currency="USD" variant="expense" />,
+  );
+  expect(container.querySelector('[data-testid="composition-bar"]')).toBeNull();
+});
+
+test('component: renders one DOM segment per partition segment', () => {
+  const rows = [row('Rent', 1800), row('Groceries', 642), row('Dining', 520)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={2962} currency="USD" variant="expense" />,
+  );
+  const segs = container.querySelectorAll('[data-testid="composition-segment"]');
+  expect(segs).toHaveLength(3);
+});
+
+test('component: segment widths reflect partition pcts', () => {
+  const rows = [row('A', 7500), row('B', 2500)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={10000} currency="USD" variant="expense" />,
+  );
+  const segs = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]');
+  expect(segs[0].style.width).toBe('75%');
+  expect(segs[1].style.width).toBe('25%');
+});
+
+test('component: expense variant applies red gradient to biggest segment', () => {
+  const rows = [row('A', 100)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={100} currency="USD" variant="expense" />,
+  );
+  const seg = container.querySelector('[data-testid="composition-segment"]');
+  expect(seg?.className).toContain('bg-red-700');
+});
+
+test('component: container has role=img and an aria-label', () => {
+  const rows = [row('Rent', 1800), row('Groceries', 642), row('Dining', 520)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={2962} currency="USD" variant="expense" />,
+  );
+  const bar = container.querySelector('[data-testid="composition-bar"]');
+  expect(bar?.getAttribute('role')).toBe('img');
+  expect(bar?.getAttribute('aria-label')).toMatch(/Rent/);
 });

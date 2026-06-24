@@ -134,8 +134,8 @@ export function CompositionBar({ rows, total, currency, variant, className }: Pr
         >
           {segments.map((seg, i) => (
             <button
-              // label is unique per segment (account name, or the single "Other" bucket).
-              key={seg.label}
+              // fullName is unique per segment (unmodified account name, or "Other (N)").
+              key={seg.fullName}
               type="button"
               data-testid="composition-segment"
               className={cn(
@@ -167,8 +167,7 @@ export function CompositionBar({ rows, total, currency, variant, className }: Pr
             const flip = centerPct > 70;
             return (
               <div
-                role="status"
-                aria-live="polite"
+                aria-hidden="true"
                 data-testid="composition-tooltip"
                 className="pointer-events-none absolute z-10 mt-1 rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm"
                 style={{

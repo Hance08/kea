@@ -258,3 +258,18 @@ test('tooltip: keyboard focus also activates the tooltip', async () => {
   await user.tab();
   expect(await findByText('$642.00')).toBeInTheDocument();
 });
+
+test('tooltip: marked aria-hidden (decorative; button aria-label handles AT)', async () => {
+  const user = userEvent.setup();
+  const rows = [row('Rent', 180000), row('Groceries', 64200)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={244200} currency="USD" variant="expense" />,
+  );
+  const seg = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]')[0];
+  await user.hover(seg);
+  const tooltip = container.querySelector('[data-testid="composition-tooltip"]');
+  expect(tooltip).not.toBeNull();
+  expect(tooltip?.getAttribute('aria-hidden')).toBe('true');
+  expect(tooltip?.getAttribute('role')).toBeNull();
+  expect(tooltip?.getAttribute('aria-live')).toBeNull();
+});

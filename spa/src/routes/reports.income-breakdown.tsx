@@ -79,7 +79,7 @@ function IncomeBreakdownPageBody() {
   const { swatchColors } = partitionForComposition(rows, income, 'income');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PeriodPicker value={search} onChange={setSearch} label={period.label} />
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No income in {period.label}.</p>

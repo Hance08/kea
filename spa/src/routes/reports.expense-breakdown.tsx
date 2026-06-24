@@ -79,7 +79,7 @@ function ExpenseBreakdownPageBody() {
   const { swatchColors } = partitionForComposition(rows, expense, 'expense');
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PeriodPicker value={search} onChange={setSearch} label={period.label} />
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No expenses in {period.label}.</p>

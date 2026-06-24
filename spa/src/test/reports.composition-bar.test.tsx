@@ -1,4 +1,5 @@
 import { render as rtlRender } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { expect, test } from 'vitest';
 import { CompositionBar, partitionForComposition } from '../components/reports/CompositionBar';
@@ -205,4 +206,55 @@ test('ticks: 0% / 50% / 100% labels render below the bar', () => {
   expect(getByText('0%')).toBeInTheDocument();
   expect(getByText('50%')).toBeInTheDocument();
   expect(getByText('100%')).toBeInTheDocument();
+});
+
+test('a11y: segments are focusable buttons', () => {
+  const rows = [row('Rent', 1800), row('Groceries', 642)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={2442} currency="USD" variant="expense" />,
+  );
+  const segs = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]');
+  expect(segs[0].tagName).toBe('BUTTON');
+  expect(segs[0].getAttribute('type')).toBe('button');
+});
+
+test('tooltip: hovering a segment shows name, amount, and percent', async () => {
+  const user = userEvent.setup();
+  const rows = [row('Rent', 180000), row('Groceries', 64200)];
+  const { container, findByText } = renderBar(
+    <CompositionBar rows={rows} total={244200} currency="USD" variant="expense" />,
+  );
+  const seg = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]')[0];
+  await user.hover(seg);
+  // formatCents("USD", 180000) → "$1,800.00" with default config
+  expect(await findByText('$1,800.00')).toBeInTheDocument();
+  expect(await findByText('Rent')).toBeInTheDocument();
+});
+
+test('tooltip: hovered segment dims the others (opacity-60 on non-hovered)', async () => {
+  const user = userEvent.setup();
+  const rows = [row('A', 60), row('B', 40)];
+  const { container } = renderBar(
+    <CompositionBar rows={rows} total={100} currency="USD" variant="expense" />,
+  );
+  const segs = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]');
+  await user.hover(segs[0]);
+  // Hovered segment NOT dimmed; sibling dimmed.
+  expect(segs[0].className).not.toContain('opacity-60');
+  expect(segs[1].className).toContain('opacity-60');
+});
+
+test('tooltip: keyboard focus also activates the tooltip', async () => {
+  const user = userEvent.setup();
+  const rows = [row('Rent', 180000), row('Groceries', 64200)];
+  const { container, findByText } = renderBar(
+    <CompositionBar rows={rows} total={244200} currency="USD" variant="expense" />,
+  );
+  const seg = container.querySelectorAll<HTMLElement>('[data-testid="composition-segment"]')[0];
+  seg.focus();
+  // Same content as hover tooltip.
+  expect(await findByText('$1,800.00')).toBeInTheDocument();
+  // Tab to next segment; tooltip swaps.
+  await user.tab();
+  expect(await findByText('$642.00')).toBeInTheDocument();
 });

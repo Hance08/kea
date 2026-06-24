@@ -1,11 +1,14 @@
 import { stripAccountTypePrefix } from '@/lib/accounts';
 import { cn } from '@/lib/cn';
+import { useAmountFormat } from '@/lib/server-config';
 import type { ReportRow } from '@/lib/types';
+import { useState } from 'react';
 
 export type CompositionVariant = 'income' | 'expense';
 
 export interface CompositionSegment {
   label: string; // account name (stripped of type prefix), or "Other (N)"
+  fullName: string; // unmodified account name, or the label for the Other bucket
   amount: number; // |amount|
   pct: number; // 0..100, exact (not rounded)
   colorClass: string; // Tailwind background class
@@ -61,6 +64,7 @@ export function partitionForComposition(
     // Mixed-sign rows can push |amount|/|total| > 1; clamp so widths stay valid.
     segments.push({
       label: stripAccountTypePrefix(row.account_name),
+      fullName: row.account_name,
       amount,
       pct: denom === 0 ? 0 : Math.min(100, (amount / denom) * 100),
       colorClass: color.bg,
@@ -72,8 +76,10 @@ export function partitionForComposition(
 
   if (rest.length > 0) {
     const sum = rest.reduce((acc, { row }) => acc + Math.abs(row.amount), 0);
+    const otherLabel = `Other (${rest.length})`;
     segments.push({
-      label: `Other (${rest.length})`,
+      label: otherLabel,
+      fullName: otherLabel,
       amount: sum,
       pct: denom === 0 ? 0 : Math.min(100, (sum / denom) * 100),
       colorClass: OTHER_BG,
@@ -110,35 +116,75 @@ function labelFor(seg: CompositionSegment): string {
   return '';
 }
 
-export function CompositionBar({ rows, total, currency: _currency, variant, className }: Props) {
+export function CompositionBar({ rows, total, currency, variant, className }: Props) {
+  const { formatCents } = useAmountFormat();
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
   if (rows.length === 0 || total === 0) return null;
   const { segments } = partitionForComposition(rows, total, variant);
+
   return (
     <div className={cn('w-full', className)}>
-      <div
-        data-testid="composition-bar"
-        role="img"
-        aria-label={buildAriaLabel(segments, variant)}
-        className="flex h-7 w-full overflow-hidden rounded text-[10px] font-medium"
-      >
-        {segments.map((seg) => (
-          <div
-            // label is unique per segment (account name, or the single "Other" bucket).
-            key={seg.label}
-            data-testid="composition-segment"
-            className={cn(
-              'flex items-center overflow-hidden whitespace-nowrap',
-              seg.colorClass,
-              seg.textClass,
-              seg.pct >= 9 ? 'px-1.5' : seg.pct >= 5 ? 'px-1 justify-center' : '',
-            )}
-            style={{ width: `${seg.pct}%` }}
-            title={`${seg.label}: ${Math.round(seg.pct)}%`}
-          >
-            {labelFor(seg)}
-          </div>
-        ))}
+      <div className="relative">
+        <div
+          data-testid="composition-bar"
+          role="img"
+          aria-label={buildAriaLabel(segments, variant)}
+          className="flex h-7 w-full overflow-hidden rounded text-[10px] font-medium"
+        >
+          {segments.map((seg, i) => (
+            <button
+              // label is unique per segment (account name, or the single "Other" bucket).
+              key={seg.label}
+              type="button"
+              data-testid="composition-segment"
+              className={cn(
+                'flex items-center overflow-hidden whitespace-nowrap transition-opacity',
+                seg.colorClass,
+                seg.textClass,
+                seg.pct >= 9 ? 'px-1.5' : seg.pct >= 5 ? 'px-1 justify-center' : '',
+                activeIdx !== null && activeIdx !== i ? 'opacity-60' : '',
+              )}
+              style={{ width: `${seg.pct}%` }}
+              onPointerEnter={() => setActiveIdx(i)}
+              onPointerLeave={() => setActiveIdx((cur) => (cur === i ? null : cur))}
+              onFocus={() => setActiveIdx(i)}
+              onBlur={() => setActiveIdx((cur) => (cur === i ? null : cur))}
+              aria-label={`${seg.fullName}: ${formatCents(seg.amount, currency)} (${Math.round(seg.pct)}%)`}
+            >
+              {labelFor(seg)}
+            </button>
+          ))}
+        </div>
+
+        {activeIdx !== null &&
+          (() => {
+            const seg = segments[activeIdx];
+            // Anchor tooltip at the segment's left edge in % of bar width.
+            // Center it under the segment using its width; flip when near the right edge.
+            const leftPctSum = segments.slice(0, activeIdx).reduce((acc, s) => acc + s.pct, 0);
+            const centerPct = leftPctSum + seg.pct / 2;
+            const flip = centerPct > 70;
+            return (
+              <div
+                role="status"
+                aria-live="polite"
+                data-testid="composition-tooltip"
+                className="pointer-events-none absolute z-10 mt-1 rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm"
+                style={{
+                  left: `${centerPct}%`,
+                  top: '100%',
+                  transform: flip ? 'translateX(-100%)' : 'translateX(-50%)',
+                }}
+              >
+                <div className="font-medium">{seg.fullName}</div>
+                <div className="font-mono">{formatCents(seg.amount, currency)}</div>
+                <div className="text-muted-foreground">{Math.round(seg.pct)}%</div>
+              </div>
+            );
+          })()}
       </div>
+
       <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
         <span>0%</span>
         <span>50%</span>

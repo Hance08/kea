@@ -98,6 +98,7 @@ function IncomeBreakdownPageBody() {
             nameToId={nameToId}
             period={{ startUnix: period.startUnix, endUnix: period.endUnix }}
             swatchColors={swatchColors}
+            maxVisibleRows={8}
           />
           <CurrencyFooter
             defaultCurrency={currency}

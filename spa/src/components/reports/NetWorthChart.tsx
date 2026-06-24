@@ -1,5 +1,6 @@
 import { cn } from '@/lib/cn';
 import type { DailyBalancePoint } from '@/lib/types';
+import { useState } from 'react';
 
 interface Props {
   points: DailyBalancePoint[];
@@ -14,6 +15,8 @@ const VIEWBOX_H = 180;
 const PAD_Y = 4;
 
 export function NetWorthChart({ points, currency, formatCents, asOfDate, className }: Props) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   if (points.length < 2) return null;
 
   const balances = points.map((p) => p.balance);
@@ -59,9 +62,25 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
   const markerLeftPct = markerIdx !== null ? (xy[markerIdx].x / VIEWBOX_W) * 100 : null;
   const markerTopPct = markerIdx !== null ? (xy[markerIdx].y / VIEWBOX_H) * 100 : null;
 
+  const hoverLeftPct = hoverIdx !== null ? (xy[hoverIdx].x / VIEWBOX_W) * 100 : null;
+  const hoverTopPct = hoverIdx !== null ? (xy[hoverIdx].y / VIEWBOX_H) * 100 : null;
+
+  const handleMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width === 0) return;
+    const xRatio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const idx = Math.round(xRatio * (points.length - 1));
+    setHoverIdx(idx);
+  };
+
   return (
     <div className={cn('w-full', className)}>
-      <div className="relative mt-4 h-40 w-full">
+      <div
+        className="relative mt-4 h-40 w-full touch-none"
+        onPointerMove={handleMove}
+        onPointerEnter={handleMove}
+        onPointerLeave={() => setHoverIdx(null)}
+      >
         <svg
           role="img"
           aria-label={`Net worth over time, ${currency}`}
@@ -86,6 +105,16 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
               strokeDasharray="3 3"
               vectorEffect="non-scaling-stroke"
               className="stroke-muted-foreground/40"
+            />
+          )}
+          {hoverIdx !== null && (
+            <line
+              x1={xy[hoverIdx].x}
+              x2={xy[hoverIdx].x}
+              y1={0}
+              y2={VIEWBOX_H}
+              vectorEffect="non-scaling-stroke"
+              className="stroke-muted-foreground/60"
             />
           )}
         </svg>
@@ -135,6 +164,29 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
             className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
             style={{ left: `${markerLeftPct}%`, top: `${markerTopPct}%` }}
           />
+        )}
+
+        {hoverIdx !== null && hoverLeftPct !== null && hoverTopPct !== null && (
+          <>
+            <div
+              data-testid="net-worth-hover-dot"
+              aria-hidden="true"
+              className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-background"
+              style={{ left: `${hoverLeftPct}%`, top: `${hoverTopPct}%` }}
+            />
+            <div
+              role="status"
+              aria-live="polite"
+              className={cn(
+                'pointer-events-none absolute z-10 -translate-y-full rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm',
+                hoverLeftPct > 70 ? '-translate-x-full' : hoverLeftPct < 30 ? '' : '-translate-x-1/2',
+              )}
+              style={{ left: `${hoverLeftPct}%`, top: `${Math.max(hoverTopPct - 4, 0)}%` }}
+            >
+              <div className="font-medium">{formatCents(points[hoverIdx].balance)}</div>
+              <div className="text-muted-foreground">{points[hoverIdx].date}</div>
+            </div>
+          </>
         )}
       </div>
       <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">

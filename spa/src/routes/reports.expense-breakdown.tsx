@@ -1,7 +1,7 @@
+import { CompositionBar, partitionForComposition } from '@/components/reports/CompositionBar';
 import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { KpiCard } from '@/components/reports/KpiCard';
 import { PeriodPicker } from '@/components/reports/PeriodPicker';
-import { ProportionBar } from '@/components/reports/ProportionBar';
 import { ReportRowTable } from '@/components/reports/ReportRowTable';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,8 @@ function ExpenseBreakdownPage() {
   const expense = result.total_expense[currency] ?? 0;
   const rows = (result.expense_rows ?? []).filter((r) => r.currency === currency);
 
+  const { swatchColors } = partitionForComposition(rows, expense, 'expense');
+
   return (
     <div className="space-y-6">
       <PeriodPicker value={search} onChange={setSearch} label={period.label} />
@@ -79,12 +81,16 @@ function ExpenseBreakdownPage() {
           <div className="max-w-xs">
             <KpiCard label="Total Expense" amount={expense} currency={currency} variant="red" />
           </div>
-          <ProportionBar rows={rows} total={expense} currency={currency} variant="expense" />
+          <section>
+            <h2 className="mb-2 text-sm font-semibold">Composition</h2>
+            <CompositionBar rows={rows} total={expense} currency={currency} variant="expense" />
+          </section>
           <ReportRowTable
             rows={rows}
             currency={currency}
             nameToId={nameToId}
             period={{ startUnix: period.startUnix, endUnix: period.endUnix }}
+            swatchColors={swatchColors}
           />
           <CurrencyFooter
             defaultCurrency={currency}

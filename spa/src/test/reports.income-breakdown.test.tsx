@@ -85,4 +85,15 @@ test('renders total income KPI and rows', async () => {
   expect(screen.getByText('$5,248.00')).toBeInTheDocument();
   expect(screen.getAllByText('Income:Salary').length).toBeGreaterThan(0);
   expect(screen.getAllByText('Income:Interest').length).toBeGreaterThan(0);
+
+  // Composition bar is rendered.
+  const bar = document.querySelector('[data-testid="composition-bar"]');
+  expect(bar).not.toBeNull();
+  expect(document.querySelectorAll('[data-testid="composition-segment"]').length).toBe(2);
+
+  // Table rows have colored swatches matching the bar segments.
+  const swatches = document.querySelectorAll('[data-testid="row-swatch"]');
+  expect(swatches.length).toBe(2);
+  // Top income (Salary, 520000) is the darkest emerald.
+  expect(swatches[0].className).toContain('bg-emerald-700');
 });

@@ -66,4 +66,15 @@ test('renders total expense KPI and rows', async () => {
   // Account-type prefix stripped in rendered text on report pages.
   expect(screen.getAllByText('Rent').length).toBeGreaterThan(0);
   expect(screen.queryByText('Expenses:Rent')).toBeNull();
+
+  // Composition bar is rendered.
+  const bar = document.querySelector('[data-testid="composition-bar"]');
+  expect(bar).not.toBeNull();
+  expect(document.querySelectorAll('[data-testid="composition-segment"]').length).toBe(2);
+
+  // Table rows have colored swatches matching the bar segments.
+  const swatches = document.querySelectorAll('[data-testid="row-swatch"]');
+  expect(swatches.length).toBe(2);
+  // Top expense (Rent, 180000) is the darkest red.
+  expect(swatches[0].className).toContain('bg-red-700');
 });

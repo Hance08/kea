@@ -100,13 +100,15 @@ test('partition: rows beyond top 6 get the Other (neutral) swatch', () => {
   expect(swatchColors[6]).toBe(otherSeg?.colorClass); // G is collapsed
 });
 
-test('partition: pct is clamped to 100 when |amount| exceeds |total|', () => {
-  // Mixed-sign rows can produce a single |amount| > |total|.
-  // Without clamping, pct would be 160 here.
+test('partition: pct is clamped to 100 when |amount| exceeds the denominator', () => {
+  // Mixed-sign rows can produce a single |amount| > |total|. The denominator
+  // is now max(|total|, sum of |row.amount|) = 11000 here (8000 + 3000),
+  // so A's pct is 8000/11000 ≈ 72.7%, comfortably under the clamp ceiling.
+  // Still assert the invariant the clamp protects: no segment exceeds 100%.
   const rows = [row('A', 8000), row('B', -3000)];
   const { segments } = partitionForComposition(rows, 5000, 'expense');
   expect(segments[0].pct).toBeLessThanOrEqual(100);
-  expect(segments[0].pct).toBe(100);
+  expect(segments[0].pct).toBeCloseTo(72.72727272727273, 5);
 });
 
 // All component tests wrap with withServerConfig so they keep working once
@@ -272,4 +274,26 @@ test('tooltip: marked aria-hidden (decorative; button aria-label handles AT)', a
   expect(tooltip?.getAttribute('aria-hidden')).toBe('true');
   expect(tooltip?.getAttribute('role')).toBeNull();
   expect(tooltip?.getAttribute('aria-live')).toBeNull();
+});
+
+test('partition: uses sum-of-rows as denominator when rows exceed total', () => {
+  // Stale state could feed a small `total` and large rows. The bar must
+  // still render with widths that sum to ≤ 100%.
+  const rows = [row('A', 50), row('B', 30), row('C', 20)];
+  // Pass an inconsistent total (smaller than rows sum 100).
+  const { segments } = partitionForComposition(rows, 10, 'expense');
+  // Sum of pcts should be ≤ 100, not 1000.
+  const sum = segments.reduce((acc, s) => acc + s.pct, 0);
+  expect(sum).toBeLessThanOrEqual(100);
+  // Largest row is exactly 50% of the rows-sum denominator.
+  expect(segments[0].pct).toBeCloseTo(50, 5);
+});
+
+test('partition: still uses |total| as denominator when total exceeds rows sum', () => {
+  // Inverse case: total is larger than rows actually sum to. The bar should
+  // not overstate categories — segments should not fill the bar.
+  const rows = [row('A', 100)];
+  const { segments } = partitionForComposition(rows, 1000, 'expense');
+  // 100 / 1000 = 10%
+  expect(segments[0].pct).toBeCloseTo(10, 5);
 });

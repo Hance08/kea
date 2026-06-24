@@ -45,7 +45,13 @@ export function partitionForComposition(
   topN = 6,
 ): { segments: CompositionSegment[]; swatchColors: string[] } {
   const palette = GRADIENT[variant];
-  const denom = Math.abs(total);
+  // When the caller's `total` is smaller than the rows actually sum to (e.g. a
+  // transient stale render where the KPI total updates ahead of the row data),
+  // using `|total|` as denominator would let percentages exceed 100%. Use the
+  // larger of `|total|` and the sum of `|row.amount|` so widths always sum to
+  // at most 100%.
+  const rowsSum = rows.reduce((acc, r) => acc + Math.abs(r.amount), 0);
+  const denom = Math.max(Math.abs(total), rowsSum);
 
   // Sort by |amount| descending, but remember each row's original index so
   // we can build a parallel swatchColors array.

@@ -1,3 +1,4 @@
+import { stripAccountTypePrefix } from '@/lib/accounts';
 import type { ReportRow } from '@/lib/types';
 
 export type CompositionVariant = 'income' | 'expense';
@@ -33,14 +34,6 @@ const GRADIENT: Record<CompositionVariant, { bg: string; text: string }[]> = {
 const OTHER_BG = 'bg-slate-300';
 const OTHER_TEXT = 'text-slate-700';
 
-// Strip an account-type prefix like "Expenses:" or "Income:".
-// Mirrors stripAccountTypePrefix from @/lib/accounts but inline so this
-// helper has no surprise import cycles when used in tests.
-function shortLabel(name: string): string {
-  const i = name.indexOf(':');
-  return i >= 0 ? name.slice(i + 1) : name;
-}
-
 export function partitionForComposition(
   rows: ReportRow[],
   total: number,
@@ -64,10 +57,11 @@ export function partitionForComposition(
   primary.forEach(({ row, i }, segIdx) => {
     const color = palette[segIdx];
     const amount = Math.abs(row.amount);
+    // Mixed-sign rows can push |amount|/|total| > 1; clamp so widths stay valid.
     segments.push({
-      label: shortLabel(row.account_name),
+      label: stripAccountTypePrefix(row.account_name),
       amount,
-      pct: denom === 0 ? 0 : (amount / denom) * 100,
+      pct: denom === 0 ? 0 : Math.min(100, (amount / denom) * 100),
       colorClass: color.bg,
       textClass: color.text,
       isOther: false,
@@ -80,7 +74,7 @@ export function partitionForComposition(
     segments.push({
       label: `Other (${rest.length})`,
       amount: sum,
-      pct: denom === 0 ? 0 : (sum / denom) * 100,
+      pct: denom === 0 ? 0 : Math.min(100, (sum / denom) * 100),
       colorClass: OTHER_BG,
       textClass: OTHER_TEXT,
       isOther: true,

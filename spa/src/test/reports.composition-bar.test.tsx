@@ -95,3 +95,12 @@ test('partition: rows beyond top 6 get the Other (neutral) swatch', () => {
   expect(otherSeg).toBeDefined();
   expect(swatchColors[6]).toBe(otherSeg?.colorClass); // G is collapsed
 });
+
+test('partition: pct is clamped to 100 when |amount| exceeds |total|', () => {
+  // Mixed-sign rows can produce a single |amount| > |total|.
+  // Without clamping, pct would be 160 here.
+  const rows = [row('A', 8000), row('B', -3000)];
+  const { segments } = partitionForComposition(rows, 5000, 'expense');
+  expect(segments[0].pct).toBeLessThanOrEqual(100);
+  expect(segments[0].pct).toBe(100);
+});

@@ -122,7 +122,7 @@ export function ReportRowTable({
   return (
     <div
       data-testid="report-row-scroll"
-      className="overflow-y-auto rounded-md border"
+      className="overflow-y-auto rounded-md border px-3"
       style={{ maxHeight: `${maxVisibleRows * 2 + 2}rem` }}
     >
       {table}

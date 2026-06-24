@@ -13,16 +13,31 @@ interface Props {
   period: { startUnix: number; endUnix: number } | null;
   // parallel to rows; if provided, renders a colored swatch before each account name
   swatchColors?: string[];
+  // when set, the table scrolls vertically and the header sticks to the top
+  // after this many rows fit. Unset → render unchanged (no wrapper, no sticky).
+  maxVisibleRows?: number;
 }
 
-export function ReportRowTable({ rows, currency, nameToId, period, swatchColors }: Props) {
+export function ReportRowTable({
+  rows,
+  currency,
+  nameToId,
+  period,
+  swatchColors,
+  maxVisibleRows,
+}: Props) {
   const { formatCents } = useAmountFormat();
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground">No rows.</p>;
   }
-  return (
+  const table = (
     <table className="w-full text-sm">
-      <thead className="text-xs uppercase text-muted-foreground">
+      <thead
+        className={cn(
+          'text-xs uppercase text-muted-foreground',
+          maxVisibleRows !== undefined && 'sticky top-0 z-10 bg-background',
+        )}
+      >
         <tr>
           <th className="py-1 text-left font-medium">Account</th>
           <th className="py-1 text-left font-medium">Offset</th>
@@ -100,5 +115,17 @@ export function ReportRowTable({ rows, currency, nameToId, period, swatchColors 
         })}
       </tbody>
     </table>
+  );
+
+  if (maxVisibleRows === undefined) return table;
+
+  return (
+    <div
+      data-testid="report-row-scroll"
+      className="overflow-y-auto rounded-md border"
+      style={{ maxHeight: `${maxVisibleRows * 2 + 2}rem` }}
+    >
+      {table}
+    </div>
   );
 }

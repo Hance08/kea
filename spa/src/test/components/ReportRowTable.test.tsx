@@ -50,3 +50,35 @@ test('ReportRowTable: renders one swatch per row when swatchColors provided', ()
   expect(swatches[0].className).toContain('bg-red-700');
   expect(swatches[1].className).toContain('bg-red-600');
 });
+
+test('ReportRowTable: no scroll wrapper when maxVisibleRows is undefined', () => {
+  const { container } = render(
+    withServerConfig(
+      <ReportRowTable rows={rows} currency="USD" nameToId={nameToId} period={null} />,
+    ),
+  );
+  expect(container.querySelector('[data-testid="report-row-scroll"]')).toBeNull();
+});
+
+test('ReportRowTable: scroll wrapper and sticky header when maxVisibleRows is set', () => {
+  const { container } = render(
+    withServerConfig(
+      <ReportRowTable
+        rows={rows}
+        currency="USD"
+        nameToId={nameToId}
+        period={null}
+        maxVisibleRows={8}
+      />,
+    ),
+  );
+  const wrapper = container.querySelector<HTMLElement>('[data-testid="report-row-scroll"]');
+  expect(wrapper).not.toBeNull();
+  expect(wrapper?.className).toContain('overflow-y-auto');
+  // 8 rows × 2rem + 2rem (sticky header) = 18rem
+  expect(wrapper?.style.maxHeight).toBe('18rem');
+
+  const thead = container.querySelector('thead');
+  expect(thead?.className).toContain('sticky');
+  expect(thead?.className).toContain('top-0');
+});

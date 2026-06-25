@@ -275,6 +275,94 @@ func TestHandleCreateTransaction_ParentAccountInSplit(t *testing.T) {
 	}
 }
 
+func TestHandleCreateTransaction_RoundTripRegular(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 100000)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+
+	body := `{
+		"splits":[
+			{"account_name":"Assets:Cash","amount":-150},
+			{"account_name":"Expenses:Coffee","amount":150}
+		],
+		"description":"Coffee",
+		"timestamp":1700000000,
+		"status":"Cleared",
+		"type":"Expense",
+		"regular":false
+	}`
+	resp := postJSONStr(t, ts.URL+"/api/transactions", body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status: got %d, want 201", resp.StatusCode)
+	}
+	var got model.TransactionDetail
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Regular == nil {
+		t.Fatalf("Regular should be set, got nil")
+	}
+	if *got.Regular != false {
+		t.Errorf("Regular: got %v, want false", *got.Regular)
+	}
+}
+
+func TestHandleUpdateTransaction_RoundTripRegular(t *testing.T) {
+	ts, svc := newServerWithStore(t)
+	seedAccount(t, svc, "Assets:Cash", model.AccountTypeAsset, 100000)
+	seedAccount(t, svc, "Expenses:Coffee", model.AccountTypeExpense, 0)
+
+	// Create an Expense with Regular=true (the default).
+	create := `{
+		"splits":[
+			{"account_name":"Assets:Cash","amount":-150},
+			{"account_name":"Expenses:Coffee","amount":150}
+		],
+		"description":"Coffee",
+		"timestamp":1700000000,
+		"status":"Cleared",
+		"type":"Expense"
+	}`
+	createResp := postJSONStr(t, ts.URL+"/api/transactions", create)
+	var created model.TransactionDetail
+	if err := json.NewDecoder(createResp.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created: %v", err)
+	}
+	createResp.Body.Close()
+	if created.Regular == nil || *created.Regular != true {
+		t.Fatalf("created Regular should default to &true, got %v", created.Regular)
+	}
+
+	// Update with Regular=false.
+	update := `{
+		"splits":[
+			{"id":` + itoa(created.Splits[0].ID) + `,"account_id":` + itoa(created.Splits[0].AccountID) + `,"amount":-150},
+			{"id":` + itoa(created.Splits[1].ID) + `,"account_id":` + itoa(created.Splits[1].AccountID) + `,"amount":150}
+		],
+		"description":"Coffee",
+		"timestamp":1700000000,
+		"status":"Cleared",
+		"type":"Expense",
+		"regular":false
+	}`
+	resp := patchJSON(t, ts.URL+"/api/transactions/"+itoa(created.ID), update)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", resp.StatusCode)
+	}
+	var got model.TransactionDetail
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Regular == nil {
+		t.Fatalf("Regular should be set, got nil")
+	}
+	if *got.Regular != false {
+		t.Errorf("Regular: got %v, want false", *got.Regular)
+	}
+}
+
 func TestHandleDeleteTransaction_OK(t *testing.T) {
 	ts, svc := newServerWithStore(t)
 	src := seedAccount(t, svc, "Assets:Bank", model.AccountTypeAsset, 100000)

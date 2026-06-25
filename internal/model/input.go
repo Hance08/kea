@@ -20,6 +20,7 @@ type CreateSimpleTransactionInput struct {
 	Timestamp   int64
 	Status      TransactionStatus
 	Type        TransactionType
+	Regular     *bool
 }
 
 type CreateTransactionFromSplitsInput struct {
@@ -28,6 +29,7 @@ type CreateTransactionFromSplitsInput struct {
 	Timestamp   int64             `json:"timestamp"`
 	Status      TransactionStatus `json:"status"`
 	Type        TransactionType   `json:"type"`
+	Regular     *bool             `json:"regular,omitempty"`
 }
 
 type UpdateTransactionInput struct {
@@ -36,5 +38,6 @@ type UpdateTransactionInput struct {
 	Timestamp   int64             `json:"timestamp"`
 	Status      TransactionStatus `json:"status"`
 	Type        TransactionType   `json:"type"`
+	Regular     *bool             `json:"regular,omitempty"`
 	Splits      []SplitDetail     `json:"splits"`
 }

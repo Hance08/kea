@@ -14,4 +14,5 @@ type TransactionListItem struct {
 	Amount        int64
 	Currency      string
 	Status        string
+	Regular       *bool
 }

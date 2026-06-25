@@ -10,4 +10,5 @@ type TransactionFilter struct {
 	StartTime   *int64
 	EndTime     *int64
 	Description *string
+	Regular     *bool
 }

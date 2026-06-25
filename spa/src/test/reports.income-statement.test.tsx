@@ -196,6 +196,49 @@ test('renders empty state when there are no rows', async () => {
   });
 });
 
+test('renders Regular/Irregular subLine on Income and Expense KPIs', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url === '/api/config') {
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
+      }
+      if (url === '/api/ledgers') {
+        return Promise.resolve(
+          okResponse({ active: 'p', items: [{ name: 'p', path: '/p.db', active: true }] }),
+        );
+      }
+      if (url === '/api/balances') {
+        return Promise.resolve(okResponse({ items: [], total_count: 0, limit: 0, offset: 0 }));
+      }
+      if (url.startsWith('/api/reports/income-statement')) {
+        return Promise.resolve(
+          okResponse({
+            ...REPORT_PAYLOAD,
+            total_income: { USD: 530000 },
+            total_income_regular: { USD: 500000 },
+            total_income_irregular: { USD: 30000 },
+            total_expense: { USD: 228000 },
+            total_expense_regular: { USD: 180000 },
+            total_expense_irregular: { USD: 48000 },
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }),
+  );
+  render(makeTestApp('/reports/income-statement'));
+  await waitFor(() => {
+    expect(screen.getByText('Income')).toBeInTheDocument();
+  });
+  const incomeLine = await screen.findByText(/Regular .*\$5,000\.00.*Irregular .*\$300\.00/);
+  const expenseLine = screen.getByText(/Regular .*\$1,800\.00.*Irregular .*\$480\.00/);
+  expect(incomeLine).toBeInTheDocument();
+  expect(expenseLine).toBeInTheDocument();
+});
+
 test('omits diff lines when previous-period query is errored', async () => {
   vi.stubGlobal(
     'fetch',

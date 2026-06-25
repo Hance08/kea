@@ -815,8 +815,8 @@ func TestGenerateBalanceSheet(t *testing.T) {
 		assert.Equal(t, int64(10000), result.TotalAssets["USD"])
 		assert.Equal(t, int64(50000), result.TotalAssets["TWD"])
 		assert.Equal(t, int64(3000), result.TotalLiabilities["USD"])
-		assert.Equal(t, int64(7000), result.NetWorth["USD"])   // 10000 - 3000
-		assert.Equal(t, int64(50000), result.NetWorth["TWD"])  // 50000 - 0
+		assert.Equal(t, int64(7000), result.NetWorth["USD"])  // 10000 - 3000
+		assert.Equal(t, int64(50000), result.NetWorth["TWD"]) // 50000 - 0
 	})
 
 	t.Run("overpaid liability has negative display balance", func(t *testing.T) {
@@ -972,4 +972,112 @@ func TestGetDailyNetWorthSeries(t *testing.T) {
 		_, err := svc.GetDailyNetWorthSeriesUntil(context.Background(), day1)
 		assert.Error(t, err)
 	})
+}
+
+// ──────────────────────────────────────────────
+// Regular/Irregular subtotals
+// ──────────────────────────────────────────────
+
+// seedSplitsWithAccts populates txRepo.splitsWithAccts from the splits and accounts
+// already registered via addTransaction/addAccount, so tests don't need to duplicate
+// split data between the two mock maps.
+func seedSplitsWithAccts(txRepo *mockTransactionRepo, accRepo *mockAccountRepo) {
+	for txID, splits := range txRepo.splits {
+		details := make([]model.SplitDetail, 0, len(splits))
+		for _, s := range splits {
+			acc := accRepo.accountsByID[s.AccountID]
+			details = append(details, model.SplitDetail{
+				ID:          s.ID,
+				AccountID:   s.AccountID,
+				AccountName: acc.Name,
+				AccountType: acc.Type,
+				Amount:      s.Amount,
+				Currency:    s.Currency,
+				Memo:        s.Memo,
+			})
+		}
+		txRepo.splitsWithAccts[txID] = details
+	}
+}
+
+func TestGenerateIncomeStatement_RegularSubtotals(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	svc := newTestTransactionService(accRepo, txRepo)
+	ctx := context.Background()
+
+	// Accounts.
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset, Currency: "USD"})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Revenue:Salary", Type: model.AccountTypeRevenue, Currency: "USD"})
+	accRepo.addAccount(&model.Account{ID: 3, Name: "Revenue:Bonus", Type: model.AccountTypeRevenue, Currency: "USD"})
+	accRepo.addAccount(&model.Account{ID: 4, Name: "Expenses:Rent", Type: model.AccountTypeExpense, Currency: "USD"})
+	accRepo.addAccount(&model.Account{ID: 5, Name: "Expenses:Vacation", Type: model.AccountTypeExpense, Currency: "USD"})
+
+	boolPtr := func(b bool) *bool { return &b }
+
+	txRepo.addTransaction(
+		&model.Transaction{ID: 10, Timestamp: 1700000100, Type: model.TxTypeIncome, Status: model.StatusCleared, Regular: boolPtr(true)},
+		[]*model.Split{
+			{ID: 100, TransactionID: 10, AccountID: 1, Amount: 500_000, Currency: "USD"},
+			{ID: 101, TransactionID: 10, AccountID: 2, Amount: -500_000, Currency: "USD"},
+		},
+	)
+	txRepo.addTransaction(
+		&model.Transaction{ID: 11, Timestamp: 1700000200, Type: model.TxTypeIncome, Status: model.StatusCleared, Regular: boolPtr(false)},
+		[]*model.Split{
+			{ID: 110, TransactionID: 11, AccountID: 1, Amount: 30_000, Currency: "USD"},
+			{ID: 111, TransactionID: 11, AccountID: 3, Amount: -30_000, Currency: "USD"},
+		},
+	)
+	txRepo.addTransaction(
+		&model.Transaction{ID: 12, Timestamp: 1700000300, Type: model.TxTypeExpense, Status: model.StatusCleared, Regular: boolPtr(true)},
+		[]*model.Split{
+			{ID: 120, TransactionID: 12, AccountID: 4, Amount: 180_000, Currency: "USD"},
+			{ID: 121, TransactionID: 12, AccountID: 1, Amount: -180_000, Currency: "USD"},
+		},
+	)
+	txRepo.addTransaction(
+		&model.Transaction{ID: 13, Timestamp: 1700000400, Type: model.TxTypeExpense, Status: model.StatusCleared, Regular: boolPtr(false)},
+		[]*model.Split{
+			{ID: 130, TransactionID: 13, AccountID: 5, Amount: 48_000, Currency: "USD"},
+			{ID: 131, TransactionID: 13, AccountID: 1, Amount: -48_000, Currency: "USD"},
+		},
+	)
+
+	seedSplitsWithAccts(txRepo, accRepo)
+
+	result, err := svc.GenerateIncomeStatement(ctx, 1700000000, 1700000500)
+	if err != nil {
+		t.Fatalf("GenerateIncomeStatement returned error: %v", err)
+	}
+
+	if got := result.TotalIncome["USD"]; got != 530_000 {
+		t.Errorf("TotalIncome USD = %d, want 530000", got)
+	}
+	if got := result.TotalIncomeRegular["USD"]; got != 500_000 {
+		t.Errorf("TotalIncomeRegular USD = %d, want 500000", got)
+	}
+	if got := result.TotalIncomeIrregular["USD"]; got != 30_000 {
+		t.Errorf("TotalIncomeIrregular USD = %d, want 30000", got)
+	}
+	if got := result.TotalExpense["USD"]; got != 228_000 {
+		t.Errorf("TotalExpense USD = %d, want 228000", got)
+	}
+	if got := result.TotalExpenseRegular["USD"]; got != 180_000 {
+		t.Errorf("TotalExpenseRegular USD = %d, want 180000", got)
+	}
+	if got := result.TotalExpenseIrregular["USD"]; got != 48_000 {
+		t.Errorf("TotalExpenseIrregular USD = %d, want 48000", got)
+	}
+
+	for ccy := range result.TotalIncome {
+		if result.TotalIncomeRegular[ccy]+result.TotalIncomeIrregular[ccy] != result.TotalIncome[ccy] {
+			t.Errorf("invariant: TotalIncomeRegular+Irregular != TotalIncome for %s", ccy)
+		}
+	}
+	for ccy := range result.TotalExpense {
+		if result.TotalExpenseRegular[ccy]+result.TotalExpenseIrregular[ccy] != result.TotalExpense[ccy] {
+			t.Errorf("invariant: TotalExpenseRegular+Irregular != TotalExpense for %s", ccy)
+		}
+	}
 }

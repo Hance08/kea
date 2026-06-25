@@ -157,28 +157,45 @@ func offsetAccountName(details []model.SplitDetail, primaryType model.AccountTyp
 }
 
 // buildReportMaps fetches all splits in the date range and aggregates them into
-// income/expense row maps. Pass includeIncome=false to skip income classification
-// (and vice versa) to avoid unnecessary work for breakdown-only queries.
-func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, endTime int64, includeIncome, includeExpense bool) (incomeByAccount, expenseByAccount map[string]*model.ReportRow, err error) {
+// income/expense row maps, along with regular/irregular subtotals per currency.
+// Pass includeIncome=false to skip income classification (and vice versa) to avoid
+// unnecessary work for breakdown-only queries.
+func (ts *TransactionService) buildReportMaps(
+	ctx context.Context,
+	startTime, endTime int64,
+	includeIncome, includeExpense bool,
+) (
+	incomeByAccount, expenseByAccount map[string]*model.ReportRow,
+	incomeRegular, incomeIrregular, expenseRegular, expenseIrregular map[string]int64,
+	err error,
+) {
 	txSplitsMap, err := ts.txRepo.GetSplitsWithAccountsByDateRange(ctx, startTime, endTime)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, nil, nil, err
 	}
 
 	txs, err := ts.txRepo.GetTransactionsByDateRange(ctx, startTime, endTime)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, nil, nil, err
 	}
 	txTypeMap := make(map[int64]model.TransactionType, len(txs))
+	txRegularMap := make(map[int64]*bool, len(txs))
 	for _, tx := range txs {
 		txTypeMap[tx.ID] = tx.Type
+		txRegularMap[tx.ID] = tx.Regular
 	}
 
 	incomeByAccount = map[string]*model.ReportRow{}
 	expenseByAccount = map[string]*model.ReportRow{}
+	incomeRegular = map[string]int64{}
+	incomeIrregular = map[string]int64{}
+	expenseRegular = map[string]int64{}
+	expenseIrregular = map[string]int64{}
 
 	for txID, details := range txSplitsMap {
 		txType := txTypeMap[txID]
+		reg := txRegularMap[txID]
+		isRegular := reg != nil && *reg
 
 		if includeIncome && txType == model.TxTypeIncome {
 			offset := offsetAccountName(details, model.AccountTypeRevenue)
@@ -186,8 +203,14 @@ func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, en
 				if split.AccountType == model.AccountTypeRevenue {
 					key := split.AccountName + "|" + offset + "|" + split.Currency
 					row := getOrCreateRowWithOffset(incomeByAccount, key, split.AccountName, offset, split.Currency)
-					row.Amount += utils.AbsInt64(split.Amount)
+					amt := utils.AbsInt64(split.Amount)
+					row.Amount += amt
 					row.TxCount++
+					if isRegular {
+						incomeRegular[split.Currency] += amt
+					} else {
+						incomeIrregular[split.Currency] += amt
+					}
 				}
 			}
 		}
@@ -198,29 +221,40 @@ func (ts *TransactionService) buildReportMaps(ctx context.Context, startTime, en
 				if split.AccountType == model.AccountTypeExpense {
 					key := split.AccountName + "|" + offset + "|" + split.Currency
 					row := getOrCreateRowWithOffset(expenseByAccount, key, split.AccountName, offset, split.Currency)
-					row.Amount += utils.AbsInt64(split.Amount)
+					amt := utils.AbsInt64(split.Amount)
+					row.Amount += amt
 					row.TxCount++
+					if isRegular {
+						expenseRegular[split.Currency] += amt
+					} else {
+						expenseIrregular[split.Currency] += amt
+					}
 				}
 			}
 		}
 	}
 
-	return incomeByAccount, expenseByAccount, nil
+	return incomeByAccount, expenseByAccount, incomeRegular, incomeIrregular, expenseRegular, expenseIrregular, nil
 }
 
 // GenerateIncomeStatement produces an income/expense summary for the given Unix time range.
 func (ts *TransactionService) GenerateIncomeStatement(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error) {
-	incomeByAccount, expenseByAccount, err := ts.buildReportMaps(ctx, startTime, endTime, true, true)
+	incomeByAccount, expenseByAccount, incomeRegular, incomeIrregular, expenseRegular, expenseIrregular, err :=
+		ts.buildReportMaps(ctx, startTime, endTime, true, true)
 	if err != nil {
 		return nil, err
 	}
 
 	result := &model.ReportResult{
-		IncomeRows:  rowsFromMap(incomeByAccount),
-		ExpenseRows: rowsFromMap(expenseByAccount),
-		TotalIncome:  map[string]int64{},
-		TotalExpense: map[string]int64{},
-		NetAmount:    map[string]int64{},
+		IncomeRows:            rowsFromMap(incomeByAccount),
+		ExpenseRows:           rowsFromMap(expenseByAccount),
+		TotalIncome:           map[string]int64{},
+		TotalIncomeRegular:    incomeRegular,
+		TotalIncomeIrregular:  incomeIrregular,
+		TotalExpense:          map[string]int64{},
+		TotalExpenseRegular:   expenseRegular,
+		TotalExpenseIrregular: expenseIrregular,
+		NetAmount:             map[string]int64{},
 	}
 	for _, r := range result.IncomeRows {
 		result.TotalIncome[r.Currency] += r.Amount
@@ -242,7 +276,8 @@ func (ts *TransactionService) GenerateIncomeStatement(ctx context.Context, start
 
 // GenerateIncomeBreakdown produces a detailed income-only report for the given Unix time range.
 func (ts *TransactionService) GenerateIncomeBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error) {
-	incomeByAccount, _, err := ts.buildReportMaps(ctx, startTime, endTime, true, false)
+	incomeByAccount, _, incomeRegular, incomeIrregular, _, _, err :=
+		ts.buildReportMaps(ctx, startTime, endTime, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -256,15 +291,18 @@ func (ts *TransactionService) GenerateIncomeBreakdown(ctx context.Context, start
 	}
 
 	return &model.ReportResult{
-		IncomeRows:  rows,
-		ExpenseRows: []model.ReportRow{},
-		TotalIncome: total,
+		IncomeRows:           rows,
+		ExpenseRows:          []model.ReportRow{},
+		TotalIncome:          total,
+		TotalIncomeRegular:   incomeRegular,
+		TotalIncomeIrregular: incomeIrregular,
 	}, nil
 }
 
 // GenerateExpenseBreakdown produces a detailed expense-only report for the given Unix time range.
 func (ts *TransactionService) GenerateExpenseBreakdown(ctx context.Context, startTime, endTime int64) (*model.ReportResult, error) {
-	_, expenseByAccount, err := ts.buildReportMaps(ctx, startTime, endTime, false, true)
+	_, expenseByAccount, _, _, expenseRegular, expenseIrregular, err :=
+		ts.buildReportMaps(ctx, startTime, endTime, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -278,9 +316,11 @@ func (ts *TransactionService) GenerateExpenseBreakdown(ctx context.Context, star
 	}
 
 	return &model.ReportResult{
-		IncomeRows:   []model.ReportRow{},
-		ExpenseRows:  rows,
-		TotalExpense: total,
+		IncomeRows:            []model.ReportRow{},
+		ExpenseRows:           rows,
+		TotalExpense:          total,
+		TotalExpenseRegular:   expenseRegular,
+		TotalExpenseIrregular: expenseIrregular,
 	}, nil
 }
 

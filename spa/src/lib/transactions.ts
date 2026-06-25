@@ -32,6 +32,7 @@ export function listTransactions(
     account_id: filter.account_id,
     type: filter.type,
     status: filter.status,
+    regular: filter.regular,
     start_time: filter.start_time,
     end_time: filter.end_time,
     description: filter.description,

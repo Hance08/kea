@@ -35,6 +35,8 @@ type listFlags struct {
 	From        string
 	To          string
 	Description string
+	RegularSet  bool
+	Regular     bool
 }
 
 type listRunner struct {
@@ -60,6 +62,10 @@ date, type, account, description, amount, and status.`,
 				view:  views.NewTransactionListView(),
 				flags: flags,
 			}
+			if cmd.Flags().Changed("regular") {
+				flags.RegularSet = true
+				flags.Regular, _ = cmd.Flags().GetBool("regular")
+			}
 			return runner.Run(cmd.Context())
 		},
 	}
@@ -72,6 +78,7 @@ date, type, account, description, amount, and status.`,
 	cmd.Flags().StringVar(&flags.From, "from", "", "Filter from date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&flags.To, "to", "", "Filter to date (YYYY-MM-DD)")
 	cmd.Flags().StringVarP(&flags.Description, "description", "d", "", "Filter by description (substring match)")
+	cmd.Flags().Bool("regular", true, "Filter by regular flag (use --regular=false for irregular)")
 
 	return cmd
 }
@@ -153,6 +160,10 @@ func (r *listRunner) buildFilter() (model.TransactionFilter, error) {
 	if r.flags.Description != "" {
 		filter.Description = &r.flags.Description
 	}
+	if r.flags.RegularSet {
+		v := r.flags.Regular
+		filter.Regular = &v
+	}
 
 	return filter, nil
 }
@@ -181,6 +192,7 @@ func (r *listRunner) buildViewItems(ctx context.Context, transactions []*model.T
 			Amount:      fmt.Sprintf("%.2f", amountFloat),
 			Currency:    item.Currency,
 			Status:      item.Status,
+			Regular:     item.Regular,
 		}
 	}
 	return viewItems

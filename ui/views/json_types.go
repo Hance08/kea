@@ -55,6 +55,7 @@ type JSONTxListItem struct {
 	Amount      float64 `json:"amount"`
 	Currency    string  `json:"currency"`
 	Status      string  `json:"status"`
+	Regular     *bool   `json:"regular,omitempty"`
 }
 
 type JSONSystemInfo struct {
@@ -121,6 +122,7 @@ func ToJSONTxListItem(item TransactionListItem) JSONTxListItem {
 		Amount:      amount,
 		Currency:    item.Currency,
 		Status:      item.Status,
+		Regular:     item.Regular,
 	}
 }
 

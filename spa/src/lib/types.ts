@@ -66,6 +66,7 @@ export interface TransactionDetail {
   status: TransactionStatus;
   type: TransactionType;
   splits: SplitDetail[];
+  regular?: boolean;
 }
 
 export interface SplitInput {
@@ -82,6 +83,7 @@ export interface CreateTransactionInput {
   timestamp: number;
   status: TransactionStatus;
   type?: TransactionType;
+  regular?: boolean;
 }
 
 export interface UpdateTransactionInput {
@@ -91,6 +93,7 @@ export interface UpdateTransactionInput {
   status: TransactionStatus;
   type?: TransactionType;
   splits: SplitInput[];
+  regular?: boolean;
 }
 
 export interface TransactionFilter {
@@ -100,6 +103,7 @@ export interface TransactionFilter {
   start_time?: number;
   end_time?: number;
   description?: string;
+  regular?: boolean;
 }
 
 export interface Account {

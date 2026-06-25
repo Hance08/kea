@@ -24,6 +24,10 @@ export const transactionsSearchSchema = z.object({
   start_time: z.coerce.number().int().optional(),
   end_time: z.coerce.number().int().optional(),
   description: z.string().min(1).optional(),
+  regular: z
+    .union([z.literal('true'), z.literal('false'), z.boolean()])
+    .transform((v) => (typeof v === 'boolean' ? v : v === 'true'))
+    .optional(),
   limit: z.coerce.number().int().positive().default(DEFAULT_TRANSACTIONS_LIMIT),
   offset: z.coerce.number().int().nonnegative().default(0),
 });
@@ -44,6 +48,7 @@ export function searchToFilter(search: TransactionsSearch): TransactionFilter {
   if (search.start_time !== undefined) f.start_time = search.start_time;
   if (search.end_time !== undefined) f.end_time = search.end_time;
   if (search.description !== undefined) f.description = search.description;
+  if (search.regular !== undefined) f.regular = search.regular;
   return f;
 }
 

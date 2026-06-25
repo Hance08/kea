@@ -39,6 +39,7 @@ export function FilterBar({ search, onChange, onClear }: Props) {
     search.account_id !== undefined ||
     search.type !== undefined ||
     search.status !== undefined ||
+    search.regular !== undefined ||
     search.start_time !== undefined ||
     search.end_time !== undefined ||
     (search.description !== undefined && search.description !== '');
@@ -120,7 +121,24 @@ export function FilterBar({ search, onChange, onClear }: Props) {
         />
       </div>
 
-      <div className="xl:col-span-4">
+      <div>
+        <Label htmlFor="f-regular">Regular</Label>
+        <select
+          id="f-regular"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+          value={search.regular === undefined ? '' : search.regular ? 'true' : 'false'}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange({ regular: v === '' ? undefined : v === 'true' });
+          }}
+        >
+          <option value="">Any</option>
+          <option value="true">Regular only</option>
+          <option value="false">Irregular only</option>
+        </select>
+      </div>
+
+      <div className="xl:col-span-3">
         <Input
           id="f-desc"
           type="text"

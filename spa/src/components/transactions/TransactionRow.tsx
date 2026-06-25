@@ -43,8 +43,27 @@ export function TransactionRow({ tx, search }: Props) {
       <span className="flex justify-center">
         <TypeBadge type={tx.type} />
       </span>
-      <span className="truncate text-center" title={tx.description}>
-        {tx.description}
+      <span
+        className="text-center flex items-center justify-center gap-1.5 min-w-0"
+        title={tx.description}
+      >
+        <span className="truncate">{tx.description}</span>
+        {tx.regular === true && (
+          <span
+            className="shrink-0 rounded bg-muted px-1 text-[10px] font-medium uppercase text-muted-foreground"
+            title="Regular"
+          >
+            R
+          </span>
+        )}
+        {tx.regular === false && (
+          <span
+            className="shrink-0 rounded bg-muted px-1 text-[10px] font-medium uppercase text-muted-foreground"
+            title="One-off"
+          >
+            1×
+          </span>
+        )}
       </span>
       <span className="truncate text-left text-muted-foreground" title={acc}>
         {acc}

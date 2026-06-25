@@ -185,7 +185,11 @@ export interface ReportRow {
 export interface ReportResult {
   period: string;
   total_income: Record<string, number>;
+  total_income_regular?: Record<string, number>;
+  total_income_irregular?: Record<string, number>;
   total_expense: Record<string, number>;
+  total_expense_regular?: Record<string, number>;
+  total_expense_irregular?: Record<string, number>;
   net_amount: Record<string, number>;
   net_worth: Record<string, number>;
   previous_net_worth: Record<string, number>;

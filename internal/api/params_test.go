@@ -12,6 +12,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hance08/kea/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseListOptions(t *testing.T) {
@@ -151,6 +153,42 @@ func TestParseDateRangeParams(t *testing.T) {
 	if p.From != "2026-05-01" || p.To != "2026-05-31" || p.Month != "" {
 		t.Errorf("got %+v", p)
 	}
+}
+
+func TestParseTransactionFilter_Regular(t *testing.T) {
+	t.Run("regular=true", func(t *testing.T) {
+		f, err := parseTransactionFilter(reqWithQuery(t, "regular=true"))
+		require.NoError(t, err)
+		require.NotNil(t, f.Regular)
+		assert.True(t, *f.Regular)
+	})
+	t.Run("regular=false", func(t *testing.T) {
+		f, err := parseTransactionFilter(reqWithQuery(t, "regular=false"))
+		require.NoError(t, err)
+		require.NotNil(t, f.Regular)
+		assert.False(t, *f.Regular)
+	})
+	t.Run("regular=1", func(t *testing.T) {
+		f, err := parseTransactionFilter(reqWithQuery(t, "regular=1"))
+		require.NoError(t, err)
+		require.NotNil(t, f.Regular)
+		assert.True(t, *f.Regular)
+	})
+	t.Run("regular=0", func(t *testing.T) {
+		f, err := parseTransactionFilter(reqWithQuery(t, "regular=0"))
+		require.NoError(t, err)
+		require.NotNil(t, f.Regular)
+		assert.False(t, *f.Regular)
+	})
+	t.Run("missing -> nil", func(t *testing.T) {
+		f, err := parseTransactionFilter(reqWithQuery(t, ""))
+		require.NoError(t, err)
+		assert.Nil(t, f.Regular)
+	})
+	t.Run("invalid -> error", func(t *testing.T) {
+		_, err := parseTransactionFilter(reqWithQuery(t, "regular=maybe"))
+		assert.Error(t, err)
+	})
 }
 
 func reqWithQuery(t *testing.T, raw string) *http.Request {

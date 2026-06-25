@@ -169,6 +169,23 @@ func parseTransactionFilter(r *http.Request) (model.TransactionFilter, error) {
 	}
 
 	f.Description = parseStringQuery(r, "description")
+
+	if raw := r.URL.Query().Get("regular"); raw != "" {
+		switch strings.ToLower(raw) {
+		case "true", "1":
+			v := true
+			f.Regular = &v
+		case "false", "0":
+			v := false
+			f.Regular = &v
+		default:
+			return f, &service.ValidationError{
+				Field:   "regular",
+				Message: "regular must be true/false/1/0",
+			}
+		}
+	}
+
 	return f, nil
 }
 

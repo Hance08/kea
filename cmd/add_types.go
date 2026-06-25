@@ -37,6 +37,8 @@ type addFlags struct {
 	Type        string
 	JSON        bool
 	Splits      []string
+	RegularSet  bool // true if user passed --regular
+	Regular     bool // the flag value
 }
 
 type addTransactionInput struct {
@@ -48,4 +50,5 @@ type addTransactionInput struct {
 	Status        model.TransactionStatus
 	Type          model.TransactionType
 	Splits        []model.SplitDetail
+	Regular       *bool
 }

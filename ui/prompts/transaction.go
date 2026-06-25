@@ -44,6 +44,25 @@ func PromptTransactionStatus(defaultStatus string) (string, error) {
 	return selected, nil
 }
 
+// PromptRegular asks the user whether a transaction is regular (habitual).
+// Used for Income/Expense transactions. Default is true.
+func PromptRegular(defaultValue bool) (bool, error) {
+	var v bool = defaultValue
+	err := huh.NewSelect[bool]().
+		Title("Regular spending?").
+		Description("Tick if this is a habitual income/expense (e.g. salary, rent).").
+		Options(
+			huh.NewOption("Yes (regular)", true).Selected(defaultValue),
+			huh.NewOption("No (one-off)", false).Selected(!defaultValue),
+		).
+		Value(&v).
+		Run()
+	if err != nil {
+		return false, err
+	}
+	return v, nil
+}
+
 // PromptTransactionDate prompts for transaction date
 func PromptTransactionDate() (string, error) {
 	defaultDate := time.Now().Format("2006-01-02")

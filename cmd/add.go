@@ -35,6 +35,11 @@ Examples:
 
   kea add --desc "Buy Coffee" --amount 150 --from "Assets:Cash" --to "Expenses:Food:Coffee"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.Flags().Changed("regular") {
+				flags.RegularSet = true
+				flags.Regular, _ = cmd.Flags().GetBool("regular")
+			}
+
 			runner := &addRunner{
 				accSvc: svc.Account(),
 				txSvc:  svc.Transaction(),
@@ -53,6 +58,7 @@ Examples:
 	cmd.Flags().StringVar(&flags.Type, "type", "", "Transaction type: expense, income, transfer, investment (in flag mode, investment creates two splits; use 'kea transaction edit' to add fee or gain splits)")
 	cmd.Flags().StringArrayVar(&flags.Splits, "split", nil, "Split as AccountName=amount, e.g. Assets:Bank=-1000 (repeatable)")
 	cmd.Flags().BoolVarP(&flags.JSON, "json", "j", false, "output created transaction as JSON")
+	cmd.Flags().Bool("regular", true, "Mark Income/Expense as regular (use --regular=false for irregular)")
 
 	cmd.MarkFlagsMutuallyExclusive("split", "from")
 	cmd.MarkFlagsMutuallyExclusive("split", "to")
@@ -94,6 +100,7 @@ func (r *addRunner) Run(ctx context.Context, flags *addFlags, cmd *cobra.Command
 				Timestamp:   input.Timestamp,
 				Status:      input.Status,
 				Type:        input.Type,
+				Regular:     input.Regular,
 			},
 		)
 	} else {
@@ -106,6 +113,7 @@ func (r *addRunner) Run(ctx context.Context, flags *addFlags, cmd *cobra.Command
 				Timestamp:   input.Timestamp,
 				Status:      input.Status,
 				Type:        input.Type,
+				Regular:     input.Regular,
 			},
 		)
 	}

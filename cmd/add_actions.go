@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hance08/kea/internal/model"
@@ -57,6 +58,16 @@ func (r *addRunner) runFromFlags(ctx context.Context, flags *addFlags) (addTrans
 		}
 	}
 
+	var regular *bool
+	if flags.RegularSet {
+		if txType == model.TxTypeIncome || txType == model.TxTypeExpense || txType == "" {
+			v := flags.Regular
+			regular = &v
+		} else {
+			fmt.Fprintf(os.Stderr, "warning: --regular is only honored for Income/Expense; ignored for %s\n", txType)
+		}
+	}
+
 	if err := r.validateAccountSelectable(ctx, flags.From, nil, "--from"); err != nil {
 		return addTransactionInput{}, err
 	}
@@ -73,6 +84,7 @@ func (r *addRunner) runFromFlags(ctx context.Context, flags *addFlags) (addTrans
 		Timestamp:     timestamp,
 		Status:        status,
 		Type:          txType,
+		Regular:       regular,
 	}, nil
 }
 
@@ -90,6 +102,16 @@ func (r *addRunner) runInteractive(ctx context.Context) (addTransactionInput, er
 	}
 
 	mode := model.ParseTransactionTypeLabel(rawType)
+
+	var regular *bool
+	if mode == model.TxTypeIncome || mode == model.TxTypeExpense {
+		selected, err := prompts.PromptRegular(true)
+		if err != nil {
+			return addTransactionInput{}, err
+		}
+		regularChoice := selected
+		regular = &regularChoice
+	}
 
 	// Step 2: Get description (optional)
 	description, err := prompts.PromptDescription("Transaction description (optional):", false)
@@ -193,6 +215,7 @@ func (r *addRunner) runInteractive(ctx context.Context) (addTransactionInput, er
 		Timestamp:     timestamp,
 		Status:        status,
 		Type:          mode,
+		Regular:       regular,
 	}, nil
 }
 
@@ -255,6 +278,17 @@ func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, err
 		return addTransactionInput{}, err
 	}
 
+	var regular *bool
+	if flags.RegularSet {
+		isApplicable := txType == model.TxTypeIncome || txType == model.TxTypeExpense
+		if !isApplicable {
+			fmt.Fprintf(os.Stderr, "warning: --regular is only honored for Income/Expense; ignored for %s\n", txType)
+		} else {
+			v := flags.Regular
+			regular = &v
+		}
+	}
+
 	description := flags.Description
 	if description == "" {
 		description = "-"
@@ -288,6 +322,7 @@ func (r *addRunner) runFromSplitFlags(flags *addFlags) (addTransactionInput, err
 		Timestamp:   timestamp,
 		Status:      status,
 		Type:        txType,
+		Regular:     regular,
 	}, nil
 }
 

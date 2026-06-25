@@ -8,8 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { fetchIncomeStatement } from '@/lib/api/reports';
 import { useIncomeStatement } from '@/lib/hooks/useReport';
 import { previousPeriod, resolvePeriod } from '@/lib/period';
+import { regularSubLine } from '@/lib/reportSubLine';
 import { type PeriodSearchParams, parsePeriodSearch } from '@/lib/reports-search-params';
-import { useServerConfig } from '@/lib/server-config';
+import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
@@ -77,6 +78,11 @@ function IncomeStatementPage() {
   const expense = result.total_expense[currency] ?? 0;
   const net = result.net_amount[currency] ?? 0;
   const growth = result.net_worth_growth_pct[currency];
+  const incomeRegular = result.total_income_regular?.[currency] ?? 0;
+  const incomeIrregular = result.total_income_irregular?.[currency] ?? 0;
+  const expenseRegular = result.total_expense_regular?.[currency] ?? 0;
+  const expenseIrregular = result.total_expense_irregular?.[currency] ?? 0;
+  const { formatCents } = useAmountFormat();
 
   const netSubLine =
     growth === undefined || Number.isNaN(growth)
@@ -99,6 +105,7 @@ function IncomeStatementPage() {
               amount={income}
               currency={currency}
               variant="green"
+              subLine={regularSubLine(incomeRegular, incomeIrregular, currency, formatCents)}
               diff={
                 previousQuery.isSuccess
                   ? {
@@ -114,6 +121,7 @@ function IncomeStatementPage() {
               amount={expense}
               currency={currency}
               variant="red"
+              subLine={regularSubLine(expenseRegular, expenseIrregular, currency, formatCents)}
               diff={
                 previousQuery.isSuccess
                   ? {

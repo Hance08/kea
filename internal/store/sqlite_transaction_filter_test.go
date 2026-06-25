@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/hance08/kea/internal/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFilterTransactions(t *testing.T) {
@@ -176,4 +178,58 @@ func TestFilterTransactions(t *testing.T) {
 			t.Errorf("expected empty items, got %d", len(result.Items))
 		}
 	})
+}
+
+func TestFilterTransactions_ByRegular(t *testing.T) {
+	s := setupTestDB(t)
+	ctx := context.Background()
+
+	bankID, err := s.CreateAccount(ctx, "Assets:Bank", model.AccountTypeAsset, "USD", "", nil)
+	require.NoError(t, err)
+	foodID, err := s.CreateAccount(ctx, "Expenses:Food", model.AccountTypeExpense, "USD", "", nil)
+	require.NoError(t, err)
+	salaryID, err := s.CreateAccount(ctx, "Revenue:Salary", model.AccountTypeRevenue, "USD", "", nil)
+	require.NoError(t, err)
+
+	// Regular Expense
+	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
+		Timestamp: 1, Description: "rent", Status: model.StatusCleared,
+		Type: model.TxTypeExpense, Regular: boolPtr(true),
+	}, []model.Split{
+		{AccountID: foodID, Amount: 1_000, Currency: "USD"},
+		{AccountID: bankID, Amount: -1_000, Currency: "USD"},
+	})
+	require.NoError(t, err)
+
+	// Irregular Expense
+	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
+		Timestamp: 2, Description: "vacation", Status: model.StatusCleared,
+		Type: model.TxTypeExpense, Regular: boolPtr(false),
+	}, []model.Split{
+		{AccountID: foodID, Amount: 2_000, Currency: "USD"},
+		{AccountID: bankID, Amount: -2_000, Currency: "USD"},
+	})
+	require.NoError(t, err)
+
+	// Transfer (Regular = NULL)
+	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
+		Timestamp: 3, Description: "ATM", Status: model.StatusCleared,
+		Type: model.TxTypeTransfer,
+	}, []model.Split{
+		{AccountID: bankID, Amount: -500, Currency: "USD"},
+		{AccountID: salaryID, Amount: 500, Currency: "USD"},
+	})
+	require.NoError(t, err)
+
+	onlyReg, err := s.FilterTransactions(ctx, model.TransactionFilter{Regular: boolPtr(true)}, model.ListOptions{Limit: 100})
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(onlyReg.Items), "Regular=true should return only the regular expense")
+
+	onlyIrreg, err := s.FilterTransactions(ctx, model.TransactionFilter{Regular: boolPtr(false)}, model.ListOptions{Limit: 100})
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(onlyIrreg.Items), "Regular=false should return only the irregular expense")
+
+	noFilter, err := s.FilterTransactions(ctx, model.TransactionFilter{}, model.ListOptions{Limit: 100})
+	require.NoError(t, err)
+	assert.Equal(t, 3, len(noFilter.Items), "empty filter should return all three rows")
 }

@@ -16,7 +16,7 @@ import type {
   UpdateTransactionInput,
 } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface SplitRow {
   id?: number;
@@ -35,6 +35,7 @@ interface FormState {
   toAccount: string;
   amount: string;
   splits: SplitRow[];
+  regular: boolean | undefined;
 }
 
 function todayISO(): string {
@@ -72,6 +73,7 @@ function initialFromDetail(tx: TransactionDetail): FormState {
         memo: s.memo,
       }),
     ),
+    regular: tx.regular,
   };
 }
 
@@ -84,6 +86,7 @@ function initialEmpty(): FormState {
     toAccount: '',
     amount: '',
     splits: [newSplitRow(), newSplitRow()],
+    regular: undefined,
   };
 }
 
@@ -112,6 +115,79 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
     queryFn: () => listAccounts(),
     staleTime: 60_000,
   });
+
+  const accountsByName = useMemo(() => {
+    const m = new Map<string, Account>();
+    for (const a of accountsQuery.data?.items ?? []) m.set(a.name, a);
+    return m;
+  }, [accountsQuery.data]);
+
+  // Render-time mirror of the submit-time type derivation (handleSubmit
+  // below), used to decide whether the Regular checkbox should be shown.
+  // Tolerates incomplete form state by returning null instead of throwing.
+  const renderTimeDerivedType: TransactionType | null = useMemo(() => {
+    let splitDetailsForType: SplitDetail[];
+    if (advanced) {
+      if (
+        state.splits.some(
+          (s) => !s.account_name.trim() || !Number.isFinite(parseCents(s.amountStr)),
+        )
+      ) {
+        return null;
+      }
+      splitDetailsForType = state.splits.map((s) => ({
+        id: 0,
+        account_id: 0,
+        account_name: s.account_name,
+        account_type: accountsByName.get(s.account_name)?.type ?? 'A',
+        amount: parseCents(s.amountStr),
+        currency: s.currency,
+        memo: '',
+      }));
+    } else {
+      const amt = parseCents(state.amount);
+      if (!Number.isFinite(amt) || amt === 0) return null;
+      if (!state.fromAccount.trim() || !state.toAccount.trim()) return null;
+      splitDetailsForType = [
+        {
+          id: 0,
+          account_id: 0,
+          account_name: state.fromAccount,
+          account_type: accountsByName.get(state.fromAccount)?.type ?? 'A',
+          amount: -amt,
+          currency: 'USD',
+          memo: '',
+        },
+        {
+          id: 0,
+          account_id: 0,
+          account_name: state.toAccount,
+          account_type: accountsByName.get(state.toAccount)?.type ?? 'A',
+          amount: amt,
+          currency: 'USD',
+          memo: '',
+        },
+      ];
+    }
+    return determineType(splitDetailsForType);
+  }, [advanced, state, accountsByName]);
+
+  const isRegularApplicable =
+    renderTimeDerivedType === 'Income' || renderTimeDerivedType === 'Expense';
+
+  // Mirror the service rule: entering Income/Expense defaults Regular to
+  // true; leaving Income/Expense clears it back to undefined.
+  useEffect(() => {
+    setState((s) => {
+      if (isRegularApplicable && s.regular === undefined) {
+        return { ...s, regular: true };
+      }
+      if (!isRegularApplicable && s.regular !== undefined) {
+        return { ...s, regular: undefined };
+      }
+      return s;
+    });
+  }, [isRegularApplicable]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,6 +295,7 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           timestamp,
           status: state.status,
           type: derivedType,
+          regular: state.regular,
           splits,
         } satisfies UpdateTransactionInput;
       } else {
@@ -227,6 +304,7 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           timestamp,
           status: state.status,
           type: derivedType,
+          regular: state.regular,
           splits,
         } satisfies CreateTransactionInput;
       }
@@ -336,6 +414,22 @@ export function TransactionForm({ mode, initial, onSubmit, onSuccess, onCancel }
           <p className="mt-1 text-xs text-destructive">{fieldErrors.description}</p>
         )}
       </div>
+
+      {isRegularApplicable && (
+        <div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={state.regular ?? true}
+              onChange={(e) => setState((s) => ({ ...s, regular: e.target.checked }))}
+            />
+            <span>Regular</span>
+            <span className="text-xs text-muted-foreground">
+              Tick if this is a habitual income/expense (e.g. salary, rent).
+            </span>
+          </label>
+        </div>
+      )}
 
       {advanced ? (
         <SplitsEditor

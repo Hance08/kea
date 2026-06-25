@@ -23,6 +23,7 @@ func TestFilterTransactions(t *testing.T) {
 	// tx1: Expense, Cleared, timestamp 1000
 	s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "Groceries", Status: model.StatusCleared, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: accBank, Amount: -5000, Currency: "USD"},
 		{AccountID: accFood, Amount: 5000, Currency: "USD"},
@@ -30,6 +31,7 @@ func TestFilterTransactions(t *testing.T) {
 	// tx2: Income, Pending, timestamp 2000
 	s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "Paycheck Jan", Status: model.StatusPending, Type: model.TxTypeIncome,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: accBank, Amount: 100000, Currency: "USD"},
 		{AccountID: accSalary, Amount: -100000, Currency: "USD"},
@@ -37,6 +39,7 @@ func TestFilterTransactions(t *testing.T) {
 	// tx3: Expense, Cleared, timestamp 3000
 	s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 3000, Description: "Restaurant dinner", Status: model.StatusCleared, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: accBank, Amount: -3000, Currency: "USD"},
 		{AccountID: accFood, Amount: 3000, Currency: "USD"},

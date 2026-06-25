@@ -24,6 +24,7 @@ func TestGetUnreconciledTransactionsByAccount(t *testing.T) {
 
 	tx1ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "groceries", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -500, Currency: "USD"},
 		{AccountID: expenseID, Amount: 500, Currency: "USD"},
@@ -32,6 +33,7 @@ func TestGetUnreconciledTransactionsByAccount(t *testing.T) {
 
 	tx2ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "dinner", Status: model.StatusCleared, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -300, Currency: "USD"},
 		{AccountID: expenseID, Amount: 300, Currency: "USD"},
@@ -60,6 +62,7 @@ func TestGetUnreconciledTransactionsByAccount_ExcludesReconciled(t *testing.T) {
 
 	tx1ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx1", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -500, Currency: "USD"},
 		{AccountID: expenseID, Amount: 500, Currency: "USD"},
@@ -68,6 +71,7 @@ func TestGetUnreconciledTransactionsByAccount_ExcludesReconciled(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "tx2", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -300, Currency: "USD"},
 		{AccountID: expenseID, Amount: 300, Currency: "USD"},
@@ -94,6 +98,7 @@ func TestGetUnreconciledTransactionsByAccount_MultiAccountIsolation(t *testing.T
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "shared tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -500, Currency: "USD"},
 		{AccountID: expenseID, Amount: 500, Currency: "USD"},
@@ -125,6 +130,7 @@ func TestGetUnreconciledTransactionsByAccount_SplitLabel(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "multi", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -800, Currency: "USD"},
 		{AccountID: expense1ID, Amount: 500, Currency: "USD"},
@@ -149,6 +155,7 @@ func TestMarkSplitsReconciledByAccount(t *testing.T) {
 
 	tx1ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx1", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -500, Currency: "USD"},
 		{AccountID: expenseID, Amount: 500, Currency: "USD"},
@@ -157,6 +164,7 @@ func TestMarkSplitsReconciledByAccount(t *testing.T) {
 
 	tx2ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "tx2", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -300, Currency: "USD"},
 		{AccountID: expenseID, Amount: 300, Currency: "USD"},
@@ -199,6 +207,7 @@ func TestBulkUpdateTransactionStatus(t *testing.T) {
 
 	tx1ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx1", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -207,6 +216,7 @@ func TestBulkUpdateTransactionStatus(t *testing.T) {
 
 	tx2ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "tx2", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -200, Currency: "USD"},
 		{AccountID: expenseID, Amount: 200, Currency: "USD"},
@@ -244,6 +254,7 @@ func TestBulkUpdateTransactionStatus_MismatchedRowCount(t *testing.T) {
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx1", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -271,6 +282,7 @@ func TestMarkSplitsReconciledByAccount_LargeBatch(t *testing.T) {
 			Description: fmt.Sprintf("tx-%d", i),
 			Status:      model.StatusPending,
 			Type:        model.TxTypeExpense,
+			Regular:     boolPtr(true),
 		}, []model.Split{
 			{AccountID: assetID, Amount: -100, Currency: "USD"},
 			{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -305,6 +317,7 @@ func TestBulkUpdateTransactionStatus_LargeBatch(t *testing.T) {
 			Description: fmt.Sprintf("tx-%d", i),
 			Status:      model.StatusPending,
 			Type:        model.TxTypeExpense,
+			Regular:     boolPtr(true),
 		}, []model.Split{
 			{AccountID: assetID, Amount: -100, Currency: "USD"},
 			{AccountID: expenseID, Amount: 100, Currency: "USD"},

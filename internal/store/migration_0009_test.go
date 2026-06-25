@@ -31,9 +31,12 @@ func TestMigration0009_BackfillInvestmentType(t *testing.T) {
 	foodID, err := s.CreateAccount(ctx, "Expenses:Food", model.AccountTypeExpense, "TWD", "", nil)
 	require.NoError(t, err)
 
+	boolPtr := func(b bool) *bool { return &b }
+
 	// Insert pre-migration rows.
 	sellID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1700000000, Description: "sell", Status: model.StatusCleared, Type: model.TxTypeIncome,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: invID, Amount: -5287, Currency: "TWD"},
 		{AccountID: bankID, Amount: 8118, Currency: "TWD"},
@@ -52,6 +55,7 @@ func TestMigration0009_BackfillInvestmentType(t *testing.T) {
 
 	expID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1700000002, Description: "lunch", Status: model.StatusCleared, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: foodID, Amount: 500, Currency: "TWD"},
 		{AccountID: bankID, Amount: -500, Currency: "TWD"},
@@ -60,6 +64,7 @@ func TestMigration0009_BackfillInvestmentType(t *testing.T) {
 
 	incomeID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1700000003, Description: "tip", Status: model.StatusCleared, Type: model.TxTypeIncome,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: revID, Amount: -100, Currency: "TWD"},
 		{AccountID: bankID, Amount: 100, Currency: "TWD"},
@@ -69,12 +74,32 @@ func TestMigration0009_BackfillInvestmentType(t *testing.T) {
 	// Reset the type column on the Investment-shaped rows to simulate
 	// their state BEFORE this migration ran. (The migration was already
 	// applied once during setupTestDB on an empty database.)
-	_, err = s.DB().ExecContext(ctx,
-		`UPDATE transactions SET type = 'Income' WHERE id = ?`, sellID)
+	//
+	// sellID was inserted as Income (regular NOT NULL) only so
+	// CreateTransactionWithSplits' CHECK constraint is satisfied at insert
+	// time. On a real pre-0011 database the "regular" column did not exist,
+	// so an Income row carried no regular value at all; "type=Income,
+	// regular=NULL" is the historically accurate shape, but it cannot be
+	// produced by an ordinary UPDATE once the CHECK constraint exists (the
+	// constraint correctly disallows it as a current-schema state). Disable
+	// CHECK enforcement for this fixture-setup step only, then restore it
+	// before exercising the 0009 migration so the migration's own behavior
+	// is still verified against a fully-enforced schema. PRAGMA settings are
+	// connection-scoped, so a single *sql.Conn is used to guarantee the
+	// pragma toggle and the UPDATEs run on the same connection.
+	conn, err := s.DB().Conn(ctx)
 	require.NoError(t, err)
-	_, err = s.DB().ExecContext(ctx,
+	_, err = conn.ExecContext(ctx, `PRAGMA ignore_check_constraints = 1`)
+	require.NoError(t, err)
+	_, err = conn.ExecContext(ctx,
+		`UPDATE transactions SET type = 'Income', regular = NULL WHERE id = ?`, sellID)
+	require.NoError(t, err)
+	_, err = conn.ExecContext(ctx,
 		`UPDATE transactions SET type = 'Transfer' WHERE id = ?`, buyID)
 	require.NoError(t, err)
+	_, err = conn.ExecContext(ctx, `PRAGMA ignore_check_constraints = 0`)
+	require.NoError(t, err)
+	require.NoError(t, conn.Close())
 
 	// Re-run the 0009 up migration.
 	sql, err := migrations.FS.ReadFile("0009_backfill_investment_type.up.sql")

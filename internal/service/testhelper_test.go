@@ -418,7 +418,7 @@ func (m *mockTransactionRepo) DeleteTransaction(_ context.Context, txID int64) e
 	return nil
 }
 
-func (m *mockTransactionRepo) UpdateTransactionBasic(_ context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
+func (m *mockTransactionRepo) UpdateTransactionBasic(_ context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, regular *bool) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
@@ -430,6 +430,7 @@ func (m *mockTransactionRepo) UpdateTransactionBasic(_ context.Context, txID int
 	tx.Timestamp = timestamp
 	tx.Status = status
 	tx.Type = txType
+	tx.Regular = regular
 	return nil
 }
 

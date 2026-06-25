@@ -204,7 +204,7 @@ func TestUpdateTransactionBasic(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = s.UpdateTransactionBasic(ctx, txID, "new desc", 2000, model.StatusCleared, model.TxTypeIncome)
+	err = s.UpdateTransactionBasic(ctx, txID, "new desc", 2000, model.StatusCleared, model.TxTypeIncome, nil)
 	require.NoError(t, err)
 
 	tx, err := s.GetTransactionByID(ctx, txID)

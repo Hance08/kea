@@ -1289,3 +1289,121 @@ func TestParseTransactionDate(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+// ──────────────────────────────────────────────
+// Regular defaulting and clearing
+// ──────────────────────────────────────────────
+
+func TestCreateTransaction_RegularDefaultsForExpense(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Expenses:Coffee", Type: model.AccountTypeExpense})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset})
+	ts := newTestTransactionService(accRepo, txRepo)
+
+	input := model.TransactionDetail{
+		Description: "Coffee",
+		Type:        model.TxTypeExpense,
+		Regular:     nil,
+		Splits: []model.SplitDetail{
+			{AccountName: "Expenses:Coffee", Amount: 150},
+			{AccountName: "Assets:Cash", Amount: -150},
+		},
+	}
+	id, err := ts.CreateTransaction(context.Background(), input)
+	require.NoError(t, err)
+
+	stored := txRepo.transactions[id]
+	require.NotNil(t, stored.Regular)
+	assert.True(t, *stored.Regular)
+}
+
+func TestCreateTransaction_RegularRejectedForTransfer(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset})
+	ts := newTestTransactionService(accRepo, txRepo)
+
+	regularTrue := true
+	input := model.TransactionDetail{
+		Description: "Move money",
+		Type:        model.TxTypeTransfer,
+		Regular:     &regularTrue,
+		Splits: []model.SplitDetail{
+			{AccountName: "Assets:Bank", Amount: -500},
+			{AccountName: "Assets:Cash", Amount: 500},
+		},
+	}
+	_, err := ts.CreateTransaction(context.Background(), input)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrRegularNotApplicable))
+}
+
+func TestUpdateTransactionComplete_ClearsRegularWhenTypeMovesOut(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 3, Name: "Revenue:Salary", Type: model.AccountTypeRevenue})
+
+	regularTrue := true
+	txRepo.addTransaction(
+		&model.Transaction{ID: 5, Status: model.StatusPending, Type: model.TxTypeIncome, Regular: &regularTrue},
+		[]*model.Split{
+			{ID: 10, AccountID: 3, Amount: -800},
+			{ID: 11, AccountID: 1, Amount: 800},
+		},
+	)
+	ts := newTestTransactionService(accRepo, txRepo)
+
+	splits := []model.SplitDetail{
+		{ID: 10, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: -800, Currency: "USD"},
+		{ID: 11, AccountID: 2, AccountType: model.AccountTypeAsset, Amount: 800, Currency: "USD"},
+	}
+	err := ts.UpdateTransactionComplete(context.Background(), model.UpdateTransactionInput{
+		ID:          5,
+		Description: "Moved to transfer",
+		Status:      model.StatusPending,
+		Type:        model.TxTypeTransfer,
+		Regular:     &regularTrue,
+		Splits:      splits,
+	})
+	require.NoError(t, err)
+	assert.Nil(t, txRepo.transactions[5].Regular)
+}
+
+func TestUpdateTransactionComplete_DefaultsRegularWhenTypeMovesIn(t *testing.T) {
+	accRepo := newMockAccountRepo()
+	txRepo := newMockTransactionRepo()
+	accRepo.addAccount(&model.Account{ID: 1, Name: "Assets:Bank", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Cash", Type: model.AccountTypeAsset})
+	accRepo.addAccount(&model.Account{ID: 3, Name: "Revenue:Salary", Type: model.AccountTypeRevenue})
+
+	txRepo.addTransaction(
+		&model.Transaction{ID: 5, Status: model.StatusPending, Type: model.TxTypeTransfer, Regular: nil},
+		[]*model.Split{
+			{ID: 10, AccountID: 1, Amount: -800},
+			{ID: 11, AccountID: 2, Amount: 800},
+		},
+	)
+	ts := newTestTransactionService(accRepo, txRepo)
+
+	splits := []model.SplitDetail{
+		{ID: 10, AccountID: 3, AccountType: model.AccountTypeRevenue, Amount: -800, Currency: "USD"},
+		{ID: 11, AccountID: 1, AccountType: model.AccountTypeAsset, Amount: 800, Currency: "USD"},
+	}
+	err := ts.UpdateTransactionComplete(context.Background(), model.UpdateTransactionInput{
+		ID:          5,
+		Description: "Moved to income",
+		Status:      model.StatusPending,
+		Type:        model.TxTypeIncome,
+		Regular:     nil,
+		Splits:      splits,
+	})
+	require.NoError(t, err)
+
+	stored := txRepo.transactions[5].Regular
+	require.NotNil(t, stored)
+	assert.True(t, *stored)
+}

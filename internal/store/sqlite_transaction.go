@@ -205,7 +205,8 @@ func (s *Store) DeleteTransaction(ctx context.Context, txID int64) error {
 	return nil
 }
 
-func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
+func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, regular *bool) error {
+	_ = regular
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

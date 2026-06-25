@@ -325,3 +325,56 @@ func TestValidateTransactionEdit(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+// ──────────────────────────────────────────────
+// ValidateRegular
+// ──────────────────────────────────────────────
+
+func TestValidateRegular(t *testing.T) {
+	t.Parallel()
+	boolPtr := func(b bool) *bool { return &b }
+
+	tests := []struct {
+		name    string
+		txType  model.TransactionType
+		regular *bool
+		wantErr error
+	}{
+		// Income/Expense: Regular MUST be set.
+		{"income with true", model.TxTypeIncome, boolPtr(true), nil},
+		{"income with false", model.TxTypeIncome, boolPtr(false), nil},
+		{"income with nil", model.TxTypeIncome, nil, ErrRegularRequired},
+		{"expense with true", model.TxTypeExpense, boolPtr(true), nil},
+		{"expense with false", model.TxTypeExpense, boolPtr(false), nil},
+		{"expense with nil", model.TxTypeExpense, nil, ErrRegularRequired},
+
+		// All other types: Regular MUST be nil.
+		{"transfer with nil", model.TxTypeTransfer, nil, nil},
+		{"transfer with true", model.TxTypeTransfer, boolPtr(true), ErrRegularNotApplicable},
+		{"transfer with false", model.TxTypeTransfer, boolPtr(false), ErrRegularNotApplicable},
+		{"opening with nil", model.TxTypeOpening, nil, nil},
+		{"opening with true", model.TxTypeOpening, boolPtr(true), ErrRegularNotApplicable},
+		{"deposit with nil", model.TxTypeDeposit, nil, nil},
+		{"deposit with true", model.TxTypeDeposit, boolPtr(true), ErrRegularNotApplicable},
+		{"withdrawal with nil", model.TxTypeWithdrawal, nil, nil},
+		{"withdrawal with false", model.TxTypeWithdrawal, boolPtr(false), ErrRegularNotApplicable},
+		{"investment with nil", model.TxTypeInvestment, nil, nil},
+		{"investment with true", model.TxTypeInvestment, boolPtr(true), ErrRegularNotApplicable},
+		{"other with nil", model.TxTypeOther, nil, nil},
+		{"other with true", model.TxTypeOther, boolPtr(true), ErrRegularNotApplicable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateRegular(tt.txType, tt.regular)
+			if tt.wantErr == nil {
+				if err != nil {
+					t.Fatalf("ValidateRegular(%s, %v) = %v, want nil", tt.txType, tt.regular, err)
+				}
+				return
+			}
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("ValidateRegular(%s, %v) = %v, want %v", tt.txType, tt.regular, err, tt.wantErr)
+			}
+		})
+	}
+}

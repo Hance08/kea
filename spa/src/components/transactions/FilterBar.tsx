@@ -45,10 +45,11 @@ export function FilterBar({ search, onChange, onClear }: Props) {
     (search.description !== undefined && search.description !== '');
 
   return (
-    // Use 6 columns only at xl (>=1280px) where the inputs comfortably
+    // Use 7 columns only at xl (>=1280px) where the inputs comfortably
     // fit on one row; stack below that to avoid pushing the page wider
-    // than the viewport.
-    <div className="mb-4 grid grid-cols-1 gap-3 rounded-md border bg-card p-3 xl:grid-cols-6">
+    // than the viewport. Type/Status/Regular share equal 1-column widths
+    // so the three short selects line up visually.
+    <div className="mb-4 grid grid-cols-1 gap-3 rounded-md border bg-card p-3 xl:grid-cols-7">
       <div className="xl:col-span-2">
         <Label htmlFor="f-account">Account</Label>
         <AccountCombobox
@@ -102,6 +103,23 @@ export function FilterBar({ search, onChange, onClear }: Props) {
       </div>
 
       <div>
+        <Label htmlFor="f-regular">Regular</Label>
+        <select
+          id="f-regular"
+          className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+          value={search.regular === undefined ? '' : search.regular ? 'true' : 'false'}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange({ regular: v === '' ? undefined : v === 'true' });
+          }}
+        >
+          <option value="">Any</option>
+          <option value="true">Regular only</option>
+          <option value="false">Irregular only</option>
+        </select>
+      </div>
+
+      <div>
         <Label htmlFor="f-from">From date</Label>
         <Input
           id="f-from"
@@ -121,24 +139,7 @@ export function FilterBar({ search, onChange, onClear }: Props) {
         />
       </div>
 
-      <div>
-        <Label htmlFor="f-regular">Regular</Label>
-        <select
-          id="f-regular"
-          className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
-          value={search.regular === undefined ? '' : search.regular ? 'true' : 'false'}
-          onChange={(e) => {
-            const v = e.target.value;
-            onChange({ regular: v === '' ? undefined : v === 'true' });
-          }}
-        >
-          <option value="">Any</option>
-          <option value="true">Regular only</option>
-          <option value="false">Irregular only</option>
-        </select>
-      </div>
-
-      <div className="xl:col-span-3">
+      <div className="xl:col-span-5">
         <Input
           id="f-desc"
           type="text"

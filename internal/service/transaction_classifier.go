@@ -309,6 +309,7 @@ func (ts *TransactionService) BuildTransactionListItems(ctx context.Context, txs
 			Amount:        amountCents,
 			Currency:      currency,
 			Status:        tx.Status.String(),
+			Regular:       tx.Regular,
 		})
 	}
 	return items

@@ -11,7 +11,7 @@ CREATE TABLE transactions_new (
     type        TEXT NOT NULL DEFAULT '',
     regular     INTEGER,
     CHECK (
-        (type IN ('Income', 'Expense') AND regular IN (0, 1))
+        (type IN ('Income', 'Expense') AND regular IS NOT NULL AND regular IN (0, 1))
         OR (type NOT IN ('Income', 'Expense') AND regular IS NULL)
     )
 );

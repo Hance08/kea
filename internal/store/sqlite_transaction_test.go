@@ -30,6 +30,7 @@ func TestCreateTransactionWithSplits_And_GetByID(t *testing.T) {
 		Status:      model.StatusCleared,
 		Type:        model.TxTypeExpense,
 		ExternalID:  &extID,
+		Regular:     boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -2000, Currency: "USD", Memo: "debit"},
 		{AccountID: expenseID, Amount: 2000, Currency: "USD", Memo: "credit"},
@@ -71,6 +72,7 @@ func TestGetTransactionsByAccount(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		_, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 			Timestamp: int64(1000 + i), Description: "food", Status: model.StatusPending, Type: model.TxTypeExpense,
+			Regular: boolPtr(true),
 		}, []model.Split{
 			{AccountID: assetID, Amount: -100, Currency: "USD"},
 			{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -79,6 +81,7 @@ func TestGetTransactionsByAccount(t *testing.T) {
 	}
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "other", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -200, Currency: "USD"},
 		{AccountID: otherID, Amount: 200, Currency: "USD"},
@@ -106,6 +109,7 @@ func TestGetTransactionsByDateRange(t *testing.T) {
 	for _, ts := range []int64{1000, 2000, 3000} {
 		_, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 			Timestamp: ts, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+			Regular: boolPtr(true),
 		}, []model.Split{
 			{AccountID: assetID, Amount: -100, Currency: "USD"},
 			{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -135,6 +139,7 @@ func TestGetAllTransactions(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		_, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 			Timestamp: int64(1000 + i), Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+			Regular: boolPtr(true),
 		}, []model.Split{
 			{AccountID: assetID, Amount: -100, Currency: "USD"},
 			{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -164,6 +169,7 @@ func TestUpdateTransactionStatus(t *testing.T) {
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -198,13 +204,14 @@ func TestUpdateTransactionBasic(t *testing.T) {
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "old", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
 	})
 	require.NoError(t, err)
 
-	err = s.UpdateTransactionBasic(ctx, txID, "new desc", 2000, model.StatusCleared, model.TxTypeIncome)
+	err = s.UpdateTransactionBasic(ctx, txID, "new desc", 2000, model.StatusCleared, model.TxTypeIncome, boolPtr(true))
 	require.NoError(t, err)
 
 	tx, err := s.GetTransactionByID(ctx, txID)
@@ -226,6 +233,7 @@ func TestDeleteTransaction(t *testing.T) {
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -250,6 +258,7 @@ func TestDeleteTransaction_CascadeDeletesSplits(t *testing.T) {
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -289,6 +298,7 @@ func TestSplitCRUD(t *testing.T) {
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -365,6 +375,7 @@ func TestGetSplitsWithAccountsByDateRange(t *testing.T) {
 
 	tx1ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "in range", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -373,6 +384,7 @@ func TestGetSplitsWithAccountsByDateRange(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 3000, Description: "out of range", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -200, Currency: "USD"},
 		{AccountID: expenseID, Amount: 200, Currency: "USD"},
@@ -398,6 +410,7 @@ func TestGetSplitsWithAccountsByTransaction(t *testing.T) {
 
 	txID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD", Memo: "debit"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD", Memo: "credit"},
@@ -424,6 +437,7 @@ func TestGetSplitsWithAccountsByTransactionIDs(t *testing.T) {
 
 	tx1ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx1", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -100, Currency: "USD"},
 		{AccountID: expenseID, Amount: 100, Currency: "USD"},
@@ -432,6 +446,7 @@ func TestGetSplitsWithAccountsByTransactionIDs(t *testing.T) {
 
 	tx2ID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "tx2", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -200, Currency: "USD"},
 		{AccountID: expenseID, Amount: 200, Currency: "USD"},
@@ -466,6 +481,7 @@ func TestGetSplitsWithAccountsByTransactionIDs_LargeBatch(t *testing.T) {
 			Description: fmt.Sprintf("tx-%d", i),
 			Status:      model.StatusPending,
 			Type:        model.TxTypeExpense,
+			Regular:     boolPtr(true),
 		}, []model.Split{
 			{AccountID: assetID, Amount: -100, Currency: "USD"},
 			{AccountID: expenseID, Amount: 100, Currency: "USD"},

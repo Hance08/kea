@@ -9,8 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getBalances } from '@/lib/api';
 import { useIncomeBreakdown } from '@/lib/hooks/useReport';
 import { resolvePeriod } from '@/lib/period';
+import { regularSubLine } from '@/lib/reportSubLine';
 import { type PeriodSearchParams, parsePeriodSearch } from '@/lib/reports-search-params';
-import { useServerConfig } from '@/lib/server-config';
+import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
@@ -74,6 +75,9 @@ function IncomeBreakdownPageBody() {
 
   const result = query.data;
   const income = result.total_income[currency] ?? 0;
+  const incomeRegular = result.total_income_regular?.[currency] ?? 0;
+  const incomeIrregular = result.total_income_irregular?.[currency] ?? 0;
+  const { formatCents } = useAmountFormat();
   const rows = (result.income_rows ?? []).filter((r) => r.currency === currency);
 
   const { swatchColors } = partitionForComposition(rows, income, 'income');
@@ -86,7 +90,13 @@ function IncomeBreakdownPageBody() {
       ) : (
         <>
           <div className="max-w-xs">
-            <KpiCard label="Total Income" amount={income} currency={currency} variant="green" />
+            <KpiCard
+              label="Total Income"
+              amount={income}
+              currency={currency}
+              variant="green"
+              subLine={regularSubLine(incomeRegular, incomeIrregular, currency, formatCents)}
+            />
           </div>
           <section>
             <h2 className="mb-2 text-sm font-semibold">Composition</h2>

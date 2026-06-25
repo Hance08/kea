@@ -14,15 +14,19 @@ type ReportRow struct {
 
 // ReportResult holds the result of an income statement or expense breakdown report.
 type ReportResult struct {
-	Period            string             `json:"period"`
-	TotalIncome       map[string]int64   `json:"total_income"`
-	TotalExpense      map[string]int64   `json:"total_expense"`
-	NetAmount         map[string]int64   `json:"net_amount"`
-	NetWorth          map[string]int64   `json:"net_worth"`
-	PreviousNetWorth  map[string]int64   `json:"previous_net_worth"`
-	NetWorthGrowthPct map[string]float64 `json:"net_worth_growth_pct"`
-	IncomeRows        []ReportRow        `json:"income_rows"`
-	ExpenseRows       []ReportRow        `json:"expense_rows"`
+	Period                string             `json:"period"`
+	TotalIncome           map[string]int64   `json:"total_income"`
+	TotalIncomeRegular    map[string]int64   `json:"total_income_regular"`
+	TotalIncomeIrregular  map[string]int64   `json:"total_income_irregular"`
+	TotalExpense          map[string]int64   `json:"total_expense"`
+	TotalExpenseRegular   map[string]int64   `json:"total_expense_regular"`
+	TotalExpenseIrregular map[string]int64   `json:"total_expense_irregular"`
+	NetAmount             map[string]int64   `json:"net_amount"`
+	NetWorth              map[string]int64   `json:"net_worth"`
+	PreviousNetWorth      map[string]int64   `json:"previous_net_worth"`
+	NetWorthGrowthPct     map[string]float64 `json:"net_worth_growth_pct"`
+	IncomeRows            []ReportRow        `json:"income_rows"`
+	ExpenseRows           []ReportRow        `json:"expense_rows"`
 }
 
 // BalanceSheetResult holds the result of a balance sheet report.

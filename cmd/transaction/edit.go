@@ -111,6 +111,15 @@ func (r *editRunner) getAvailableMenuItems(ctx context.Context, detail *model.Tr
 			},
 		},
 		{
+			Label: OptToggleRegular,
+			Condition: func(d *model.TransactionDetail) bool {
+				return d.Type == model.TxTypeIncome || d.Type == model.TxTypeExpense
+			},
+			Action: func(d *model.TransactionDetail) error {
+				return r.actionToggleRegular(d)
+			},
+		},
+		{
 			Label:     OptQuickAccount,
 			Condition: func(d *model.TransactionDetail) bool { return len(d.Splits) == 2 },
 			Action: func(d *model.TransactionDetail) error {

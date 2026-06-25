@@ -269,10 +269,37 @@ func (r *editRunner) actionEditType(ctx context.Context, detail *model.Transacti
 	}
 
 	detail.Type = newType
+
+	// Maintain the Regular invariant.
+	isApplicable := newType == model.TxTypeIncome || newType == model.TxTypeExpense
+	switch {
+	case isApplicable && detail.Regular == nil:
+		v := true
+		detail.Regular = &v
+	case !isApplicable:
+		detail.Regular = nil
+	}
+
 	r.view.ShowSuccess(fmt.Sprintf("Type changed to: %s", newType))
 	return nil
 }
 
+func (r *editRunner) actionToggleRegular(detail *model.TransactionDetail) error {
+	if detail.Regular == nil {
+		// Defensive: shouldn't happen because the menu Condition only shows
+		// this option for Income/Expense, where Regular must be non-nil.
+		v := true
+		detail.Regular = &v
+	}
+	flipped := !*detail.Regular
+	detail.Regular = &flipped
+	if flipped {
+		r.view.ShowSuccess("Regular: true")
+	} else {
+		r.view.ShowSuccess("Regular: false")
+	}
+	return nil
+}
 
 func (r *editRunner) actionSave(ctx context.Context, detail *model.TransactionDetail) error {
 	// Validate via Service
@@ -289,6 +316,7 @@ func (r *editRunner) actionSave(ctx context.Context, detail *model.TransactionDe
 			Timestamp:   detail.Timestamp,
 			Status:      detail.Status,
 			Type:        detail.Type,
+			Regular:     detail.Regular,
 			Splits:      splits,
 		},
 	); err != nil {

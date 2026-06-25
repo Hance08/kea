@@ -123,3 +123,129 @@ test('pagination is hidden when total <= limit', async () => {
   await screen.findByText('Coffee with team');
   expect(screen.queryByRole('button', { name: /next/i })).not.toBeInTheDocument();
 });
+
+test('renders Regular badge for a regular expense', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url === '/api/config') {
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
+      }
+      if (url === '/api/ledgers') {
+        return Promise.resolve(
+          okResponse({ active: 'p', items: [{ name: 'p', path: '/p', active: true }] }),
+        );
+      }
+      if (url.startsWith('/api/transactions?')) {
+        return Promise.resolve(
+          okResponse({
+            items: [
+              {
+                id: 1,
+                timestamp: 1733184000,
+                description: 'Coffee with team',
+                status: 'Cleared',
+                type: 'Expense',
+                regular: true,
+                splits: [
+                  {
+                    id: 10,
+                    account_id: 1,
+                    account_name: 'Assets:Bank',
+                    account_type: 'A',
+                    amount: -1250,
+                    currency: 'USD',
+                    memo: '',
+                  },
+                  {
+                    id: 11,
+                    account_id: 2,
+                    account_name: 'Expenses:Coffee',
+                    account_type: 'E',
+                    amount: 1250,
+                    currency: 'USD',
+                    memo: '',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            limit: 50,
+            offset: 0,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }),
+  );
+
+  render(makeTestApp('/transactions'));
+
+  await screen.findByText('Coffee with team');
+  expect(screen.getByTitle('Regular')).toBeInTheDocument();
+});
+
+test('does not render Regular badge for a Transfer', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url === '/api/config') {
+        return Promise.resolve(
+          okResponse({ defaults: { currency: 'USD' }, display: { hide_decimals: false } }),
+        );
+      }
+      if (url === '/api/ledgers') {
+        return Promise.resolve(
+          okResponse({ active: 'p', items: [{ name: 'p', path: '/p', active: true }] }),
+        );
+      }
+      if (url.startsWith('/api/transactions?')) {
+        return Promise.resolve(
+          okResponse({
+            items: [
+              {
+                id: 1,
+                timestamp: 1733184000,
+                description: 'Move to savings',
+                status: 'Cleared',
+                type: 'Transfer',
+                splits: [
+                  {
+                    id: 10,
+                    account_id: 1,
+                    account_name: 'Assets:Bank',
+                    account_type: 'A',
+                    amount: -1250,
+                    currency: 'USD',
+                    memo: '',
+                  },
+                  {
+                    id: 11,
+                    account_id: 2,
+                    account_name: 'Assets:Savings',
+                    account_type: 'A',
+                    amount: 1250,
+                    currency: 'USD',
+                    memo: '',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            limit: 50,
+            offset: 0,
+          }),
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    }),
+  );
+
+  render(makeTestApp('/transactions'));
+
+  await screen.findByText('Move to savings');
+  expect(screen.queryByTitle('Regular')).not.toBeInTheDocument();
+  expect(screen.queryByTitle('One-off')).not.toBeInTheDocument();
+});

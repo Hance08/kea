@@ -30,10 +30,13 @@ func TestMigration0010_BackfillInvestmentTypeFromExpense(t *testing.T) {
 	foodID, err := s.CreateAccount(ctx, "Expenses:Food", model.AccountTypeExpense, "TWD", "", nil)
 	require.NoError(t, err)
 
+	boolPtr := func(b bool) *bool { return &b }
+
 	// Buy-with-fee row that the legacy 0006 backfill would have stamped as
 	// 'Expense' (Expense + ≥1 A/L → Expense in the SQL backfill).
 	buyID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1700000000, Description: "buy", Status: model.StatusCleared, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: invID, Amount: 20490, Currency: "TWD"},
 		{AccountID: bankID, Amount: -20519, Currency: "TWD"},
@@ -44,6 +47,7 @@ func TestMigration0010_BackfillInvestmentTypeFromExpense(t *testing.T) {
 	// A real Expense with no Investments split — must NOT be reclassified.
 	lunchID, err := s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1700000001, Description: "lunch", Status: model.StatusCleared, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: foodID, Amount: 500, Currency: "TWD"},
 		{AccountID: bankID, Amount: -500, Currency: "TWD"},
@@ -53,9 +57,24 @@ func TestMigration0010_BackfillInvestmentTypeFromExpense(t *testing.T) {
 	// Reset buy row to 'Expense' to simulate the state after 0009 ran but
 	// missed it. (setupTestDB already applied both migrations on an empty
 	// DB; we override the type to recreate the user-reported bug.)
-	_, err = s.DB().ExecContext(ctx,
-		`UPDATE transactions SET type = 'Expense' WHERE id = ?`, buyID)
+	//
+	// buyID was inserted with regular=true only so CreateTransactionWithSplits'
+	// CHECK constraint is satisfied at insert time. The 0010 migration will
+	// reclassify this row to type='Investment', which requires regular IS
+	// NULL — the historically accurate shape, since the "regular" column did
+	// not exist when 0010 originally ran. PRAGMA settings are
+	// connection-scoped, so a single *sql.Conn guarantees the pragma toggle
+	// applies to the UPDATE below.
+	conn, err := s.DB().Conn(ctx)
 	require.NoError(t, err)
+	_, err = conn.ExecContext(ctx, `PRAGMA ignore_check_constraints = 1`)
+	require.NoError(t, err)
+	_, err = conn.ExecContext(ctx,
+		`UPDATE transactions SET type = 'Expense', regular = NULL WHERE id = ?`, buyID)
+	require.NoError(t, err)
+	_, err = conn.ExecContext(ctx, `PRAGMA ignore_check_constraints = 0`)
+	require.NoError(t, err)
+	require.NoError(t, conn.Close())
 
 	// Re-run the 0010 up migration.
 	sql, err := migrations.FS.ReadFile("0010_backfill_investment_type_expense.up.sql")

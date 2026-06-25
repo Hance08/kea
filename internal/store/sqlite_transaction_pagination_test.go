@@ -37,6 +37,7 @@ func addTx(t *testing.T, s interface {
 		Description: desc,
 		Status:      model.StatusPending,
 		Type:        model.TxTypeExpense,
+		Regular:     boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -1000, Currency: "USD"},
 		{AccountID: expenseID, Amount: 1000, Currency: "USD"},
@@ -144,6 +145,7 @@ func TestListTransactionsByAccount(t *testing.T) {
 				Description: "other",
 				Status:      model.StatusPending,
 				Type:        model.TxTypeExpense,
+				Regular:     boolPtr(true),
 			}, []model.Split{
 				{AccountID: assetID, Amount: -500, Currency: "USD"},
 				{AccountID: otherID, Amount: 500, Currency: "USD"},
@@ -198,6 +200,7 @@ func TestListTransactionsByAccount(t *testing.T) {
 				Description: "other",
 				Status:      model.StatusPending,
 				Type:        model.TxTypeExpense,
+				Regular:     boolPtr(true),
 			}, []model.Split{
 				{AccountID: assetID, Amount: -500, Currency: "USD"},
 				{AccountID: otherID, Amount: 500, Currency: "USD"},

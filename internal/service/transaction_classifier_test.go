@@ -767,8 +767,9 @@ func TestBuildTransactionListItems(t *testing.T) {
 	accRepo.addAccount(&model.Account{ID: 1, Name: "Expenses:Food", Type: model.AccountTypeExpense})
 	accRepo.addAccount(&model.Account{ID: 2, Name: "Assets:Bank", Type: model.AccountTypeAsset})
 
+	regularTrue := true
 	txs := []*model.Transaction{
-		{ID: 10, Timestamp: 1700000000, Description: "Lunch", Status: model.StatusCleared, Type: model.TxTypeExpense},
+		{ID: 10, Timestamp: 1700000000, Description: "Lunch", Status: model.StatusCleared, Type: model.TxTypeExpense, Regular: &regularTrue},
 	}
 	details := map[int64]*model.TransactionDetail{
 		10: {
@@ -794,6 +795,8 @@ func TestBuildTransactionListItems(t *testing.T) {
 	assert.Equal(t, int64(1500), item.Amount)
 	assert.Equal(t, "USD", item.Currency)
 	assert.Equal(t, "Cleared", item.Status)
+	require.NotNil(t, item.Regular)
+	assert.True(t, *item.Regular, "Regular should propagate from the source transaction")
 }
 
 func TestBuildTransactionListItems_SkipsMissingDetail(t *testing.T) {

@@ -78,3 +78,17 @@ func (ts *TransactionService) ValidateTransactionEdit(ctx context.Context, split
 
 	return nil
 }
+
+// ValidateRegular enforces the invariant that the Regular attribute is set
+// (non-nil) for Income and Expense transactions, and nil for every other
+// transaction type.
+func ValidateRegular(txType model.TransactionType, regular *bool) error {
+	isIncomeOrExpense := txType == model.TxTypeIncome || txType == model.TxTypeExpense
+	if isIncomeOrExpense && regular == nil {
+		return ErrRegularRequired
+	}
+	if !isIncomeOrExpense && regular != nil {
+		return ErrRegularNotApplicable
+	}
+	return nil
+}

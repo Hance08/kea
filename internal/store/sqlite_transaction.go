@@ -22,8 +22,8 @@ func (s *Store) CreateTransactionWithSplits(ctx context.Context, tx model.Transa
 	defer s.mu.RUnlock()
 
 	stmtTx, err := s.db.PrepareContext(ctx, `
-        INSERT INTO transactions (timestamp, description, status, external_id, type)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO transactions (timestamp, description, status, external_id, type, regular)
+        VALUES (?, ?, ?, ?, ?, ?)
         RETURNING id;
     `)
 	if err != nil {
@@ -34,7 +34,7 @@ func (s *Store) CreateTransactionWithSplits(ctx context.Context, tx model.Transa
 	}()
 
 	var newTxID int64
-	err = stmtTx.QueryRowContext(ctx, tx.Timestamp, tx.Description, tx.Status, tx.ExternalID, tx.Type).Scan(&newTxID)
+	err = stmtTx.QueryRowContext(ctx, tx.Timestamp, tx.Description, tx.Status, tx.ExternalID, tx.Type, tx.Regular).Scan(&newTxID)
 
 	if err != nil {
 		var sqliteErr sqlite.Error
@@ -73,10 +73,10 @@ func (s *Store) GetTransactionByID(ctx context.Context, txID int64) (*model.Tran
 
 	var tx model.Transaction
 	err := s.db.QueryRowContext(ctx, `
-        SELECT id, timestamp, description, status, external_id, type
+        SELECT id, timestamp, description, status, external_id, type, regular
         FROM transactions
         WHERE id = ?
-    `, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID, &tx.Type)
+    `, txID).Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID, &tx.Type, &tx.Regular)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("transaction with ID %d not found: %w", txID, ErrRecordNotFound)
@@ -95,7 +95,7 @@ func (s *Store) GetTransactionsByAccount(ctx context.Context, accountID int64, l
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-        SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id, t.type
+        SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id, t.type, t.regular
         FROM transactions t
         INNER JOIN splits s ON t.id = s.transaction_id
         WHERE s.account_id = ?
@@ -117,7 +117,7 @@ func (s *Store) GetTransactionsByDateRange(ctx context.Context, startTime, endTi
 	defer s.mu.RUnlock()
 
 	rows, err := s.db.QueryContext(ctx, `
-        SELECT id, timestamp, description, status, external_id, type
+        SELECT id, timestamp, description, status, external_id, type, regular
         FROM transactions
         WHERE timestamp >= ? AND timestamp <= ?
         ORDER BY timestamp DESC, id DESC
@@ -141,7 +141,7 @@ func (s *Store) GetAllTransactions(ctx context.Context, limit int) ([]*model.Tra
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-        SELECT id, timestamp, description, status, external_id, type
+        SELECT id, timestamp, description, status, external_id, type, regular
         FROM transactions
         ORDER BY timestamp DESC, id DESC
         LIMIT ?
@@ -205,15 +205,15 @@ func (s *Store) DeleteTransaction(ctx context.Context, txID int64) error {
 	return nil
 }
 
-func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType) error {
+func (s *Store) UpdateTransactionBasic(ctx context.Context, txID int64, description string, timestamp int64, status model.TransactionStatus, txType model.TransactionType, regular *bool) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	result, err := s.db.ExecContext(ctx, `
         UPDATE transactions
-        SET description = ?, timestamp = ?, status = ?, type = ?
+        SET description = ?, timestamp = ?, status = ?, type = ?, regular = ?
         WHERE id = ?
-    `, description, timestamp, status, txType, txID)
+    `, description, timestamp, status, txType, regular, txID)
 	if err != nil {
 		return fmt.Errorf("failed to update transaction: %w", err)
 	}
@@ -495,7 +495,7 @@ func (s *Store) ListTransactions(ctx context.Context, opts model.ListOptions) (*
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-        SELECT id, timestamp, description, status, external_id, type
+        SELECT id, timestamp, description, status, external_id, type, regular
         FROM transactions
         ORDER BY timestamp DESC, id DESC
         LIMIT ? OFFSET ?
@@ -539,7 +539,7 @@ func (s *Store) ListTransactionsByAccount(ctx context.Context, accountID int64, 
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-        SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id, t.type
+        SELECT DISTINCT t.id, t.timestamp, t.description, t.status, t.external_id, t.type, t.regular
         FROM transactions t
         INNER JOIN splits s ON t.id = s.transaction_id
         WHERE s.account_id = ?
@@ -566,7 +566,7 @@ func (s *Store) scanTransactions(rows *sql.Rows) ([]*model.Transaction, error) {
 	var transactions []*model.Transaction
 	for rows.Next() {
 		tx := &model.Transaction{}
-		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID, &tx.Type)
+		err := rows.Scan(&tx.ID, &tx.Timestamp, &tx.Description, &tx.Status, &tx.ExternalID, &tx.Type, &tx.Regular)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
 		}
@@ -616,6 +616,14 @@ func (s *Store) FilterTransactions(ctx context.Context, filter model.Transaction
 		whereClauses = append(whereClauses, `t.description LIKE ? ESCAPE '\'`)
 		args = append(args, "%"+escaped+"%")
 	}
+	if filter.Regular != nil {
+		whereClauses = append(whereClauses, "t.regular = ?")
+		if *filter.Regular {
+			args = append(args, 1)
+		} else {
+			args = append(args, 0)
+		}
+	}
 
 	whereSQL := ""
 	if len(whereClauses) > 0 {
@@ -644,7 +652,7 @@ func (s *Store) FilterTransactions(ctx context.Context, filter model.Transaction
 	}
 
 	query := fmt.Sprintf(
-		"SELECT %st.id, t.timestamp, t.description, t.status, t.external_id, t.type %s %s ORDER BY t.timestamp DESC, t.id DESC LIMIT ? OFFSET ?",
+		"SELECT %st.id, t.timestamp, t.description, t.status, t.external_id, t.type, t.regular %s %s ORDER BY t.timestamp DESC, t.id DESC LIMIT ? OFFSET ?",
 		selectDistinct, fromSQL, whereSQL,
 	)
 	queryArgs := append(args, opts.Limit, opts.Offset)

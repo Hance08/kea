@@ -95,6 +95,15 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		return 0, fmt.Errorf("splits do not match transaction type %q: %w", input.Type, err)
 	}
 
+	// Default Regular = &true for new Income/Expense when caller did not specify.
+	if (input.Type == model.TxTypeIncome || input.Type == model.TxTypeExpense) && input.Regular == nil {
+		t := true
+		input.Regular = &t
+	}
+	if err := ValidateRegular(input.Type, input.Regular); err != nil {
+		return 0, err
+	}
+
 	// Validate: Ensure the sum of all splits balances to zero.
 	if err := ts.ValidateSplitsBalance(splits); err != nil {
 		return 0, err
@@ -106,6 +115,7 @@ func (ts *TransactionService) CreateTransaction(ctx context.Context, input model
 		Description: input.Description,
 		Status:      input.Status,
 		Type:        input.Type,
+		Regular:     input.Regular,
 	}
 
 	var newTxID int64
@@ -195,6 +205,12 @@ func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, input
 		txType = inferred
 	}
 
+	regular := input.Regular
+	if (txType == model.TxTypeIncome || txType == model.TxTypeExpense) && regular == nil {
+		t := true
+		regular = &t
+	}
+
 	splits := []model.SplitDetail{
 		{AccountName: input.ToAccount, Amount: input.Amount},
 		{AccountName: input.FromAccount, Amount: -input.Amount},
@@ -204,6 +220,7 @@ func (ts *TransactionService) CreateSimpleTransaction(ctx context.Context, input
 		Description: input.Description,
 		Status:      input.Status,
 		Type:        txType,
+		Regular:     regular,
 		Splits:      splits,
 	}
 	id, err := ts.CreateTransaction(ctx, txDetail)
@@ -226,6 +243,7 @@ func (ts *TransactionService) CreateTransactionFromSplits(
 		Description: input.Description,
 		Status:      input.Status,
 		Type:        input.Type,
+		Regular:     input.Regular,
 		Splits:      input.Splits,
 	}
 	id, err := ts.CreateTransaction(ctx, txDetail)
@@ -303,6 +321,20 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 		return fmt.Errorf("transaction #%d cannot be modified: %w", input.ID, ErrReconciled)
 	}
 
+	// If new Type is Income/Expense and caller didn't specify, default to &true.
+	// If new Type is not Income/Expense, force nil regardless of what the caller sent.
+	isApplicable := input.Type == model.TxTypeIncome || input.Type == model.TxTypeExpense
+	switch {
+	case isApplicable && input.Regular == nil:
+		t := true
+		input.Regular = &t
+	case !isApplicable:
+		input.Regular = nil
+	}
+	if err := ValidateRegular(input.Type, input.Regular); err != nil {
+		return err
+	}
+
 	// Validate that we have at least 2 splits
 	if len(input.Splits) < 2 {
 		return validationErrorf("splits", "transaction must have at least 2 splits for double-entry bookkeeping")
@@ -323,7 +355,7 @@ func (ts *TransactionService) UpdateTransactionComplete(ctx context.Context, inp
 	}
 
 	return ts.tm.ExecTx(ctx, func(repo repository.Repository) error {
-		if err := repo.UpdateTransactionBasic(ctx, input.ID, input.Description, input.Timestamp, input.Status, input.Type); err != nil {
+		if err := repo.UpdateTransactionBasic(ctx, input.ID, input.Description, input.Timestamp, input.Status, input.Type, input.Regular); err != nil {
 			return err
 		}
 

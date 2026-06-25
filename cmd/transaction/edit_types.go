@@ -46,13 +46,14 @@ type AccountProvider interface {
 }
 
 const (
-	OptBasicInfo    = "Basic Info (description, date, status)"
-	OptChangeType   = "Change Type"
-	OptQuickAccount = "Change Account (quick edit)"
-	OptQuickAmount  = "Change Amount (both sides)"
-	OptEditSplits   = "Edit Splits (Advanced)"
-	OptSave         = "Save & Exit"
-	OptCancel       = "Cancel (discard changes)"
+	OptBasicInfo     = "Basic Info (description, date, status)"
+	OptChangeType    = "Change Type"
+	OptToggleRegular = "Toggle Regular"
+	OptQuickAccount  = "Change Account (quick edit)"
+	OptQuickAmount   = "Change Amount (both sides)"
+	OptEditSplits    = "Edit Splits (Advanced)"
+	OptSave          = "Save & Exit"
+	OptCancel        = "Cancel (discard changes)"
 )
 
 var errExitLoop = errors.New("exit loop")

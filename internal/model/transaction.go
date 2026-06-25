@@ -11,6 +11,7 @@ type Transaction struct {
 	Description string            `json:"description"`
 	Status      TransactionStatus `json:"status"`
 	Type        TransactionType   `json:"type"`
+	Regular     *bool             `json:"regular,omitempty"`
 	ExternalID  *string           `json:"external_id,omitempty"`
 }
 
@@ -20,6 +21,7 @@ type TransactionDetail struct {
 	Description string            `json:"description"`
 	Status      TransactionStatus `json:"status"`
 	Type        TransactionType   `json:"type"`
+	Regular     *bool             `json:"regular,omitempty"`
 	Splits      []SplitDetail     `json:"splits"`
 }
 

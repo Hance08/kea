@@ -25,6 +25,11 @@ func setupTestDB(t *testing.T) *store.Store {
 	return s
 }
 
+// boolPtr is a shared test helper for constructing *bool literals, used when
+// setting Transaction.Regular on Income/Expense fixtures (required by the
+// "regular" column's CHECK constraint).
+func boolPtr(b bool) *bool { return &b }
+
 func accountNames(accounts []*model.Account) []string {
 	names := make([]string, len(accounts))
 	for i, a := range accounts {
@@ -310,6 +315,7 @@ func TestDeleteAccount_BlockedByTransactions(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "tx", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -500, Currency: "USD"},
 		{AccountID: expenseID, Amount: 500, Currency: "USD"},
@@ -375,6 +381,7 @@ func TestAccountHasTransactions(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "test", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -500, Currency: "USD"},
 		{AccountID: expenseID, Amount: 500, Currency: "USD"},
@@ -401,6 +408,7 @@ func TestGetAccountBalance(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "groceries", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -2000, Currency: "USD"},
 		{AccountID: expenseID, Amount: 2000, Currency: "USD"},
@@ -436,6 +444,7 @@ func TestGetAllAccountBalances(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 1000, Description: "early", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -500, Currency: "USD"},
 		{AccountID: expenseID, Amount: 500, Currency: "USD"},
@@ -444,6 +453,7 @@ func TestGetAllAccountBalances(t *testing.T) {
 
 	_, err = s.CreateTransactionWithSplits(ctx, model.Transaction{
 		Timestamp: 2000, Description: "later", Status: model.StatusPending, Type: model.TxTypeExpense,
+		Regular: boolPtr(true),
 	}, []model.Split{
 		{AccountID: assetID, Amount: -300, Currency: "USD"},
 		{AccountID: expenseID, Amount: 300, Currency: "USD"},

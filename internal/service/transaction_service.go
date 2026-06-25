@@ -76,6 +76,7 @@ func (ts *TransactionService) GetTransactionByID(ctx context.Context, txID int64
 		Description: tx.Description,
 		Status:      tx.Status,
 		Type:        tx.Type,
+		Regular:     tx.Regular,
 		Splits:      splits,
 	}, nil
 }
@@ -104,6 +105,7 @@ func (ts *TransactionService) GetTransactionDetailsByIDs(ctx context.Context, tx
 			Description: tx.Description,
 			Status:      tx.Status,
 			Type:        tx.Type,
+			Regular:     tx.Regular,
 			Splits:      splitsMap[tx.ID],
 		}
 	}

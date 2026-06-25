@@ -23,12 +23,23 @@ type TransactionListItem struct {
 	Amount      string
 	Currency    string
 	Status      string
+	Regular     *bool
 }
 
 type TransactionListView struct{}
 
 func NewTransactionListView() *TransactionListView {
 	return &TransactionListView{}
+}
+
+func regCell(r *bool) string {
+	if r == nil {
+		return ""
+	}
+	if *r {
+		return "✓"
+	}
+	return "✗"
 }
 
 func (v *TransactionListView) Render(items []TransactionListItem, limit int) error {
@@ -42,7 +53,7 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 
 	table := tablewriter.NewWriter(os.Stdout)
 
-	table.SetHeader([]string{"ID", "Date", "Type", "Account", "Offset Account", "Description", "Amount", "Status"})
+	table.SetHeader([]string{"ID", "Date", "Type", "Account", "Offset Account", "Description", "Amount", "Status", "Reg"})
 
 	table.SetColumnAlignment([]int{
 		tablewriter.ALIGN_LEFT,
@@ -53,6 +64,7 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 		tablewriter.ALIGN_LEFT,
 		tablewriter.ALIGN_RIGHT,
 		tablewriter.ALIGN_LEFT,
+		tablewriter.ALIGN_CENTER,
 	})
 
 	table.SetBorder(false)
@@ -95,6 +107,8 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 			coloredDescription = pterm.Gray(item.Description)
 		}
 
+		regSym := regCell(item.Regular)
+
 		table.Append([]string{
 			fmt.Sprintf("%d", item.ID),
 			item.Date,
@@ -104,6 +118,7 @@ func (v *TransactionListView) Render(items []TransactionListItem, limit int) err
 			coloredDescription,
 			coloredAmount,
 			item.Status,
+			regSym,
 		})
 	}
 

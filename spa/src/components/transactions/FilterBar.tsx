@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { TransactionsSearch } from '@/lib/transactions-search-params';
 import type { TransactionStatus, TransactionType } from '@/lib/types';
+import { useEffect, useRef, useState } from 'react';
 
 const TYPES: TransactionType[] = [
   'Expense',
@@ -35,6 +36,19 @@ function dateToUnix(d: string, endOfDay: boolean): number | undefined {
 }
 
 export function FilterBar({ search, onChange, onClear }: Props) {
+  // Local state for the description input so IME composition (e.g. Zhuyin)
+  // doesn't propagate intermediate characters to the URL search param.
+  const [descText, setDescText] = useState(search.description ?? '');
+  const isComposingRef = useRef(false);
+
+  useEffect(() => {
+    setDescText(search.description ?? '');
+  }, [search.description]);
+
+  const commitDesc = (value: string) => {
+    onChange({ description: value === '' ? undefined : value });
+  };
+
   const hasAny =
     search.account_id !== undefined ||
     search.type !== undefined ||
@@ -143,12 +157,19 @@ export function FilterBar({ search, onChange, onClear }: Props) {
         <Input
           id="f-desc"
           type="text"
-          value={search.description ?? ''}
-          onChange={(e) =>
-            onChange({
-              description: e.target.value === '' ? undefined : e.target.value,
-            })
-          }
+          value={descText}
+          onChange={(e) => {
+            const v = e.target.value;
+            setDescText(v);
+            if (!isComposingRef.current) commitDesc(v);
+          }}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+          }}
+          onCompositionEnd={(e) => {
+            isComposingRef.current = false;
+            commitDesc((e.target as HTMLInputElement).value);
+          }}
           placeholder="Search description…"
         />
       </div>

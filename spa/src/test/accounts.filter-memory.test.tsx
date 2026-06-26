@@ -73,15 +73,23 @@ test('non-default URL saves to memory', async () => {
   });
 });
 
-test('clicking Clear wipes memory', async () => {
+test('clicking Clear drops the active filter from memory', async () => {
   localStorage.setItem('kea.activeLedger', 'personal');
   render(makeTestApp('/accounts?q=cash'));
   await waitFor(() => {
-    expect(localStorage.getItem('kea.filters.personal.accounts')).not.toBeNull();
+    const raw = localStorage.getItem('kea.filters.personal.accounts');
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw as string).q).toBe('cash');
   });
   const clearBtn = await screen.findByRole('button', { name: /clear/i });
   await userEvent.click(clearBtn);
   await waitFor(() => {
-    expect(localStorage.getItem('kea.filters.personal.accounts')).toBeNull();
+    const raw = localStorage.getItem('kea.filters.personal.accounts');
+    // Memory may be null (cleared) or rewritten to defaults by the 'stay'
+    // loader run when navigate lands on defaults. Either means "no
+    // remembered non-default filter."
+    if (raw !== null) {
+      expect(JSON.parse(raw as string).q).toBeUndefined();
+    }
   });
 });

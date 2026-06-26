@@ -93,16 +93,21 @@ export function searchEquals(a: object, b: object): boolean {
   return true;
 }
 
+export type LoaderCause = 'enter' | 'stay' | 'preload';
+
 export function makeFilterMemoryLoader<T extends object>(opts: {
   pageId: PageId;
   defaults: T;
   redirectTo: string;
-}): (ctx: { deps: T }) => void {
-  return ({ deps: search }) => {
+}): (ctx: { deps: T; cause: LoaderCause }) => void {
+  return ({ deps: search, cause }) => {
     const ledger = getActiveLedger();
     if (!ledger) return;
 
-    if (searchEquals(search, opts.defaults)) {
+    // Only auto-restore on route entry. On 'stay' (in-page search change) the
+    // user is interacting — selecting defaults must not be undone by a redirect
+    // back to remembered non-default state.
+    if (cause === 'enter' && searchEquals(search, opts.defaults)) {
       const remembered = loadFilters<T>(opts.pageId);
       if (remembered && !searchEquals(remembered, opts.defaults)) {
         // biome-ignore lint/suspicious/noExplicitAny: redirect.to is route-typed, but this factory is generic over routes

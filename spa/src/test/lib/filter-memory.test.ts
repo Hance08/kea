@@ -121,26 +121,28 @@ describe('makeFilterMemoryLoader', () => {
 
   test('no active ledger: no-op (does not throw, writes nothing)', () => {
     const loader = makeLoader();
-    expect(() => loader({ deps: { ...defaults } })).not.toThrow();
-    expect(() => loader({ deps: { limit: 10, offset: 20, type: 'Expense' } })).not.toThrow();
+    expect(() => loader({ deps: { ...defaults }, cause: 'enter' })).not.toThrow();
+    expect(() =>
+      loader({ deps: { limit: 10, offset: 20, type: 'Expense' }, cause: 'enter' }),
+    ).not.toThrow();
     // Nothing related to filters should have been written
     expect(localStorage.getItem('kea.filters.personal.transactions')).toBeNull();
   });
 
-  test('at defaults with no remembered filters: no redirect', () => {
+  test("cause='enter' at defaults with no remembered filters: no redirect", () => {
     setActiveLedger('personal');
     const loader = makeLoader();
-    expect(() => loader({ deps: { ...defaults } })).not.toThrow();
+    expect(() => loader({ deps: { ...defaults }, cause: 'enter' })).not.toThrow();
   });
 
-  test('at defaults with remembered filters equal to defaults: no redirect', () => {
+  test("cause='enter' at defaults with remembered filters equal to defaults: no redirect", () => {
     setActiveLedger('personal');
     saveFilters('transactions', { ...defaults });
     const loader = makeLoader();
-    expect(() => loader({ deps: { ...defaults } })).not.toThrow();
+    expect(() => loader({ deps: { ...defaults }, cause: 'enter' })).not.toThrow();
   });
 
-  test('at defaults with remembered non-default filters: throws redirect with remembered search', () => {
+  test("cause='enter' at defaults with remembered non-default filters: throws redirect with remembered search", () => {
     setActiveLedger('personal');
     const remembered: TxSearch = { limit: 10, offset: 20, type: 'Expense' };
     saveFilters('transactions', remembered);
@@ -148,7 +150,7 @@ describe('makeFilterMemoryLoader', () => {
     const loader = makeLoader();
     let thrown: unknown;
     try {
-      loader({ deps: { ...defaults } });
+      loader({ deps: { ...defaults }, cause: 'enter' });
     } catch (e) {
       thrown = e;
     }
@@ -162,7 +164,26 @@ describe('makeFilterMemoryLoader', () => {
     setActiveLedger('personal');
     const loader = makeLoader();
     const search: TxSearch = { limit: 10, offset: 20, type: 'Expense' };
-    expect(() => loader({ deps: search })).not.toThrow();
+    expect(() => loader({ deps: search, cause: 'enter' })).not.toThrow();
+    expect(loadFilters<TxSearch>('transactions')).toEqual(search);
+  });
+
+  test("cause='stay' at defaults with remembered non-default filters: saves defaults, no redirect (user picked first option)", () => {
+    setActiveLedger('personal');
+    saveFilters('transactions', { limit: 10, offset: 20, type: 'Expense' });
+
+    const loader = makeLoader();
+    // User just clicked the 'Any' filter — URL now at defaults, navigation is 'stay'.
+    // Loader must not redirect back to remembered state.
+    expect(() => loader({ deps: { ...defaults }, cause: 'stay' })).not.toThrow();
+    expect(loadFilters<TxSearch>('transactions')).toEqual(defaults);
+  });
+
+  test("cause='stay' with non-default search: saves to memory", () => {
+    setActiveLedger('personal');
+    const loader = makeLoader();
+    const search: TxSearch = { limit: 10, offset: 0, type: 'Income' };
+    expect(() => loader({ deps: search, cause: 'stay' })).not.toThrow();
     expect(loadFilters<TxSearch>('transactions')).toEqual(search);
   });
 });

@@ -32,14 +32,21 @@ export function parsePeriodSearch(input: unknown): PeriodSearchParams {
   return { range: 'this-month' };
 }
 
+const chartRangeSchema = z.enum(['1M', '3M', 'YTD', '1Y', 'ALL']);
+
+export const DEFAULT_BALANCE_SHEET_CHART_RANGE = '1Y' as const;
+
 export const asOfSearchSchema = z.object({
   as_of: z.coerce.number().int().positive().optional(),
+  chart_range: chartRangeSchema.default(DEFAULT_BALANCE_SHEET_CHART_RANGE),
 });
 
 export type AsOfSearchParams = z.infer<typeof asOfSearchSchema>;
 
 export function parseAsOfSearch(input: unknown): AsOfSearchParams {
   const result = asOfSearchSchema.safeParse(input);
-  if (!result.success) return {};
-  return result.data.as_of === undefined ? {} : { as_of: result.data.as_of };
+  if (!result.success) return { chart_range: DEFAULT_BALANCE_SHEET_CHART_RANGE };
+  const out: AsOfSearchParams = { chart_range: result.data.chart_range };
+  if (result.data.as_of !== undefined) out.as_of = result.data.as_of;
+  return out;
 }

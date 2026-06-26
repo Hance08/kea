@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchIncomeStatement } from '@/lib/api/reports';
+import { makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { useIncomeStatement } from '@/lib/hooks/useReport';
 import { previousPeriod, resolvePeriod } from '@/lib/period';
 import { regularSubLine } from '@/lib/reportSubLine';
@@ -15,8 +16,16 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
+const INCOME_STATEMENT_DEFAULTS = parsePeriodSearch({});
+
 export const Route = createFileRoute('/reports/income-statement')({
   validateSearch: (s): PeriodSearchParams => parsePeriodSearch(s),
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<PeriodSearchParams>({
+    pageId: 'reports/income-statement',
+    defaults: INCOME_STATEMENT_DEFAULTS,
+    redirectTo: '/reports/income-statement',
+  }),
   component: IncomeStatementPage,
 });
 

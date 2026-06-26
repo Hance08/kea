@@ -4,16 +4,26 @@ import { TransactionsTable } from '@/components/transactions/TransactionsTable';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { clearFilters, makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { listTransactions } from '@/lib/transactions';
 import {
   type TransactionsSearch,
+  parseTransactionsSearch,
   searchToFilter,
   searchToListOptions,
 } from '@/lib/transactions-search-params';
 import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
+const TRANSACTIONS_DEFAULTS = parseTransactionsSearch({});
+
 export const Route = createFileRoute('/transactions/')({
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<TransactionsSearch>({
+    pageId: 'transactions',
+    defaults: TRANSACTIONS_DEFAULTS,
+    redirectTo: '/transactions',
+  }),
   component: TransactionsListPage,
 });
 
@@ -35,6 +45,7 @@ function TransactionsListPage() {
     });
   };
   const clear = () => {
+    clearFilters('transactions');
     navigate({ search: { limit: search.limit, offset: 0 } });
   };
   const setOffset = (offset: number) => {

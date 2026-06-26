@@ -5,14 +5,23 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listAccounts, naturalAmount } from '@/lib/accounts';
-import type { AccountsSearch } from '@/lib/accounts-search-params';
+import { type AccountsSearch, parseAccountsSearch } from '@/lib/accounts-search-params';
 import { getBalances } from '@/lib/api';
+import { clearFilters, makeFilterMemoryLoader } from '@/lib/filter-memory';
 import type { Account } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
+const ACCOUNTS_DEFAULTS = parseAccountsSearch({});
+
 export const Route = createFileRoute('/accounts/')({
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<AccountsSearch>({
+    pageId: 'accounts',
+    defaults: ACCOUNTS_DEFAULTS,
+    redirectTo: '/accounts',
+  }),
   component: AccountsListPage,
 });
 
@@ -26,6 +35,7 @@ function AccountsListPage() {
     navigate({ search: (prev) => ({ ...prev, ...partial, offset: 0 }) });
   };
   const clear = () => {
+    clearFilters('accounts');
     navigate({
       search: { include_hidden: false, show_parents: false, limit: search.limit, offset: 0 },
     });

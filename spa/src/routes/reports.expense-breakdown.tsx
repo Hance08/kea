@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getBalances } from '@/lib/api';
+import { makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { useExpenseBreakdown } from '@/lib/hooks/useReport';
 import { resolvePeriod } from '@/lib/period';
 import { regularSubLine } from '@/lib/reportSubLine';
@@ -16,8 +17,16 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
+const EXPENSE_BREAKDOWN_DEFAULTS = parsePeriodSearch({});
+
 export const Route = createFileRoute('/reports/expense-breakdown')({
   validateSearch: (s): PeriodSearchParams => parsePeriodSearch(s),
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<PeriodSearchParams>({
+    pageId: 'reports/expense-breakdown',
+    defaults: EXPENSE_BREAKDOWN_DEFAULTS,
+    redirectTo: '/reports/expense-breakdown',
+  }),
   component: ExpenseBreakdownPage,
 });
 

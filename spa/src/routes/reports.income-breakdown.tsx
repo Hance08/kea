@@ -1,3 +1,4 @@
+import { makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { CompositionBar, partitionForComposition } from '@/components/reports/CompositionBar';
 import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { KpiCard } from '@/components/reports/KpiCard';
@@ -16,8 +17,16 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
+const INCOME_BREAKDOWN_DEFAULTS = parsePeriodSearch({});
+
 export const Route = createFileRoute('/reports/income-breakdown')({
   validateSearch: (s): PeriodSearchParams => parsePeriodSearch(s),
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<PeriodSearchParams>({
+    pageId: 'reports/income-breakdown',
+    defaults: INCOME_BREAKDOWN_DEFAULTS,
+    redirectTo: '/reports/income-breakdown',
+  }),
   component: IncomeBreakdownPage,
 });
 

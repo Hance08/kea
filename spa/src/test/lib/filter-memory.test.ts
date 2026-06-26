@@ -3,6 +3,7 @@ import {
   clearFilters,
   getActiveLedger,
   loadFilters,
+  makeFilterMemoryLoader,
   saveFilters,
   searchEquals,
   setActiveLedger,
@@ -103,5 +104,67 @@ describe('searchEquals', () => {
 
   test('ignores key order', () => {
     expect(searchEquals({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(true);
+  });
+});
+
+describe('makeFilterMemoryLoader', () => {
+  type TxSearch = { limit: number; offset: number; type?: string };
+  const defaults: TxSearch = { limit: 50, offset: 0 };
+
+  function makeLoader() {
+    return makeFilterMemoryLoader<TxSearch>({
+      pageId: 'transactions',
+      defaults,
+      redirectTo: '/transactions',
+    });
+  }
+
+  test('no active ledger: no-op (does not throw, writes nothing)', () => {
+    const loader = makeLoader();
+    expect(() => loader({ search: { ...defaults } })).not.toThrow();
+    expect(() =>
+      loader({ search: { limit: 10, offset: 20, type: 'Expense' } }),
+    ).not.toThrow();
+    // Nothing related to filters should have been written
+    expect(localStorage.getItem('kea.filters.personal.transactions')).toBeNull();
+  });
+
+  test('at defaults with no remembered filters: no redirect', () => {
+    setActiveLedger('personal');
+    const loader = makeLoader();
+    expect(() => loader({ search: { ...defaults } })).not.toThrow();
+  });
+
+  test('at defaults with remembered filters equal to defaults: no redirect', () => {
+    setActiveLedger('personal');
+    saveFilters('transactions', { ...defaults });
+    const loader = makeLoader();
+    expect(() => loader({ search: { ...defaults } })).not.toThrow();
+  });
+
+  test('at defaults with remembered non-default filters: throws redirect with remembered search', () => {
+    setActiveLedger('personal');
+    const remembered: TxSearch = { limit: 10, offset: 20, type: 'Expense' };
+    saveFilters('transactions', remembered);
+
+    const loader = makeLoader();
+    let thrown: unknown;
+    try {
+      loader({ search: { ...defaults } });
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeDefined();
+    const r = thrown as { options?: { to?: string; search?: TxSearch } };
+    expect(r.options?.to).toBe('/transactions');
+    expect(r.options?.search).toEqual(remembered);
+  });
+
+  test('non-default search: saves to memory and does not throw', () => {
+    setActiveLedger('personal');
+    const loader = makeLoader();
+    const search: TxSearch = { limit: 10, offset: 20, type: 'Expense' };
+    expect(() => loader({ search })).not.toThrow();
+    expect(loadFilters<TxSearch>('transactions')).toEqual(search);
   });
 });

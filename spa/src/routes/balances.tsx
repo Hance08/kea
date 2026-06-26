@@ -8,14 +8,23 @@ import { naturalAmount } from '@/lib/accounts';
 import { getBalanceHistory, getBalances } from '@/lib/api';
 import { summarizeBalances } from '@/lib/balances';
 import { type BalancesSearch, parseBalancesSearch } from '@/lib/balances-search-params';
+import { makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { useServerConfig } from '@/lib/server-config';
 import type { AccountBalance, BalanceHistoryPoint } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 
+const BALANCES_DEFAULTS = parseBalancesSearch({});
+
 export const Route = createFileRoute('/balances')({
   validateSearch: (s): BalancesSearch => parseBalancesSearch(s),
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<BalancesSearch>({
+    pageId: 'balances',
+    defaults: BALANCES_DEFAULTS,
+    redirectTo: '/balances',
+  }),
   component: BalancesPage,
 });
 

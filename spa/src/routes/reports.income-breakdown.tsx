@@ -1,4 +1,3 @@
-import { makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { CompositionBar, partitionForComposition } from '@/components/reports/CompositionBar';
 import { CurrencyFooter } from '@/components/reports/CurrencyFooter';
 import { KpiCard } from '@/components/reports/KpiCard';
@@ -8,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getBalances } from '@/lib/api';
+import { makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { useIncomeBreakdown } from '@/lib/hooks/useReport';
 import { resolvePeriod } from '@/lib/period';
 import { regularSubLine } from '@/lib/reportSubLine';

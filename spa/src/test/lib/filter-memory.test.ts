@@ -122,9 +122,7 @@ describe('makeFilterMemoryLoader', () => {
   test('no active ledger: no-op (does not throw, writes nothing)', () => {
     const loader = makeLoader();
     expect(() => loader({ deps: { ...defaults } })).not.toThrow();
-    expect(() =>
-      loader({ deps: { limit: 10, offset: 20, type: 'Expense' } }),
-    ).not.toThrow();
+    expect(() => loader({ deps: { limit: 10, offset: 20, type: 'Expense' } })).not.toThrow();
     // Nothing related to filters should have been written
     expect(localStorage.getItem('kea.filters.personal.transactions')).toBeNull();
   });

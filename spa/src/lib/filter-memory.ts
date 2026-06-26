@@ -82,12 +82,8 @@ export function clearFilters(pageId: PageId): void {
 }
 
 export function searchEquals(a: object, b: object): boolean {
-  const ak = Object.keys(a).filter(
-    (k) => (a as Record<string, unknown>)[k] !== undefined,
-  );
-  const bk = Object.keys(b).filter(
-    (k) => (b as Record<string, unknown>)[k] !== undefined,
-  );
+  const ak = Object.keys(a).filter((k) => (a as Record<string, unknown>)[k] !== undefined);
+  const bk = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined);
   if (ak.length !== bk.length) return false;
   for (const k of ak) {
     if ((a as Record<string, unknown>)[k] !== (b as Record<string, unknown>)[k]) {

@@ -23,7 +23,10 @@ beforeEach(() => {
       }
       if (url === '/api/ledgers') {
         return Promise.resolve(
-          okResponse({ active: 'personal', items: [{ name: 'personal', path: '/p', active: true }] }),
+          okResponse({
+            active: 'personal',
+            items: [{ name: 'personal', path: '/p', active: true }],
+          }),
         );
       }
       if (url.startsWith('/api/transactions?')) {

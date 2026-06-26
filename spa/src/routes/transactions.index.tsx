@@ -16,15 +16,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
 const TRANSACTIONS_DEFAULTS = parseTransactionsSearch({});
-const transactionsMemoryLoader = makeFilterMemoryLoader<TransactionsSearch>({
-  pageId: 'transactions',
-  defaults: TRANSACTIONS_DEFAULTS,
-  redirectTo: '/transactions',
-});
 
 export const Route = createFileRoute('/transactions/')({
-  loaderDeps: ({ search }) => ({ search }),
-  loader: ({ deps }) => transactionsMemoryLoader({ search: deps.search }),
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<TransactionsSearch>({
+    pageId: 'transactions',
+    defaults: TRANSACTIONS_DEFAULTS,
+    redirectTo: '/transactions',
+  }),
   component: TransactionsListPage,
 });
 

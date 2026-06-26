@@ -101,8 +101,8 @@ export function makeFilterMemoryLoader<T extends object>(opts: {
   pageId: PageId;
   defaults: T;
   redirectTo: string;
-}): (ctx: { search: T }) => void {
-  return ({ search }) => {
+}): (ctx: { deps: T }) => void {
+  return ({ deps: search }) => {
     const ledger = getActiveLedger();
     if (!ledger) return;
 

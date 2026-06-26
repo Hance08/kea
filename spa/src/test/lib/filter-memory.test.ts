@@ -121,9 +121,9 @@ describe('makeFilterMemoryLoader', () => {
 
   test('no active ledger: no-op (does not throw, writes nothing)', () => {
     const loader = makeLoader();
-    expect(() => loader({ search: { ...defaults } })).not.toThrow();
+    expect(() => loader({ deps: { ...defaults } })).not.toThrow();
     expect(() =>
-      loader({ search: { limit: 10, offset: 20, type: 'Expense' } }),
+      loader({ deps: { limit: 10, offset: 20, type: 'Expense' } }),
     ).not.toThrow();
     // Nothing related to filters should have been written
     expect(localStorage.getItem('kea.filters.personal.transactions')).toBeNull();
@@ -132,14 +132,14 @@ describe('makeFilterMemoryLoader', () => {
   test('at defaults with no remembered filters: no redirect', () => {
     setActiveLedger('personal');
     const loader = makeLoader();
-    expect(() => loader({ search: { ...defaults } })).not.toThrow();
+    expect(() => loader({ deps: { ...defaults } })).not.toThrow();
   });
 
   test('at defaults with remembered filters equal to defaults: no redirect', () => {
     setActiveLedger('personal');
     saveFilters('transactions', { ...defaults });
     const loader = makeLoader();
-    expect(() => loader({ search: { ...defaults } })).not.toThrow();
+    expect(() => loader({ deps: { ...defaults } })).not.toThrow();
   });
 
   test('at defaults with remembered non-default filters: throws redirect with remembered search', () => {
@@ -150,7 +150,7 @@ describe('makeFilterMemoryLoader', () => {
     const loader = makeLoader();
     let thrown: unknown;
     try {
-      loader({ search: { ...defaults } });
+      loader({ deps: { ...defaults } });
     } catch (e) {
       thrown = e;
     }
@@ -164,7 +164,7 @@ describe('makeFilterMemoryLoader', () => {
     setActiveLedger('personal');
     const loader = makeLoader();
     const search: TxSearch = { limit: 10, offset: 20, type: 'Expense' };
-    expect(() => loader({ search })).not.toThrow();
+    expect(() => loader({ deps: search })).not.toThrow();
     expect(loadFilters<TxSearch>('transactions')).toEqual(search);
   });
 });

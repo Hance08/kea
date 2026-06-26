@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLedgers, switchLedger } from '@/lib/api';
+import { setActiveLedger } from '@/lib/filter-memory';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronDown, Loader2 } from 'lucide-react';
 import { useState } from 'react';
@@ -15,10 +16,18 @@ import { toast } from 'sonner';
 export function LedgerSwitcher() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const ledgersQuery = useQuery({ queryKey: ['ledgers'], queryFn: getLedgers });
+  const ledgersQuery = useQuery({
+    queryKey: ['ledgers'],
+    queryFn: async () => {
+      const data = await getLedgers();
+      setActiveLedger(data.active);
+      return data;
+    },
+  });
   const mutation = useMutation({
     mutationFn: (name: string) => switchLedger(name),
     onSuccess: (info) => {
+      setActiveLedger(info.name);
       setOpen(false);
       queryClient.invalidateQueries();
       toast.success(`Switched to ${info.name}`);

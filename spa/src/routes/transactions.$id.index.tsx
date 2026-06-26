@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAmountFormat } from '@/lib/server-config';
 import { deleteTransaction, getTransaction } from '@/lib/transactions';
-import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -18,6 +17,7 @@ export const Route = createFileRoute('/transactions/$id/')({
 function TransactionDetailPage() {
   const { id } = Route.useParams();
   const txId = Number(id);
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -33,7 +33,7 @@ function TransactionDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
-      navigate({ to: '/transactions', search: { limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 } });
+      navigate({ to: '/transactions', search });
     },
   });
 
@@ -61,7 +61,7 @@ function TransactionDetailPage() {
       <div className="flex items-center justify-between">
         <Link
           to="/transactions"
-          search={{ limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 }}
+          search={search}
           className="text-sm text-muted-foreground hover:underline"
         >
           ← Back to transactions
@@ -72,7 +72,7 @@ function TransactionDetailPage() {
               <Link
                 to="/transactions/$id/edit"
                 params={{ id: String(tx.id) }}
-                search={{ limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 }}
+                search={search}
               >
                 Edit
               </Link>

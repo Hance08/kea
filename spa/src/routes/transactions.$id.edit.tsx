@@ -4,7 +4,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getTransaction, updateTransaction } from '@/lib/transactions';
-import { DEFAULT_TRANSACTIONS_LIMIT } from '@/lib/transactions-search-params';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
@@ -15,6 +14,7 @@ export const Route = createFileRoute('/transactions/$id/edit')({
 function EditTransactionPage() {
   const { id } = Route.useParams();
   const txId = Number(id);
+  const search = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -44,7 +44,7 @@ function EditTransactionPage() {
           <Link
             to="/transactions/$id"
             params={{ id: String(tx.id) }}
-            search={{ limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 }}
+            search={search}
           >
             ← Back to detail
           </Link>
@@ -68,14 +68,14 @@ function EditTransactionPage() {
         navigate({
           to: '/transactions/$id',
           params: { id: String(updated.id) },
-          search: { limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 },
+          search,
         })
       }
       onCancel={() =>
         navigate({
           to: '/transactions/$id',
           params: { id: String(tx.id) },
-          search: { limit: DEFAULT_TRANSACTIONS_LIMIT, offset: 0 },
+          search,
         })
       }
     />

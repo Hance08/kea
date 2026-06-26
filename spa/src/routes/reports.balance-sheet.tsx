@@ -15,7 +15,6 @@ import { useBalanceSheet, useNetWorthSeries } from '@/lib/hooks/useReport';
 import { type AsOfSearchParams, parseAsOfSearch } from '@/lib/reports-search-params';
 import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
 
 const BALANCE_SHEET_DEFAULTS = parseAsOfSearch({});
 
@@ -38,10 +37,17 @@ function BalanceSheetPage() {
   const navigate = useNavigate({ from: '/reports/balance-sheet' });
   const query = useBalanceSheet(search);
   const seriesQuery = useNetWorthSeries();
-  const [chartRange, setChartRange] = useState<ChartRange>('1Y');
+  const chartRange = search.chart_range;
 
   const setAsOf = (v: number | undefined) =>
-    navigate({ search: () => (v === undefined ? {} : { as_of: v }) });
+    navigate({
+      search: (prev) => ({
+        chart_range: prev.chart_range,
+        ...(v === undefined ? {} : { as_of: v }),
+      }),
+    });
+  const setChartRange = (next: ChartRange) =>
+    navigate({ search: (prev) => ({ ...prev, chart_range: next }) });
 
   if (query.isPending) {
     return (

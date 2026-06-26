@@ -35,13 +35,27 @@ test('period schema rejects bad month format', () => {
 });
 
 test('as-of schema accepts a numeric as_of', () => {
-  expect(parseAsOfSearch({ as_of: 1781697600 })).toEqual({ as_of: 1781697600 });
+  expect(parseAsOfSearch({ as_of: 1781697600 })).toEqual({
+    as_of: 1781697600,
+    chart_range: '1Y',
+  });
 });
 
 test('as-of schema coerces string', () => {
-  expect(parseAsOfSearch({ as_of: '1781697600' })).toEqual({ as_of: 1781697600 });
+  expect(parseAsOfSearch({ as_of: '1781697600' })).toEqual({
+    as_of: 1781697600,
+    chart_range: '1Y',
+  });
 });
 
-test('as-of schema returns empty object when missing', () => {
-  expect(parseAsOfSearch({})).toEqual({});
+test('as-of schema returns chart_range default when missing', () => {
+  expect(parseAsOfSearch({})).toEqual({ chart_range: '1Y' });
+});
+
+test('as-of schema accepts chart_range override', () => {
+  expect(parseAsOfSearch({ chart_range: '3M' })).toEqual({ chart_range: '3M' });
+});
+
+test('as-of schema rejects bad chart_range and falls back to default', () => {
+  expect(parseAsOfSearch({ chart_range: 'forever' })).toEqual({ chart_range: '1Y' });
 });

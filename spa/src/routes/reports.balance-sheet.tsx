@@ -10,14 +10,23 @@ import { NetWorthChart } from '@/components/reports/NetWorthChart';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { makeFilterMemoryLoader } from '@/lib/filter-memory';
 import { useBalanceSheet, useNetWorthSeries } from '@/lib/hooks/useReport';
 import { type AsOfSearchParams, parseAsOfSearch } from '@/lib/reports-search-params';
 import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
+const BALANCE_SHEET_DEFAULTS = parseAsOfSearch({});
+
 export const Route = createFileRoute('/reports/balance-sheet')({
   validateSearch: (s): AsOfSearchParams => parseAsOfSearch(s),
+  loaderDeps: ({ search }) => search,
+  loader: makeFilterMemoryLoader<AsOfSearchParams>({
+    pageId: 'reports/balance-sheet',
+    defaults: BALANCE_SHEET_DEFAULTS,
+    redirectTo: '/reports/balance-sheet',
+  }),
   component: BalanceSheetPage,
 });
 

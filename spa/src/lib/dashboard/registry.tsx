@@ -8,6 +8,11 @@ import {
 } from '../../components/dashboard/widgets/NetWorthTrend';
 import { PerCurrencyTiles } from '../../components/dashboard/widgets/PerCurrencyTiles';
 import { Placeholder } from '../../components/dashboard/widgets/Placeholder';
+import {
+  TOP_EXPENSE_DEFAULT,
+  TopExpenseCategories,
+  TopExpenseConfigForm,
+} from '../../components/dashboard/widgets/TopExpenseCategories';
 import type { WidgetId } from './types';
 
 export interface WidgetMeta<Config = unknown> {
@@ -53,7 +58,13 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     defaultConfig: {},
     component: PerCurrencyTiles,
   },
-  'top-expense-categories': placeholder('top-expense-categories', 'Top Expense Categories'),
+  'top-expense-categories': {
+    id: 'top-expense-categories',
+    title: 'Top Expense Categories',
+    defaultConfig: TOP_EXPENSE_DEFAULT,
+    component: TopExpenseCategories,
+    ConfigForm: TopExpenseConfigForm,
+  } as WidgetMeta,
   'recent-transactions': placeholder('recent-transactions', 'Recent Transactions'),
   'biggest-expenses': placeholder('biggest-expenses', 'Biggest Expenses'),
   'accounts-moved': placeholder('accounts-moved', 'Accounts That Moved'),

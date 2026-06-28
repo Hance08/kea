@@ -9,6 +9,11 @@ import {
 import { PerCurrencyTiles } from '../../components/dashboard/widgets/PerCurrencyTiles';
 import { Placeholder } from '../../components/dashboard/widgets/Placeholder';
 import {
+  RECENT_TXN_DEFAULT,
+  RecentTransactions,
+  RecentTxnConfigForm,
+} from '../../components/dashboard/widgets/RecentTransactions';
+import {
   TOP_EXPENSE_DEFAULT,
   TopExpenseCategories,
   TopExpenseConfigForm,
@@ -65,7 +70,13 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     component: TopExpenseCategories,
     ConfigForm: TopExpenseConfigForm,
   } as WidgetMeta,
-  'recent-transactions': placeholder('recent-transactions', 'Recent Transactions'),
+  'recent-transactions': {
+    id: 'recent-transactions',
+    title: 'Recent Transactions',
+    defaultConfig: RECENT_TXN_DEFAULT,
+    component: RecentTransactions,
+    ConfigForm: RecentTxnConfigForm,
+  } as WidgetMeta,
   'biggest-expenses': placeholder('biggest-expenses', 'Biggest Expenses'),
   'accounts-moved': placeholder('accounts-moved', 'Accounts That Moved'),
 };

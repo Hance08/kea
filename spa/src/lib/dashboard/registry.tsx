@@ -1,4 +1,9 @@
 import type { ComponentType } from 'react';
+import {
+  BIGGEST_EXPENSES_DEFAULT,
+  BiggestExpenses,
+  BiggestExpensesConfigForm,
+} from '../../components/dashboard/widgets/BiggestExpenses';
 import { CashFlowKpi } from '../../components/dashboard/widgets/CashFlowKpi';
 import { NetWorthKpi } from '../../components/dashboard/widgets/NetWorthKpi';
 import {
@@ -77,7 +82,13 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     component: RecentTransactions,
     ConfigForm: RecentTxnConfigForm,
   } as WidgetMeta,
-  'biggest-expenses': placeholder('biggest-expenses', 'Biggest Expenses'),
+  'biggest-expenses': {
+    id: 'biggest-expenses',
+    title: 'Biggest Expenses',
+    defaultConfig: BIGGEST_EXPENSES_DEFAULT,
+    component: BiggestExpenses,
+    ConfigForm: BiggestExpensesConfigForm,
+  } as WidgetMeta,
   'accounts-moved': placeholder('accounts-moved', 'Accounts That Moved'),
 };
 

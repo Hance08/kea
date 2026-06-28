@@ -1,0 +1,8 @@
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+
+.dashboard-grid .react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.2);
+  border: 1px dashed hsl(var(--primary));
+  border-radius: 0.5rem;
+}

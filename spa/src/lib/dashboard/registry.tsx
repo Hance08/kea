@@ -6,6 +6,7 @@ import {
   NetWorthTrend,
   NetWorthTrendConfigForm,
 } from '../../components/dashboard/widgets/NetWorthTrend';
+import { PerCurrencyTiles } from '../../components/dashboard/widgets/PerCurrencyTiles';
 import { Placeholder } from '../../components/dashboard/widgets/Placeholder';
 import type { WidgetId } from './types';
 
@@ -46,7 +47,12 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     defaultConfig: {},
     component: CashFlowKpi,
   },
-  'per-currency-tiles': placeholder('per-currency-tiles', 'Per-Currency'),
+  'per-currency-tiles': {
+    id: 'per-currency-tiles',
+    title: 'Per-Currency',
+    defaultConfig: {},
+    component: PerCurrencyTiles,
+  },
   'top-expense-categories': placeholder('top-expense-categories', 'Top Expense Categories'),
   'recent-transactions': placeholder('recent-transactions', 'Recent Transactions'),
   'biggest-expenses': placeholder('biggest-expenses', 'Biggest Expenses'),

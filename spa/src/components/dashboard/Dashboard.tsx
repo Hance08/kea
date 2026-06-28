@@ -8,6 +8,7 @@ import {
   saveDashboardState,
 } from '../../lib/dashboard/storage';
 import type { DashboardState, GridItem, WidgetId } from '../../lib/dashboard/types';
+import { useMediaQuery } from '../../lib/hooks/useMediaQuery';
 import { EditModeHeader } from './EditModeHeader';
 import { WidgetFrame } from './WidgetFrame';
 import './grid.css';
@@ -22,6 +23,12 @@ export function Dashboard() {
     const saved = loadDashboardState();
     return saved ? reconcileWithRegistry(saved, ALL_WIDGET_IDS, DEFAULT_STATE) : DEFAULT_STATE;
   });
+
+  const isMobile = useMediaQuery('(max-width: 640px)');
+  const cols = isMobile ? 1 : COLS;
+  useEffect(() => {
+    if (isMobile) setEditing(false);
+  }, [isMobile]);
 
   useEffect(() => {
     const t = setTimeout(() => saveDashboardState(state), 500);
@@ -76,10 +83,11 @@ export function Dashboard() {
         hidden={state.hidden}
         onAdd={addWidget}
         onReset={resetToDefaults}
+        isMobile={isMobile}
       />
       <div className="dashboard-grid">
         <ResponsiveGrid
-          cols={COLS}
+          cols={cols}
           rowHeight={ROW_HEIGHT}
           layout={visibleItems}
           isDraggable={editing}

@@ -7,9 +7,10 @@ interface Props {
   hidden: WidgetId[];
   onAdd: (id: WidgetId) => void;
   onReset: () => void;
+  isMobile: boolean;
 }
 
-export function EditModeHeader({ editing, onToggle, hidden, onAdd, onReset }: Props) {
+export function EditModeHeader({ editing, onToggle, hidden, onAdd, onReset, isMobile }: Props) {
   return (
     <div className="mb-4 flex items-center justify-between">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
@@ -26,13 +27,15 @@ export function EditModeHeader({ editing, onToggle, hidden, onAdd, onReset }: Pr
             Reset
           </button>
         )}
-        <button
-          type="button"
-          onClick={onToggle}
-          className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-        >
-          {editing ? 'Done' : 'Edit'}
-        </button>
+        {!isMobile && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          >
+            {editing ? 'Done' : 'Edit'}
+          </button>
+        )}
       </div>
     </div>
   );

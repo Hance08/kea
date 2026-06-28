@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { NetWorthKpi } from '../../components/dashboard/widgets/NetWorthKpi';
 import { Placeholder } from '../../components/dashboard/widgets/Placeholder';
 import type { WidgetId } from './types';
 
@@ -20,7 +21,12 @@ function placeholder(id: WidgetId, title: string): WidgetMeta {
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
-  'net-worth-kpi': placeholder('net-worth-kpi', 'Net Worth'),
+  'net-worth-kpi': {
+    id: 'net-worth-kpi',
+    title: 'Net Worth',
+    defaultConfig: {},
+    component: NetWorthKpi,
+  },
   'net-worth-trend': placeholder('net-worth-trend', 'Net Worth Trend'),
   'cash-flow-kpi': placeholder('cash-flow-kpi', 'This Month'),
   'per-currency-tiles': placeholder('per-currency-tiles', 'Per-Currency'),

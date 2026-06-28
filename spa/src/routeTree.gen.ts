@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BalancesRouteImport } from './routes/balances'
 import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
@@ -45,6 +46,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BalancesRoute = BalancesRouteImport.update({
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRouteWithChildren
   '/balances': typeof BalancesRoute
+  '/dashboard': typeof DashboardRoute
   '/reports': typeof ReportsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRouteWithChildren
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
+  '/dashboard': typeof DashboardRoute
   '/settings': typeof SettingsRoute
   '/accounts/new': typeof AccountsNewRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/accounts': typeof AccountsRouteWithChildren
   '/balances': typeof BalancesRoute
+  '/dashboard': typeof DashboardRoute
   '/reports': typeof ReportsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRouteWithChildren
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accounts'
     | '/balances'
+    | '/dashboard'
     | '/reports'
     | '/settings'
     | '/transactions'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/balances'
+    | '/dashboard'
     | '/settings'
     | '/accounts/new'
     | '/reports/balance-sheet'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accounts'
     | '/balances'
+    | '/dashboard'
     | '/reports'
     | '/settings'
     | '/transactions'
@@ -285,6 +297,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountsRoute: typeof AccountsRouteWithChildren
   BalancesRoute: typeof BalancesRoute
+  DashboardRoute: typeof DashboardRoute
   ReportsRoute: typeof ReportsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRouteWithChildren
@@ -311,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/balances': {
@@ -534,6 +554,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountsRoute: AccountsRouteWithChildren,
   BalancesRoute: BalancesRoute,
+  DashboardRoute: DashboardRoute,
   ReportsRoute: ReportsRouteWithChildren,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRouteWithChildren,

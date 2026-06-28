@@ -39,6 +39,26 @@ export function Dashboard() {
     setState((s) => ({ ...s, hidden: [...s.hidden, id] }));
   }
 
+  function addWidget(id: WidgetId) {
+    setState((s) => {
+      const next = { ...s, hidden: s.hidden.filter((h) => h !== id) };
+      // If the widget has no layout entry (edge case), append it.
+      if (!next.layout.find((g) => g.i === id)) {
+        const def = DEFAULT_STATE.layout.find((g) => g.i === id);
+        const maxY = next.layout.reduce((m, g) => Math.max(m, g.y + g.h), 0);
+        next.layout = [
+          ...next.layout,
+          { i: id, x: def?.x ?? 0, y: maxY, w: def?.w ?? 1, h: def?.h ?? 1 },
+        ];
+      }
+      return next;
+    });
+  }
+
+  function resetToDefaults() {
+    setState(DEFAULT_STATE);
+  }
+
   function onLayoutChange(next: Layout[]) {
     setState((s) => {
       const byId = new Map(next.map((n) => [n.i as WidgetId, n]));
@@ -52,7 +72,13 @@ export function Dashboard() {
 
   return (
     <div className="p-4">
-      <EditModeHeader editing={editing} onToggle={() => setEditing((e) => !e)} />
+      <EditModeHeader
+        editing={editing}
+        onToggle={() => setEditing((e) => !e)}
+        hidden={state.hidden}
+        onAdd={addWidget}
+        onReset={resetToDefaults}
+      />
       <div className="dashboard-grid">
         <ResponsiveGrid
           cols={COLS}

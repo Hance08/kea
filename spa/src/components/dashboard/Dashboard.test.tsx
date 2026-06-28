@@ -54,3 +54,16 @@ describe('Dashboard edit mode', () => {
     expect(container.querySelectorAll('.react-grid-item').length).toBe(7);
   });
 });
+
+describe('Dashboard add widget', () => {
+  it('re-adds a hidden widget via the Add menu', async () => {
+    const user = userEvent.setup();
+    const { container } = renderDashboard();
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    await user.click(screen.getByLabelText(/hide net-worth-kpi/i));
+    expect(container.querySelectorAll('.react-grid-item').length).toBe(7);
+    await user.click(screen.getByRole('button', { name: /^add widget$/i }));
+    await user.click(screen.getByRole('menuitem', { name: /^net worth$/i }));
+    expect(container.querySelectorAll('.react-grid-item').length).toBe(8);
+  });
+});

@@ -20,9 +20,7 @@ export function Dashboard() {
   const [editing, setEditing] = useState(false);
   const [state, setState] = useState<DashboardState>(() => {
     const saved = loadDashboardState();
-    return saved
-      ? reconcileWithRegistry(saved, ALL_WIDGET_IDS, DEFAULT_STATE)
-      : DEFAULT_STATE;
+    return saved ? reconcileWithRegistry(saved, ALL_WIDGET_IDS, DEFAULT_STATE) : DEFAULT_STATE;
   });
 
   useEffect(() => {
@@ -95,10 +93,7 @@ export function Dashboard() {
             const cfg = state.config[item.i] ?? meta.defaultConfig;
             const Comp = meta.component;
             return (
-              <div
-                key={item.i}
-                className="rounded-lg border bg-card shadow-sm overflow-hidden"
-              >
+              <div key={item.i} className="rounded-lg border bg-card shadow-sm overflow-hidden">
                 <WidgetFrame meta={meta} editing={editing} onHide={() => hideWidget(item.i)}>
                   <Comp config={cfg} />
                 </WidgetFrame>

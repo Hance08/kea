@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadDashboardState,
   reconcileWithRegistry,
-  saveDashboardState,
   resetDashboardState,
+  saveDashboardState,
 } from './storage';
 import type { DashboardState, WidgetId } from './types';
 
@@ -47,10 +47,7 @@ describe('storage', () => {
   });
 
   it('returns null on version mismatch', () => {
-    localStorage.setItem(
-      'kea.dashboard.main',
-      JSON.stringify({ ...defaults, version: 999 }),
-    );
+    localStorage.setItem('kea.dashboard.main', JSON.stringify({ ...defaults, version: 999 }));
     expect(loadDashboardState()).toBeNull();
   });
 

@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { CashFlowKpi } from '../../components/dashboard/widgets/CashFlowKpi';
 import { NetWorthKpi } from '../../components/dashboard/widgets/NetWorthKpi';
 import {
   NET_WORTH_TREND_DEFAULT,
@@ -39,7 +40,12 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     component: NetWorthTrend,
     ConfigForm: NetWorthTrendConfigForm,
   } as WidgetMeta,
-  'cash-flow-kpi': placeholder('cash-flow-kpi', 'This Month'),
+  'cash-flow-kpi': {
+    id: 'cash-flow-kpi',
+    title: 'This Month',
+    defaultConfig: {},
+    component: CashFlowKpi,
+  },
   'per-currency-tiles': placeholder('per-currency-tiles', 'Per-Currency'),
   'top-expense-categories': placeholder('top-expense-categories', 'Top Expense Categories'),
   'recent-transactions': placeholder('recent-transactions', 'Recent Transactions'),

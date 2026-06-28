@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   loadDashboardState,
   reconcileWithRegistry,
@@ -69,18 +69,18 @@ describe('storage', () => {
 describe('reconcileWithRegistry', () => {
   it('drops unknown ids from layout, hidden, and config', () => {
     const known: WidgetId[] = ['net-worth-kpi'];
-    const saved: DashboardState = {
+    // Cast the whole literal to DashboardState because TS rejects unknown
+    // string keys in Partial<Record<WidgetId, unknown>>, even with `as any` on
+    // individual values. We're intentionally simulating a stale saved state.
+    const saved = {
       version: 1,
       layout: [
         { i: 'net-worth-kpi', x: 0, y: 0, w: 1, h: 1 },
-        // biome-ignore lint/suspicious/noExplicitAny: testing unknown id
-        { i: 'removed-widget' as any, x: 1, y: 0, w: 1, h: 1 },
+        { i: 'removed-widget', x: 1, y: 0, w: 1, h: 1 },
       ],
-      // biome-ignore lint/suspicious/noExplicitAny: testing unknown id
-      hidden: ['removed-widget' as any],
-      // biome-ignore lint/suspicious/noExplicitAny: testing unknown id
-      config: { 'removed-widget': { foo: 1 } as any },
-    };
+      hidden: ['removed-widget'],
+      config: { 'removed-widget': { foo: 1 } },
+    } as unknown as DashboardState;
     const result = reconcileWithRegistry(saved, known, defaults);
     expect(result.layout.map((i) => i.i)).toEqual(['net-worth-kpi']);
     expect(result.hidden).toEqual([]);

@@ -72,3 +72,13 @@ export function switchLedger(name: string): Promise<LedgerInfo> {
     body: JSON.stringify({ name }),
   });
 }
+
+export interface NetWorthResponse {
+  at: number;
+  net_worth: Record<string, number>; // currency -> cents
+}
+
+export function getNetWorth(at?: number): Promise<NetWorthResponse> {
+  const q = at !== undefined ? `?at=${at}` : '';
+  return apiFetch<NetWorthResponse>(`/api/reports/net-worth${q}`);
+}

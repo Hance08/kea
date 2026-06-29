@@ -15,7 +15,7 @@ import './grid.css';
 
 const ResponsiveGrid = WidthProvider(GridLayout);
 const COLS = 3;
-const ROW_HEIGHT = 80;
+const ROW_HEIGHT = 96;
 
 export function Dashboard() {
   const [editing, setEditing] = useState(false);

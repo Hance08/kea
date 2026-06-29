@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function WidgetFrame({ meta, editing, config, onConfigChange, onHide, children }: Props) {
-  if (!editing) return <>{children}</>;
+  if (!editing) return <div className="h-full px-3 py-2">{children}</div>;
   const ConfigForm = meta.ConfigForm;
   return (
     <div className="flex h-full flex-col">

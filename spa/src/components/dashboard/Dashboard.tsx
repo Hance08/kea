@@ -35,6 +35,15 @@ export function Dashboard() {
     return () => clearTimeout(t);
   }, [state]);
 
+  function toggleEditing() {
+    setEditing((wasEditing) => {
+      // Exiting edit mode: flush pending state immediately so a fast tab-close
+      // can't lose the user's last tweak (the debounced save above might miss).
+      if (wasEditing) saveDashboardState(state);
+      return !wasEditing;
+    });
+  }
+
   const visibleItems = useMemo(
     () => state.layout.filter((g) => !state.hidden.includes(g.i)),
     [state.layout, state.hidden],
@@ -83,43 +92,67 @@ export function Dashboard() {
     <div className="p-4">
       <EditModeHeader
         editing={editing}
-        onToggle={() => setEditing((e) => !e)}
+        onToggle={toggleEditing}
         hidden={state.hidden}
         onAdd={addWidget}
         onReset={resetToDefaults}
         isMobile={isMobile}
       />
-      <div className="dashboard-grid">
-        <ResponsiveGrid
-          cols={cols}
-          rowHeight={ROW_HEIGHT}
-          layout={visibleItems}
-          isDraggable={editing}
-          isResizable={editing}
-          draggableHandle=".dashboard-drag-handle"
-          onLayoutChange={onLayoutChange}
-          margin={[16, 16]}
-        >
-          {visibleItems.map((item: GridItem) => {
-            const meta = WIDGETS[item.i];
-            const cfg = state.config[item.i] ?? meta.defaultConfig;
-            const Comp = meta.component;
-            return (
-              <div key={item.i} className="rounded-lg border bg-card shadow-sm overflow-hidden">
-                <WidgetFrame
-                  meta={meta}
-                  editing={editing}
-                  config={cfg}
-                  onConfigChange={(c) => setConfig(item.i, c)}
-                  onHide={() => hideWidget(item.i)}
-                >
-                  <Comp config={cfg} />
-                </WidgetFrame>
-              </div>
-            );
-          })}
-        </ResponsiveGrid>
-      </div>
+      {visibleItems.length === 0 ? (
+        <EmptyDashboard hasHidden={state.hidden.length > 0} onEnterEdit={() => setEditing(true)} />
+      ) : (
+        <div className="dashboard-grid">
+          <ResponsiveGrid
+            cols={cols}
+            rowHeight={ROW_HEIGHT}
+            layout={visibleItems}
+            isDraggable={editing}
+            isResizable={editing}
+            draggableHandle=".dashboard-drag-handle"
+            onLayoutChange={onLayoutChange}
+            margin={[16, 16]}
+          >
+            {visibleItems.map((item: GridItem) => {
+              const meta = WIDGETS[item.i];
+              const cfg = state.config[item.i] ?? meta.defaultConfig;
+              const Comp = meta.component;
+              return (
+                <div key={item.i} className="rounded-lg border bg-card shadow-sm overflow-hidden">
+                  <WidgetFrame
+                    meta={meta}
+                    editing={editing}
+                    config={cfg}
+                    onConfigChange={(c) => setConfig(item.i, c)}
+                    onHide={() => hideWidget(item.i)}
+                  >
+                    <Comp config={cfg} />
+                  </WidgetFrame>
+                </div>
+              );
+            })}
+          </ResponsiveGrid>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyDashboard({
+  hasHidden,
+  onEnterEdit,
+}: { hasHidden: boolean; onEnterEdit: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-16 text-center">
+      <p className="text-sm text-muted-foreground">
+        {hasHidden ? 'All widgets are hidden. Add one back to get started.' : 'No widgets to show.'}
+      </p>
+      <button
+        type="button"
+        onClick={onEnterEdit}
+        className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+      >
+        {hasHidden ? 'Add widgets' : 'Edit dashboard'}
+      </button>
     </div>
   );
 }

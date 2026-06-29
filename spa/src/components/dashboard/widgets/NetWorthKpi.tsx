@@ -9,9 +9,7 @@ function endOfPrevMonthUnix(): number {
   return Math.floor(d.getTime() / 1000) - 1;
 }
 
-export function NetWorthKpi() {
-  const currency = useServerConfig().defaults.currency;
-  const { formatCents } = useAmountFormat();
+function useNetWorthQueries() {
   const cur = useQuery({
     queryKey: ['dashboard', 'net-worth', 'now'],
     queryFn: () => getNetWorth(),
@@ -22,25 +20,40 @@ export function NetWorthKpi() {
     queryFn: () => getNetWorth(endOfPrevMonthUnix()),
     staleTime: 5 * 60_000,
   });
+  return { cur, prev };
+}
 
-  if (cur.isLoading || prev.isLoading) {
-    return <Skeleton />;
-  }
+export function NetWorthKpi() {
+  const currency = useServerConfig().defaults.currency;
+  const { formatCents } = useAmountFormat();
+  const { cur } = useNetWorthQueries();
+
+  if (cur.isLoading) return <Skeleton />;
   if (cur.isError) return <ErrorTile onRetry={() => cur.refetch()} />;
 
   const now = cur.data?.net_worth[currency] ?? 0;
-  const before = prev.data?.net_worth[currency] ?? 0;
-  const delta = now - before;
-  const pct = before === 0 ? null : (delta / Math.abs(before)) * 100;
 
   return (
     <div className="flex h-full flex-col justify-center">
       <div className="text-2xl font-semibold tabular-nums">{formatCents(now, currency)}</div>
-      <div className={`text-xs ${delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-        {delta >= 0 ? '▲' : '▼'} {formatCents(Math.abs(delta), currency)}
-        {pct !== null && ` (${pct.toFixed(1)}%)`} vs last month
-      </div>
     </div>
+  );
+}
+
+export function NetWorthKpiHeader() {
+  const currency = useServerConfig().defaults.currency;
+  const { formatCents } = useAmountFormat();
+  const { cur, prev } = useNetWorthQueries();
+  if (cur.isLoading || prev.isLoading || cur.isError || prev.isError) return null;
+  const now = cur.data?.net_worth[currency] ?? 0;
+  const before = prev.data?.net_worth[currency] ?? 0;
+  const delta = now - before;
+  const pct = before === 0 ? null : (delta / Math.abs(before)) * 100;
+  return (
+    <span className={delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+      {delta >= 0 ? '▲' : '▼'} {formatCents(Math.abs(delta), currency)}
+      {pct !== null && ` (${pct.toFixed(1)}%)`}
+    </span>
   );
 }
 

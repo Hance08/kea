@@ -18,7 +18,7 @@ function lastMonth(): string {
 }
 
 export function AccountsMoved({ config }: { config: AccountsMovedConfig }) {
-  const { formatCents } = useAmountFormat();
+  const { formatAmount } = useAmountFormat();
   const history = useQuery({
     queryKey: ['dashboard', 'balance-history'],
     queryFn: getBalanceHistory,
@@ -80,7 +80,7 @@ export function AccountsMoved({ config }: { config: AccountsMovedConfig }) {
                 className={`tabular-nums ${r.delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}
               >
                 {r.delta >= 0 ? '+' : '−'}
-                {formatCents(Math.abs(r.delta), r.currency)}
+                {formatAmount(Math.abs(r.delta))}
               </span>
             </Link>
           </li>

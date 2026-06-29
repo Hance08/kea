@@ -15,15 +15,21 @@ interface Props {
 
 export function WidgetFrame({ meta, editing, config, onConfigChange, onHide, children }: Props) {
   const ConfigForm = meta.ConfigForm;
+  const HeaderRight = meta.HeaderRight;
   return (
     <div className="flex h-full flex-col">
       <div
         className={cn(
-          'flex shrink-0 items-center justify-between gap-1 border-b px-3 py-1.5 text-xs font-medium text-muted-foreground',
+          'flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5 text-xs font-medium text-muted-foreground',
           editing && 'dashboard-drag-handle cursor-move bg-muted/30 text-foreground',
         )}
       >
         <span className="truncate">{meta.title}</span>
+        {!editing && HeaderRight && (
+          <div className="ml-auto min-w-0 truncate tabular-nums">
+            <HeaderRight config={config} />
+          </div>
+        )}
         {editing && (
           <div className="flex items-center gap-1">
             {ConfigForm && (

@@ -3,7 +3,7 @@ import { getNetWorth } from '../../../lib/api';
 import { useAmountFormat } from '../../../lib/server-config';
 
 export function PerCurrencyTiles() {
-  const { formatCents } = useAmountFormat();
+  const { formatAmount } = useAmountFormat();
   const q = useQuery({
     queryKey: ['dashboard', 'net-worth', 'now'],
     queryFn: () => getNetWorth(),
@@ -25,7 +25,7 @@ export function PerCurrencyTiles() {
         {entries.map(([ccy, amount]) => (
           <li key={ccy} className="flex items-baseline justify-between text-sm">
             <span className="font-medium text-muted-foreground">{ccy}</span>
-            <span className="tabular-nums">{formatCents(amount, ccy)}</span>
+            <span className="tabular-nums">{formatAmount(amount)}</span>
           </li>
         ))}
       </ul>

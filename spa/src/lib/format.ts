@@ -22,6 +22,18 @@ export function formatCents(
   }
 }
 
+// `$X,XXX.XX` with a generic `$` and no currency code. Used where the column
+// or surrounding context already conveys which currency it is.
+export function formatAmount(cents: number, options: AmountFormatOptions = {}): string {
+  const value = cents / 100;
+  const digits = options.hideDecimals ? 0 : 2;
+  const sign = value < 0 ? '-' : '';
+  return `${sign}$${Math.abs(value).toLocaleString('en-US', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })}`;
+}
+
 // `$X,XXX.XX` with no currency code and no minus sign. Used where the row's
 // type/column already conveys account and the surrounding color conveys sign.
 export function formatBalanceAbs(cents: number, options: AmountFormatOptions = {}): string {

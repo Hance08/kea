@@ -16,7 +16,7 @@ const RANGE_TO_DAYS: Record<NetWorthTrendConfig['range'], number | null> = {
 
 export function NetWorthTrend({ config }: { config: NetWorthTrendConfig }) {
   const currency = useServerConfig().defaults.currency;
-  const { formatCents } = useAmountFormat();
+  const { formatAmount } = useAmountFormat();
   const q = useQuery({
     queryKey: ['dashboard', 'net-worth-series'],
     queryFn: fetchNetWorthSeries,
@@ -41,7 +41,7 @@ export function NetWorthTrend({ config }: { config: NetWorthTrendConfig }) {
       <NetWorthChart
         points={points}
         currency={currency}
-        formatCents={(c) => formatCents(c, currency)}
+        formatCents={(c) => formatAmount(c)}
         className="h-full w-full"
       />
     </div>

@@ -9,8 +9,8 @@ import {
   BiggestExpenses,
   BiggestExpensesConfigForm,
 } from '../../components/dashboard/widgets/BiggestExpenses';
-import { CashFlowKpi } from '../../components/dashboard/widgets/CashFlowKpi';
-import { NetWorthKpi } from '../../components/dashboard/widgets/NetWorthKpi';
+import { CashFlowKpi, CashFlowKpiHeader } from '../../components/dashboard/widgets/CashFlowKpi';
+import { NetWorthKpi, NetWorthKpiHeader } from '../../components/dashboard/widgets/NetWorthKpi';
 import {
   NET_WORTH_TREND_DEFAULT,
   NetWorthTrend,
@@ -34,6 +34,7 @@ export interface WidgetMeta<Config = unknown> {
   title: string;
   defaultConfig: Config;
   component: ComponentType<{ config: Config }>;
+  HeaderRight?: ComponentType<{ config: Config }>;
   ConfigForm?: ComponentType<{ config: Config; onChange: (c: Config) => void }>;
 }
 
@@ -43,6 +44,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     title: 'Net Worth',
     defaultConfig: {},
     component: NetWorthKpi,
+    HeaderRight: NetWorthKpiHeader,
   },
   'net-worth-trend': {
     id: 'net-worth-trend',
@@ -56,6 +58,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     title: 'This Month',
     defaultConfig: {},
     component: CashFlowKpi,
+    HeaderRight: CashFlowKpiHeader,
   },
   'per-currency-tiles': {
     id: 'per-currency-tiles',

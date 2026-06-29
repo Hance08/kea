@@ -23,7 +23,7 @@ function endOfMonthUnix(): number {
 
 export function BiggestExpenses({ config }: { config: BiggestExpensesConfig }) {
   const currency = useServerConfig().defaults.currency;
-  const { formatCents } = useAmountFormat();
+  const { formatAmount } = useAmountFormat();
   const start = startOfMonthUnix();
   const end = endOfMonthUnix();
   const q = useQuery({
@@ -70,7 +70,7 @@ export function BiggestExpenses({ config }: { config: BiggestExpensesConfig }) {
               className="flex items-baseline justify-between hover:underline"
             >
               <span className="truncate">{r.description || '(no description)'}</span>
-              <span className="tabular-nums">{formatCents(r.amount, currency)}</span>
+              <span className="tabular-nums">{formatAmount(r.amount)}</span>
             </Link>
           </li>
         ))}

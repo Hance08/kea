@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useAmountFormat, useServerConfig } from '../../../lib/server-config';
+import { useAmountFormat } from '../../../lib/server-config';
 import { listTransactions } from '../../../lib/transactions';
 import { DEFAULT_TRANSACTIONS_LIMIT } from '../../../lib/transactions-search-params';
 
@@ -8,8 +8,7 @@ export type RecentTxnConfig = { limit: 5 | 10 | 20 };
 export const RECENT_TXN_DEFAULT: RecentTxnConfig = { limit: 10 };
 
 export function RecentTransactions({ config }: { config: RecentTxnConfig }) {
-  const currency = useServerConfig().defaults.currency;
-  const { formatCents } = useAmountFormat();
+  const { formatAmount } = useAmountFormat();
   const q = useQuery({
     queryKey: ['dashboard', 'recent-transactions', config.limit],
     queryFn: () => listTransactions({}, { limit: config.limit, include_count: false }),
@@ -42,7 +41,7 @@ export function RecentTransactions({ config }: { config: RecentTxnConfig }) {
               >
                 <span className="truncate">{t.description || '(no description)'}</span>
                 <span className="tabular-nums text-muted-foreground">
-                  {formatCents(expenseAmt, currency)}
+                  {formatAmount(expenseAmt)}
                 </span>
               </Link>
             </li>

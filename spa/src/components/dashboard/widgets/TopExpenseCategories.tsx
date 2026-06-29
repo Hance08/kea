@@ -20,7 +20,7 @@ function topCategories(report: ReportResult | undefined, currency: string, limit
 
 export function TopExpenseCategories({ config }: { config: TopExpenseConfig }) {
   const currency = useServerConfig().defaults.currency;
-  const { formatCents } = useAmountFormat();
+  const { formatAmount } = useAmountFormat();
   const q = useExpenseBreakdown({ month: thisMonthStr() });
   if (q.isLoading) return <div className="h-full animate-pulse rounded bg-muted" />;
   if (q.isError) return <div className="p-2 text-xs text-muted-foreground">Failed to load</div>;
@@ -40,7 +40,7 @@ export function TopExpenseCategories({ config }: { config: TopExpenseConfig }) {
           <li key={it.name} className="text-xs">
             <div className="flex justify-between">
               <span className="truncate">{it.name}</span>
-              <span className="tabular-nums">{formatCents(it.amount, currency)}</span>
+              <span className="tabular-nums">{formatAmount(it.amount)}</span>
             </div>
             <div className="mt-0.5 h-1.5 rounded bg-muted">
               <div

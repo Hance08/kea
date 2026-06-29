@@ -73,10 +73,12 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
     setHoverIdx(idx);
   };
 
+  const tooltipBelow = hoverTopPct !== null && hoverTopPct < 25;
+
   return (
-    <div className={cn('w-full', className)}>
+    <div className={cn('flex w-full flex-col', className)}>
       <div
-        className="relative mt-4 h-40 w-full touch-none"
+        className="relative mt-4 w-full touch-none basis-40 grow min-h-0"
         onPointerMove={handleMove}
         onPointerEnter={handleMove}
         onPointerLeave={() => setHoverIdx(null)}
@@ -178,14 +180,18 @@ export function NetWorthChart({ points, currency, formatCents, asOfDate, classNa
               role="status"
               aria-live="polite"
               className={cn(
-                'pointer-events-none absolute z-10 -translate-y-full rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm',
+                'pointer-events-none absolute z-10 rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-sm',
+                tooltipBelow ? '' : '-translate-y-full',
                 hoverLeftPct > 70
                   ? '-translate-x-full'
                   : hoverLeftPct < 30
                     ? ''
                     : '-translate-x-1/2',
               )}
-              style={{ left: `${hoverLeftPct}%`, top: `${Math.max(hoverTopPct - 4, 0)}%` }}
+              style={{
+                left: `${hoverLeftPct}%`,
+                top: `${tooltipBelow ? Math.min(hoverTopPct + 4, 100) : Math.max(hoverTopPct - 4, 0)}%`,
+              }}
             >
               <div className="font-medium">{formatCents(points[hoverIdx].balance)}</div>
               <div className="text-muted-foreground">{points[hoverIdx].date}</div>

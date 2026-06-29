@@ -65,9 +65,7 @@ export function TopExpenseConfigForm({
       <span className="text-xs font-medium">Number of categories</span>
       <select
         value={config.limit}
-        onChange={(e) =>
-          onChange({ limit: Number(e.target.value) as TopExpenseConfig['limit'] })
-        }
+        onChange={(e) => onChange({ limit: Number(e.target.value) as TopExpenseConfig['limit'] })}
         className="rounded border px-2 py-1 text-sm"
       >
         <option value={5}>5</option>

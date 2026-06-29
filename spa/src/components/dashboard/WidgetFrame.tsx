@@ -51,6 +51,7 @@ export function WidgetFrame({ meta, editing, config, onConfigChange, onHide, chi
               e.stopPropagation();
               onHide();
             }}
+            onMouseDown={(e) => e.stopPropagation()}
             className="rounded p-0.5 hover:bg-muted"
           >
             <X className="h-3.5 w-3.5" />

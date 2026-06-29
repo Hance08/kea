@@ -38,8 +38,7 @@ export function CashFlowKpi() {
 
   return (
     <div className="flex h-full flex-col justify-center">
-      <div className="text-xs text-muted-foreground">This Month</div>
-      <div className="mt-1 grid grid-cols-3 gap-2 text-xs">
+      <div className="grid grid-cols-3 gap-2 text-xs">
         <Cell label="Income" value={formatCents(a.income, currency)} tone="pos" />
         <Cell label="Expense" value={formatCents(a.expense, currency)} tone="neg" />
         <Cell label="Net" value={formatCents(net, currency)} tone={net >= 0 ? 'pos' : 'neg'} />

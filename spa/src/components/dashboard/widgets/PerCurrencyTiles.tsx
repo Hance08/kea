@@ -21,7 +21,6 @@ export function PerCurrencyTiles() {
   }
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-1 text-xs text-muted-foreground">Per-Currency Net Worth</div>
       <ul className="flex flex-col gap-1 overflow-auto">
         {entries.map(([ccy, amount]) => (
           <li key={ccy} className="flex items-baseline justify-between text-sm">

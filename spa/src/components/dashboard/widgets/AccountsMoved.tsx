@@ -66,7 +66,6 @@ export function AccountsMoved({ config }: { config: AccountsMovedConfig }) {
   }
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-1 text-xs text-muted-foreground">Accounts That Moved Most</div>
       <ul className="flex flex-col gap-1 overflow-auto">
         {ranked.map((r) => (
           <li key={r.id} className="text-xs">

@@ -37,16 +37,13 @@ export function NetWorthTrend({ config }: { config: NetWorthTrendConfig }) {
   const points = days === null ? series.points : series.points.slice(-days);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="mb-1 text-xs font-medium text-muted-foreground">Net Worth Trend</div>
-      <div className="flex-1">
-        <NetWorthChart
-          points={points}
-          currency={currency}
-          formatCents={(c) => formatCents(c, currency)}
-          className="h-full w-full"
-        />
-      </div>
+    <div className="h-full">
+      <NetWorthChart
+        points={points}
+        currency={currency}
+        formatCents={(c) => formatCents(c, currency)}
+        className="h-full w-full"
+      />
     </div>
   );
 }

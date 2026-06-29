@@ -35,7 +35,6 @@ export function TopExpenseCategories({ config }: { config: TopExpenseConfig }) {
   const max = items[0].amount;
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-2 text-xs text-muted-foreground">Top Expenses This Month</div>
       <ul className="flex flex-col gap-1.5 overflow-auto">
         {items.map((it) => (
           <li key={it.name} className="text-xs">

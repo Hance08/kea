@@ -59,7 +59,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   },
   'per-currency-tiles': {
     id: 'per-currency-tiles',
-    title: 'Per-Currency',
+    title: 'Per-Currency Net Worth',
     defaultConfig: {},
     component: PerCurrencyTiles,
   },
@@ -86,7 +86,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   } as WidgetMeta,
   'accounts-moved': {
     id: 'accounts-moved',
-    title: 'Accounts That Moved',
+    title: 'Accounts That Moved Most',
     defaultConfig: ACCOUNTS_MOVED_DEFAULT,
     component: AccountsMoved,
     ConfigForm: AccountsMovedConfigForm,

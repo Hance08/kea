@@ -35,7 +35,6 @@ export function NetWorthKpi() {
 
   return (
     <div className="flex h-full flex-col justify-center">
-      <div className="text-xs text-muted-foreground">Net Worth</div>
       <div className="text-2xl font-semibold tabular-nums">{formatCents(now, currency)}</div>
       <div className={`text-xs ${delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
         {delta >= 0 ? '▲' : '▼'} {formatCents(Math.abs(delta), currency)}

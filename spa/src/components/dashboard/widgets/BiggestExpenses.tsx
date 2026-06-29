@@ -60,7 +60,6 @@ export function BiggestExpenses({ config }: { config: BiggestExpensesConfig }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-1 text-xs text-muted-foreground">Biggest Expenses This Month</div>
       <ul className="flex flex-col gap-1 overflow-auto">
         {ranked.map((r) => (
           <li key={r.id} className="text-xs">

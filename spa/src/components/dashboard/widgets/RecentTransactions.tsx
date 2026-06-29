@@ -27,7 +27,6 @@ export function RecentTransactions({ config }: { config: RecentTxnConfig }) {
   }
   return (
     <div className="flex h-full flex-col">
-      <div className="mb-1 text-xs text-muted-foreground">Recent Transactions</div>
       <ul className="flex flex-col gap-1 overflow-auto">
         {items.map((t) => {
           const expenseAmt = t.splits

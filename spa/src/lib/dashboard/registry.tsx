@@ -1,5 +1,10 @@
 import type { ComponentType } from 'react';
 import {
+  ACCOUNTS_MOVED_DEFAULT,
+  AccountsMoved,
+  AccountsMovedConfigForm,
+} from '../../components/dashboard/widgets/AccountsMoved';
+import {
   BIGGEST_EXPENSES_DEFAULT,
   BiggestExpenses,
   BiggestExpensesConfigForm,
@@ -12,7 +17,6 @@ import {
   NetWorthTrendConfigForm,
 } from '../../components/dashboard/widgets/NetWorthTrend';
 import { PerCurrencyTiles } from '../../components/dashboard/widgets/PerCurrencyTiles';
-import { Placeholder } from '../../components/dashboard/widgets/Placeholder';
 import {
   RECENT_TXN_DEFAULT,
   RecentTransactions,
@@ -31,15 +35,6 @@ export interface WidgetMeta<Config = unknown> {
   defaultConfig: Config;
   component: ComponentType<{ config: Config }>;
   ConfigForm?: ComponentType<{ config: Config; onChange: (c: Config) => void }>;
-}
-
-function placeholder(id: WidgetId, title: string): WidgetMeta {
-  return {
-    id,
-    title,
-    defaultConfig: {},
-    component: () => <Placeholder id={id} />,
-  };
 }
 
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
@@ -89,7 +84,13 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     component: BiggestExpenses,
     ConfigForm: BiggestExpensesConfigForm,
   } as WidgetMeta,
-  'accounts-moved': placeholder('accounts-moved', 'Accounts That Moved'),
+  'accounts-moved': {
+    id: 'accounts-moved',
+    title: 'Accounts That Moved',
+    defaultConfig: ACCOUNTS_MOVED_DEFAULT,
+    component: AccountsMoved,
+    ConfigForm: AccountsMovedConfigForm,
+  } as WidgetMeta,
 };
 
 export const ALL_WIDGET_IDS = Object.keys(WIDGETS) as WidgetId[];

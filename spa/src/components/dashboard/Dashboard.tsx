@@ -44,6 +44,10 @@ export function Dashboard() {
     setState((s) => ({ ...s, hidden: [...s.hidden, id] }));
   }
 
+  function setConfig(id: WidgetId, cfg: unknown) {
+    setState((s) => ({ ...s, config: { ...s.config, [id]: cfg } }));
+  }
+
   function addWidget(id: WidgetId) {
     setState((s) => {
       const next = { ...s, hidden: s.hidden.filter((h) => h !== id) };
@@ -102,7 +106,13 @@ export function Dashboard() {
             const Comp = meta.component;
             return (
               <div key={item.i} className="rounded-lg border bg-card shadow-sm overflow-hidden">
-                <WidgetFrame meta={meta} editing={editing} onHide={() => hideWidget(item.i)}>
+                <WidgetFrame
+                  meta={meta}
+                  editing={editing}
+                  config={cfg}
+                  onConfigChange={(c) => setConfig(item.i, c)}
+                  onHide={() => hideWidget(item.i)}
+                >
                   <Comp config={cfg} />
                 </WidgetFrame>
               </div>

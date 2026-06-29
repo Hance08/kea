@@ -77,3 +77,20 @@ describe('Dashboard add widget', () => {
     expect(container.querySelectorAll('.react-grid-item').length).toBe(8);
   });
 });
+
+describe('Dashboard widget config', () => {
+  it('saves per-widget config changes to localStorage', async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
+    await user.click(screen.getByLabelText(/configure recent-transactions/i));
+    const select = await screen.findByRole('combobox', { name: /number of transactions/i });
+    await user.selectOptions(select, '20');
+    // Storage save is debounced 500ms.
+    await new Promise((r) => setTimeout(r, 600));
+    const raw = localStorage.getItem('kea.dashboard.main');
+    expect(raw).toBeTruthy();
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.config['recent-transactions']).toEqual({ limit: 20 });
+  });
+});

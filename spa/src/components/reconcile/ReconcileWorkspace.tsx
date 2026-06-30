@@ -9,7 +9,7 @@ import { ApiError } from '@/lib/api';
 import { commitReconcile, getUnreconciled } from '@/lib/reconcile';
 import type { AccountNode } from '@/lib/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useRouter } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -37,7 +37,6 @@ function hasChildren(roots: AccountNode[] | undefined, id: number): boolean {
 }
 
 export function ReconcileWorkspace({ accountId }: Props) {
-  const router = useRouter();
   const qc = useQueryClient();
   const accountQuery = useQuery({
     queryKey: ['account', accountId],
@@ -54,10 +53,12 @@ export function ReconcileWorkspace({ accountId }: Props) {
 
   const [statement, setStatement] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [mismatch, setMismatch] = useState<{ open: boolean; difference: number }>({
-    open: false,
-    difference: 0,
-  });
+  const [mismatch, setMismatch] = useState<{
+    open: boolean;
+    difference: number;
+    statementCents: number;
+    transactionIds: number[];
+  } | null>(null);
 
   const entries = unreconciledQuery.data?.entries ?? [];
   const lastReconciled = unreconciledQuery.data?.last_reconciled_balance ?? 0;
@@ -76,8 +77,15 @@ export function ReconcileWorkspace({ accountId }: Props) {
     statementCents !== null ? statementCents - (lastReconciled + clearedCents) : null;
 
   const commit = useMutation({
-    mutationFn: (vars: { allowMismatch: boolean }) =>
-      commitReconcile(accountId, statementCents ?? 0, [...selectedIds], vars.allowMismatch),
+    mutationFn: (vars: {
+      allowMismatch: boolean;
+      statementCents?: number;
+      transactionIds?: number[];
+    }) => {
+      const sc = vars.statementCents ?? statementCents ?? 0;
+      const ids = vars.transactionIds ?? [...selectedIds];
+      return commitReconcile(accountId, sc, ids, vars.allowMismatch);
+    },
     onSuccess: (resp) => {
       qc.invalidateQueries({ queryKey: ['unreconciled', accountId] });
       qc.invalidateQueries({ queryKey: ['balances'] });
@@ -89,11 +97,18 @@ export function ReconcileWorkspace({ accountId }: Props) {
       );
       setStatement('');
       setSelectedIds(new Set());
-      setMismatch({ open: false, difference: 0 });
+      setMismatch(null);
     },
     onError: (e: unknown) => {
       if (e instanceof ApiError && e.status === 409 && e.difference !== undefined) {
-        setMismatch({ open: true, difference: e.difference });
+        // Snapshot the inputs that produced the 409 so re-firing with allow_mismatch:true
+        // uses the same values, even if the user edits the form while the dialog is open.
+        setMismatch({
+          open: true,
+          difference: e.difference,
+          statementCents: statementCents ?? 0,
+          transactionIds: [...selectedIds],
+        });
         return;
       }
       if (e instanceof ApiError && e.status === 400) {
@@ -179,8 +194,8 @@ export function ReconcileWorkspace({ accountId }: Props) {
         }
       />
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.history.back()}>
-          Back
+        <Button asChild variant="outline">
+          <Link to="/reconcile">Back</Link>
         </Button>
         <Button
           onClick={() => commit.mutate({ allowMismatch: false })}
@@ -190,11 +205,18 @@ export function ReconcileWorkspace({ accountId }: Props) {
         </Button>
       </div>
       <MismatchDialog
-        open={mismatch.open}
-        differenceCents={mismatch.difference}
+        open={mismatch?.open ?? false}
+        differenceCents={mismatch?.difference ?? 0}
         pending={commit.isPending}
-        onCancel={() => setMismatch({ open: false, difference: 0 })}
-        onConfirm={() => commit.mutate({ allowMismatch: true })}
+        onCancel={() => setMismatch(null)}
+        onConfirm={() =>
+          mismatch &&
+          commit.mutate({
+            allowMismatch: true,
+            statementCents: mismatch.statementCents,
+            transactionIds: mismatch.transactionIds,
+          })
+        }
       />
     </div>
   );

@@ -230,4 +230,40 @@ describe('/reconcile/$id workspace', () => {
       expect(screen.getByText(/no unreconciled transactions/i)).toBeInTheDocument(),
     );
   });
+
+  it('uses snapshot inputs on mismatch re-fire even if user edits form during dialog', async () => {
+    commitReconcileMock
+      .mockRejectedValueOnce(new ApiError(409, 'off by 1000', undefined, 1000))
+      .mockResolvedValueOnce({
+        reconciled_count: 2,
+        difference: 1000,
+        last_reconciled_balance: 678550,
+      });
+    const user = userEvent.setup();
+    render(makeTestApp('/reconcile/3'));
+    await waitFor(() => expect(screen.getByText('Bluebottle')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText(/statement/i), { target: { value: '6885.50' } });
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.click(screen.getAllByRole('checkbox')[1]);
+    await user.click(screen.getByRole('button', { name: /^reconcile/i }));
+    await waitFor(() => screen.getByRole('alertdialog'));
+
+    // User edits the form while the dialog is open — should NOT affect the re-fire payload.
+    fireEvent.change(screen.getByLabelText(/^statement$/i), { target: { value: '9999.99' } });
+    await user.click(screen.getAllByRole('checkbox')[0]); // untoggle
+
+    await user.click(screen.getByRole('button', { name: /reconcile anyway/i }));
+
+    await waitFor(() => expect(commitReconcileMock).toHaveBeenCalledTimes(2));
+    // Snapshot used the original 688550 cents + [18, 19], not the edited 999999 + [19].
+    expect(commitReconcileMock.mock.calls[1]).toEqual([3, 688550, [18, 19], true]);
+  });
+
+  it('footer "Back" link navigates to /reconcile (not history-back)', async () => {
+    render(makeTestApp('/reconcile/3'));
+    await waitFor(() => expect(screen.getByText('Bluebottle')).toBeInTheDocument());
+    const back = screen.getByRole('link', { name: /^back$/i });
+    expect(back).toHaveAttribute('href', '/reconcile');
+  });
 });

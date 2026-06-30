@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { makeTestApp } from './test-app';
 
@@ -85,14 +85,12 @@ describe('/reconcile chooser', () => {
     expect(screen.queryByText('Expenses:Coffee')).not.toBeInTheDocument(); // expense leaf
   });
 
-  it('clicking a row navigates to /reconcile/$id', async () => {
+  it('renders a link to /reconcile/$id for each account', async () => {
     render(makeTestApp('/reconcile'));
     await waitFor(() => expect(screen.getByText('Assets:Bank:Checking')).toBeInTheDocument());
-    fireEvent.click(
-      screen.getByText('Assets:Bank:Checking').closest('a, button, [role=link], [role=button]')!,
-    );
-    await waitFor(() =>
-      expect(window.location.pathname || screen.queryByText('Bluebottle')).toBeTruthy(),
-    );
+    const link = screen.getByText('Assets:Bank:Checking').closest('a')!;
+    expect(link).toHaveAttribute('href', '/reconcile/3');
+    const link2 = screen.getByText('Liabilities:CreditCard').closest('a')!;
+    expect(link2).toHaveAttribute('href', '/reconcile/4');
   });
 });

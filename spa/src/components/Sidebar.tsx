@@ -14,7 +14,7 @@ const NAV: NavItem[] = [
   { label: 'Accounts', to: '/accounts' },
   { label: 'Transactions', to: '/transactions' },
   { label: 'Reports', to: '/reports', prefix: true },
-  { label: 'Reconcile' },
+  { label: 'Reconcile', to: '/reconcile', prefix: true },
 ];
 
 const FOOTER_NAV: NavItem[] = [{ label: 'Settings', to: '/settings' }];

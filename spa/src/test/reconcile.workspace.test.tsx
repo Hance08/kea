@@ -218,9 +218,7 @@ describe('/reconcile/$id workspace', () => {
 
   it('shows alert when account is a parent', async () => {
     render(makeTestApp('/reconcile/2'));
-    await waitFor(() =>
-      expect(screen.getByText(/has child accounts/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/has child accounts/i)).toBeInTheDocument());
   });
 
   it('shows empty-state row when there are no unreconciled transactions', async () => {

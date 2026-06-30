@@ -67,10 +67,7 @@ export function ReconcileWorkspace({ accountId }: Props) {
   const statementInvalid = statement.trim() !== '' && statementCents === null;
 
   const clearedCents = useMemo(
-    () =>
-      entries
-        .filter((e) => selectedIds.has(e.id))
-        .reduce((sum, e) => sum + e.amount, 0),
+    () => entries.filter((e) => selectedIds.has(e.id)).reduce((sum, e) => sum + e.amount, 0),
     [entries, selectedIds],
   );
   const differenceCents =
@@ -165,8 +162,7 @@ export function ReconcileWorkspace({ accountId }: Props) {
     );
   }
 
-  const canCommit =
-    statementCents !== null && selectedIds.size > 0 && !commit.isPending;
+  const canCommit = statementCents !== null && selectedIds.size > 0 && !commit.isPending;
 
   return (
     <div>
@@ -197,10 +193,7 @@ export function ReconcileWorkspace({ accountId }: Props) {
         <Button asChild variant="outline">
           <Link to="/reconcile">Back</Link>
         </Button>
-        <Button
-          onClick={() => commit.mutate({ allowMismatch: false })}
-          disabled={!canCommit}
-        >
+        <Button onClick={() => commit.mutate({ allowMismatch: false })} disabled={!canCommit}>
           {commit.isPending ? 'Reconciling…' : 'Reconcile'}
         </Button>
       </div>

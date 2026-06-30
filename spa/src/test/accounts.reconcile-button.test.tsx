@@ -50,18 +50,14 @@ vi.mock('@/lib/accounts', async () => {
       if (id === 7) return expenseLeaf;
       return assetParent;
     }),
-    getAccountBalance: vi
-      .fn()
-      .mockResolvedValue({ account_id: 0, amount: 0, currency: 'USD' }),
+    getAccountBalance: vi.fn().mockResolvedValue({ account_id: 0, amount: 0, currency: 'USD' }),
     getAccountTree: vi.fn().mockResolvedValue(tree),
   };
 });
 
 vi.mock('@/lib/transactions', async () => ({
   ...(await vi.importActual<object>('@/lib/transactions')),
-  listTransactions: vi
-    .fn()
-    .mockResolvedValue({ items: [], total_count: 0, limit: 20, offset: 0 }),
+  listTransactions: vi.fn().mockResolvedValue({ items: [], total_count: 0, limit: 20, offset: 0 }),
 }));
 
 vi.mock('@/lib/api', async () => ({

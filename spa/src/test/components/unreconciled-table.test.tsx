@@ -70,11 +70,7 @@ describe('UnreconciledTable', () => {
   it('checks the box for ids in selectedIds', () => {
     render(
       withServerConfig(
-        <UnreconciledTable
-          entries={sample}
-          selectedIds={new Set([18])}
-          onToggle={vi.fn()}
-        />,
+        <UnreconciledTable entries={sample} selectedIds={new Set([18])} onToggle={vi.fn()} />,
       ),
     );
     const boxes = screen.getAllByRole('checkbox');

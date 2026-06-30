@@ -88,9 +88,9 @@ describe('/reconcile chooser', () => {
   it('renders a link to /reconcile/$id for each account', async () => {
     render(makeTestApp('/reconcile'));
     await waitFor(() => expect(screen.getByText('Assets:Bank:Checking')).toBeInTheDocument());
-    const link = screen.getByText('Assets:Bank:Checking').closest('a')!;
+    const link = screen.getByText('Assets:Bank:Checking').closest('a');
     expect(link).toHaveAttribute('href', '/reconcile/3');
-    const link2 = screen.getByText('Liabilities:CreditCard').closest('a')!;
+    const link2 = screen.getByText('Liabilities:CreditCard').closest('a');
     expect(link2).toHaveAttribute('href', '/reconcile/4');
   });
 });

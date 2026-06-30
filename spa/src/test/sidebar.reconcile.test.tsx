@@ -15,7 +15,10 @@ vi.mock('@/lib/api', async () => ({
   getBalances: vi.fn().mockResolvedValue({ items: [], total_count: 0, limit: 0, offset: 0 }),
   getLedgers: vi
     .fn()
-    .mockResolvedValue({ active: 'default', items: [{ name: 'default', path: '/x', active: true }] }),
+    .mockResolvedValue({
+      active: 'default',
+      items: [{ name: 'default', path: '/x', active: true }],
+    }),
 }));
 
 describe('Sidebar Reconcile link', () => {

@@ -28,6 +28,7 @@ export function MismatchDialog({ open, differenceCents, pending, onCancel, onCon
   const amount = formatBalanceAbs(differenceCents);
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: ESC handler above covers keyboard cancel
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => {

@@ -10,17 +10,20 @@ import type {
 export class ApiError extends Error {
   readonly status: number;
   readonly field?: string;
-  constructor(status: number, message: string, field?: string) {
+  readonly difference?: number;
+  constructor(status: number, message: string, field?: string, difference?: number) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.field = field;
+    this.difference = difference;
   }
 }
 
 interface ApiErrorBody {
   message?: string;
   field?: string;
+  difference?: number;
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -32,7 +35,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     } catch {
       // body wasn't JSON; fall through with empty body
     }
-    throw new ApiError(resp.status, body.message ?? resp.statusText, body.field);
+    throw new ApiError(resp.status, body.message ?? resp.statusText, body.field, body.difference);
   }
   return (await resp.json()) as T;
 }

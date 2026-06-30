@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 8;
 
 function flattenLeaves(roots: AccountNode[]): Account[] {
   const out: Account[] = [];

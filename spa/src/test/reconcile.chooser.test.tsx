@@ -35,8 +35,8 @@ vi.mock('@/lib/accounts', async () => {
     is_hidden: false,
     description: '',
   };
-  // 7 asset leaves (ids 10..16) used by the pagination tests.
-  const manyAssetLeaves = Array.from({ length: 7 }, (_, i) => ({
+  // 10 asset leaves (ids 10..19) used by the pagination tests.
+  const manyAssetLeaves = Array.from({ length: 10 }, (_, i) => ({
     id: 10 + i,
     name: `Assets:Many:${i + 1}`,
     type: 'A' as const,
@@ -104,17 +104,17 @@ describe('/reconcile chooser', () => {
     expect(link2).toHaveAttribute('href', '/reconcile/4');
   });
 
-  it('paginates to 5 rows per page and advances on Next', async () => {
+  it('paginates to 8 rows per page and advances on Next', async () => {
     render(makeTestApp('/reconcile'));
     await waitFor(() => expect(screen.getByText('Assets:Bank:Checking')).toBeInTheDocument());
-    // 9 total leaves (1 + 1 + 7) shown 5 at a time.
+    // 12 total leaves (1 + 1 + 10) shown 8 at a time.
     const visibleLinks = () =>
       Array.from(document.querySelectorAll('a[href^="/reconcile/"]'));
-    expect(visibleLinks()).toHaveLength(5);
+    expect(visibleLinks()).toHaveLength(8);
     expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     await waitFor(() => expect(screen.getByText(/Page 2 of 2/)).toBeInTheDocument());
-    expect(visibleLinks()).toHaveLength(4); // 9 total − 5 on page 1 = 4 on page 2
+    expect(visibleLinks()).toHaveLength(4); // 12 total − 8 on page 1 = 4 on page 2
   });
 });

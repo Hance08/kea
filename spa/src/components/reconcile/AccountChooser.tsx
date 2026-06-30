@@ -1,3 +1,4 @@
+import { Pagination } from '@/components/transactions/Pagination';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,6 +9,9 @@ import { useAmountFormat } from '@/lib/server-config';
 import type { Account, AccountNode } from '@/lib/types';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
+
+const PAGE_SIZE = 5;
 
 function flattenLeaves(roots: AccountNode[]): Account[] {
   const out: Account[] = [];
@@ -21,6 +25,7 @@ function flattenLeaves(roots: AccountNode[]): Account[] {
 
 export function AccountChooser() {
   const { formatCents } = useAmountFormat();
+  const [offset, setOffset] = useState(0);
   const treeQuery = useQuery({
     queryKey: ['accounts', 'tree', { include_hidden: false }],
     queryFn: () => getAccountTree({ include_hidden: false }),
@@ -59,6 +64,11 @@ export function AccountChooser() {
     );
   }
 
+  // Clamp offset if the list shrank under us (e.g. an account was deleted).
+  const safeOffset = Math.min(offset, Math.max(0, accounts.length - 1));
+  const pageStart = Math.floor(safeOffset / PAGE_SIZE) * PAGE_SIZE;
+  const pageAccounts = accounts.slice(pageStart, pageStart + PAGE_SIZE);
+
   return (
     <div>
       <h1 className="mb-3 text-xl font-semibold">Reconcile</h1>
@@ -66,7 +76,7 @@ export function AccountChooser() {
         Pick an account to reconcile against a statement.
       </p>
       <ul className="rounded-md border">
-        {accounts.map((a) => {
+        {pageAccounts.map((a) => {
           const bal = balanceById.get(a.id);
           return (
             <li key={a.id} className="border-t first:border-t-0">
@@ -87,6 +97,12 @@ export function AccountChooser() {
           );
         })}
       </ul>
+      <Pagination
+        total={accounts.length}
+        limit={PAGE_SIZE}
+        offset={pageStart}
+        onChange={setOffset}
+      />
     </div>
   );
 }

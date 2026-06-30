@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { makeTestApp } from './test-app';
 
@@ -35,10 +35,20 @@ vi.mock('@/lib/accounts', async () => {
     is_hidden: false,
     description: '',
   };
+  // 7 asset leaves (ids 10..16) used by the pagination tests.
+  const manyAssetLeaves = Array.from({ length: 7 }, (_, i) => ({
+    id: 10 + i,
+    name: `Assets:Many:${i + 1}`,
+    type: 'A' as const,
+    currency: 'USD',
+    is_hidden: false,
+    description: '',
+  }));
   const tree = [
     { account: assetParent, children: [{ account: assetLeaf, children: [] }] },
     { account: liabilityLeaf, children: [] },
     { account: expenseLeaf, children: [] },
+    ...manyAssetLeaves.map((a) => ({ account: a, children: [] })),
   ];
   return {
     ...(await vi.importActual<object>('@/lib/accounts')),
@@ -92,5 +102,19 @@ describe('/reconcile chooser', () => {
     expect(link).toHaveAttribute('href', '/reconcile/3');
     const link2 = screen.getByText('Liabilities:CreditCard').closest('a');
     expect(link2).toHaveAttribute('href', '/reconcile/4');
+  });
+
+  it('paginates to 5 rows per page and advances on Next', async () => {
+    render(makeTestApp('/reconcile'));
+    await waitFor(() => expect(screen.getByText('Assets:Bank:Checking')).toBeInTheDocument());
+    // 9 total leaves (1 + 1 + 7) shown 5 at a time.
+    const visibleLinks = () =>
+      Array.from(document.querySelectorAll('a[href^="/reconcile/"]'));
+    expect(visibleLinks()).toHaveLength(5);
+    expect(screen.getByText(/Page 1 of 2/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    await waitFor(() => expect(screen.getByText(/Page 2 of 2/)).toBeInTheDocument());
+    expect(visibleLinks()).toHaveLength(4); // 9 total − 5 on page 1 = 4 on page 2
   });
 });

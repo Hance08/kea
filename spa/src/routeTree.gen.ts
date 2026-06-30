@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as ReconcileRouteImport } from './routes/reconcile'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BalancesRouteImport } from './routes/balances'
 import { Route as AccountsRouteImport } from './routes/accounts'
@@ -26,6 +27,7 @@ import { Route as ReportsIncomeStatementRouteImport } from './routes/reports.inc
 import { Route as ReportsIncomeBreakdownRouteImport } from './routes/reports.income-breakdown'
 import { Route as ReportsExpenseBreakdownRouteImport } from './routes/reports.expense-breakdown'
 import { Route as ReportsBalanceSheetRouteImport } from './routes/reports.balance-sheet'
+import { Route as ReconcileIdRouteImport } from './routes/reconcile.$id'
 import { Route as AccountsNewRouteImport } from './routes/accounts.new'
 import { Route as AccountsIdRouteImport } from './routes/accounts.$id'
 import { Route as TransactionsIdIndexRouteImport } from './routes/transactions.$id.index'
@@ -46,6 +48,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReconcileRoute = ReconcileRouteImport.update({
+  id: '/reconcile',
+  path: '/reconcile',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -118,6 +125,11 @@ const ReportsBalanceSheetRoute = ReportsBalanceSheetRouteImport.update({
   path: '/balance-sheet',
   getParentRoute: () => ReportsRoute,
 } as any)
+const ReconcileIdRoute = ReconcileIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ReconcileRoute,
+} as any)
 const AccountsNewRoute = AccountsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -154,11 +166,13 @@ export interface FileRoutesByFullPath {
   '/accounts': typeof AccountsRouteWithChildren
   '/balances': typeof BalancesRoute
   '/dashboard': typeof DashboardRoute
+  '/reconcile': typeof ReconcileRouteWithChildren
   '/reports': typeof ReportsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
+  '/reconcile/$id': typeof ReconcileIdRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
@@ -178,8 +192,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
   '/dashboard': typeof DashboardRoute
+  '/reconcile': typeof ReconcileRouteWithChildren
   '/settings': typeof SettingsRoute
   '/accounts/new': typeof AccountsNewRoute
+  '/reconcile/$id': typeof ReconcileIdRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
@@ -200,11 +216,13 @@ export interface FileRoutesById {
   '/accounts': typeof AccountsRouteWithChildren
   '/balances': typeof BalancesRoute
   '/dashboard': typeof DashboardRoute
+  '/reconcile': typeof ReconcileRouteWithChildren
   '/reports': typeof ReportsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
   '/accounts/new': typeof AccountsNewRoute
+  '/reconcile/$id': typeof ReconcileIdRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
@@ -227,11 +245,13 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/balances'
     | '/dashboard'
+    | '/reconcile'
     | '/reports'
     | '/settings'
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
+    | '/reconcile/$id'
     | '/reports/balance-sheet'
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
@@ -251,8 +271,10 @@ export interface FileRouteTypes {
     | '/'
     | '/balances'
     | '/dashboard'
+    | '/reconcile'
     | '/settings'
     | '/accounts/new'
+    | '/reconcile/$id'
     | '/reports/balance-sheet'
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
@@ -272,11 +294,13 @@ export interface FileRouteTypes {
     | '/accounts'
     | '/balances'
     | '/dashboard'
+    | '/reconcile'
     | '/reports'
     | '/settings'
     | '/transactions'
     | '/accounts/$id'
     | '/accounts/new'
+    | '/reconcile/$id'
     | '/reports/balance-sheet'
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
@@ -298,6 +322,7 @@ export interface RootRouteChildren {
   AccountsRoute: typeof AccountsRouteWithChildren
   BalancesRoute: typeof BalancesRoute
   DashboardRoute: typeof DashboardRoute
+  ReconcileRoute: typeof ReconcileRouteWithChildren
   ReportsRoute: typeof ReportsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRouteWithChildren
@@ -324,6 +349,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reconcile': {
+      id: '/reconcile'
+      path: '/reconcile'
+      fullPath: '/reconcile'
+      preLoaderRoute: typeof ReconcileRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -424,6 +456,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsBalanceSheetRouteImport
       parentRoute: typeof ReportsRoute
     }
+    '/reconcile/$id': {
+      id: '/reconcile/$id'
+      path: '/$id'
+      fullPath: '/reconcile/$id'
+      preLoaderRoute: typeof ReconcileIdRouteImport
+      parentRoute: typeof ReconcileRoute
+    }
     '/accounts/new': {
       id: '/accounts/new'
       path: '/new'
@@ -499,6 +538,18 @@ const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
   AccountsRouteChildren,
 )
 
+interface ReconcileRouteChildren {
+  ReconcileIdRoute: typeof ReconcileIdRoute
+}
+
+const ReconcileRouteChildren: ReconcileRouteChildren = {
+  ReconcileIdRoute: ReconcileIdRoute,
+}
+
+const ReconcileRouteWithChildren = ReconcileRoute._addFileChildren(
+  ReconcileRouteChildren,
+)
+
 interface ReportsRouteChildren {
   ReportsBalanceSheetRoute: typeof ReportsBalanceSheetRoute
   ReportsExpenseBreakdownRoute: typeof ReportsExpenseBreakdownRoute
@@ -555,6 +606,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountsRoute: AccountsRouteWithChildren,
   BalancesRoute: BalancesRoute,
   DashboardRoute: DashboardRoute,
+  ReconcileRoute: ReconcileRouteWithChildren,
   ReportsRoute: ReportsRouteWithChildren,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRouteWithChildren,

@@ -19,6 +19,7 @@ import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TransactionsIndexRouteImport } from './routes/transactions.index'
 import { Route as ReportsIndexRouteImport } from './routes/reports.index'
+import { Route as ReconcileIndexRouteImport } from './routes/reconcile.index'
 import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
@@ -84,6 +85,11 @@ const ReportsIndexRoute = ReportsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ReportsRoute,
+} as any)
+const ReconcileIndexRoute = ReconcileIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReconcileRoute,
 } as any)
 const AccountsIndexRoute = AccountsIndexRouteImport.update({
   id: '/',
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
+  '/reconcile/': typeof ReconcileIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
   '/accounts/$id/edit': typeof AccountsIdEditRoute
@@ -192,7 +199,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/balances': typeof BalancesRoute
   '/dashboard': typeof DashboardRoute
-  '/reconcile': typeof ReconcileRouteWithChildren
   '/settings': typeof SettingsRoute
   '/accounts/new': typeof AccountsNewRoute
   '/reconcile/$id': typeof ReconcileIdRoute
@@ -203,6 +209,7 @@ export interface FileRoutesByTo {
   '/reports/net-worth': typeof ReportsNetWorthRoute
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts': typeof AccountsIndexRoute
+  '/reconcile': typeof ReconcileIndexRoute
   '/reports': typeof ReportsIndexRoute
   '/transactions': typeof TransactionsIndexRoute
   '/accounts/$id/edit': typeof AccountsIdEditRoute
@@ -231,6 +238,7 @@ export interface FileRoutesById {
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
+  '/reconcile/': typeof ReconcileIndexRoute
   '/reports/': typeof ReportsIndexRoute
   '/transactions/': typeof TransactionsIndexRoute
   '/accounts/$id/edit': typeof AccountsIdEditRoute
@@ -260,6 +268,7 @@ export interface FileRouteTypes {
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
+    | '/reconcile/'
     | '/reports/'
     | '/transactions/'
     | '/accounts/$id/edit'
@@ -271,7 +280,6 @@ export interface FileRouteTypes {
     | '/'
     | '/balances'
     | '/dashboard'
-    | '/reconcile'
     | '/settings'
     | '/accounts/new'
     | '/reconcile/$id'
@@ -282,6 +290,7 @@ export interface FileRouteTypes {
     | '/reports/net-worth'
     | '/transactions/new'
     | '/accounts'
+    | '/reconcile'
     | '/reports'
     | '/transactions'
     | '/accounts/$id/edit'
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
+    | '/reconcile/'
     | '/reports/'
     | '/transactions/'
     | '/accounts/$id/edit'
@@ -399,6 +409,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/reports/'
       preLoaderRoute: typeof ReportsIndexRouteImport
       parentRoute: typeof ReportsRoute
+    }
+    '/reconcile/': {
+      id: '/reconcile/'
+      path: '/'
+      fullPath: '/reconcile/'
+      preLoaderRoute: typeof ReconcileIndexRouteImport
+      parentRoute: typeof ReconcileRoute
     }
     '/accounts/': {
       id: '/accounts/'
@@ -540,10 +557,12 @@ const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
 
 interface ReconcileRouteChildren {
   ReconcileIdRoute: typeof ReconcileIdRoute
+  ReconcileIndexRoute: typeof ReconcileIndexRoute
 }
 
 const ReconcileRouteChildren: ReconcileRouteChildren = {
   ReconcileIdRoute: ReconcileIdRoute,
+  ReconcileIndexRoute: ReconcileIndexRoute,
 }
 
 const ReconcileRouteWithChildren = ReconcileRoute._addFileChildren(

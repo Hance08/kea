@@ -18,6 +18,8 @@ services:
       context: .
       dockerfile: docker/spa.Dockerfile
     working_dir: /workspace
+    environment:
+      - VITE_API_PROXY_TARGET=http://app:8080
     volumes:
       - ./spa:/workspace
       - spa-node-modules:/workspace/node_modules

@@ -9,7 +9,7 @@ services:
     volumes:
       - .:/workspace
       - go-mod-cache:/go/pkg/mod
-      - ./data:/root/.config/kea
+      - ${KEA_DATA_DIR:-./data}:/root/.config/kea
     ports:
       - "8080:8080"
     command: go run ./cmd/kea serve

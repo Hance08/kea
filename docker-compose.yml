@@ -25,6 +25,7 @@ services:
       - spa-node-modules:/workspace/node_modules
     ports:
       - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
 
 volumes:
   go-mod-cache:

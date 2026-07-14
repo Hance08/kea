@@ -9,6 +9,7 @@ interface Props {
   account: Account;
   balance?: BalanceResponse;
   deleteSlot: ReactNode;
+  reconcileSlot?: ReactNode;
 }
 
 const TYPE_LABEL: Record<Account['type'], string> = {
@@ -19,7 +20,7 @@ const TYPE_LABEL: Record<Account['type'], string> = {
   E: 'Expense',
 };
 
-export function AccountDetailHeader({ account, balance, deleteSlot }: Props) {
+export function AccountDetailHeader({ account, balance, deleteSlot, reconcileSlot }: Props) {
   const { formatCents } = useAmountFormat();
   return (
     <div className="mb-4 rounded-md border bg-card p-4">
@@ -45,6 +46,7 @@ export function AccountDetailHeader({ account, balance, deleteSlot }: Props) {
           )}
         </div>
         <div className="flex gap-2">
+          {reconcileSlot}
           <Button asChild size="sm" variant="outline">
             <Link
               to="/accounts/$id/edit"

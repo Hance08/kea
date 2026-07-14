@@ -17,7 +17,7 @@ import { getBalances } from '@/lib/api';
 import { listTransactions } from '@/lib/transactions';
 import type { AccountNode } from '@/lib/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 import { toast } from 'sonner';
 
 export const Route = createFileRoute('/accounts/$id/')({
@@ -119,10 +119,25 @@ function AccountDetailPage() {
     />
   );
 
+  const canReconcile = !isParent && (account.type === 'A' || account.type === 'L');
+
+  const reconcileSlot = canReconcile ? (
+    <Button asChild size="sm" variant="outline">
+      <Link to="/reconcile/$id" params={{ id: String(id) }}>
+        Reconcile
+      </Link>
+    </Button>
+  ) : null;
+
   return (
     <div>
       {isSystem && <SystemAccountBanner />}
-      <AccountDetailHeader account={account} balance={balanceQuery.data} deleteSlot={deleteSlot} />
+      <AccountDetailHeader
+        account={account}
+        balance={balanceQuery.data}
+        deleteSlot={deleteSlot}
+        reconcileSlot={reconcileSlot}
+      />
       {isParent ? (
         <ChildAccountsCard accounts={children} balances={balancesQuery.data?.items} />
       ) : (

@@ -208,3 +208,27 @@ export interface BalanceSheetResult {
   net_worth: Record<string, number>;
   as_of: number;
 }
+
+export interface ReconcileEntry {
+  id: number;
+  timestamp: number;
+  description: string;
+  status: TransactionStatus;
+  amount: number; // int64 cents, signed
+  offset_account: string;
+}
+
+export interface UnreconciledResponse {
+  entries: ReconcileEntry[];
+  last_reconciled_balance: number; // int64 cents
+}
+
+export interface ReconcilePreviewResponse {
+  difference: number;
+}
+
+export interface ReconcileCommitResponse {
+  reconciled_count: number;
+  difference: number;
+  last_reconciled_balance: number;
+}

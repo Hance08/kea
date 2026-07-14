@@ -12,6 +12,7 @@ services:
       - kea-config:/root/.config/kea
     ports:
       - "8080:8080"
+    command: go run ./cmd/kea serve
 
   spa:
     build:

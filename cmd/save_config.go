@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -23,22 +24,39 @@ import (
 // verbatim; a comment trailing the rewritten hide_decimals value itself is
 // dropped, since we rebuild that leaf node.
 func saveDisplayHideDecimals(cfg *config.Config) error {
-	if cfg.ConfigPath == "" {
-		return fmt.Errorf("save display.hide_decimals: config path is empty")
+	return rewriteYAMLKey(cfg.ConfigPath, []string{"display", "hide_decimals"},
+		"!!bool", boolToYAML(cfg.Display.HideDecimals))
+}
+
+// saveDefaultCurrency persists the current defaults.currency value to the
+// on-disk YAML config using the same leak-free in-place rewrite as
+// saveDisplayHideDecimals, for the same reason: viper.WriteConfig would
+// silently write registered server.* defaults (including Docker env-var
+// overrides like KEA_SERVER_HOST/KEA_SERVER_PORT) into the user's file.
+func saveDefaultCurrency(cfg *config.Config) error {
+	return rewriteYAMLKey(cfg.ConfigPath, []string{"defaults", "currency"},
+		"!!str", cfg.Defaults.Currency)
+}
+
+// rewriteYAMLKey updates a single scalar key in path within the YAML file at
+// configPath, in place, preserving every other key verbatim.
+func rewriteYAMLKey(configPath string, path []string, tag, value string) error {
+	if configPath == "" {
+		return fmt.Errorf("save %s: config path is empty", strings.Join(path, "."))
 	}
 
-	raw, err := os.ReadFile(cfg.ConfigPath)
+	raw, err := os.ReadFile(configPath)
 	if err != nil {
-		return fmt.Errorf("read config %q: %w", cfg.ConfigPath, err)
+		return fmt.Errorf("read config %q: %w", configPath, err)
 	}
 
 	root := &yaml.Node{}
 	if err := yaml.Unmarshal(raw, root); err != nil {
-		return fmt.Errorf("parse config %q: %w", cfg.ConfigPath, err)
+		return fmt.Errorf("parse config %q: %w", configPath, err)
 	}
 
-	if err := setYAMLBool(root, []string{"display", "hide_decimals"}, cfg.Display.HideDecimals); err != nil {
-		return fmt.Errorf("update display.hide_decimals: %w", err)
+	if err := setYAMLScalar(root, path, tag, value); err != nil {
+		return fmt.Errorf("update %s: %w", strings.Join(path, "."), err)
 	}
 
 	out, err := yaml.Marshal(root)
@@ -46,17 +64,17 @@ func saveDisplayHideDecimals(cfg *config.Config) error {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(cfg.ConfigPath, out, 0o600); err != nil {
-		return fmt.Errorf("write config %q: %w", cfg.ConfigPath, err)
+	if err := os.WriteFile(configPath, out, 0o600); err != nil {
+		return fmt.Errorf("write config %q: %w", configPath, err)
 	}
 	return nil
 }
 
-// setYAMLBool walks a yaml.Node tree following path and sets the leaf to a
-// boolean. Intermediate maps are created if missing. The root may be a
-// DocumentNode (the result of yaml.Unmarshal into a *yaml.Node) or a bare
-// MappingNode (empty document).
-func setYAMLBool(root *yaml.Node, path []string, value bool) error {
+// setYAMLScalar walks a yaml.Node tree following path and sets the leaf to a
+// scalar with the given tag (e.g. "!!bool", "!!str") and value. Intermediate
+// maps are created if missing. The root may be a DocumentNode (the result of
+// yaml.Unmarshal into a *yaml.Node) or a bare MappingNode (empty document).
+func setYAMLScalar(root *yaml.Node, path []string, tag, value string) error {
 	if len(path) == 0 {
 		return errors.New("empty path")
 	}
@@ -81,16 +99,15 @@ func setYAMLBool(root *yaml.Node, path []string, value bool) error {
 		if valNode == nil {
 			keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}
 			if isLeaf {
-				valNode = &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool"}
-				valNode.Value = boolToYAML(value)
+				valNode = &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value}
 			} else {
 				valNode = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 			}
 			mapping.Content = append(mapping.Content, keyNode, valNode)
 		} else if isLeaf {
 			valNode.Kind = yaml.ScalarNode
-			valNode.Tag = "!!bool"
-			valNode.Value = boolToYAML(value)
+			valNode.Tag = tag
+			valNode.Value = value
 			valNode.Style = 0
 		}
 		if !isLeaf {

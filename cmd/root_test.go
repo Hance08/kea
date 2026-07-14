@@ -194,7 +194,7 @@ func TestSetCurrency(t *testing.T) {
 	viper.SetConfigFile(cfgPath)
 	require.NoError(t, viper.ReadInConfig())
 
-	cfg := &config.Config{}
+	cfg := &config.Config{ConfigPath: cfgPath}
 	err := setCurrency(cfg, "EUR")
 	require.NoError(t, err)
 
@@ -204,6 +204,38 @@ func TestSetCurrency(t *testing.T) {
 	contents, err := os.ReadFile(cfgPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(contents), "EUR")
+}
+
+// TestSetCurrency_NoLeak_ServerDefaults documents and guards against the same
+// viper.WriteConfig leak already fixed for saveDisplayHideDecimals (see
+// save_config_test.go's TestViperWriteLeaks_NeedsFallback): registering
+// server.* defaults via setServerDefaults (as the real `kea serve`/root
+// command does, and as env-var overrides like KEA_SERVER_HOST/KEA_SERVER_PORT
+// populate) must not cause setCurrency to write those keys into the user's
+// on-disk config file.
+func TestSetCurrency_NoLeak_ServerDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgPath := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(cfgPath, []byte("defaults:\n  currency: \"\"\n"), 0o644))
+
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	viper.SetConfigFile(cfgPath)
+	setServerDefaults(viper.GetViper())
+	require.NoError(t, viper.ReadInConfig())
+
+	cfg := &config.Config{ConfigPath: cfgPath}
+	err := setCurrency(cfg, "EUR")
+	require.NoError(t, err)
+
+	contents, err := os.ReadFile(cfgPath)
+	require.NoError(t, err)
+	written := string(contents)
+
+	for _, leaked := range []string{"server", "host:", "port:", "cors_origins"} {
+		assert.NotContains(t, written, leaked, "written yaml leaked %q:\n%s", leaked, written)
+	}
+	assert.Contains(t, written, "currency: EUR")
 }
 
 func TestEnsureCurrency_NonInteractiveFallback(t *testing.T) {
@@ -216,7 +248,7 @@ func TestEnsureCurrency_NonInteractiveFallback(t *testing.T) {
 	viper.SetConfigFile(cfgPath)
 	require.NoError(t, viper.ReadInConfig())
 
-	cfg := &config.Config{}
+	cfg := &config.Config{ConfigPath: cfgPath}
 	err := ensureCurrencyWith(cfg, false)
 	require.NoError(t, err)
 	assert.Equal(t, "USD", cfg.Defaults.Currency)

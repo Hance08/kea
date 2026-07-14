@@ -23,6 +23,21 @@ go test ./internal/service/ -v -run TestDetermineType
 go mod tidy
 ```
 
+## Docker Development
+
+An alternative to installing Go/Node/CGO toolchains locally: a Docker Compose setup provisions an `app` (Go) and `spa` (Node) dev container, bind-mounting the repo so edits on the host are picked up immediately.
+
+```bash
+docker compose up -d                              # start both containers
+docker compose exec app go test ./...             # run Go tests inside the container
+docker compose exec app go run ./cmd/kea <args>    # run the CLI/TUI
+docker compose exec app go run ./cmd/kea serve     # run the web API (reachable at localhost:8080)
+docker compose exec spa npm run dev -- --host 0.0.0.0  # run the SPA dev server (reachable at localhost:5173)
+docker compose down                                # stop both containers
+```
+
+Known limitation: the `app` container runs as root, which causes `TestSwap_FailedSwapKeepsOldConnection` (`internal/store`) to fail under `go test ./...` inside the container — it's a pre-existing test that assumes an unprivileged user, not a bug in the Docker setup.
+
 ## Architecture
 
 KEA is a CLI/TUI personal double-entry accounting tool. The layers are:

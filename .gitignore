@@ -66,3 +66,6 @@ spa/.env.*
 # Embedded SPA bundle (vite writes here; only the placeholder is tracked)
 internal/web/dist/*
 !internal/web/dist/index.html
+
+# Docker dev environment: bind-mounted kea ledger data (config, registry, DB files)
+/data/

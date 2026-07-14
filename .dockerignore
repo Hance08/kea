@@ -5,3 +5,4 @@ internal/web/dist/
 .git/
 kea
 kea_test
+data/

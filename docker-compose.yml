@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: docker/app.Dockerfile
     working_dir: /workspace
+    environment:
+      - KEA_SERVER_HOST=0.0.0.0
     volumes:
       - .:/workspace
       - go-mod-cache:/root/go/pkg/mod

@@ -1,0 +1,7 @@
+node_modules/
+spa/node_modules/
+spa/dist/
+internal/web/dist/
+.git/
+kea
+kea_test

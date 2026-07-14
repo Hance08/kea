@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    working_dir: /workspace
+    environment:
+      - KEA_SERVER_HOST=0.0.0.0
+    volumes:
+      - .:/workspace
+      - go-mod-cache:/go/pkg/mod
+      - kea-config:/root/.config/kea
+    ports:
+      - "8080:8080"
+
+  spa:
+    build:
+      context: .
+      dockerfile: docker/spa.Dockerfile
+    working_dir: /workspace
+    volumes:
+      - ./spa:/workspace
+      - spa-node-modules:/workspace/node_modules
+    ports:
+      - "5173:5173"
+
+volumes:
+  go-mod-cache:
+  kea-config:
+  spa-node-modules:

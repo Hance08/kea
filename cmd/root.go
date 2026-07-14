@@ -263,7 +263,7 @@ func setCurrency(cfg *config.Config, currency string) error {
 	cfg.Defaults.Currency = currency
 	viper.Set("defaults.currency", currency)
 
-	if err := viper.WriteConfig(); err != nil {
+	if err := saveDefaultCurrency(cfg); err != nil {
 		return fmt.Errorf("failed to save config to file: %w", err)
 	}
 

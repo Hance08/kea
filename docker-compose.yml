@@ -8,7 +8,7 @@ services:
       - KEA_SERVER_HOST=0.0.0.0
     volumes:
       - .:/workspace
-      - go-mod-cache:/root/go/pkg/mod
+      - go-mod-cache:/go/pkg/mod
       - kea-config:/root/.config/kea
     ports:
       - "8080:8080"

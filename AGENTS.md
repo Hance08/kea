@@ -25,13 +25,12 @@ go mod tidy
 
 ## Docker Development
 
-An alternative to installing Go/Node/CGO toolchains locally: a Docker Compose setup provisions an `app` (Go) and `spa` (Node) dev container, bind-mounting the repo so edits on the host are picked up immediately. The `spa` container installs its dependencies and starts the Vite dev server automatically on boot (reachable at `localhost:5173`); the `app` container just idles, since the Go CLI/TUI and `kea serve` are run on demand.
+An alternative to installing Go/Node/CGO toolchains locally: a Docker Compose setup provisions an `app` (Go) and `spa` (Node) dev container, bind-mounting the repo so edits on the host are picked up immediately. Both containers are ready to use as soon as `docker compose up -d` returns: `app` runs `kea serve` (reachable at `localhost:8080`; bootstraps a `default` ledger automatically on a fresh volume, same as running `kea` locally with no ledger configured), and `spa` installs dependencies and starts the Vite dev server (reachable at `localhost:5173`). You can still `docker compose exec app <command>` for ad-hoc CLI/TUI use or `go test ./...` alongside the running server.
 
 ```bash
-docker compose up -d                              # start both containers (spa dev server starts automatically)
+docker compose up -d                              # start both containers (app serves the API, spa serves the dev UI)
 docker compose exec app go test ./...             # run Go tests inside the container
-docker compose exec app go run ./cmd/kea <args>    # run the CLI/TUI
-docker compose exec app go run ./cmd/kea serve     # run the web API (reachable at localhost:8080)
+docker compose exec app go run ./cmd/kea <args>    # run the CLI/TUI (e.g. `ledger add`, `account list`)
 docker compose down                                # stop both containers
 ```
 

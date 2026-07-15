@@ -19,9 +19,16 @@ SERVICE_USER="kea"
 SERVICE_HOME="/var/lib/kea"
 BIN_PATH="/usr/local/bin/kea"
 UNIT_PATH="/etc/systemd/system/kea.service"
+BUILD_USER="${SUDO_USER:-}"
 
 echo "==> Building kea (spa + binary)"
-make -C "$REPO_DIR" build-all
+if [[ -n "$BUILD_USER" ]]; then
+	# Build as the invoking user so `go`/`npm` from their shell profile
+	# (not root's minimal sudo PATH) are used.
+	sudo -u "$BUILD_USER" -H bash -lc "make -C '$REPO_DIR' build-all"
+else
+	make -C "$REPO_DIR" build-all
+fi
 
 echo "==> Installing binary to ${BIN_PATH}"
 install -m 0755 "$REPO_DIR/kea" "$BIN_PATH"

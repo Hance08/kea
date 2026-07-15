@@ -55,6 +55,13 @@ else
 	echo "==> System user '${SERVICE_USER}' already exists, skipping creation"
 fi
 
+# kea.service's ReadWritePaths (needed under ProtectSystem=strict) must
+# exist before systemd will start the unit, but kea only creates it on
+# first run. Pre-create it here so the sandboxed process can start.
+echo "==> Ensuring data directory ${SERVICE_HOME}/.config/kea exists"
+mkdir -p "${SERVICE_HOME}/.config/kea"
+chown -R "$SERVICE_USER":"$(id -gn "$SERVICE_USER")" "${SERVICE_HOME}/.config"
+
 echo "==> Installing systemd unit to ${UNIT_PATH}"
 install -m 0644 "$REPO_DIR/scripts/kea.service" "$UNIT_PATH"
 

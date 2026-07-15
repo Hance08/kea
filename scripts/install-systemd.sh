@@ -27,9 +27,20 @@ if [[ -n "$BUILD_USER" ]]; then
 	# run (e.g. a failed build before this fix), so this build step,
 	# running as BUILD_USER, can write to them.
 	chown -R "$BUILD_USER":"$(id -gn "$BUILD_USER")" "$REPO_DIR"
-	# Build as the invoking user so `go`/`npm` from their shell profile
+	# Locate `go` via the invoking user's interactive shell (bash -i sources
+	# ~/.bashrc even non-interactively-invoked, unlike bash -l alone), since
+	# many installs add it to PATH there rather than in a login-shell file.
+	GO_MARKER="$(sudo -u "$BUILD_USER" -H bash -ic 'echo "KEA_GO_BIN=$(command -v go)"' 2>/dev/null || true)"
+	GO_BIN="$(printf '%s\n' "$GO_MARKER" | sed -n 's/^KEA_GO_BIN=//p' | tail -n1)"
+	if [[ -z "$GO_BIN" ]]; then
+		echo "Could not locate 'go' on ${BUILD_USER}'s PATH (checked login and interactive shell). Ensure Go is installed, then re-run." >&2
+		exit 1
+	fi
+	GO_DIR="$(dirname "$GO_BIN")"
+
+	# Build as the invoking user so `go`/`npm` from their environment
 	# (not root's minimal sudo PATH) are used.
-	sudo -u "$BUILD_USER" -H bash -lc "make -C '$REPO_DIR' build-all"
+	sudo -u "$BUILD_USER" -H bash -lc "PATH=\"$GO_DIR:\$PATH\" make -C '$REPO_DIR' build-all"
 else
 	make -C "$REPO_DIR" build-all
 fi

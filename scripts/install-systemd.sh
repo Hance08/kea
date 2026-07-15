@@ -23,6 +23,10 @@ BUILD_USER="${SUDO_USER:-}"
 
 echo "==> Building kea (spa + binary)"
 if [[ -n "$BUILD_USER" ]]; then
+	# Repair ownership of any build artifacts left root-owned by a prior
+	# run (e.g. a failed build before this fix), so this build step,
+	# running as BUILD_USER, can write to them.
+	chown -R "$BUILD_USER":"$(id -gn "$BUILD_USER")" "$REPO_DIR"
 	# Build as the invoking user so `go`/`npm` from their shell profile
 	# (not root's minimal sudo PATH) are used.
 	sudo -u "$BUILD_USER" -H bash -lc "make -C '$REPO_DIR' build-all"

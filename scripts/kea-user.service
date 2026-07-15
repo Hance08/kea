@@ -1,0 +1,12 @@
+[Unit]
+Description=Kea personal accounting server
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/kea serve
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

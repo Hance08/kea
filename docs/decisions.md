@@ -34,6 +34,12 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 - **Where:** `internal/repository/errors.go`, `internal/store/errors.go` (`ErrRecordNotFound`, `ErrAccountExists`)
 - **Source:** [2026-05-13-fix-service-store-error-coupling.md](history/superpowers/plans/2026-05-13-fix-service-store-error-coupling.md)
 
+### Large ID lists are chunked before building `IN` clauses
+- **Decision:** Queries that filter by a list of IDs split it into batches of `sqliteChunkSize` (500) and merge the results.
+- **Why:** SQLite caps the number of bound variables per statement, so an unbounded `IN (?,...)` fails when reconciling or loading split details for many transactions at once.
+- **Where:** `internal/store/chunk.go` (`chunkInt64`, `sqliteChunkSize`), `internal/store/sqlite_reconcile.go`, `internal/store/sqlite_transaction.go`
+- **Source:** [2026-05-23-chunk-in-clauses.md](history/superpowers/plans/2026-05-23-chunk-in-clauses.md)
+
 ## Domain
 
 ### Money is `int64` cents end to end
@@ -101,8 +107,9 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 - **Source:** [2026-05-20-split-type-trust-boundary-design.md](history/superpowers/specs/2026-05-20-split-type-trust-boundary-design.md)
 
 ### Services translate errors into typed service errors
-- **Decision:** Services return `service.ErrNotFound`, `service.ErrAlreadyExists` or a `*ValidationError` (with `Field`), never raw repository sentinels; the API maps only service errors.
+- **Decision:** Services return `service.ErrNotFound`, `service.ErrAlreadyExists` or a `*ValidationError` (with `Field`) instead of repository sentinels; the API never maps repository or store errors.
 - **Why:** Presentation layers can pick 400/404/409/500 with `errors.Is`/`errors.As` without importing storage packages; an unknown account in a request body is a 400, not a 404.
+- **Known gap:** `UpdateTransactionComplete` runs `ValidateSplitsMatchType` before checking that split accounts exist, so an unknown split `account_id` leaks `repository.ErrNotFound` and the API answers 500.
 - **Where:** `internal/service/errors.go` (`ValidationError`, `validationErrorf`), `internal/api/errors.go` (`mapError`)
 - **Source:**
   - [2026-05-14-structured-validation-errors.md](history/superpowers/plans/2026-05-14-structured-validation-errors.md)
@@ -126,7 +133,7 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 ### A balance mismatch is the caller's policy, not the service's
 - **Decision:** `ReconcileTransactions` always commits and returns the difference; the CLI (`--force`, TUI y/n) and the API (`allow_mismatch`) decide whether a non-zero difference is allowed.
 - **Why:** Reconciliation is a soft check, so the user may accept a mismatch; each front end gates it in its own idiom, and the API rejects by default as defence against SPA bugs.
-- **Where:** `internal/service/reconcile_ops.go` (`PreviewReconcile`, `ReconcileTransactions`), `internal/api/reconcile.go` (`balanceMismatchError`), `cmd/reconcile_actions.go`
+- **Where:** `internal/service/reconcile_ops.go` (`PreviewReconcile`, `ReconcileTransactions`), `internal/api/reconcile.go` (`Server.handleReconcileCommit`), `internal/api/errors.go` (`balanceMismatchError`), `cmd/reconcile_actions.go`
 - **Source:**
   - [2026-04-16-reconciliation-design.md](history/superpowers/specs/2026-04-16-reconciliation-design.md)
   - [2026-06-04-web-api-reconcile-design.md](history/superpowers/specs/2026-06-04-web-api-reconcile-design.md)
@@ -179,6 +186,7 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 - **Where:** `internal/store/sqlite.go` (`Store.Swap`), `internal/app/app.go` (`App.SwitchLedger`), `cmd/serve.go` (`NewServeCmd`)
 - **Source:**
   - [2026-05-19-ledger-file-watch-design.md](history/superpowers/specs/2026-05-19-ledger-file-watch-design.md)
+  - [2026-06-04-web-api-ledgers-design.md](history/superpowers/specs/2026-06-04-web-api-ledgers-design.md)
   - [2026-06-07-fix-serve-registry-watcher-wire-design.md](history/superpowers/specs/2026-06-07-fix-serve-registry-watcher-wire-design.md)
 
 ### Shared mutable state is locked and kept off `Config`
@@ -212,11 +220,3 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 - **Source:**
   - [2026-06-26-spa-filter-memory-design.md](history/web-layer/2026-06-26-spa-filter-memory-design.md)
   - [2026-06-28-webui-dashboard-design.md](history/2026-06-28-webui-dashboard-design.md)
-
-## Operations
-
-### Docker is a development environment, not a release package
-- **Decision:** The Compose setup provides Go (with CGO for `go-sqlite3`) and Node dev containers over a bind-mounted repo; Make targets stay the source of truth.
-- **Why:** Contributors can work without installing Go, a C compiler or Node, without changing how kea is built or shipped.
-- **Where:** `docker/app.Dockerfile`, `docker/spa.Dockerfile`
-- **Source:** [2026-07-14-docker-dev-environment-design.md](history/superpowers/specs/2026-07-14-docker-dev-environment-design.md)

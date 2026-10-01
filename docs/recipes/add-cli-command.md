@@ -18,7 +18,8 @@
    - Examples: `AccountSearchProvider` in `cmd/account/search.go`, `InfoProvider` in `cmd/info.go`. The constructor passes `svc.Account()` or `svc.Transaction()`, or the `*app.App` itself when the runner needs config or runtime state (`NewInfoCmd`).
    - Add a view interface too when the runner renders through `ui/views` (`ShowView` in `cmd/transaction/show.go`), so tests can capture output.
 3. Write the runner struct and `Run` method; keep cobra out of `Run` where possible. Choose the flag pattern below.
-4. Write `NewXxxCmd`: `Use` with `<arg>` placeholders, `Short`, `Long`, `Args` validator, flags, and a `RunE` that builds the runner and calls `Run`. `Run` takes `ctx` only when the service needs it: `infoRunner.Run` and the `cmd/ledger` runners take none, and `reconcileRunner.Run` takes `cmd, args`.
+4. Write `NewXxxCmd`: `Use` with `<arg>` placeholders, `Short`, `Long`, `Args` validator, flags, and a `RunE` that builds the runner and calls `Run`.
+   - `Run` takes `ctx` only when the service needs it: `infoRunner.Run` and the `cmd/ledger` runners take none, and `reconcileRunner.Run` takes `cmd, args`.
    - Add `--json` / `-j` for any command that prints data or a result.
 5. Render output.
    - Human output: a view in `ui/views`. Most tables use tablewriter (`account_list.go`, `transaction_list.go`, `transaction_detail.go`, `report.go`); only `system_info.go` uses `pterm.DefaultTable`. Interactive input: a huh prompt in `ui/prompts`.
@@ -58,7 +59,8 @@ Two commits cover a new command; two more cover a new flag.
 - Amounts: parse input with `utils.ParseAmount`, print with `utils.FormatAmount`; stored values are cents. See [domain.md](../domain.md).
 - JSON: emit one document through `views.WriteJSON`, with nothing else on stdout. Human-only messages go through pterm or stderr.
 - Help text: write `Long` with examples for non-obvious flags; flag descriptions start with a capital letter or a verb and name the allowed values.
-- Tests: `package cmd` or the subpackage, with fakes for the provider and view interfaces; test `Run` directly. Copy `cmd/info_test.go`, `cmd/add_test.go`, `cmd/ledger/*_test.go` or `cmd/transaction/edit_actions_test.go`; most subcommands have no tests yet. See [development.md](../development.md).
+- Tests: `package cmd` or the subpackage, with fakes for the provider and view interfaces; test `Run` directly. Copy `cmd/info_test.go`, `cmd/add_test.go`, `cmd/ledger/*_test.go` or `cmd/transaction/edit_actions_test.go`; most subcommands have no tests yet.
+  - See [development.md](../development.md).
 
 ## Checklist
 - [ ] Runner tests with fake providers (success, invalid input, `--json` path) next to the command

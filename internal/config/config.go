@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026  Hance Chin
 
+// Package config defines kea's user configuration and its defaults.
 package config
 
 type Config struct {

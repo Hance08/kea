@@ -1,94 +1,78 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+Guidance for AI coding agents and contributors working in this repository.
+
+kea is a personal double-entry accounting tool: a Go CLI/TUI plus an HTTP API (`kea serve`) with an embedded React SPA, storing each ledger in a local SQLite database.
 
 ## Language
 
-All code, comments, test names, commit messages, and documentation in this repository must be written in English.
+All code, comments, test names, commit messages, and documentation must be written in English.
 
 ## Commands
 
 ```bash
-# Build
-make build          # produces ./kea_test binary
-make run            # go run ./cmd/kea
-
-# Test
-go test ./...                                      # all packages
-go test ./internal/service/...                     # one package
-go test ./internal/service/ -run TestCreateAccount # single test
-go test ./internal/service/ -v -run TestDetermineType
-
-# Dependencies
-go mod tidy
+make build                                   # builds ./kea
+make run                                     # go run ./cmd/kea
+go test ./...                                # all Go tests
+go test ./internal/service/ -run TestName    # one test
+go build ./... && go vet ./...               # compile + vet
+scripts/check-docs.sh                        # verify paths referenced in docs
+docker compose up -d                         # app on :8080, SPA dev server on :5173
+cd spa && npm test                           # SPA tests
 ```
 
-## Docker Development
+Full setup, Docker, and deploy details: [docs/development.md](docs/development.md).
 
-An alternative to installing Go/Node/CGO toolchains locally: a Docker Compose setup provisions an `app` (Go) and `spa` (Node) dev container, bind-mounting the repo so edits on the host are picked up immediately. Both containers are ready to use as soon as `docker compose up -d` returns: `app` runs `kea serve` (reachable at `localhost:8080`; bootstraps a `default` ledger automatically on first run, same as running `kea` locally with no ledger configured), and `spa` installs dependencies and starts the Vite dev server (reachable at `localhost:5173`). You can still `docker compose exec app <command>` for ad-hoc CLI/TUI use or `go test ./...` alongside the running server.
+## Project layout
 
-The `app` container's ledger data (`config.yaml`, `ledgers.yaml`, the SQLite DB files) is bind-mounted to `./data` at the repo root by default (gitignored), so it lives directly on the host — inspect, back up, or delete it like any other local file. To reuse an existing kea data directory instead (e.g. your host's `~/.config/kea`), copy `.env.example` to `.env` and set `KEA_DATA_DIR` to that path.
+- `cmd/` - Cobra commands (`cmd/account`, `cmd/transaction`, `cmd/ledger`, `cmd/kea` is `main`).
+- `ui/` - interactive prompts (huh), views (pterm), reconcile TUI (bubbletea).
+- `internal/` - `api` (HTTP), `app` (wiring), `service`, `repository`, `store`, `model`, `config`, `ledger`, `backup`, `utils`, `web`.
+- `migrations/` - embedded SQL migrations.
+- `spa/` - React SPA (Vite, Vitest); built output is embedded via `internal/web`.
+- `scripts/`, `docker/` - deploy scripts and dev containers.
+- `docs/` - contributor documentation.
 
-```bash
-docker compose up -d                              # start both containers (app serves the API, spa serves the dev UI)
-docker compose exec app go test ./...             # run Go tests inside the container
-docker compose exec app go run ./cmd/kea <args>    # run the CLI/TUI (e.g. `ledger add`, `account list`)
-docker compose down                                # stop both containers
-```
+## Hard rules
 
-Known limitation: the `app` container runs as root, which causes `TestSwap_FailedSwapKeepsOldConnection` (`internal/store`) to fail under `go test ./...` inside the container — it's a pre-existing test that assumes an unprivileged user, not a bug in the Docker setup.
+Breaking any of these causes bugs. Details in [docs/domain.md](docs/domain.md) and [docs/architecture.md](docs/architecture.md).
 
-## Architecture
+- Amounts are `int64` cents. Convert only with `utils.FormatAmount` / `utils.ParseAmount`.
+- A transaction's splits must sum to zero (`ValidateSplitsBalance`).
+- Only leaf accounts hold splits.
+- Reconciled transactions are immutable; mutations return `ErrReconciled` - check with `errors.Is`.
+- System accounts `Equity:OpeningBalances_<CCY>` must not be deleted; build/detect names with `model.OpeningBalancesAccountName` / `model.IsOpeningBalancesAccount`.
+- Never sum amounts across currencies.
+- Every repository/store method takes `context.Context` first and uses the `*Context` methods of `database/sql`.
+- Dependency direction: `cmd`/`ui`/`internal/api` -> `internal/service` -> `internal/repository` <- `internal/store`. `internal/model` imports no kea package. The service never imports the store.
+  - Deliberate exceptions: `internal/api` and `cmd/ledger` import `internal/app` to call `app.InitLedgerDB`; `ui/views` imports `ui/prompts`.
+- Multi-step writes go through `TransactionManager.ExecTx` (no nesting).
+- Wrap errors with `%w`; services return service sentinels (`internal/service/errors.go`), never raw repository errors.
+- A new service sentinel needs a case in `mapError` (`internal/api/errors.go`).
 
-KEA is a CLI/TUI personal double-entry accounting tool. The layers are:
+## Where to look
 
-```
-cmd/              Cobra commands → call service methods
-  cmd/ledger/     Ledger management subcommands (add/list/switch/remove)
-internal/app/     Wires service + store (entry point for dependency injection)
-internal/service/ Business logic (AccountService, TransactionService, report, reconcile)
-internal/store/   SQLite implementation of repository interfaces (sqlite*.go)
-internal/model/   Domain types only (no business logic)
-internal/repository/interfaces.go  Contracts between service and store
-internal/config/  Config struct + defaults (loaded by cmd/root.go via viper)
-internal/ledger/  Ledger registry (multiple named DBs, active selection)
-internal/backup/  Pre-startup DB backup
-internal/utils/   Pure helpers (amount formatting/parsing)
-ui/               charmbracelet/huh prompts and pterm views
-migrations/       golang-migrate SQL files embedded via FS
-```
+| Task | Read first |
+|---|---|
+| Orientation | [docs/README.md](docs/README.md) -> [docs/architecture.md](docs/architecture.md) |
+| Domain rules | [docs/domain.md](docs/domain.md) |
+| New migration | [docs/recipes/add-migration.md](docs/recipes/add-migration.md) |
+| New service logic / repo method | [docs/recipes/add-service-method.md](docs/recipes/add-service-method.md) |
+| New HTTP endpoint | [docs/recipes/add-api-endpoint.md](docs/recipes/add-api-endpoint.md), [docs/http-api.md](docs/http-api.md) |
+| New CLI command or flag | [docs/recipes/add-cli-command.md](docs/recipes/add-cli-command.md) |
+| New SPA page | [docs/recipes/add-spa-page.md](docs/recipes/add-spa-page.md) |
+| Why it is built this way | [docs/decisions.md](docs/decisions.md) |
+| Testing patterns and mocks | [docs/development.md](docs/development.md#testing) |
+| Operating the kea CLI | [SKILL.md](SKILL.md) |
 
-**Service facade:** `service.Service` holds unexported `*AccountService` and `*TransactionService` fields plus a `*config.Config`. Access via `svc.Account()`, `svc.Transaction()`, `svc.Config()`. Report and reconcile methods live directly on `TransactionService`.
+## Testing in one paragraph
 
-**Repository interfaces** (`internal/repository/interfaces.go`): every method takes `context.Context` as its first argument.
-- `AccountRepository` — account CRUD and balance queries
-- `TransactionRepository` — transaction/split CRUD, bulk date-range queries for reports, and reconcile-state operations (`GetUnreconciledTransactionsByAccount`, `MarkSplitsReconciledByAccount`, `BulkUpdateTransactionStatus`, `GetLastReconciledBalance`, `SetLastReconciledBalance`)
-- `Repository` — combines both
-- `TransactionManager` — `ExecTx(ctx, fn(Repository) error)` for atomic multi-step operations
+Service tests are white-box (`package service`) with hand-written in-memory mocks in `internal/service/testhelper_test.go`; store tests use real SQLite via `setupTestDB`; API tests use `httptest` helpers in `internal/api/testhelper_test.go`; SPA tests use Vitest. Add tests at every layer you touch. See [docs/development.md](docs/development.md#testing).
 
-**Store** (`internal/store/`): the `Store` struct implements `Repository` + `TransactionManager`. The `DBTX` interface uses the `*Context` method set (`ExecContext`, `QueryContext`, `QueryRowContext`, `PrepareContext`) so the same queries work over both `*sql.DB` and `*sql.Tx`. All store methods thread `context.Context`; do not call non-context `database/sql` methods.
+## Keeping docs current
 
-## Key Domain Rules
+When a change alters a pattern, an endpoint, or a domain rule, update the matching doc under `docs/` in the same commit and run `scripts/check-docs.sh`. New design specs and plans go to `docs/history/superpowers/specs/` and `docs/history/superpowers/plans/`.
 
-**Amount storage:** always cents as `int64`. Use `utils.FormatAmount` / `utils.ParseAmount` for display and input. `FormatAmount` trims trailing zeros (e.g., 100 cents → `"1"`, not `"1.00"`).
+## Known issues
 
-**Double-entry:** every transaction's splits must sum to zero. Enforced by `ValidateSplitsBalance`.
-
-**Account types:** `A` (Asset), `L` (Liability), `C` (Equity), `R` (Revenue), `E` (Expense). Only leaf accounts may hold transactions.
-
-**Opening balance split direction:**
-- Asset account: asset split = +amount, equity split = -amount
-- Liability account: liability split = -amount, equity split = +amount
-
-**Protected records:** Transaction ID 1 (`model.SystemTransactionID`) and reconciled transactions are immutable. Operations on them return `ErrNotEditable` or `ErrReconciled` (both wrapped with `%w` — check with `errors.Is`).
-
-**System account:** per-currency, named `Equity:OpeningBalances_<CCY>` (e.g. `Equity:OpeningBalances_USD`). Use `model.OpeningBalancesAccountName(currency)` to build the name and `model.IsOpeningBalancesAccount(name)` to detect one. The legacy single name `Equity:OpeningBalances` is auto-renamed at startup by `migrateLegacySysAcc` (`cmd/root.go`). System accounts must not be deleted.
-
-## Testing
-
-Service layer tests use white-box testing (`package service`) with hand-written mocks in `internal/service/testhelper_test.go`:
-- `mockAccountRepo`, `mockTransactionRepo`, `mockCombinedRepo`, `mockTransactionManager`
-- Injectable error maps and call-recorder slices (e.g. `deleteSplitCalls []int64`)
-- Factory helpers: `newTestAccountService()`, `newTestTransactionService()`, `defaultConfig()`
-
-No real database is needed for service tests — all storage is in-memory maps within the mocks.
+- Inside the Docker `app` container (runs as root), `TestSwap_FailedSwapKeepsOldConnection` in `internal/store` fails; it assumes an unprivileged user.

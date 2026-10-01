@@ -71,7 +71,7 @@ The reconcile page landed as one commit per layer. Copy the order.
 - Ledger switch: `LedgerSwitcher` calls `setActiveLedger(name)` then `queryClient.invalidateQueries()` with no filter, so every query refetches. Pages need no ledger handling, but all server data must come through `useQuery`, not local state.
 - Server config (currency, `hide_decimals`) is loaded once by `ServerConfigProvider`; do not fetch it again in a page.
 - Tests use one of two patterns (see [development.md](../development.md#spa-tests)).
-  - `vi.mock` on client modules, spreading `vi.importActual` and replacing only the needed functions (`spa/src/test/reconcile.workspace.test.tsx`; about 13 files).
+  - `vi.mock` on client modules, spreading `vi.importActual` and replacing only the needed functions (`spa/src/test/reconcile.workspace.test.tsx`; some tests).
   - `vi.stubGlobal('fetch', ...)` routing by URL (`spa/src/test/transactions.list.test.tsx`, `balances.test.tsx`, `settings.test.tsx`; most route tests).
   - Full-app renders also hit `/api/config` (server config) and `/api/ledgers` (sidebar `LedgerSwitcher`, which shows plain "kea" on error). A fetch stub must answer both; with `vi.mock` of `@/lib/api`, mock `getConfig` and `getLedgers`.
   - Render a route with `makeTestApp('/reconcile/3')` from `spa/src/test/test-app.tsx`; component tests without the router use `withServerConfig`.
@@ -83,5 +83,5 @@ The reconcile page landed as one commit per layer. Copy the order.
 - [ ] Route-level test with `makeTestApp` covering loading, error, empty and success, plus one mutation path
 - [ ] Filter-memory test if the page remembers filters (`*.filter-memory.test.tsx`)
 - [ ] Regenerated `spa/src/routeTree.gen.ts` committed
-- [ ] Update `spa/README.md` route table if adding a top-level page
+- [ ] Update `spa/README.md` route table for every new route
 - [ ] `npm test` and `npm run check` pass in `spa/`

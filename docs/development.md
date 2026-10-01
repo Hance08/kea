@@ -22,7 +22,7 @@ go run ./cmd/kea <args>     # any subcommand, e.g. `account list`, `serve`
 
 For the SPA, run `make spa-install` (`npm install` in `spa/`) once first, before `make spa-dev`, `npm test` or `make spa-build`.
 
-`make build` writes `./kea`; the older `kea_test` name is gone.
+`make build` writes `./kea`.
 
 On first run with no ledger configured, startup creates `config.yaml` and a `default` ledger (`kea.db`) in the data directory, then asks for a default currency. A non-interactive run falls back to USD with a warning. Startup order is in [architecture.md](architecture.md#startup-sequence).
 
@@ -134,7 +134,7 @@ Vitest with jsdom and Testing Library, in `spa/src/test/` plus a few colocated f
 
 - `spa/src/test/setup.tsx` loads `@testing-library/jest-dom`, runs `cleanup` after each test and shims `localStorage` when Node provides a non-Storage global. It is deliberately thin; do not import the route tree there.
 - `spa/src/test/test-app.tsx` provides `makeTestApp(initialPath)`, which renders the real route tree in a memory router with a fresh `QueryClient`, and `withServerConfig` for component tests that need server config.
-- API calls are mocked in one of two ways. About 13 files use `vi.mock('@/lib/api', ...)` or `vi.mock('@/lib/accounts', ...)`, spreading `vi.importActual` and replacing only the needed functions (see `spa/src/test/accounts.list.test.tsx`). Most route tests instead use `vi.stubGlobal('fetch', ...)` and route by URL (see `spa/src/test/transactions.list.test.tsx`). A full-app fetch stub must answer `/api/config` and `/api/ledgers`.
+- API calls are mocked in one of two ways. Some tests use `vi.mock('@/lib/api', ...)` or `vi.mock('@/lib/accounts', ...)`, spreading `vi.importActual` and replacing only the needed functions (see `spa/src/test/accounts.list.test.tsx`). Most route tests instead use `vi.stubGlobal('fetch', ...)` and route by URL (see `spa/src/test/transactions.list.test.tsx`). A full-app fetch stub must answer `/api/config` and `/api/ledgers`.
 - Most tests live in `spa/src/test/` and mostly follow `<area>.<topic>.test.tsx`. Some sit next to the code: `spa/src/lib/*.test.ts` and `spa/src/components/dashboard/Dashboard.test.tsx`.
 
 ### Commands
@@ -185,7 +185,7 @@ The bundle is not committed. `.gitignore` excludes `internal/web/dist/*` except 
 
 ## Deploying `kea serve`
 
-All three scripts run `make build-all`, install the binary, register a service that runs `kea serve`, and are idempotent: re-run after pulling to rebuild and redeploy. Configure host and port in `config.yaml` in the service user's data directory.
+On a fresh clone run `make spa-install` once first: the scripts run `make build-all`, which needs the SPA dependencies. All three scripts run `make build-all`, install the binary, register a service that runs `kea serve`, and are idempotent: re-run after pulling to rebuild and redeploy. Configure host and port in `config.yaml` in the service user's data directory.
 
 ### `scripts/install-launchd.sh` (macOS)
 

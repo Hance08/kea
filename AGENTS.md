@@ -60,7 +60,7 @@ Breaking any of these causes bugs. Details in [docs/domain.md](docs/domain.md) a
 | New service logic / repo method | [docs/recipes/add-service-method.md](docs/recipes/add-service-method.md) |
 | New HTTP endpoint | [docs/recipes/add-api-endpoint.md](docs/recipes/add-api-endpoint.md), [docs/http-api.md](docs/http-api.md) |
 | New CLI command or flag | [docs/recipes/add-cli-command.md](docs/recipes/add-cli-command.md) |
-| New SPA page | [docs/recipes/add-spa-page.md](docs/recipes/add-spa-page.md) |
+| New SPA page | [docs/recipes/add-spa-page.md](docs/recipes/add-spa-page.md) · [spa/README.md](spa/README.md) |
 | Why it is built this way | [docs/decisions.md](docs/decisions.md) |
 | Testing patterns and mocks | [docs/development.md](docs/development.md#testing) |
 | Operating the kea CLI | [SKILL.md](SKILL.md) |

@@ -9,7 +9,7 @@ React SPA served by `kea serve` (embedded into the Go binary) and developed with
 - Vite, React 18, TypeScript
 - TanStack Router (file-based routes in `src/routes`) and TanStack Query
 - Tailwind CSS, shadcn/ui-style components (Radix primitives, class-variance-authority, lucide-react), next-themes, sonner toasts
-- react-hook-form with zod for forms; react-grid-layout for the dashboard
+- Forms use controlled `useState` (react-hook-form is installed but unused); zod validates search params in `spa/src/lib/*-search-params.ts`; react-grid-layout for the dashboard
 - Biome for lint and format; Vitest with Testing Library and jsdom for tests
 
 ## Routes

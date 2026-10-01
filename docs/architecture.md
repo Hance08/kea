@@ -108,7 +108,7 @@ Command runners usually depend on small interfaces instead of the concrete servi
 4. `internal/api/transactions_write.go` (`Server.handleCreateTransaction`) — `decodeJSON` into `model.CreateTransactionFromSplitsInput` (unknown fields rejected; decode failures become `service.ValidationError`). Path/query helpers for other endpoints live in `internal/api/params.go`.
 5. Service — `svc.Transaction().CreateTransactionFromSplits(r.Context(), input)`, then steps 8–10 of the CLI flow run unchanged.
 6. The handler re-reads the result with `TransactionService.GetTransactionByID` and responds `201` via `writeJSON`.
-7. Errors — `internal/api/errors.go` (`mapError`) maps `service.ValidationError` to 400, `service.ErrNotFound` to 404, `service.ErrAlreadyExists`/`service.ErrReconciled` to 409, ledger errors, and everything else to a generic 500. The full status table belongs in http-api.md.
+7. Errors — `internal/api/errors.go` (`mapError`) maps `service.ValidationError` to 400, `service.ErrNotFound` to 404, `service.ErrAlreadyExists`/`service.ErrReconciled` to 409, ledger errors, and everything else to a generic 500. The full status table is in [http-api.md](http-api.md#errors).
 
 ## Transactions and context
 

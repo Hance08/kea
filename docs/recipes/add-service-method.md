@@ -37,7 +37,7 @@
 The `Regular` attribute on Income/Expense transactions was added as a series of small commits. Copy the order.
 - `e2275aa` — model field: `Regular *bool` on the transaction structs and `internal/model/input.go`; types only, no logic.
 - `a8a87aa` — new sentinels `ErrRegularRequired` and `ErrRegularNotApplicable` in `internal/service/errors.go`, before any code returns them.
-  - Gap not to copy: they were never added to `mapError`, so they surface as HTTP 500 (see [http-api.md](../http-api.md)).
+  - Gap not to copy: never added to `mapError`, so HTTP 500 (see [http-api.md](../http-api.md#errors)).
 - `14ecedc` — `ValidateRegular` in `internal/service/transaction_validation.go`, a pure function with its own table-style tests.
 - `ae1e9d3` — repository signature change (`UpdateTransactionBasic` gains `regular`) plus interface, store stub and mock; defaulting in create/update; tests for each path.
 - `5bc4e65`, `b613312`, `277ad17` — migration 0011 and its tests, landed after the store stub; see [add-migration.md](add-migration.md).

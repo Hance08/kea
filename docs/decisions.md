@@ -167,7 +167,7 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 - **Source:** [2026-06-02-web-api-foundation-design.md](history/superpowers/specs/2026-06-02-web-api-foundation-design.md)
 
 ### Responses are bare model structs; request bodies are strict
-- **Decision:** Endpoints return `internal/model` types as-is (snake_case tags, cents, Unix seconds); bodies reject unknown fields and IDs come only from the path.
+- **Decision:** Return the `internal/model` type when it already fits (accounts, transactions, reports); use an API-local struct for composite or derived shapes (`reconcileCommitResponse`, `ledgerInfo`, `configResponse`, `balanceResponse`). Wire format is snake_case tags, cents, Unix seconds; bodies reject unknown fields and IDs come only from the path.
 - **Why:** Zero translation layer between model and wire, and no way to smuggle an `id` that disagrees with the URL.
 - **Where:** `internal/api/handler.go` (`writeJSON`, `decodeJSON`), `internal/model/input.go` (`UpdateTransactionInput`)
 - **Source:**

@@ -208,6 +208,6 @@ Service errors wrap sentinels with `%w`; always test with `errors.Is` (or `error
 | `repository.ErrNotFound` | storage-level not found (wrapped by `store.ErrRecordNotFound`) | store methods; services translate it to `service.ErrNotFound` at most call sites |
 | `repository.ErrAlreadyExists` | storage-level unique violation (wrapped by `store.ErrAccountExists`, `store.ErrTransactionExists`) | store inserts; services translate it to `service.ErrAlreadyExists` |
 
-Callers above the service layer should match `service.*` sentinels; `repository.*` sentinels are for the service/store boundary. The HTTP status for each error is defined in `internal/api/errors.go` (`mapError`).
+Callers above the service layer should match `service.*` sentinels; `repository.*` sentinels are for the service/store boundary. The HTTP status for each error is defined in `internal/api/errors.go` (`mapError`); see the table in [http-api.md](http-api.md#errors).
 
 Code lives in: `internal/service/errors.go`, `internal/repository/errors.go`, `internal/store/errors.go`.

@@ -28,7 +28,7 @@
    - JSON bodies: define a request struct and call `decodeJSON(r, &req)`. It rejects unknown fields and malformed JSON with a `ValidationError` on field `body`.
    - Example: `reconcilePreviewRequest` and `handleReconcilePreview` in `internal/api/reconcile.go`.
 4. Write the response.
-   - `writeJSON(w, status, v)` with a dedicated response struct that has snake_case JSON tags.
+   - `writeJSON(w, status, v)` Return the `internal/model` type when it already fits (accounts, transactions, reports); use an API-local struct for composite or derived shapes (`reconcileCommitResponse`, `ledgerInfo`, `configResponse`, `balanceResponse`); either way, snake_case JSON tags.
    - Use 200 for reads and actions, 201 for creates (`handleCreateTransaction`), and 200 with `{"deleted": true, "id": id}` for deletes (`handleDeleteTransaction`).
    - Return empty slices, not nil, so lists encode as `[]` (see `handleListUnreconciled`).
    - The transaction create and update handlers in `internal/api/transactions_write.go` re-read the record with `GetTransactionByID` for the full detail. Account handlers return the service result directly.
@@ -54,7 +54,7 @@ The reconcile endpoints were added as a series of small commits. Copy the order.
 ## Conventions
 - Handlers stay thin: parse, call one service method, write JSON. Rules belong in `internal/service`; an API-local gate (as in `handleReconcileCommit`) is the exception.
 - Error codes, statuses and the 500 fallback are listed in [http-api.md](../http-api.md); `mapError` is the single place to change them.
-- Cautionary example: `service.ErrRegularNotApplicable` has no case in `mapError`, so `POST /api/transactions` with `regular` on a Transfer returns 500 instead of 400. Add the case when you add the sentinel.
+- Cautionary example: `service.ErrRegularNotApplicable` has no case in `mapError` and surfaces as 500 (see [http-api.md](../http-api.md#errors)); add the case when you add a sentinel.
 - Service code must wrap `repository.ErrNotFound` into `service.ErrNotFound`; `mapError` does not know the repository sentinels.
 - Input errors are `*service.ValidationError{Field, Message}`, which becomes 400 `validation_failed` with the field name.
 - Amounts in request and response bodies are integer cents. See [domain.md](../domain.md).

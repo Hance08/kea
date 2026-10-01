@@ -131,7 +131,7 @@ Parsers are in `internal/api/params.go`. A missing or empty value means "not set
 | `include_hidden` | accounts, tree, balances | Same boolean rules; hidden accounts excluded by default |
 | `q`, `currency`, `type` | accounts | `q` text search, `currency` exact; `type` must be `A`, `L`, `C`, `R` or `E` (`parseAccountFilter`) |
 | `account_id` | transactions | Integer |
-| `type` | transactions | One of `Expense, Income, Transfer, Opening, Deposit, Withdrawal, Other` |
+| `type` | transactions | One of `Expense, Income, Transfer, Opening, Deposit, Withdrawal, Investment, Other` (`TransactionType.IsValid()`; the error message in `internal/api/params.go` still omits `Investment`) |
 | `status` | transactions | `Pending`, `Cleared` or `Reconciled` |
 | `start_time`, `end_time` | transactions | Unix seconds; `end_time < start_time` is 400 on `end_time` |
 | `description` | transactions | Text filter |

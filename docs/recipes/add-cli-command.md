@@ -24,7 +24,7 @@
    - Human output: a view in `ui/views` (pterm tables, detail views). Interactive input: a huh prompt in `ui/prompts`.
    - JSON output: add a `JSONXxx` type and `ToJSONXxx` converter in `ui/views/json_types.go`, then call `views.WriteJSON` (`ui/views/json.go`).
 6. Large commands split into `x.go` (cobra wiring), `x_types.go` (provider/view interfaces, flags, input structs) and `x_actions.go` (runner logic).
-   - Used by `add`, `report`, `reconcile`, `account create`, `account edit` and `transaction edit`. Small commands (`list`, `delete`, `search`, `show`, `clear`, `info`) stay in one file.
+   - Used by `add`, `report`, `account create`, `account edit` and `transaction edit` (`reconcile` has actions but no types file). Small commands (`list`, `delete`, `search`, `show`, `clear`, `info`) stay in one file.
 7. Write the tests, update docs, and run the checklist.
 
 ## Flag-handling patterns
@@ -48,7 +48,7 @@ Two commits cover a new command; two more cover a new flag.
   - `cmd/add_actions.go`: honor it in `runFromFlags` and `runFromSplitFlags`, warn on stderr when the type is not Income/Expense, and ask in `runInteractive`.
   - `ui/prompts/transaction.go`: new `PromptRegular`. Both modes must work: flags for agents and scripts, prompts for people.
 - `e8f2331` added a `--regular` filter to `kea transaction list`.
-  - New flag fields, a filter passed to the service, `Regular` on `views.JSONTransaction` in `ui/views/json_types.go`, and a `Reg` column in `ui/views/transaction_list.go`.
+  - New flag fields, a filter passed to the service, `Regular` on `views.JSONTxListItem` in `ui/views/json_types.go`, and a `Reg` column in `ui/views/transaction_list.go`.
 
 ## Conventions
 - Interactive vs non-interactive: if a command prompts when flags are absent, give it a complete flag mode that never prompts. Agents and scripts rely on it; see [SKILL.md](../../SKILL.md).

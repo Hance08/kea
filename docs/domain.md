@@ -58,7 +58,9 @@ Code lives in: `internal/utils/amount.go` (`FormatAmount`, `ParseAmount`), `inte
 - **Delete** is refused for system accounts (`ErrNotEditable`), accounts with children, and accounts with transactions (`AccountService.DeleteAccountByName`). The DB also enforces `ON DELETE RESTRICT` from splits to accounts.
 - Migration `migrations/0007_add_account_type_check.up.sql` adds `CHECK(type IN ('A','L','C','R','E'))`.
 
-Code lives in: `internal/model/account.go`, `internal/model/types.go`, `internal/service/account_validation.go` (`ValidateAccountName`, `ValidateFullAccountName`, `ValidateCurrency`), `internal/service/account_ops.go` (`CreateAccount`, `validateAccountFields`, `validateParentChain`, `validateParentType`), `internal/service/account_service.go`.
+Code lives in: `internal/model/account.go` (`Account`), `internal/model/input.go` (`CreateAccountInput`), `internal/model/types.go`, `internal/service/account_validation.go` (`ValidateAccountName`, `ValidateFullAccountName`, `ValidateCurrency`), `internal/service/account_ops.go` (`CreateAccount`, `validateAccountFields`, `validateParentChain`, `validateParentType`), `internal/service/account_service.go`.
+
+Metadata updates go through `AccountService.UpdateAccountMetadata` (description and hidden flag as plain arguments; there is no metadata input struct).
 
 ## Transactions and splits
 
@@ -167,6 +169,9 @@ Reconciliation matches one account's splits against an external statement (bank,
 - **Difference.** `statementBalance - (lastReconciledBalance + sum of selected amounts)`. `TransactionService.PreviewReconcile` computes it without writing; `TransactionService.ReconcileTransactions` validates the IDs (non-empty, no duplicates, all in the unreconciled set), marks splits, updates the balance atomically in `ExecTx`, and returns the difference.
 - **Balance-mismatch gate.** The service always commits. The gate lives in the callers: non-interactive `kea reconcile --balance --ids` previews first and refuses a non-zero difference unless `--force` (`cmd/reconcile_actions.go`); the HTTP commit handler does the same unless `allow_mismatch` is true (`internal/api/reconcile.go`, `balanceMismatchError`). The interactive TUI (`ui/reconcile/model.go`, `Model.Update`) asks for a y/n confirmation when the difference is non-zero, and `cmd/reconcile_actions.go` calls `ReconcileTransactions` only after the user confirms.
 - **Immutability.** A Reconciled transaction cannot be updated, have its status changed, or be deleted: `UpdateTransactionComplete`, `UpdateTransactionStatus` and `DeleteTransaction` return an error wrapping `ErrReconciled`. `TransactionService.IsEditable` exposes the same check to UIs. There is no un-reconcile operation.
+- **What the CLI user sees.**
+  - `kea transaction delete` surfaces the service error (`failed to delete transaction: ...`); `cmd.Execute` prints it with `pterm.Error` and exits 1.
+  - `kea transaction edit` checks `IsEditable` up front, prints a `pterm.Warning` ("cannot be edited (Reconciled Transaction)") and exits 0 without entering the edit menu.
 
 Code lives in: `internal/service/reconcile_ops.go`, `internal/store/sqlite_reconcile.go`, `internal/model/transaction.go` (`ReconcileEntry`), `ui/reconcile/model.go`.
 

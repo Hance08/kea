@@ -26,7 +26,9 @@
    - Simple mutations need no new view or JSON type: print `pterm.Success` for humans and `views.WriteJSON` of a small map (or an existing `ToJSON*` helper) for `--json`. See `clearRunner.Run` in `cmd/transaction/clear.go`.
    - JSON output for data commands: add a `JSONXxx` type and `ToJSONXxx` converter in `ui/views/json_types.go`, then call `views.WriteJSON` (`ui/views/json.go`).
 6. Large commands split into `x.go` (cobra wiring), `x_types.go` (provider/view interfaces, flags, input structs) and `x_actions.go` (runner logic).
-   - Used by `add`, `report`, `account create`, `account edit` and `transaction edit` (`reconcile` has actions but no types file). Small commands (`list`, `delete`, `search`, `show`, `clear`, `info`) stay in one file.
+   - Used by `add`, `report`, `account create`, `account edit` and `transaction edit` (`reconcile` has actions but no types file).
+   - `account edit` is dual-mode (flags, or an interactive prompt when no edit flag is set) and uses Pattern C.
+   - Small commands (`list`, `delete`, `search`, `show`, `clear`, `info`) stay in one file.
 7. Write the tests, update docs, and run the checklist.
 
 ## Flag-handling patterns

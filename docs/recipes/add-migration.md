@@ -11,7 +11,7 @@
 
 ## Steps
 1. Pick the next number.
-   - List `migrations/` and take the highest `NNNN` plus one (currently `0011_add_transaction_regular`).
+   - List `migrations/` and take the highest `NNNN` plus one (check with `ls migrations/`; `0011_add_transaction_regular` at the time of writing).
    - Create an up and a down file named like the existing pairs, e.g. `migrations/0011_add_transaction_regular.up.sql` and `migrations/0011_add_transaction_regular.down.sql`.
    - Every migration has a down file.
 2. Write the up file. Choose the form by what SQLite allows.

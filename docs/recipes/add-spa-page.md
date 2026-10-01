@@ -75,7 +75,7 @@ The reconcile page landed as one commit per layer. Copy the order.
   - `vi.stubGlobal('fetch', ...)` routing by URL (`spa/src/test/transactions.list.test.tsx`, `balances.test.tsx`, `settings.test.tsx`; most route tests).
   - Full-app renders also hit `/api/config` (server config) and `/api/ledgers` (sidebar `LedgerSwitcher`, which shows plain "kea" on error). A fetch stub must answer both; with `vi.mock` of `@/lib/api`, mock `getConfig` and `getLedgers`.
   - Render a route with `makeTestApp('/reconcile/3')` from `spa/src/test/test-app.tsx`; component tests without the router use `withServerConfig`.
-- `spa/README.md` still describes most pages as stubs; trim it rather than copying its status text.
+- `spa/README.md` has a route table listing every page; add a row for your new route there.
 
 ## Checklist
 - [ ] API client test in `spa/src/test/` (URL, method, body, error mapping)

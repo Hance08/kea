@@ -18,6 +18,8 @@ Worked example — buying lunch for 12.50 with cash:
 
 `kea add --from Assets:Wallet --to Expenses:Food:Dining --amount 12.50` produces exactly these two splits: the "to" account gets `+amount`, the "from" account gets `-amount` (`internal/service/transaction_ops.go`, `TransactionService.CreateSimpleTransaction`).
 
+Code lives in: `internal/model/transaction.go` (`Transaction`, `Split`), `internal/service/transaction_validation.go` (`ValidateSplitsBalance`), `internal/service/transaction_ops.go` (`CreateSimpleTransaction`, `CreateTransaction`).
+
 ## Amounts
 
 - Every amount is an `int64` count of cents (`model.CentsPerUnit` = 100). There are no floats in storage or business logic; `splits.amount` is an `INTEGER` column.
@@ -66,7 +68,7 @@ Invariants enforced on create (`TransactionService.CreateTransaction`) and full 
 
 - At least `model.MinSplitsCount` (2) splits.
 - Splits sum to zero **and all use the same currency** — a single transaction never mixes currencies (`TransactionService.ValidateSplitsBalance`, `TransactionService.ValidateSplitDetailsBalance`).
-- Every split account exists, is a leaf, and is not hidden.
+- Every split account exists. On create, every split account must also be a leaf and not hidden; on update, that check applies only to new splits and splits moved to a different account, so existing splits on a since-hidden account stay valid.
 - The splits match the declared type (`TransactionService.ValidateSplitsMatchType`, see below).
 - The `Regular` invariant holds (see Regular attribute).
 - Both operations run inside `TransactionManager.ExecTx`, so the transaction row and its splits are written atomically.
@@ -153,8 +155,8 @@ Code lives in: `internal/model/types.go`, `internal/service/account_ops.go` (`Cr
 Reconciliation matches one account's splits against an external statement (bank, card).
 
 ```
- Pending/Cleared tx          reconcile(account, statementBalance, txIDs)
- splits.reconciled = 0  ───────────────────────────────────────────────►  splits.reconciled = 1 (this account only)
+ split with reconciled = 0   reconcile(account, statementBalance, txIDs)
+ (this account)         ───────────────────────────────────────────────►  splits.reconciled = 1 (this account only)
                                                                           transactions.status = Reconciled
                                                                           last_reconciled_balance += selected amounts
 ```
@@ -163,7 +165,7 @@ Reconciliation matches one account's splits against an external statement (bank,
 - **Transaction status.** `Store.MarkSplitsReconciledByAccount` sets the whole transaction to `StatusReconciled` as soon as any one of its splits is reconciled (expense/revenue sides are never reconciled, so waiting for all splits would never finish). The transaction then becomes immutable even if another account has not reconciled its side yet.
 - **Last reconciled balance.** `account_reconcile_state.last_reconciled_balance` (`migrations/0004_add_account_reconcile_state.up.sql`) stores a running total per account (0 if never reconciled). Each reconcile adds the selected split amounts and persists the new total, whether or not it matches the statement.
 - **Difference.** `statementBalance - (lastReconciledBalance + sum of selected amounts)`. `TransactionService.PreviewReconcile` computes it without writing; `TransactionService.ReconcileTransactions` validates the IDs (non-empty, no duplicates, all in the unreconciled set), marks splits, updates the balance atomically in `ExecTx`, and returns the difference.
-- **Balance-mismatch gate.** The service always commits. The gate lives in the callers: non-interactive `kea reconcile --balance --ids` previews first and refuses a non-zero difference unless `--force` (`cmd/reconcile_actions.go`); the HTTP commit handler does the same unless `allow_mismatch` is true (`internal/api/reconcile.go`, `balanceMismatchError`). The interactive TUI commits and then warns about any remaining difference.
+- **Balance-mismatch gate.** The service always commits. The gate lives in the callers: non-interactive `kea reconcile --balance --ids` previews first and refuses a non-zero difference unless `--force` (`cmd/reconcile_actions.go`); the HTTP commit handler does the same unless `allow_mismatch` is true (`internal/api/reconcile.go`, `balanceMismatchError`). The interactive TUI (`ui/reconcile/model.go`, `Model.Update`) asks for a y/n confirmation when the difference is non-zero, and `cmd/reconcile_actions.go` calls `ReconcileTransactions` only after the user confirms.
 - **Immutability.** A Reconciled transaction cannot be updated, have its status changed, or be deleted: `UpdateTransactionComplete`, `UpdateTransactionStatus` and `DeleteTransaction` return an error wrapping `ErrReconciled`. `TransactionService.IsEditable` exposes the same check to UIs. There is no un-reconcile operation.
 
 Code lives in: `internal/service/reconcile_ops.go`, `internal/store/sqlite_reconcile.go`, `internal/model/transaction.go` (`ReconcileEntry`), `ui/reconcile/model.go`.
@@ -194,7 +196,7 @@ Service errors wrap sentinels with `%w`; always test with `errors.Is` (or `error
 | `service.ErrNotEditable` | protected record (system account) | `DeleteAccountByName`, `RenameAccount`, `UpdateAccountMetadata` |
 | `service.ErrNotFound` | account or transaction does not exist | account lookups (`GetAccountByName`, `GetAccountByID`, `GetAccountBalance`, `DeleteAccountByName`), transaction lookups/updates/deletes, reconcile account check |
 | `service.ErrAlreadyExists` | unique-key collision (account name, transaction `external_id`) | `CreateAccount`, `CreateAccountWithBalance`, `CreateTransaction` |
-| `service.ErrCircularParent` | parent chain loops or exceeds 100 levels | `validateParentChain` via `CreateAccount` |
+| `service.ErrCircularParent` | parent chain loops or exceeds 100 levels | `validateParentChain` via `validateAccountFields` (`CreateAccount`, `CreateAccountWithBalance`) |
 | `service.ErrRegularRequired` | Income/Expense with no `Regular` value | `ValidateRegular` (normally pre-empted by the `true` default) |
 | `service.ErrRegularNotApplicable` | `Regular` set on a non-Income/Expense type | `ValidateRegular` via `CreateTransaction` |
 | `*service.ValidationError` | bad user input; carries `Field` and `Message` | all validators (`validationErrorf`, `validationWrap`) |

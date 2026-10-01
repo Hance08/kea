@@ -134,7 +134,7 @@ Vitest with jsdom and Testing Library, in `spa/src/test/` plus a few colocated f
 
 - `spa/src/test/setup.tsx` loads `@testing-library/jest-dom`, runs `cleanup` after each test and shims `localStorage` when Node provides a non-Storage global. It is deliberately thin; do not import the route tree there.
 - `spa/src/test/test-app.tsx` provides `makeTestApp(initialPath)`, which renders the real route tree in a memory router with a fresh `QueryClient`, and `withServerConfig` for component tests that need server config.
-- API calls are mocked per test file with `vi.mock('@/lib/api', ...)` or `vi.mock('@/lib/accounts', ...)`, spreading `vi.importActual` and replacing only the needed functions with `vi.fn().mockResolvedValue(...)`. See `spa/src/test/accounts.list.test.tsx`. There is no network mocking layer.
+- API calls are mocked in one of two ways. About 13 files use `vi.mock('@/lib/api', ...)` or `vi.mock('@/lib/accounts', ...)`, spreading `vi.importActual` and replacing only the needed functions (see `spa/src/test/accounts.list.test.tsx`). Most route tests instead use `vi.stubGlobal('fetch', ...)` and route by URL (see `spa/src/test/transactions.list.test.tsx`). A full-app fetch stub must answer `/api/config` and `/api/ledgers`.
 - Most tests live in `spa/src/test/` and mostly follow `<area>.<topic>.test.tsx`. Some sit next to the code: `spa/src/lib/*.test.ts` and `spa/src/components/dashboard/Dashboard.test.tsx`.
 
 ### Commands

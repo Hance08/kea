@@ -56,7 +56,7 @@ Ledger names are checked by `validateLedgerName`: non-empty, no `/`, `\`, `..` o
 
 | Method | Path | Handler | Service call | Notes |
 |---|---|---|---|---|
-| GET | `/api/accounts` | `accounts.go` `handleListAccounts` | `SearchAccounts` or `ListAccounts` | Search path used when `q`, `currency`, `limit`, `offset` or `include_count` is set; otherwise `ListAccounts` wrapped as a `ListResult` |
+| GET | `/api/accounts` | `accounts.go` `handleListAccounts` | `SearchAccounts` or `ListAccounts` | Search path used when `q` or `currency` is set, `limit > 0`, `offset > 0`, or `include_count` is true (`limit=0` still uses `ListAccounts`); otherwise `ListAccounts` wrapped as a `ListResult` |
 | POST | `/api/accounts` | `accounts_write.go` `handleCreateAccount` | `CreateAccountWithBalance` | Body `model.CreateAccountInput` (`name, type, currency, description, parent_id, balance`); 201 with the account |
 | GET | `/api/accounts/tree` | `accounts.go` `handleAccountTree` | `GetAccountTree` | Array of `{account, children}` nodes; `include_hidden` |
 | GET | `/api/accounts/by-name` | `accounts.go` `handleAccountByName` | `GetAccountByName` | Required `name` query param (full colon path) |
@@ -72,13 +72,34 @@ Ledger names are checked by `validateLedgerName`: non-empty, no `/`, `\`, `..` o
 | Method | Path | Handler | Service call | Notes |
 |---|---|---|---|---|
 | GET | `/api/transactions` | `transactions.go` `handleListTransactions` | `FilterTransactions`, `GetTransactionDetailsByIDs` | `ListResult` of full transaction details (with splits); filters below |
-| POST | `/api/transactions` | `transactions_write.go` `handleCreateTransaction` | `CreateTransactionFromSplits`, `GetTransactionByID` | Body `model.CreateTransactionFromSplitsInput` (`splits, description, timestamp, status, type, regular`); 201 with full detail |
+| POST | `/api/transactions` | `transactions_write.go` `handleCreateTransaction` | `CreateTransactionFromSplits`, `GetTransactionByID` | Body `model.CreateTransactionFromSplitsInput`; splits keyed by `account_name` (see below); 201 with full detail |
 | GET | `/api/transactions/{id}` | `transactions.go` `handleTransactionByID` | `GetTransactionByID` | |
 | DELETE | `/api/transactions/{id}` | `transactions_write.go` `handleDeleteTransaction` | `DeleteTransaction` | 409 `reconciled` if reconciled |
-| PATCH | `/api/transactions/{id}` | `transactions_write.go` `handleUpdateTransaction` | `UpdateTransactionComplete`, `GetTransactionByID` | Full replace despite PATCH: body is `model.UpdateTransactionInput` (`description, timestamp, status, type, regular, splits`); id comes from the path |
-| PATCH | `/api/transactions/{id}/status` | `transactions_write.go` `handleUpdateTransactionStatus` | `UpdateTransactionStatus`, `GetTransactionByID` | Body `{"status": "Pending"\|"Cleared"\|"Reconciled"}` |
+| PATCH | `/api/transactions/{id}` | `transactions_write.go` `handleUpdateTransaction` | `UpdateTransactionComplete`, `GetTransactionByID` | Full replace despite PATCH: body is `model.UpdateTransactionInput`; splits keyed by `account_id` (see below); id comes from the path |
+| PATCH | `/api/transactions/{id}/status` | `transactions_write.go` `handleUpdateTransactionStatus` | `UpdateTransactionStatus`, `GetTransactionByID` | Body `{"status": "Pending"\|"Cleared"}`; `Reconciled` is 400 on `status`, reconciling only happens via the reconcile endpoints; 409 `reconciled` if already reconciled |
 
-Split objects (`model.SplitDetail`) carry `account_id`, `amount`, `currency`, `memo` (responses also add `id`, `account_name`, `account_type`). Splits must sum to zero; see [domain.md](domain.md).
+Both create and update bodies use `model.SplitDetail` for splits, but read different keys:
+
+| | Create (`POST`, `CreateTransaction`) | Update (`PATCH`, `UpdateTransactionComplete`) |
+|---|---|---|
+| Account | `account_name` (full colon path, resolved by `GetAccountByName`); `account_id` is ignored | `account_id` |
+| Currency | Ignored; the account's currency is used (else `defaults.currency`) | `currency` is stored as sent |
+| Split `id` | Ignored | Non-zero keeps and updates that existing split (must belong to the transaction, no duplicates); `0` or omitted creates a new split; existing splits not listed are deleted |
+| Other split keys | `amount`, `memo` | `amount`, `memo` |
+| `timestamp` | `0` or omitted means now | Stored as sent |
+| `status` | `Pending` or `Cleared` | `Pending` or `Cleared` |
+
+Rules shared by both: at least 2 splits, splits sum to zero, `description` required (trimmed), and splits must fit the `type` (`ValidateSplitsMatchType`; see [domain.md](domain.md#transaction-types)). Create also requires `type`. `regular` defaults to true for Income/Expense (see [domain.md](domain.md#regular-attribute)). Responses return full `SplitDetail`: `id`, `account_id`, `account_name`, `account_type`, `amount`, `currency`, `memo`. Positive and negative amounts follow [domain.md](domain.md).
+
+Example create request (expense of 5.00):
+
+```json
+{"description": "Coffee", "type": "Expense", "status": "Pending",
+ "splits": [
+   {"account_name": "Assets:Bank", "amount": -500},
+   {"account_name": "Expenses:Coffee", "amount": 500}
+ ]}
+```
 
 ### Reconcile
 

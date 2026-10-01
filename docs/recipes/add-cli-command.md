@@ -59,7 +59,8 @@ Two commits cover a new command; two more cover a new flag.
 - Amounts: parse input with `utils.ParseAmount`, print with `utils.FormatAmount`; stored values are cents. See [domain.md](../domain.md).
 - JSON: emit one document through `views.WriteJSON`, with nothing else on stdout. Human-only messages go through pterm or stderr.
 - Help text: write `Long` with examples for non-obvious flags; flag descriptions start with a capital letter or a verb and name the allowed values.
-- Tests: `package cmd` or the subpackage, with fakes for the provider and view interfaces; test `Run` directly. Copy `cmd/info_test.go`, `cmd/add_test.go`, `cmd/ledger/*_test.go` or `cmd/transaction/edit_actions_test.go`; most subcommands have no tests yet.
+- Tests: `package cmd` or the subpackage, with fakes for the provider and view interfaces; test `Run` directly.
+  - Copy `cmd/info_test.go`, `cmd/add_test.go`, `cmd/ledger/*_test.go` or `cmd/transaction/edit_actions_test.go`; most subcommands have no tests yet.
   - See [development.md](../development.md).
 
 ## Checklist

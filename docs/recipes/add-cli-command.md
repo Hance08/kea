@@ -15,14 +15,15 @@
    - Top-level command: a `NewXxxCmd` in `cmd/`, registered in `Execute` in `cmd/root.go`.
    - Commands that need the database go after `app.NewApp` in `Execute`. Only `ledger` commands (`cmd/ledger/`) are registered before it, so they work with no active ledger.
 2. Define the narrow provider interface in the command file, naming only the service methods the runner calls.
-   - Examples: `AccountSearchProvider` in `cmd/account/search.go`, `InfoProvider` in `cmd/info.go`. The constructor passes `svc.Account()` or `svc.Transaction()`.
+   - Examples: `AccountSearchProvider` in `cmd/account/search.go`, `InfoProvider` in `cmd/info.go`. The constructor passes `svc.Account()` or `svc.Transaction()`, or the `*app.App` itself when the runner needs config or runtime state (`NewInfoCmd`).
    - Add a view interface too when the runner renders through `ui/views` (`ShowView` in `cmd/transaction/show.go`), so tests can capture output.
 3. Write the runner struct and `Run` method; keep cobra out of `Run` where possible. Choose the flag pattern below.
-4. Write `NewXxxCmd`: `Use` with `<arg>` placeholders, `Short`, `Long`, `Args` validator, flags, and a `RunE` that builds the runner and calls `Run(cmd.Context(), ...)`.
+4. Write `NewXxxCmd`: `Use` with `<arg>` placeholders, `Short`, `Long`, `Args` validator, flags, and a `RunE` that builds the runner and calls `Run`. `Run` takes `ctx` only when the service needs it: `infoRunner.Run` and the `cmd/ledger` runners take none, and `reconcileRunner.Run` takes `cmd, args`.
    - Add `--json` / `-j` for any command that prints data or a result.
 5. Render output.
-   - Human output: a view in `ui/views` (pterm tables, detail views). Interactive input: a huh prompt in `ui/prompts`.
-   - JSON output: add a `JSONXxx` type and `ToJSONXxx` converter in `ui/views/json_types.go`, then call `views.WriteJSON` (`ui/views/json.go`).
+   - Human output: a view in `ui/views`. Most tables use tablewriter (`account_list.go`, `transaction_list.go`, `transaction_detail.go`, `report.go`); only `system_info.go` uses `pterm.DefaultTable`. Interactive input: a huh prompt in `ui/prompts`.
+   - Simple mutations need no new view or JSON type: print `pterm.Success` for humans and `views.WriteJSON` of a small map (or an existing `ToJSON*` helper) for `--json`. See `clearRunner.Run` in `cmd/transaction/clear.go`.
+   - JSON output for data commands: add a `JSONXxx` type and `ToJSONXxx` converter in `ui/views/json_types.go`, then call `views.WriteJSON` (`ui/views/json.go`).
 6. Large commands split into `x.go` (cobra wiring), `x_types.go` (provider/view interfaces, flags, input structs) and `x_actions.go` (runner logic).
    - Used by `add`, `report`, `account create`, `account edit` and `transaction edit` (`reconcile` has actions but no types file). Small commands (`list`, `delete`, `search`, `show`, `clear`, `info`) stay in one file.
 7. Write the tests, update docs, and run the checklist.
@@ -42,7 +43,7 @@ Pick one per command and never mix them. The 3 vs 1-2 flag split is intentional,
 Two commits cover a new command; two more cover a new flag.
 - `970195a` added `kea account search` as one file, `cmd/account/search.go`, plus one `AddCommand` line in `cmd/account/account.go`.
   - Provider interface, `searchFlags` (Pattern A), `--json` through `views.ToJSONAccount` and `views.WriteJSON`, table through `views.NewAccountListView`.
-- `36b7e8b` removed the `-c` shorthand from `--currency`. Lesson: the root command defines persistent `-c/--config` (`cmd/root.go`), so a shorthand must not collide with it or with the command's own flags.
+- `36b7e8b` removed the `-c` shorthand from `account search --currency`; it collided with the root `-c/--config`. Lesson: root defines persistent `-c/--config` in `cmd/root.go`, so a shorthand must not collide with it or the command's own flags.
 - `43f1077` added `--regular` to `kea add`.
   - `cmd/add.go`: declare the flag, set `RegularSet`/`Regular` via `Changed`. `cmd/add_types.go`: new fields on `addFlags` and a `Regular *bool` on `addTransactionInput`.
   - `cmd/add_actions.go`: honor it in `runFromFlags` and `runFromSplitFlags`, warn on stderr when the type is not Income/Expense, and ask in `runInteractive`.
@@ -57,7 +58,7 @@ Two commits cover a new command; two more cover a new flag.
 - Amounts: parse input with `utils.ParseAmount`, print with `utils.FormatAmount`; stored values are cents. See [domain.md](../domain.md).
 - JSON: emit one document through `views.WriteJSON`, with nothing else on stdout. Human-only messages go through pterm or stderr.
 - Help text: write `Long` with examples for non-obvious flags; flag descriptions start with a capital letter or a verb and name the allowed values.
-- Tests: `package cmd` or the subpackage, with fakes for the provider and view interfaces; test `Run` directly. See `cmd/info_test.go` and the cmd tests section in [development.md](../development.md).
+- Tests: `package cmd` or the subpackage, with fakes for the provider and view interfaces; test `Run` directly. Copy `cmd/info_test.go`, `cmd/add_test.go`, `cmd/ledger/*_test.go` or `cmd/transaction/edit_actions_test.go`; most subcommands have no tests yet. See [development.md](../development.md).
 
 ## Checklist
 - [ ] Runner tests with fake providers (success, invalid input, `--json` path) next to the command

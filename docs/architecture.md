@@ -1,6 +1,7 @@
 # Architecture
 
 > **Read this when:** you need the big picture — which layer owns what, how a CLI command or HTTP request reaches the database, or how the binary starts.
+>
 > **Related:** [domain.md](domain.md) · [http-api.md](http-api.md) · [recipes/](recipes/)
 
 ## Layers
@@ -44,8 +45,8 @@ Dependencies point downward only. `internal/service` sees storage through the in
 
 | Package | Owns | Must not import |
 | --- | --- | --- |
-| `cmd/kea` | `main`: calls `cmd.Execute(migrations.FS)` | anything except `cmd` and `migrations` |
 | `cmd` | Root command and startup (`cmd/root.go`), top-level commands `add`, `info`, `report`, `reconcile`, `serve`; config file writing (`cmd/save_config.go`) | `internal/store`, `internal/repository` |
+| `cmd/kea` | `main`: calls `cmd.Execute(migrations.FS)` | anything except `cmd` and `migrations` |
 | `cmd/account` | `kea account` subcommands (create, edit, delete, list, search) | `internal/app`, `internal/store`, `internal/api` |
 | `cmd/ledger` | `kea ledger` subcommands (add, list, switch, remove); runs without an open DB | `internal/service`, `internal/store` (it reaches the store only via `app.InitLedgerDB`) |
 | `cmd/transaction` | `kea transaction` subcommands (list, show, edit, delete, clear) | `internal/app`, `internal/store`, `internal/api` |
@@ -85,13 +86,13 @@ Command runners usually depend on small interfaces instead of the concrete servi
 1. `cmd/kea/main.go` (`main`) — calls `cmd.Execute`, which opens the active ledger and registers commands (see Startup sequence).
 2. `cmd/add.go` (`NewAddCmd`) — Cobra command; binds flags into `addFlags` (`cmd/add_types.go`). `RunE` builds an `addRunner` with `svc.Account()`, `svc.Transaction()` and `views.NewTransactionDetailView()`.
 3. `cmd/add.go` (`addRunner.Run`) — picks flag mode if any of `--desc/--amount/--from/--to/--type/--split` was set, otherwise interactive mode.
-4. Flag mode: `cmd/add_actions.go` (`addRunner.runFromFlags`, `addRunner.runFromSplitFlags`) — parses amounts with `utils.ParseAmount`, status/type via `model.ParseTransactionStatus` / `model.ParseTransactionType`, date via `TransactionService.ParseTransactionDate`, and checks accounts with `AccountService.ValidateSelectableAccount`.
+4. Flag mode: `cmd/add_actions.go` (`addRunner.runFromFlags`, `addRunner.runFromSplitFlags`) — both parse amounts with `utils.ParseAmount`, status/type via `model.ParseTransactionStatus` / `model.ParseTransactionType`, and the date via `TransactionService.ParseTransactionDate`. Only `runFromFlags` checks `--from`/`--to` up front (`addRunner.validateAccountSelectable` calls `AccountService.ValidateSelectableAccount`); `runFromSplitFlags` does not validate accounts, so `--split` accounts are first checked in `CreateTransaction` (step 8).
 5. Interactive mode: `cmd/add_actions.go` (`addRunner.runInteractive`) — a wizard of `ui/prompts` calls (`PromptTransactionType`, `PromptRegular`, `PromptDescription`, `PromptAmount`, `PromptAccountSelection`, `PromptTransactionStatus`, `PromptTransactionDate`). Allowed account types come from `TransactionService.GetTransactionRule`.
 6. Both modes produce an `addTransactionInput`, which `Run` converts to `model.CreateSimpleTransactionInput` (from/to/amount) or `model.CreateTransactionFromSplitsInput` (`--split`).
 7. `internal/service/transaction_ops.go` (`TransactionService.CreateSimpleTransaction` or `TransactionService.CreateTransactionFromSplits`) — the simple path infers the type with `DetermineType` when none is given and builds two splits; both delegate to `TransactionService.CreateTransaction`.
 8. `internal/service/transaction_ops.go` (`TransactionService.CreateTransaction`) — validates split count, type, status, description, resolves account names to IDs, checks selectability, `ValidateSplitsMatchType`, `ValidateRegular` and `ValidateSplitsBalance`.
 9. Still in `CreateTransaction` — `ts.tm.ExecTx` runs `repo.CreateTransactionWithSplits` inside one SQL transaction.
-10. `internal/store/sqlite_transaction.go` (`Store.CreateTransactionWithSplits`) — inserts the transaction row and its splits; constraint violations become `ErrTransactionExists`, which wraps `repository.ErrAlreadyExists`.
+10. `internal/store/sqlite_transaction.go` (`Store.CreateTransactionWithSplits`) — inserts the transaction row, then its splits. Only a constraint error on the transaction-row INSERT becomes the duplicate-external_id error `ErrTransactionExists` (wraps `repository.ErrAlreadyExists`); split-insert errors are wrapped generically. Back in `TransactionService.CreateTransaction`, `repository.ErrAlreadyExists` is translated to `service.ErrAlreadyExists`, which `mapError` turns into HTTP 409.
 11. Back in `addRunner.Run` — with `--json`, `views.WriteJSON(views.ToJSONTxDetail(...))`; otherwise `TransactionDetailView.Render` (`ui/views/transaction_detail.go`). Errors bubble to `cmd.Execute`, which prints them with pterm and exits 1.
 
 ## Request flow: HTTP (`POST /api/transactions`)
@@ -107,7 +108,7 @@ Command runners usually depend on small interfaces instead of the concrete servi
 4. `internal/api/transactions_write.go` (`Server.handleCreateTransaction`) — `decodeJSON` into `model.CreateTransactionFromSplitsInput` (unknown fields rejected; decode failures become `service.ValidationError`). Path/query helpers for other endpoints live in `internal/api/params.go`.
 5. Service — `svc.Transaction().CreateTransactionFromSplits(r.Context(), input)`, then steps 8–10 of the CLI flow run unchanged.
 6. The handler re-reads the result with `TransactionService.GetTransactionByID` and responds `201` via `writeJSON`.
-7. Errors — `internal/api/errors.go` (`mapError`) maps `ValidationError` to 400, `ErrNotFound` to 404, `ErrAlreadyExists`/`ErrReconciled` to 409, ledger errors, and everything else to a generic 500. The full status table belongs in http-api.md.
+7. Errors — `internal/api/errors.go` (`mapError`) maps `service.ValidationError` to 400, `service.ErrNotFound` to 404, `service.ErrAlreadyExists`/`service.ErrReconciled` to 409, ledger errors, and everything else to a generic 500. The full status table belongs in http-api.md.
 
 ## Transactions and context
 

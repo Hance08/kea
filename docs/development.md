@@ -20,6 +20,8 @@ make run                    # go run ./cmd/kea
 go run ./cmd/kea <args>     # any subcommand, e.g. `account list`, `serve`
 ```
 
+For the SPA, run `make spa-install` (`npm install` in `spa/`) once first, before `make spa-dev`, `npm test` or `make spa-build`.
+
 `make build` writes `./kea`; the older `kea_test` name is gone.
 
 On first run with no ledger configured, startup creates `config.yaml` and a `default` ledger (`kea.db`) in the data directory, then asks for a default currency. A non-interactive run falls back to USD with a warning. Startup order is in [architecture.md](architecture.md#startup-sequence).
@@ -91,20 +93,18 @@ Files in `internal/service/*_test.go` use `package service` (white-box) with han
 - Call recorders: slices such as `renameCalls` and `updateMetadataCalls` on `mockAccountRepo`.
 - Factories: `newMockAccountRepo()`, `newMockTransactionRepo()`, `newTestAccountService(accRepo, txRepo)`, `newTestTransactionService(accRepo, txRepo)`, `defaultConfig()`.
 
-The arrange/act/assert style, from `TestGetAccountByID` in `internal/service/account_service_test.go`:
+The arrange/act/assert style, from the "wraps ErrNotFound from repo" subtest of `TestGetAccountByID` in `internal/service/account_service_test.go`:
 
 ```go
-t.Run("passes through other errors", func(t *testing.T) {
+t.Run("wraps ErrNotFound from repo", func(t *testing.T) {
 	accRepo := newMockAccountRepo()
-	dbErr := fmt.Errorf("connection refused")
-	accRepo.getByIDErr[42] = dbErr
 	svc := newTestAccountService(accRepo, newMockTransactionRepo())
 
-	acc, err := svc.GetAccountByID(context.Background(), 42)
+	acc, err := svc.GetAccountByID(context.Background(), 999)
 
 	assert.Nil(t, acc)
 	require.Error(t, err)
-	assert.Equal(t, dbErr, err)
+	assert.True(t, errors.Is(err, ErrNotFound))
 })
 ```
 
@@ -112,13 +112,13 @@ Tests use `testify` (`assert`, `require`) and table-style `t.Run` subtests.
 
 ### Store tests (real SQLite)
 
-`internal/store/*_test.go` use the external package `store_test`. The helper `setupTestDB` in `internal/store/sqlite_account_test.go` creates a `store.Store` over a file in `t.TempDir()` with `store.NewStore(dbPath, migrations.FS)`, which runs every migration from `migrations/`, and registers `Close` with `t.Cleanup`. Other store test files call it directly. Use this layer for SQL, constraints and migration behavior.
+`internal/store/*_test.go` mostly use the external package `store_test`; `chunk_test.go` and `errors_test.go` are in `package store` for internals, and `export_test.go` (also `package store`) adds a `Store.QueryRowContext` method so external tests can run raw queries. The helper `setupTestDB` in `internal/store/sqlite_account_test.go` creates a `store.Store` over a file in `t.TempDir()` with `store.NewStore(dbPath, migrations.FS)`, which runs every migration from `migrations/`, and registers `Close` with `t.Cleanup`. Other store test files call it directly. Use this layer for SQL, constraints and migration behavior.
 
 ### API tests
 
 `internal/api/*_test.go` use `package api` and `net/http/httptest`. `internal/api/testhelper_test.go` provides:
 
-- `newServerWithStore(t)` and `newServerForWrite(t)` build a `Server` over a real temp-dir SQLite store and return an `httptest.Server` fronting `srv.routes()` plus the `*service.Service`. Variants set the currency or `display.hide_decimals`.
+- `newServerWithStore(t)` and `newServerForWrite(t)` build a `Server` over a real temp-dir SQLite store and return an `httptest.Server` fronting `srv.routes()` plus the `*service.Service`; `newServerForWrite` and its `WithCurrency` and `WithDisplay` variants also return the `*store.Store`. The variants set the currency or `display.hide_decimals`.
 - `newTestServerWithLedger(t)` wires a real on-disk `ledger.Registry` in a temp dir and a fake switch function that records calls.
 - `seedAccount` and `seedTransaction` create fixtures through the service layer.
 
@@ -130,12 +130,12 @@ Tests issue real HTTP requests against `ts.URL` and assert on status and JSON. E
 
 ### SPA tests
 
-Vitest with jsdom and Testing Library, in `spa/src/test/` (config in the `test` block of `spa/vite.config.ts`).
+Vitest with jsdom and Testing Library, in `spa/src/test/` plus a few colocated files (config in the `test` block of `spa/vite.config.ts`).
 
 - `spa/src/test/setup.tsx` loads `@testing-library/jest-dom`, runs `cleanup` after each test and shims `localStorage` when Node provides a non-Storage global. It is deliberately thin; do not import the route tree there.
 - `spa/src/test/test-app.tsx` provides `makeTestApp(initialPath)`, which renders the real route tree in a memory router with a fresh `QueryClient`, and `withServerConfig` for component tests that need server config.
 - API calls are mocked per test file with `vi.mock('@/lib/api', ...)` or `vi.mock('@/lib/accounts', ...)`, spreading `vi.importActual` and replacing only the needed functions with `vi.fn().mockResolvedValue(...)`. See `spa/src/test/accounts.list.test.tsx`. There is no network mocking layer.
-- File names follow `<area>.<topic>.test.tsx`.
+- Most tests live in `spa/src/test/` and mostly follow `<area>.<topic>.test.tsx`. Some sit next to the code: `spa/src/lib/*.test.ts` and `spa/src/components/dashboard/Dashboard.test.tsx`.
 
 ### Commands
 

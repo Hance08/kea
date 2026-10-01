@@ -26,7 +26,7 @@ Full setup, Docker, and deploy details: [docs/development.md](docs/development.m
 ## Project layout
 
 - `cmd/` - Cobra commands (`cmd/account`, `cmd/transaction`, `cmd/ledger`, `cmd/kea` is `main`).
-- `ui/` - interactive prompts (huh), views (pterm), reconcile TUI (bubbletea).
+- `ui/` - interactive prompts (huh), views (pterm and tablewriter), reconcile TUI (bubbletea).
 - `internal/` - `api` (HTTP), `app` (wiring), `service`, `repository`, `store`, `model`, `config`, `ledger`, `backup`, `utils`, `web`.
 - `migrations/` - embedded SQL migrations.
 - `spa/` - React SPA (Vite, Vitest); built output is embedded via `internal/web`.

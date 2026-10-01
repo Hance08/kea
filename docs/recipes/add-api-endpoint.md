@@ -19,7 +19,8 @@
    - Signature: `func (s *Server) handleX(w http.ResponseWriter, r *http.Request) error`. Return errors; never write them yourself.
    - `apiHandler` in `internal/api/handler.go` passes any returned error to `writeError`, which calls `mapError`.
    - Reach the service with `s.svc.Account()` or `s.svc.Transaction()`, and pass `r.Context()`. Do not cache the service or store.
-   - Ledger switching needs no handling: the `Service` holds one `*store.Store` that is swapped in place (see [architecture.md](../architecture.md)).
+   - Example: `handleListUnreconciled` in `internal/api/reconcile.go` parses the id, checks the account, calls the service, writes JSON.
+   - Ledger switching needs no handling: `service.NewService` gets the same `*store.Store` for every repository, and `Store.Swap` replaces its connection in place (see [architecture.md](../architecture.md)).
 3. Decode and validate input.
    - Path ids: `parseInt64Path(r, "id")` in `internal/api/params.go`.
    - Query params: `parseInt64Query`, `parseIntQuery`, `parseBoolQuery`, `parseStringQuery`, `parseListOptions`, `parseDateRangeParams`.
@@ -30,11 +31,14 @@
    - `writeJSON(w, status, v)` with a dedicated response struct that has snake_case JSON tags.
    - Use 200 for reads and actions, 201 for creates (`handleCreateTransaction`), and 200 with `{"deleted": true, "id": id}` for deletes (`handleDeleteTransaction`).
    - Return empty slices, not nil, so lists encode as `[]` (see `handleListUnreconciled`).
-   - Create and update handlers re-read the record with `GetTransactionByID` so the response is the full detail.
+   - The transaction create and update handlers in `internal/api/transactions_write.go` re-read the record with `GetTransactionByID` for the full detail. Account handlers return the service result directly.
+   - Use PATCH for updates; no route uses PUT.
 5. Map new errors in `mapError` in `internal/api/errors.go`.
    - Add a `case errors.Is(err, service.ErrX)` with a status and a stable `error` code.
    - Skip this and the sentinel returns 500 `internal`. See Conventions.
    - For a response with extra fields, add an API-local error type and an `errors.As` branch before the `switch`, plus an optional field on `errorBody`.
+   - Example: the `balanceMismatchError` branch returns 409 `balance_mismatch` with `Difference` set on `errorBody`.
+   - A new HTTP method must also be added to the allowed methods in `corsMiddleware` in `internal/api/middleware.go` (now GET, POST, PATCH, DELETE, OPTIONS).
 6. Write tests (see Conventions), update [http-api.md](../http-api.md), and add the SPA client code ([add-spa-page.md](add-spa-page.md)).
 
 ## Worked example
@@ -43,7 +47,7 @@ The reconcile endpoints were added as a series of small commits. Copy the order.
 - `4dbea42` — `GET /api/accounts/{id}/unreconciled`: handler, one route line, and tests. The smallest complete endpoint.
 - `b2fa44f` — `POST .../reconcile/preview`: first JSON-body endpoint. It also fixed the service to translate `repository.ErrNotFound`, so unknown ids give 404.
 - `c879a26` — `POST .../reconcile`: handler-level gate returning `balanceMismatchError` unless `allow_mismatch` is set, because the service always persists.
-- `e002496` — tightened the tests (assert every response field) and documented the preview-then-commit race. Do this pass before you move on.
+- `e002496` — added the missing `reconciled_count` assertion in `TestHandleReconcileCommit_AllowMismatchTrue` and comments documenting the preview-then-commit race. Do this pass before you move on.
 - `126a7a0` — new query param `?regular=` in `parseTransactionFilter`, with table tests in `internal/api/params_test.go`.
 - `8f9140f` — round-trip tests for a new field through create and update. They exposed a service bug: `GetTransactionByID` dropped the field. Always test the field through the response.
 

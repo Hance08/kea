@@ -136,3 +136,81 @@ func ToJSONSystemInfo(info SystemInfo) JSONSystemInfo {
 		AppDataDir:      info.AppDataDir,
 	}
 }
+
+// JSONBudget is the CLI JSON shape of a budget version (amount in currency units).
+type JSONBudget struct {
+	ID             int64   `json:"id"`
+	AccountName    string  `json:"account_name"`
+	EffectiveMonth string  `json:"effective_month"`
+	Amount         float64 `json:"amount"`
+	Stopped        bool    `json:"stopped"`
+}
+
+func ToJSONBudget(b model.Budget) JSONBudget {
+	return JSONBudget{
+		ID:             b.ID,
+		AccountName:    b.AccountName,
+		EffectiveMonth: b.EffectiveMonth,
+		Amount:         CentsToUnit(b.Amount),
+		Stopped:        b.Stopped,
+	}
+}
+
+func ToJSONBudgets(bs []model.Budget) []JSONBudget {
+	out := make([]JSONBudget, len(bs))
+	for i, b := range bs {
+		out[i] = ToJSONBudget(b)
+	}
+	return out
+}
+
+// JSONBudgetReportRow mirrors model.BudgetReportRow in currency units.
+type JSONBudgetReportRow struct {
+	AccountName      string   `json:"account_name"`
+	Currency         string   `json:"currency"`
+	EffectiveMonth   string   `json:"effective_month"`
+	Budget           float64  `json:"budget"`
+	Actual           float64  `json:"actual"`
+	ActualRegular    float64  `json:"actual_regular"`
+	ActualIrregular  float64  `json:"actual_irregular"`
+	Remaining        float64  `json:"remaining"`
+	ExcludedAccounts []string `json:"excluded_accounts"`
+}
+
+// JSONBudgetReport mirrors model.BudgetReport in currency units.
+type JSONBudgetReport struct {
+	Month       string                `json:"month"`
+	Rows        []JSONBudgetReportRow `json:"rows"`
+	TotalBudget map[string]float64    `json:"total_budget"`
+	TotalActual map[string]float64    `json:"total_actual"`
+}
+
+func ToJSONBudgetReport(r *model.BudgetReport) JSONBudgetReport {
+	rows := make([]JSONBudgetReportRow, len(r.Rows))
+	for i, row := range r.Rows {
+		excluded := row.ExcludedAccounts
+		if excluded == nil {
+			excluded = []string{}
+		}
+		rows[i] = JSONBudgetReportRow{
+			AccountName:      row.AccountName,
+			Currency:         row.Currency,
+			EffectiveMonth:   row.EffectiveMonth,
+			Budget:           CentsToUnit(row.Budget),
+			Actual:           CentsToUnit(row.Actual),
+			ActualRegular:    CentsToUnit(row.ActualRegular),
+			ActualIrregular:  CentsToUnit(row.ActualIrregular),
+			Remaining:        CentsToUnit(row.Remaining),
+			ExcludedAccounts: excluded,
+		}
+	}
+	totalBudget := centsMapToUnitMap(r.TotalBudget)
+	if totalBudget == nil {
+		totalBudget = map[string]float64{}
+	}
+	totalActual := centsMapToUnitMap(r.TotalActual)
+	if totalActual == nil {
+		totalActual = map[string]float64{}
+	}
+	return JSONBudgetReport{Month: r.Month, Rows: rows, TotalBudget: totalBudget, TotalActual: totalActual}
+}

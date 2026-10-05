@@ -61,7 +61,7 @@ beforeEach(() => {
         return Promise.resolve(
           ok({ active: 'p', items: [{ name: 'p', path: '/p.db', active: true }] }),
         );
-      if (url === '/api/accounts')
+      if (url === '/api/accounts?include_hidden=true')
         return Promise.resolve(
           ok({
             items: [
@@ -71,7 +71,7 @@ beforeEach(() => {
                 type: 'E',
                 currency: 'EUR',
                 description: '',
-                is_hidden: false,
+                is_hidden: true,
               },
               {
                 id: 2,
@@ -206,4 +206,11 @@ test('add creates a budget from the selected month', async () => {
     effective_month: '2020-07',
     amount: 12345,
   });
+});
+
+test('hidden accounts keep their currency and empty currency falls back to the default', async () => {
+  render(makeTestApp('/budgets?month=2020-02'));
+  const rows = await screen.findAllByTestId('budget-setting-row');
+  expect(within(rows[0]).getByTestId('budget-currency')).toHaveTextContent('EUR');
+  expect(within(rows[1]).getByTestId('budget-currency')).toHaveTextContent('USD');
 });

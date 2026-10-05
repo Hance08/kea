@@ -31,8 +31,8 @@ function BudgetsPage() {
   const { formatCents } = useAmountFormat();
   const defaultCurrency = useServerConfig().defaults.currency;
   const accounts = useQuery({
-    queryKey: ['accounts', 'list'],
-    queryFn: () => listAccounts(),
+    queryKey: ['accounts', 'list', 'all'],
+    queryFn: () => listAccounts({ include_hidden: true }),
     staleTime: 60_000,
   });
   const currencyOf = (b: Budget) => {
@@ -61,14 +61,15 @@ function BudgetsPage() {
 
   const setMonth = (m: string | undefined) => navigate({ search: () => (m ? { month: m } : {}) });
 
-  if (query.isPending) return <Skeleton className="h-48" />;
-  if (query.isError) {
+  if (query.isPending || accounts.isPending) return <Skeleton className="h-48" />;
+  if (query.isError || accounts.isError) {
+    const err = query.error ?? accounts.error;
     return (
       <Alert variant="destructive">
-        <AlertTitle>Failed to load budgets</AlertTitle>
-        <AlertDescription>
-          {query.error instanceof Error ? query.error.message : 'Unknown error'}
-        </AlertDescription>
+        <AlertTitle>
+          {query.isError ? 'Failed to load budgets' : 'Failed to load accounts'}
+        </AlertTitle>
+        <AlertDescription>{err instanceof Error ? err.message : 'Unknown error'}</AlertDescription>
       </Alert>
     );
   }

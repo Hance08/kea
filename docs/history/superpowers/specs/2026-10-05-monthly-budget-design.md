@@ -166,9 +166,10 @@ Repository errors are translated to service errors. No new service sentinel is n
 | `GET` | `/api/budgets` | — | `200 {"items": [Budget]}` |
 | `PUT` | `/api/budgets` | `SetBudgetInput` | `200 Budget` (idempotent upsert) |
 | `POST` | `/api/budgets/stop` | `StopBudgetInput` | `200 Budget` |
-| `DELETE` | `/api/budgets/{id}` | — | `204` |
+| `DELETE` | `/api/budgets/{id}` | — | `200 {"deleted": true, "id": <id>}` |
 | `GET` | `/api/reports/budget` | `?month=YYYY-MM` (default current month) | `200 BudgetReport` |
 
+- DELETE matches the other DELETE endpoints; `apiFetch` in the SPA always parses a JSON body.
 - Bodies use `decodeJSON` (unknown fields rejected).
 - Errors: `ValidationError` -> 400 with `field`; `ErrNotFound` -> 404.
 - Amounts are integer cents, like every other endpoint.

@@ -109,6 +109,17 @@ Example create request (expense of 5.00):
 | POST | `/api/accounts/{id}/reconcile/preview` | `reconcile.go` `handleReconcilePreview` | `PreviewReconcile` | Body `{statement_balance, transaction_ids}`; returns `{"difference":n}`, read-only |
 | POST | `/api/accounts/{id}/reconcile` | `reconcile.go` `handleReconcileCommit` | `PreviewReconcile`, `ReconcileTransactions` | Body adds `allow_mismatch` (default false); returns `{reconciled_count, difference, last_reconciled_balance}`; non-zero diff without `allow_mismatch` is 409 `balance_mismatch` and writes nothing |
 
+### Budgets
+
+| Method | Path | Handler | Service call | Notes |
+|---|---|---|---|---|
+| GET | `/api/budgets` | `budgets.go` `handleListBudgets` | `ListBudgets` | `{"items":[Budget]}`; items never null |
+| PUT | `/api/budgets` | `budgets.go` `handleSetBudget` | `SetBudget` | Body `{account_name, effective_month, amount}` (`YYYY-MM`, cents); idempotent upsert; returns `Budget` |
+| POST | `/api/budgets/stop` | `budgets.go` `handleStopBudget` | `StopBudget` | Body `{account_name, effective_month}`; returns the stop `Budget` |
+| DELETE | `/api/budgets/{id}` | `budgets.go` `handleDeleteBudget` | `DeleteBudget` | Returns `{"deleted":true,"id":n}` |
+
+Errors: 400 `validation_failed` with `field` one of `account_name`, `effective_month`, `amount`, `body` (unknown JSON field or bad JSON); 404 `not_found` for an unknown account or budget id.
+
 ### Reports
 
 | Method | Path | Handler | Service call | Notes |
@@ -119,6 +130,7 @@ Example create request (expense of 5.00):
 | GET | `/api/reports/balance-sheet` | `reports.go` `handleBalanceSheet` | `GenerateBalanceSheet` | `as_of` Unix seconds, default now |
 | GET | `/api/reports/net-worth` | `reports.go` `handleNetWorth` | `GetNetWorthAt` | `at` Unix seconds, default now; `{"at":n,"net_worth":{"<CCY>":cents}}` |
 | GET | `/api/reports/net-worth-series` | `reports.go` `handleNetWorthSeries` | `GetDailyNetWorthSeries` | `{"items":[...]}` daily series per currency; no params |
+| GET | `/api/reports/budget` | `budgets.go` `handleBudgetReport` | `GenerateBudgetReport` | `month` `YYYY-MM`, default current local month; returns `BudgetReport` (fields in `internal/model/budget.go`); totals per currency over top-level budgeted rows only; bad month is 400 with `field` `month` |
 
 ## Query parameters
 

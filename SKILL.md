@@ -236,6 +236,42 @@ kea report --type is --from 2026-01-01 --to 2026-03-31 --json
 
 ---
 
+### Budgets
+
+```bash
+kea budget set <account> <amount> [--month YYYY-MM] [--json]
+kea budget stop <account> [--month YYYY-MM] [--json]
+kea budget list [--account <name>] [--json]
+kea budget delete <id> [--yes] [--json]
+kea budget report [--month YYYY-MM] [--json]
+```
+
+Examples:
+```bash
+# Budget 8000 per month for food, starting March 2026
+kea budget set Expenses:Food 8000 --month 2026-03
+
+# Stop that budget from July 2026 on
+kea budget stop Expenses:Food --month 2026-07
+
+# List all budget versions (IDs are used by delete)
+kea budget list --account Expenses:Food
+
+# Delete one budget version
+kea budget delete 3 --yes
+
+# Budget vs actual for March 2026, as JSON
+kea budget report --month 2026-03 --json
+```
+
+Rules:
+- Budgets can only be set on Expense accounts.
+- A budget version applies from its month on, until a later version replaces or stops it.
+- A parent account's budget includes same-currency descendants.
+- Only Expense-typed transactions count towards actual spending; refunds reduce it.
+
+---
+
 ### Reconcile an Account
 
 Reconciliation marks transactions as locked against an external statement (status 2 / Reconciled). Reconciled transactions cannot be edited or deleted afterward.
@@ -337,6 +373,9 @@ kea report --type is --month 2026-03
 
 # Check current net worth
 kea report --type bs
+
+# Budget vs actual spending this month
+kea budget report --json
 ```
 
 ---

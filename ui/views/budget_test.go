@@ -44,7 +44,20 @@ func TestBudgetReportView_Render(t *testing.T) {
 	out := buf.String()
 
 	assert.Contains(t, out, "2026-10")
-	assert.Contains(t, out, "  Expenses:Food:Dining", "child row is indented under its budgeted parent")
+	var parentLine, childLine string
+	for _, line := range strings.Split(out, "\n") {
+		trimmed := strings.TrimLeft(line, " ")
+		switch {
+		case strings.HasPrefix(trimmed, "Expenses:Food:Dining"):
+			childLine = line
+		case strings.HasPrefix(trimmed, "Expenses:Food "):
+			parentLine = line
+		}
+	}
+	assert.NotEmpty(t, parentLine)
+	assert.NotEmpty(t, childLine)
+	indent := func(l string) int { return len(l) - len(strings.TrimLeft(l, " ")) }
+	assert.Greater(t, indent(childLine), indent(parentLine), "child row is indented under its budgeted parent")
 	assert.Contains(t, out, "107%")
 	assert.Contains(t, out, "-410")
 	assert.Contains(t, out, "Total (TWD)")

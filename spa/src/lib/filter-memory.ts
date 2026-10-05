@@ -7,7 +7,8 @@ export type PageId =
   | 'reports/balance-sheet'
   | 'reports/income-statement'
   | 'reports/expense-breakdown'
-  | 'reports/income-breakdown';
+  | 'reports/income-breakdown'
+  | 'reports/budget';
 
 const ACTIVE_LEDGER_KEY = 'kea.activeLedger';
 

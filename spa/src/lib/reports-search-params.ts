@@ -32,6 +32,19 @@ export function parsePeriodSearch(input: unknown): PeriodSearchParams {
   return { range: 'this-month' };
 }
 
+export const monthSearchSchema = z.object({
+  month: z.string().regex(monthPattern).optional(),
+});
+
+export type MonthSearchParams = { month?: string };
+
+/** Month-only search for budget pages; absent month means the current month. */
+export function parseMonthSearch(input: unknown): MonthSearchParams {
+  const result = monthSearchSchema.safeParse(input);
+  if (result.success && result.data.month !== undefined) return { month: result.data.month };
+  return {};
+}
+
 const chartRangeSchema = z.enum(['1M', '3M', 'YTD', '1Y', 'ALL']);
 
 export const DEFAULT_BALANCE_SHEET_CHART_RANGE = '1Y' as const;

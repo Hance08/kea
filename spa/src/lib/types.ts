@@ -232,3 +232,47 @@ export interface ReconcileCommitResponse {
   difference: number;
   last_reconciled_balance: number;
 }
+
+export interface Budget {
+  id: number;
+  account_id: number;
+  account_name: string;
+  effective_month: string; // YYYY-MM
+  amount: number; // int64 cents
+  stopped: boolean;
+}
+
+export interface BudgetListResponse {
+  items: Budget[];
+}
+
+export interface SetBudgetInput {
+  account_name: string;
+  effective_month: string;
+  amount: number;
+}
+
+export interface StopBudgetInput {
+  account_name: string;
+  effective_month: string;
+}
+
+export interface BudgetReportRow {
+  account_id: number;
+  account_name: string;
+  currency: string;
+  effective_month: string;
+  budget: number;
+  actual: number;
+  actual_regular: number;
+  actual_irregular: number;
+  remaining: number;
+  excluded_accounts: string[];
+}
+
+export interface BudgetReport {
+  month: string;
+  rows: BudgetReportRow[];
+  total_budget: Record<string, number>;
+  total_actual: Record<string, number>;
+}

@@ -61,6 +61,54 @@ beforeEach(() => {
         return Promise.resolve(
           ok({ active: 'p', items: [{ name: 'p', path: '/p.db', active: true }] }),
         );
+      if (url === '/api/accounts')
+        return Promise.resolve(
+          ok({
+            items: [
+              {
+                id: 1,
+                name: 'Expenses:Food',
+                type: 'E',
+                currency: 'EUR',
+                description: '',
+                is_hidden: false,
+              },
+              {
+                id: 2,
+                name: 'Expenses:Gym',
+                type: 'E',
+                currency: '',
+                description: '',
+                is_hidden: false,
+              },
+            ],
+            total: 2,
+          }),
+        );
+      if (url.startsWith('/api/accounts?q='))
+        return Promise.resolve(
+          ok({
+            items: [
+              {
+                id: 5,
+                name: 'Expenses:Travel',
+                type: 'E',
+                currency: 'USD',
+                description: '',
+                is_hidden: false,
+              },
+              {
+                id: 6,
+                name: 'Assets:Cash',
+                type: 'A',
+                currency: 'USD',
+                description: '',
+                is_hidden: false,
+              },
+            ],
+            total: 2,
+          }),
+        );
       if (url === '/api/budgets' && method === 'GET') return Promise.resolve(ok({ items }));
       if (url === '/api/budgets' && method === 'PUT')
         return Promise.resolve(putResponse ?? ok({ ...items[1], id: 9 }));
@@ -133,4 +181,29 @@ test('history shows all versions and deletes one after confirmation', async () =
   await waitFor(() =>
     expect(calls.some((c) => c.method === 'DELETE' && c.url === '/api/budgets/1')).toBe(true),
   );
+});
+
+test('rows show the account currency and format amounts with it', async () => {
+  render(makeTestApp('/budgets?month=2020-07'));
+  const row = (await screen.findAllByTestId('budget-setting-row'))[0];
+  expect(within(row).getByTestId('budget-currency')).toHaveTextContent('EUR');
+  expect(within(row).getByText(/9,000\.00/)).toBeInTheDocument();
+  expect(within(row).getByText(/€|EUR/, { selector: '.tabular-nums' })).toBeInTheDocument();
+});
+
+test('add creates a budget from the selected month', async () => {
+  render(makeTestApp('/budgets?month=2020-07'));
+  await screen.findAllByTestId('budget-setting-row');
+  await userEvent.click(screen.getByRole('button', { name: /add budget/i }));
+  await userEvent.type(screen.getByPlaceholderText(/expense account/i), 'Trav');
+  await userEvent.click(await screen.findByText('Expenses:Travel'));
+  expect(screen.queryByText('Assets:Cash')).not.toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText(/amount/i), '123.45');
+  await userEvent.click(screen.getByRole('button', { name: /save/i }));
+  await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
+  expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({
+    account_name: 'Expenses:Travel',
+    effective_month: '2020-07',
+    amount: 12345,
+  });
 });

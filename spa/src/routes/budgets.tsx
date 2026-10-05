@@ -3,13 +3,14 @@ import { MonthPicker } from '@/components/budgets/MonthPicker';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { listAccounts } from '@/lib/accounts';
 import { deleteBudget, stopBudget } from '@/lib/api/budgets';
 import { activeBudgets, currentMonth, depthIn } from '@/lib/budgets';
 import { useBudgets } from '@/lib/hooks/useBudgets';
 import { type MonthSearchParams, parseMonthSearch } from '@/lib/reports-search-params';
-import { useAmountFormat } from '@/lib/server-config';
+import { useAmountFormat, useServerConfig } from '@/lib/server-config';
 import type { Budget } from '@/lib/types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -27,7 +28,17 @@ function BudgetsPage() {
   const month = search.month ?? currentMonth();
   const query = useBudgets();
   const queryClient = useQueryClient();
-  const { formatAmount } = useAmountFormat();
+  const { formatCents } = useAmountFormat();
+  const defaultCurrency = useServerConfig().defaults.currency;
+  const accounts = useQuery({
+    queryKey: ['accounts', 'list'],
+    queryFn: () => listAccounts(),
+    staleTime: 60_000,
+  });
+  const currencyOf = (b: Budget) => {
+    const acc = accounts.data?.items.find((a) => a.id === b.account_id);
+    return acc?.currency || defaultCurrency;
+  };
   const [panel, setPanel] = useState<Panel>(null);
   const [historyFor, setHistoryFor] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<
@@ -115,11 +126,14 @@ function BudgetsPage() {
                 <div className="text-sm">
                   <div className="font-medium">{b.account_name}</div>
                   <div className="text-xs text-muted-foreground">
-                    from <span>{b.effective_month}</span>
+                    <span data-testid="budget-currency">{currencyOf(b)}</span> · from{' '}
+                    <span>{b.effective_month}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="tabular-nums text-sm">{formatAmount(b.amount)}</span>
+                  <span className="tabular-nums text-sm">
+                    {formatCents(b.amount, currencyOf(b))}
+                  </span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -163,7 +177,7 @@ function BudgetsPage() {
                       >
                         <span className="tabular-nums">{v.effective_month}</span>
                         <span className="tabular-nums">
-                          {v.stopped ? 'stopped' : formatAmount(v.amount)}
+                          {v.stopped ? 'stopped' : formatCents(v.amount, currencyOf(v))}
                         </span>
                         <Button
                           size="sm"

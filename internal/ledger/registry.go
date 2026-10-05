@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026  Hance Chin
 
+// Package ledger manages the registry of named ledger databases (ledgers.yaml),
+// which one is active, and a file watcher that notices external changes.
 package ledger
 
 import (

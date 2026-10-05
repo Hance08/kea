@@ -54,7 +54,6 @@ _output/
 kea_test
 TODO
 .superpowers/
-docs/superpowers
 
 # SPA workspace
 spa/node_modules/

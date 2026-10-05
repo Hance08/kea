@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026  Hance Chin
 
-// Package web embeds the built SPA bundle (spa/dist) so the Go binary can
-// serve the frontend from the same origin as the API.
+// Package web embeds the built SPA bundle (internal/web/dist, written by the
+// Vite build) so the Go binary can serve the frontend from the same origin as
+// the API.
 package web
 
 import (

@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026  Hance Chin
 
+// Package app is the composition root: it opens the active ledger's store,
+// runs the pre-startup backup, builds the service layer, and registers the
+// callback that swaps the database when the active ledger changes. InitLedgerDB
+// creates new ledger databases for cmd/ledger and internal/api. See
+// docs/architecture.md.
 package app
 
 import (

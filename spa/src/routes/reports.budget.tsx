@@ -75,7 +75,7 @@ function BudgetReportPage() {
       {report.rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No budgets in {report.month}.{' '}
-          <Link to={'/budgets' as string} className="underline">
+          <Link to="/budgets" className="underline">
             Set up budgets
           </Link>
         </p>

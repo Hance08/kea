@@ -9,6 +9,11 @@ import {
   BiggestExpenses,
   BiggestExpensesConfigForm,
 } from '../../components/dashboard/widgets/BiggestExpenses';
+import {
+  BUDGET_PROGRESS_DEFAULT,
+  BudgetProgress,
+  BudgetProgressConfigForm,
+} from '../../components/dashboard/widgets/BudgetProgress';
 import { CashFlowKpi, CashFlowKpiHeader } from '../../components/dashboard/widgets/CashFlowKpi';
 import { NetWorthKpi, NetWorthKpiHeader } from '../../components/dashboard/widgets/NetWorthKpi';
 import {
@@ -66,6 +71,13 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     defaultConfig: {},
     component: PerCurrencyTiles,
   },
+  'budget-progress': {
+    id: 'budget-progress',
+    title: 'Budgets This Month',
+    defaultConfig: BUDGET_PROGRESS_DEFAULT,
+    component: BudgetProgress,
+    ConfigForm: BudgetProgressConfigForm,
+  } as WidgetMeta,
   'top-expense-categories': {
     id: 'top-expense-categories',
     title: 'Top Expense Categories',

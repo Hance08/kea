@@ -104,9 +104,23 @@ type TransactionRepository interface {
 	GetMonthlySplitTotalsForAssetsAndLiabilities(ctx context.Context) ([]MonthlySplitTotal, error)
 }
 
+// BudgetRepository stores budget versions. Selecting the version that applies
+// to a month is a service concern.
+type BudgetRepository interface {
+	// UpsertBudget inserts the (accountID, month) version or replaces its
+	// amount and stopped flag, returning the row ID.
+	UpsertBudget(ctx context.Context, accountID int64, month string, amount int64, stopped bool) (int64, error)
+	// ListBudgets returns every version joined with its account name, ordered
+	// by account name, then effective month.
+	ListBudgets(ctx context.Context) ([]model.Budget, error)
+	// DeleteBudget removes one version. A missing id wraps ErrNotFound.
+	DeleteBudget(ctx context.Context, id int64) error
+}
+
 type Repository interface {
 	AccountRepository
 	TransactionRepository
+	BudgetRepository
 }
 
 type TransactionManager interface {

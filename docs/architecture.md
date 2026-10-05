@@ -48,6 +48,7 @@ Dependencies point downward only. `internal/service` sees storage through the in
 | `cmd` | Root command and startup (`cmd/root.go`), top-level commands `add`, `info`, `report`, `reconcile`, `serve`; config file writing (`cmd/save_config.go`) | `internal/store`, `internal/repository` |
 | `cmd/kea` | `main`: calls `cmd.Execute(migrations.FS)` | anything except `cmd` and `migrations` |
 | `cmd/account` | `kea account` subcommands (create, edit, delete, list, search) | `internal/app`, `internal/store`, `internal/api` |
+| `cmd/budget` | `kea budget` subcommands (set, stop, list, delete, report) | `internal/app`, `internal/store`, `internal/api` |
 | `cmd/ledger` | `kea ledger` subcommands (add, list, switch, remove); runs without an open DB | `internal/service`, `internal/store` (it reaches the store only via `app.InitLedgerDB`) |
 | `cmd/transaction` | `kea transaction` subcommands (list, show, edit, delete, clear) | `internal/app`, `internal/store`, `internal/api` |
 | `ui` | Shared pterm styles and separators (`ui/styles.go`, `ui/separator.go`) | any kea package |
@@ -71,10 +72,11 @@ Two edges cross layers on purpose: `internal/api` and `cmd/ledger` import `inter
 
 ## The service facade
 
-`internal/service/service.go` defines `Service`, which holds unexported `*AccountService`, `*TransactionService` and `*config.Config` fields. Callers use `svc.Account()`, `svc.Transaction()` and `svc.Config()`. `NewService` takes an `AccountRepository`, a `TransactionRepository` and a `TransactionManager`; `app.NewApp` passes the same `*store.Store` for all three.
+`internal/service/service.go` defines `Service`, which holds unexported `*AccountService`, `*TransactionService`, `*BudgetService` and `*config.Config` fields. Callers use `svc.Account()`, `svc.Transaction()`, `svc.Budget()` and `svc.Config()`. `NewService` takes an `AccountRepository`, a `TransactionRepository`, a `BudgetRepository` and a `TransactionManager`; `app.NewApp` passes the same `*store.Store` for all four.
 
 - `AccountService` (`internal/service/account_service.go`, `internal/service/account_ops.go`, `internal/service/account_validation.go`) — account CRUD, tree, balances, search.
 - `TransactionService` (`internal/service/transaction_service.go`, `internal/service/transaction_ops.go`, `internal/service/transaction_validation.go`, `internal/service/transaction_classifier.go`) — transaction CRUD, validation, type rules and classification.
+- `BudgetService` (`internal/service/budget_service.go`, `internal/service/budget_report.go`) — budget versions and budget vs actual.
 - Reports are methods on `TransactionService` in `internal/service/report_service.go` (`GenerateIncomeStatement`, `GenerateBalanceSheet`, `GetDailyNetWorthSeries`, ...).
 - Reconcile is also on `TransactionService`, in `internal/service/reconcile_ops.go` (`GetUnreconciledByAccount`, `PreviewReconcile`, `ReconcileTransactions`).
 - Service errors (`ErrNotFound`, `ErrReconciled`, `ValidationError`, ...) live in `internal/service/errors.go`.

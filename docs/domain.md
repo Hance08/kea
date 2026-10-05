@@ -191,6 +191,20 @@ All reports are methods on `TransactionService` and are built from stored splits
 
 Code lives in: `internal/service/report_service.go`, `internal/service/transaction_service.go` (`GetMonthlyBalanceHistory`), `internal/model/report.go`, `internal/model/net_worth_series.go`, `internal/model/balance_history.go`.
 
+## Budgets
+
+A budget is a monthly spending limit on an `Expense` (`E`) account, leaf or parent. Budgets live in the `budgets` table (`migrations/0012_create_budgets.up.sql`); each row is a version of one account's budget.
+
+- **Versioning.** A row applies from its `effective_month` (`YYYY-MM`, local time) until a later row for the same account. Setting a budget for an (account, month) that already has a row replaces it (upsert), so a month has at most one version per account.
+- **Stopping.** `StopBudget` writes a row with `stopped=1` and `amount=0`; it ends the budget from that month on. It is rejected when the account has no active budget in that month. If a later version exists, that version re-activates the budget from its own month.
+- **Zero is a budget.** `amount=0` with `stopped=0` is a real budget of zero; only `stopped=1` ends one.
+- **Currency** is the account's currency (empty means `config.Defaults.Currency`). Splits of descendant accounts in another currency are excluded from the row and their account names are listed in `ExcludedAccounts`.
+- **Actual** is the signed sum of `Expense` splits of `Expense`-typed transactions on the account and its descendants (`isSelfOrDescendant`: exact name or `name + ":"` prefix, so `Expenses:FoodTruck` is not under `Expenses:Food`). Refunds reduce it and it may be negative. It is split into `ActualRegular` and `ActualIrregular` by the transaction's `Regular` flag. This differs from the expense report, which sums absolute values.
+- **Totals** are per currency and only count budgeted rows with no budgeted ancestor in the same currency (`hasBudgetedAncestorInCurrency`), so a parent and its same-currency budgeted child are not double counted, while a child in another currency still counts in its own currency.
+- **No rollover.** Each month is compared on its own; unspent budget does not carry over.
+
+Code lives in: `internal/service/budget_service.go` (`SetBudget`, `StopBudget`, `activeBudgets`), `internal/service/budget_report.go` (`GenerateBudgetReport`), `internal/model/budget.go`, `internal/store/sqlite_budget.go`. Endpoints are in [http-api.md](http-api.md); the CLI is `kea budget` (`cmd/budget/`, `ui/views/budget.go`).
+
 ## Errors you will meet
 
 Service errors wrap sentinels with `%w`; always test with `errors.Is` (or `errors.As` for `*ValidationError`), never by string or `==`.

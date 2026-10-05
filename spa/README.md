@@ -35,6 +35,8 @@ React SPA served by `kea serve` (embedded into the Go binary) and developed with
 | `/reports/income-breakdown` | `spa/src/routes/reports.income-breakdown.tsx` | Income breakdown report |
 | `/reports/expense-breakdown` | `spa/src/routes/reports.expense-breakdown.tsx` | Expense breakdown report |
 | `/reports/net-worth` | `spa/src/routes/reports.net-worth.tsx` | Redirects to `/reports/balance-sheet` |
+| `/reports/budget` | `spa/src/routes/reports.budget.tsx` | Budget vs actual report |
+| `/budgets` | `spa/src/routes/budgets.tsx` | Budget settings (set, stop, delete; currency resolved from the account, hidden accounts included) |
 | `/settings` | `spa/src/routes/settings.tsx` | Settings |
 
 The root layout is `spa/src/routes/__root.tsx`.

@@ -98,6 +98,18 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 - **Where:** `internal/service/transaction_ops.go` (`DeleteTransaction`, `UpdateTransactionComplete`), `internal/service/errors.go` (`ErrReconciled`)
 - **Source:** [2026-05-20-remove-system-transaction-id.md](history/superpowers/plans/2026-05-20-remove-system-transaction-id.md)
 
+### Budgets are versioned by effective month
+- **Decision:** A budget row applies from its `effective_month` until a later row for the same account replaces or stops it; editing adds a version instead of rewriting the amount.
+- **Why:** Past months must keep showing the budget that applied then; one table covers "amount changes from July" without per-month rows.
+- **Where:** `migrations/0012_create_budgets.up.sql`, `internal/service/budget_service.go` (`activeBudgets`)
+- **Source:** [2026-10-05-monthly-budget-design.md](history/superpowers/specs/2026-10-05-monthly-budget-design.md)
+
+### Budget actuals use signed sums
+- **Decision:** Budget actual spending sums Expense split amounts with their sign, so refunds reduce it; the transaction scope (Expense-typed only) matches the expense report.
+- **Why:** A refund must give budget back; the existing reports' absolute-value sums would count it as more spending.
+- **Where:** `internal/service/budget_report.go` (`GenerateBudgetReport`)
+- **Source:** [2026-10-05-monthly-budget-design.md](history/superpowers/specs/2026-10-05-monthly-budget-design.md)
+
 ## Service layer
 
 ### The repository is the source of truth for account types

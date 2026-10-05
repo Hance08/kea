@@ -682,12 +682,79 @@ func (m *mockTransactionRepo) GetMonthlySplitTotalsForAssetsAndLiabilities(_ con
 }
 
 // ──────────────────────────────────────────────
+// mockBudgetRepo
+// ──────────────────────────────────────────────
+
+type mockBudgetRepo struct {
+	accRepo *mockAccountRepo // resolves AccountName on list, like the SQL JOIN
+	rows    map[int64]*model.Budget
+	nextID  int64
+
+	upsertErr error
+	listErr   error
+	deleteErr error
+}
+
+func newMockBudgetRepo(accRepo *mockAccountRepo) *mockBudgetRepo {
+	return &mockBudgetRepo{accRepo: accRepo, rows: make(map[int64]*model.Budget), nextID: 1}
+}
+
+func (m *mockBudgetRepo) UpsertBudget(_ context.Context, accountID int64, month string, amount int64, stopped bool) (int64, error) {
+	if m.upsertErr != nil {
+		return 0, m.upsertErr
+	}
+	for _, b := range m.rows {
+		if b.AccountID == accountID && b.EffectiveMonth == month {
+			b.Amount, b.Stopped = amount, stopped
+			return b.ID, nil
+		}
+	}
+	id := m.nextID
+	m.nextID++
+	m.rows[id] = &model.Budget{ID: id, AccountID: accountID, EffectiveMonth: month, Amount: amount, Stopped: stopped}
+	return id, nil
+}
+
+func (m *mockBudgetRepo) ListBudgets(_ context.Context) ([]model.Budget, error) {
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+	out := make([]model.Budget, 0, len(m.rows))
+	for _, b := range m.rows {
+		cp := *b
+		if acc, ok := m.accRepo.accountsByID[b.AccountID]; ok {
+			cp.AccountName = acc.Name
+		}
+		out = append(out, cp)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].AccountName != out[j].AccountName {
+			return out[i].AccountName < out[j].AccountName
+		}
+		return out[i].EffectiveMonth < out[j].EffectiveMonth
+	})
+	return out, nil
+}
+
+func (m *mockBudgetRepo) DeleteBudget(_ context.Context, id int64) error {
+	if m.deleteErr != nil {
+		return m.deleteErr
+	}
+	if _, ok := m.rows[id]; !ok {
+		return fmt.Errorf("budget %d not found: %w", id, repository.ErrNotFound)
+	}
+	delete(m.rows, id)
+	return nil
+}
+
+// ──────────────────────────────────────────────
 // mockCombinedRepo (implements repository.Repository)
 // ──────────────────────────────────────────────
 
 type mockCombinedRepo struct {
 	*mockAccountRepo
 	*mockTransactionRepo
+	*mockBudgetRepo
 }
 
 var _ repository.Repository = (*mockCombinedRepo)(nil)
@@ -697,9 +764,10 @@ var _ repository.Repository = (*mockCombinedRepo)(nil)
 // ──────────────────────────────────────────────
 
 type mockTransactionManager struct {
-	accRepo *mockAccountRepo
-	txRepo  *mockTransactionRepo
-	failTx  bool
+	accRepo    *mockAccountRepo
+	txRepo     *mockTransactionRepo
+	budgetRepo *mockBudgetRepo
+	failTx     bool
 }
 
 func (m *mockTransactionManager) ExecTx(_ context.Context, fn func(repository.Repository) error) error {
@@ -737,6 +805,7 @@ func (m *mockTransactionManager) ExecTx(_ context.Context, fn func(repository.Re
 	combined := &mockCombinedRepo{
 		mockAccountRepo:     m.accRepo,
 		mockTransactionRepo: m.txRepo,
+		mockBudgetRepo:      m.budgetRepo,
 	}
 	if err := fn(combined); err != nil {
 		// Rollback: restore pre-transaction state.
@@ -760,6 +829,11 @@ func defaultConfig() *config.Config {
 	return &config.Config{
 		Defaults: config.DefaultsConfig{Currency: "USD"},
 	}
+}
+
+func newTestBudgetService(accRepo *mockAccountRepo, txRepo *mockTransactionRepo, budgetRepo *mockBudgetRepo) *BudgetService {
+	tm := &mockTransactionManager{accRepo: accRepo, txRepo: txRepo, budgetRepo: budgetRepo}
+	return NewBudgetService(budgetRepo, accRepo, txRepo, tm, defaultConfig())
 }
 
 func newTestTransactionService(accRepo *mockAccountRepo, txRepo *mockTransactionRepo) *TransactionService {

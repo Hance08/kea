@@ -72,7 +72,7 @@ Two edges cross layers on purpose: `internal/api` and `cmd/ledger` import `inter
 
 ## The service facade
 
-`internal/service/service.go` defines `Service`, which holds unexported `*AccountService`, `*TransactionService` and `*config.Config` fields. Callers use `svc.Account()`, `svc.Transaction()` and `svc.Config()`. `NewService` takes an `AccountRepository`, a `TransactionRepository`, a `BudgetRepository` and a `TransactionManager`; `app.NewApp` passes the same `*store.Store` for all four.
+`internal/service/service.go` defines `Service`, which holds unexported `*AccountService`, `*TransactionService`, `*BudgetService` and `*config.Config` fields. Callers use `svc.Account()`, `svc.Transaction()`, `svc.Budget()` and `svc.Config()`. `NewService` takes an `AccountRepository`, a `TransactionRepository`, a `BudgetRepository` and a `TransactionManager`; `app.NewApp` passes the same `*store.Store` for all four.
 
 - `AccountService` (`internal/service/account_service.go`, `internal/service/account_ops.go`, `internal/service/account_validation.go`) — account CRUD, tree, balances, search.
 - `TransactionService` (`internal/service/transaction_service.go`, `internal/service/transaction_ops.go`, `internal/service/transaction_validation.go`, `internal/service/transaction_classifier.go`) — transaction CRUD, validation, type rules and classification.

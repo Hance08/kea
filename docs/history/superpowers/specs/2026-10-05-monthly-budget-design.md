@@ -157,7 +157,7 @@ Repository errors are translated to service errors. No new service sentinel is n
    - currency C: add the **signed** amount to `Actual`, and to `ActualRegular` or `ActualIrregular` by the transaction's `Regular` flag;
    - other currency: add the account name to `ExcludedAccounts` (deduplicated, sorted). Only accounts that actually had such splits that month are listed.
 6. `Remaining = Budget - Actual`. Rows sorted by account name.
-7. Totals per currency sum only **top-level budgeted rows**: rows with no budgeted ancestor in the same report. This prevents double counting when a parent and its child both have budgets.
+7. Totals per currency sum only rows with **no budgeted ancestor in the same currency** in the report. This prevents double counting when a parent and its same-currency child both have budgets; a child in a different currency is not part of the parent's Actual, so it still counts in its own currency.
 
 ## HTTP API (`internal/api/budgets.go`)
 
@@ -202,7 +202,7 @@ Total (TWD)            30,000.00  25,820.50  18,000.00   7,820.50   4,179.50   8
 
 - Children are indented by depth relative to the shallowest budgeted ancestor shown.
 - Used >= 80% is yellow, > 100% red; no color with `--no-color`. Used is blank when Budget is 0 and Actual is 0; it shows `over` when Budget is 0 and Actual > 0.
-- One total line per currency (top-level rows only).
+- One total line per currency (rows with no same-currency budgeted ancestor).
 
 ### JSON
 
@@ -246,7 +246,7 @@ Registered in `spa/src/lib/dashboard/registry.ts` and added to the default layou
 |---|---|
 | Migration | `internal/store/migration_0012_test.go`: CHECKs (month shape, amount >= 0, stopped implies amount 0), UNIQUE, CASCADE on account delete, down migration. |
 | Store | `internal/store/sqlite_budget_test.go` with `setupTestDB`: upsert insert and replace, list join and order, delete and not-found. |
-| Service | `internal/service/budget_service_test.go`, `budget_report_test.go` with in-memory mocks in `testhelper_test.go`: validation, non-Expense account, not found, stop without active budget, version selection (before first version, between versions, after stop, restart after stop), descendant aggregation, currency exclusion, signed refunds, regular split, non-Expense transaction types ignored, top-level-only totals, empty month. |
+| Service | `internal/service/budget_service_test.go`, `budget_report_test.go` with in-memory mocks in `testhelper_test.go`: validation, non-Expense account, not found, stop without active budget, version selection (before first version, between versions, after stop, restart after stop), descendant aggregation, currency exclusion, signed refunds, regular split, non-Expense transaction types ignored, same-currency-ancestor-aware totals, empty month. |
 | API | `internal/api/budgets_test.go`: each endpoint's success path, 400 with `field`, 404, unknown fields rejected, report default month. |
 | CLI | Runner tests with mock providers for each command (flag mode, error propagation, `--json`); view tests for indentation, color thresholds, per-currency totals, exclusion notes. |
 | SPA | Vitest: API client; report page (thresholds, time marker only in current month, exclusion tooltip, totals, empty state); settings page (add, edit as new version, stop, delete version, field errors); dashboard card (sort, N, >= 80% filter, empty state); registry includes the new widget. |
@@ -255,7 +255,7 @@ Registered in `spa/src/lib/dashboard/registry.ts` and added to the default layou
 
 Updated in the same commits as the code, then `scripts/check-docs.sh`:
 
-- `docs/domain.md`: new "Budgets" section (versioning, account level, currency rule, signed sums, transaction scope, top-level totals).
+- `docs/domain.md`: new "Budgets" section (versioning, account level, currency rule, signed sums, transaction scope, same-currency-ancestor totals).
 - `docs/http-api.md`: Budgets endpoints and `/reports/budget`.
 - `docs/architecture.md`: `BudgetService` on the facade, `BudgetRepository`, package map rows for `cmd/budget`.
 - `docs/decisions.md`: entries for "Budgets are versioned by effective month" and "Budgets use signed sums".

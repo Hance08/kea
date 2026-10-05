@@ -29,8 +29,9 @@ type StopBudgetInput struct {
 }
 
 // BudgetReport compares each active budget in Month with actual spending.
-// Totals are per currency and only include top-level budgeted rows (rows with
-// no budgeted ancestor), so parent and child budgets are not double counted.
+// Totals are per currency and only include budgeted rows with no budgeted
+// ancestor in the same currency, so parent and child budgets are not double
+// counted while other-currency children still count in their own currency.
 type BudgetReport struct {
 	Month       string            `json:"month"`
 	Rows        []BudgetReportRow `json:"rows"`

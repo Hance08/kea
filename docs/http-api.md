@@ -130,7 +130,7 @@ Errors: 400 `validation_failed` with `field` one of `account_name`, `effective_m
 | GET | `/api/reports/balance-sheet` | `reports.go` `handleBalanceSheet` | `GenerateBalanceSheet` | `as_of` Unix seconds, default now |
 | GET | `/api/reports/net-worth` | `reports.go` `handleNetWorth` | `GetNetWorthAt` | `at` Unix seconds, default now; `{"at":n,"net_worth":{"<CCY>":cents}}` |
 | GET | `/api/reports/net-worth-series` | `reports.go` `handleNetWorthSeries` | `GetDailyNetWorthSeries` | `{"items":[...]}` daily series per currency; no params |
-| GET | `/api/reports/budget` | `budgets.go` `handleBudgetReport` | `GenerateBudgetReport` | `month` `YYYY-MM`, default current local month; returns `BudgetReport` (fields in `internal/model/budget.go`); totals per currency over top-level budgeted rows only; bad month is 400 with `field` `month` |
+| GET | `/api/reports/budget` | `budgets.go` `handleBudgetReport` | `GenerateBudgetReport` | `month` `YYYY-MM`, default current local month; returns `BudgetReport` (fields in `internal/model/budget.go`); totals per currency over budgeted rows with no budgeted ancestor in the same currency; bad month is 400 with `field` `month` |
 
 ## Query parameters
 

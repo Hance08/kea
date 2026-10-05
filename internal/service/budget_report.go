@@ -114,7 +114,7 @@ func (bs *BudgetService) GenerateBudgetReport(ctx context.Context, month string)
 	sort.Slice(report.Rows, func(i, j int) bool { return report.Rows[i].AccountName < report.Rows[j].AccountName })
 
 	for _, row := range report.Rows {
-		if hasBudgetedAncestor(row.AccountName, report.Rows) {
+		if hasBudgetedAncestorInCurrency(row, report.Rows) {
 			continue
 		}
 		report.TotalBudget[row.Currency] += row.Budget
@@ -136,9 +136,13 @@ func isSelfOrDescendant(name, ancestor string) bool {
 	return name == ancestor || strings.HasPrefix(name, ancestor+":")
 }
 
-func hasBudgetedAncestor(name string, rows []model.BudgetReportRow) bool {
+// hasBudgetedAncestorInCurrency reports whether another row budgets a strict
+// ancestor of row's account in the same currency. Only then is row's spending
+// already inside that ancestor's Actual; an ancestor in a different currency
+// excludes row's account, so row must still count in its own currency total.
+func hasBudgetedAncestorInCurrency(row model.BudgetReportRow, rows []model.BudgetReportRow) bool {
 	for _, r := range rows {
-		if r.AccountName != name && isSelfOrDescendant(name, r.AccountName) {
+		if r.Currency == row.Currency && r.AccountName != row.AccountName && isSelfOrDescendant(row.AccountName, r.AccountName) {
 			return true
 		}
 	}

@@ -159,6 +159,30 @@ func TestGenerateBudgetReport(t *testing.T) {
 		assert.Equal(t, int64(4000), r.TotalActual["USD"])
 	})
 
+	t.Run("budgeted child in another currency still counts in its currency total", func(t *testing.T) {
+		accRepo, txRepo, bRepo := reportFixture()
+		_, _ = bRepo.UpsertBudget(ctx, 1, "2026-01", 100000, false)
+		_, _ = bRepo.UpsertBudget(ctx, 2, "2026-01", 40000, false)
+		_, _ = bRepo.UpsertBudget(ctx, 3, "2026-01", 5000, false)
+		addExpenseTx(txRepo, 1, model.TxTypeExpense, boolp(true),
+			split("Expenses:Food:Dining", model.AccountTypeExpense, 2000),
+			split("Assets:Bank", model.AccountTypeAsset, -2000))
+		jpy := split("Expenses:Food:Japan", model.AccountTypeExpense, 700)
+		jpy.Currency = "JPY"
+		jpyBank := split("Assets:Bank", model.AccountTypeAsset, -700)
+		jpyBank.Currency = "JPY"
+		addExpenseTx(txRepo, 2, model.TxTypeExpense, boolp(true), jpy, jpyBank)
+		svc := newTestBudgetService(accRepo, txRepo, bRepo)
+
+		r, err := svc.GenerateBudgetReport(ctx, "2026-01")
+		require.NoError(t, err)
+		assert.Equal(t, map[string]int64{"USD": 100000, "JPY": 5000}, r.TotalBudget)
+		assert.Equal(t, map[string]int64{"USD": 2000, "JPY": 700}, r.TotalActual)
+		food := findRow(t, r, "Expenses:Food")
+		assert.Equal(t, int64(2000), food.Actual)
+		assert.Equal(t, []string{"Expenses:Food:Japan"}, food.ExcludedAccounts)
+	})
+
 	t.Run("stopped and future versions are not reported", func(t *testing.T) {
 		accRepo, txRepo, bRepo := reportFixture()
 		_, _ = bRepo.UpsertBudget(ctx, 1, "2026-01", 100, false)

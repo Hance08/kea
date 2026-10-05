@@ -831,6 +831,11 @@ func defaultConfig() *config.Config {
 	}
 }
 
+func newTestBudgetService(accRepo *mockAccountRepo, txRepo *mockTransactionRepo, budgetRepo *mockBudgetRepo) *BudgetService {
+	tm := &mockTransactionManager{accRepo: accRepo, txRepo: txRepo, budgetRepo: budgetRepo}
+	return NewBudgetService(budgetRepo, accRepo, txRepo, tm, defaultConfig())
+}
+
 func newTestTransactionService(accRepo *mockAccountRepo, txRepo *mockTransactionRepo) *TransactionService {
 	tm := &mockTransactionManager{accRepo: accRepo, txRepo: txRepo}
 	return NewTransactionService(txRepo, accRepo, tm, defaultConfig())

@@ -11,19 +11,28 @@ import (
 type Service struct {
 	account     *AccountService
 	transaction *TransactionService
+	budget      *BudgetService
 	config      *config.Config
 }
 
-func NewService(accRepo repository.AccountRepository, txRepo repository.TransactionRepository, tm repository.TransactionManager, cfg *config.Config) *Service {
+func NewService(
+	accRepo repository.AccountRepository,
+	txRepo repository.TransactionRepository,
+	budgetRepo repository.BudgetRepository,
+	tm repository.TransactionManager,
+	cfg *config.Config,
+) *Service {
 	svc := &Service{
 		account:     NewAccountService(accRepo, cfg, tm),
 		transaction: NewTransactionService(txRepo, accRepo, tm, cfg),
+		budget:      NewBudgetService(budgetRepo, accRepo, txRepo, tm, cfg),
 		config:      cfg,
 	}
 
 	return svc
 }
 
-func (s *Service) Account() *AccountService     { return s.account }
+func (s *Service) Account() *AccountService         { return s.account }
 func (s *Service) Transaction() *TransactionService { return s.transaction }
-func (s *Service) Config() *config.Config        { return s.config }
+func (s *Service) Budget() *BudgetService           { return s.budget }
+func (s *Service) Config() *config.Config           { return s.config }

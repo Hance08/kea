@@ -5,6 +5,7 @@ const TABS = [
   { to: '/reports/income-statement', label: 'Income Statement' },
   { to: '/reports/income-breakdown', label: 'Income Breakdown' },
   { to: '/reports/expense-breakdown', label: 'Expense Breakdown' },
+  { to: '/reports/budget', label: 'Budget' },
   { to: '/reports/balance-sheet', label: 'Balance Sheet' },
 ] as const;
 

@@ -27,6 +27,7 @@ import { Route as ReportsNetWorthRouteImport } from './routes/reports.net-worth'
 import { Route as ReportsIncomeStatementRouteImport } from './routes/reports.income-statement'
 import { Route as ReportsIncomeBreakdownRouteImport } from './routes/reports.income-breakdown'
 import { Route as ReportsExpenseBreakdownRouteImport } from './routes/reports.expense-breakdown'
+import { Route as ReportsBudgetRouteImport } from './routes/reports.budget'
 import { Route as ReportsBalanceSheetRouteImport } from './routes/reports.balance-sheet'
 import { Route as ReconcileIdRouteImport } from './routes/reconcile.$id'
 import { Route as AccountsNewRouteImport } from './routes/accounts.new'
@@ -126,6 +127,11 @@ const ReportsExpenseBreakdownRoute = ReportsExpenseBreakdownRouteImport.update({
   path: '/expense-breakdown',
   getParentRoute: () => ReportsRoute,
 } as any)
+const ReportsBudgetRoute = ReportsBudgetRouteImport.update({
+  id: '/budget',
+  path: '/budget',
+  getParentRoute: () => ReportsRoute,
+} as any)
 const ReportsBalanceSheetRoute = ReportsBalanceSheetRouteImport.update({
   id: '/balance-sheet',
   path: '/balance-sheet',
@@ -180,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/accounts/new': typeof AccountsNewRoute
   '/reconcile/$id': typeof ReconcileIdRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
+  '/reports/budget': typeof ReportsBudgetRoute
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/accounts/new': typeof AccountsNewRoute
   '/reconcile/$id': typeof ReconcileIdRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
+  '/reports/budget': typeof ReportsBudgetRoute
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/accounts/new': typeof AccountsNewRoute
   '/reconcile/$id': typeof ReconcileIdRoute
   '/reports/balance-sheet': typeof ReportsBalanceSheetRoute
+  '/reports/budget': typeof ReportsBudgetRoute
   '/reports/expense-breakdown': typeof ReportsExpenseBreakdownRoute
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/accounts/new'
     | '/reconcile/$id'
     | '/reports/balance-sheet'
+    | '/reports/budget'
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
     | '/reports/income-statement'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
     | '/accounts/new'
     | '/reconcile/$id'
     | '/reports/balance-sheet'
+    | '/reports/budget'
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
     | '/reports/income-statement'
@@ -311,6 +322,7 @@ export interface FileRouteTypes {
     | '/accounts/new'
     | '/reconcile/$id'
     | '/reports/balance-sheet'
+    | '/reports/budget'
     | '/reports/expense-breakdown'
     | '/reports/income-breakdown'
     | '/reports/income-statement'
@@ -466,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsExpenseBreakdownRouteImport
       parentRoute: typeof ReportsRoute
     }
+    '/reports/budget': {
+      id: '/reports/budget'
+      path: '/budget'
+      fullPath: '/reports/budget'
+      preLoaderRoute: typeof ReportsBudgetRouteImport
+      parentRoute: typeof ReportsRoute
+    }
     '/reports/balance-sheet': {
       id: '/reports/balance-sheet'
       path: '/balance-sheet'
@@ -571,6 +590,7 @@ const ReconcileRouteWithChildren = ReconcileRoute._addFileChildren(
 
 interface ReportsRouteChildren {
   ReportsBalanceSheetRoute: typeof ReportsBalanceSheetRoute
+  ReportsBudgetRoute: typeof ReportsBudgetRoute
   ReportsExpenseBreakdownRoute: typeof ReportsExpenseBreakdownRoute
   ReportsIncomeBreakdownRoute: typeof ReportsIncomeBreakdownRoute
   ReportsIncomeStatementRoute: typeof ReportsIncomeStatementRoute
@@ -580,6 +600,7 @@ interface ReportsRouteChildren {
 
 const ReportsRouteChildren: ReportsRouteChildren = {
   ReportsBalanceSheetRoute: ReportsBalanceSheetRoute,
+  ReportsBudgetRoute: ReportsBudgetRoute,
   ReportsExpenseBreakdownRoute: ReportsExpenseBreakdownRoute,
   ReportsIncomeBreakdownRoute: ReportsIncomeBreakdownRoute,
   ReportsIncomeStatementRoute: ReportsIncomeStatementRoute,

@@ -49,6 +49,7 @@ Dependencies point downward only. `internal/service` sees storage through the in
 | `cmd/kea` | `main`: calls `cmd.Execute(migrations.FS)` | anything except `cmd` and `migrations` |
 | `cmd/account` | `kea account` subcommands (create, edit, delete, list, search) | `internal/app`, `internal/store`, `internal/api` |
 | `cmd/budget` | `kea budget` subcommands (set, stop, list, delete, report) | `internal/app`, `internal/store`, `internal/api` |
+| `cmd/savings` | `kea savings` subcommands (set, stop, list, delete, report) | `internal/app`, `internal/store`, `internal/api` |
 | `cmd/ledger` | `kea ledger` subcommands (add, list, switch, remove); runs without an open DB | `internal/service`, `internal/store` (it reaches the store only via `app.InitLedgerDB`) |
 | `cmd/transaction` | `kea transaction` subcommands (list, show, edit, delete, clear) | `internal/app`, `internal/store`, `internal/api` |
 | `ui` | Shared pterm styles and separators (`ui/styles.go`, `ui/separator.go`) | any kea package |

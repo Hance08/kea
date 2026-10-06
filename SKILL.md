@@ -272,6 +272,42 @@ Rules:
 
 ---
 
+### Savings targets
+
+```bash
+kea savings set <account> <amount> [--month YYYY-MM] [--json]
+kea savings stop <account> [--month YYYY-MM] [--json]
+kea savings list [--account <name>] [--json]
+kea savings delete <id> [--yes] [--json]
+kea savings report [--month YYYY-MM] [--json]
+```
+
+Examples:
+```bash
+# Save 15000 per month into the savings account, starting October 2026
+kea savings set Assets:Banks:Cube_Saving 15000 --month 2026-10
+
+# Stop that target from March 2027 on
+kea savings stop Assets:Banks:Cube_Saving --month 2027-03
+
+# List all target versions (IDs are used by delete)
+kea savings list --account Assets:Banks:Cube_Saving
+
+# Delete one target version
+kea savings delete 3 --yes
+
+# Target vs saved for October 2026 and year to date, as JSON
+kea savings report --month 2026-10 --json
+```
+
+Rules:
+- Savings targets can only be set on Asset accounts.
+- Saved is the account's balance change in the month, descendants in the same currency included; opening balances do not count. Withdrawals make it smaller, possibly negative.
+- A target version applies from its month on, until a later version replaces or stops it.
+- Each month stands alone (no rollover); the report also shows year-to-date totals over the months the target was active.
+
+---
+
 ### Reconcile an Account
 
 Reconciliation marks transactions as locked against an external statement (status 2 / Reconciled). Reconciled transactions cannot be edited or deleted afterward.
@@ -376,6 +412,9 @@ kea report --type bs
 
 # Budget vs actual spending this month
 kea budget report --json
+
+# Savings target vs saved this month
+kea savings report --json
 ```
 
 ---

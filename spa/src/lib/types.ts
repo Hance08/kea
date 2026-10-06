@@ -276,3 +276,57 @@ export interface BudgetReport {
   total_budget: Record<string, number>;
   total_actual: Record<string, number>;
 }
+
+export interface SavingsTarget {
+  id: number;
+  account_id: number;
+  account_name: string;
+  effective_month: string;
+  amount: number;
+  stopped: boolean;
+}
+
+export interface SavingsTargetListResponse {
+  items: SavingsTarget[];
+}
+
+export interface SetSavingsTargetInput {
+  account_name: string;
+  effective_month: string;
+  amount: number;
+}
+
+export interface StopSavingsTargetInput {
+  account_name: string;
+  effective_month: string;
+}
+
+export interface SavingsMonth {
+  month: string;
+  target: number;
+  saved: number;
+}
+
+export interface SavingsReportRow {
+  account_id: number;
+  account_name: string;
+  currency: string;
+  effective_month: string;
+  target: number;
+  saved: number;
+  remaining: number;
+  ytd_target: number;
+  ytd_saved: number;
+  ytd_remaining: number;
+  months: SavingsMonth[];
+  excluded_accounts: string[];
+}
+
+export interface SavingsReport {
+  month: string;
+  rows: SavingsReportRow[];
+  total_target: Record<string, number>;
+  total_saved: Record<string, number>;
+  total_ytd_target: Record<string, number>;
+  total_ytd_saved: Record<string, number>;
+}

@@ -38,17 +38,28 @@ export function elapsedFraction(month: string, now: Date = new Date()): number |
   return (now.getDate() - 1) / daysInMonth;
 }
 
+export interface VersionedRow {
+  account_id: number;
+  account_name: string;
+  effective_month: string;
+  stopped: boolean;
+}
+
 /** Mirrors the server: latest version with effective_month <= month per account, minus stopped ones. */
-export function activeBudgets(items: Budget[], month: string): Budget[] {
-  const latest = new Map<number, Budget>();
-  for (const b of items) {
-    if (b.effective_month > month) continue;
-    const cur = latest.get(b.account_id);
-    if (!cur || b.effective_month > cur.effective_month) latest.set(b.account_id, b);
+export function activeVersions<T extends VersionedRow>(items: T[], month: string): T[] {
+  const latest = new Map<number, T>();
+  for (const v of items) {
+    if (v.effective_month > month) continue;
+    const cur = latest.get(v.account_id);
+    if (!cur || v.effective_month > cur.effective_month) latest.set(v.account_id, v);
   }
   return [...latest.values()]
-    .filter((b) => !b.stopped)
+    .filter((v) => !v.stopped)
     .sort((a, b) => a.account_name.localeCompare(b.account_name));
+}
+
+export function activeBudgets(items: Budget[], month: string): Budget[] {
+  return activeVersions(items, month);
 }
 
 /** Number of other names in `names` that are ancestors of `name` in the account tree. */

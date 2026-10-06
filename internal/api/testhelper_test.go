@@ -81,7 +81,7 @@ func newServerForWriteWithCurrency(t *testing.T, currency string) (*httptest.Ser
 	cfg := config.NewDefault()
 	cfg.Defaults.Currency = currency
 
-	svc := service.NewService(st, st, st, st, cfg)
+	svc := service.NewService(st, st, st, st, st, cfg)
 	srv := NewServer(cfg, svc, nil, nil, "", nil, func() error { return nil }, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
@@ -106,7 +106,7 @@ func newServerForWriteWithDisplay(t *testing.T, currency string, hideDecimals bo
 	cfg.Defaults.Currency = currency
 	cfg.Display.HideDecimals = hideDecimals
 
-	svc := service.NewService(st, st, st, st, cfg)
+	svc := service.NewService(st, st, st, st, st, cfg)
 	srv := NewServer(cfg, svc, nil, nil, "", nil, func() error { return nil }, discardLogger())
 	ts := httptest.NewServer(srv.routes())
 	t.Cleanup(ts.Close)
@@ -137,7 +137,7 @@ func newServerForPatchConfig(t *testing.T, currency string, hideDecimals bool) (
 	cfg.Defaults.Currency = currency
 	cfg.Display.HideDecimals = hideDecimals
 
-	svc := service.NewService(st, st, st, st, cfg)
+	svc := service.NewService(st, st, st, st, st, cfg)
 
 	calls := 0
 	var injErr error

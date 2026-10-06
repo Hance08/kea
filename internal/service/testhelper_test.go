@@ -905,6 +905,11 @@ func newTestBudgetService(accRepo *mockAccountRepo, txRepo *mockTransactionRepo,
 	return NewBudgetService(budgetRepo, accRepo, txRepo, tm, defaultConfig())
 }
 
+func newTestSavingsService(accRepo *mockAccountRepo, txRepo *mockTransactionRepo, sRepo *mockSavingsRepo) *SavingsService {
+	tm := &mockTransactionManager{accRepo: accRepo, txRepo: txRepo, savingsRepo: sRepo}
+	return NewSavingsService(sRepo, accRepo, txRepo, tm, defaultConfig())
+}
+
 func newTestTransactionService(accRepo *mockAccountRepo, txRepo *mockTransactionRepo) *TransactionService {
 	tm := &mockTransactionManager{accRepo: accRepo, txRepo: txRepo}
 	return NewTransactionService(txRepo, accRepo, tm, defaultConfig())

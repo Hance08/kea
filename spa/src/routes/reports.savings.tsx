@@ -70,7 +70,7 @@ function SavingsReportPage() {
       {report.rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No savings targets in {report.month}.{' '}
-          <Link to={'/savings' as string} className="underline">
+          <Link to="/savings" className="underline">
             Set up savings targets
           </Link>
         </p>

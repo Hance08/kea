@@ -141,10 +141,7 @@ func isSelfOrDescendant(name, ancestor string) bool {
 // already inside that ancestor's Actual; an ancestor in a different currency
 // excludes row's account, so row must still count in its own currency total.
 func hasBudgetedAncestorInCurrency(row model.BudgetReportRow, rows []model.BudgetReportRow) bool {
-	for _, r := range rows {
-		if r.Currency == row.Currency && r.AccountName != row.AccountName && isSelfOrDescendant(row.AccountName, r.AccountName) {
-			return true
-		}
-	}
-	return false
+	return hasAncestorInCurrency(row, rows, func(r model.BudgetReportRow) (string, string) {
+		return r.AccountName, r.Currency
+	})
 }

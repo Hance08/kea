@@ -34,6 +34,11 @@ BIN_PATH="$BIN_DIR/kea"
 UNIT_DIR="$HOME/.config/systemd/user"
 UNIT_PATH="$UNIT_DIR/kea.service"
 
+if [[ -f /etc/systemd/system/kea.service ]]; then
+	echo "Warning: a system service is also installed at /etc/systemd/system/kea.service." >&2
+	echo "         This script updates the user service only; to update that one, run sudo ./scripts/install-systemd.sh." >&2
+fi
+
 echo "==> Building kea (spa + binary)"
 make -C "$REPO_DIR" build-all
 
@@ -50,9 +55,11 @@ echo "==> Installing user unit to ${UNIT_PATH}"
 mkdir -p "$UNIT_DIR"
 install -m 0644 "$REPO_DIR/scripts/kea-user.service" "$UNIT_PATH"
 
-echo "==> Reloading systemd --user and enabling kea.service"
+echo "==> Reloading systemd --user, enabling and restarting kea.service"
 systemctl --user daemon-reload
-systemctl --user enable --now kea
+systemctl --user enable kea
+# restart (not enable --now) so a re-run replaces an already running process.
+systemctl --user restart kea
 
 echo "==> Done. Status:"
 systemctl --user --no-pager status kea || true

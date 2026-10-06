@@ -187,17 +187,27 @@ The bundle is not committed. `.gitignore` excludes `internal/web/dist/*` except 
 
 On a fresh clone run `make spa-install` once first: the scripts run `make build-all`, which needs the SPA dependencies. All three scripts run `make build-all`, install the binary, register a service that runs `kea serve`, and are idempotent: re-run after pulling to rebuild and redeploy. Configure host and port in `config.yaml` in the service user's data directory.
 
+To update a running deployment, `git pull` and re-run the same script you installed with; each one rebuilds, reinstalls the binary and restarts the service. The scripts install to different places, so running a different one sets up a second, separate deployment with its own binary and data directory instead of updating yours. To find out which one you have:
+
+| Check | Installed by | Re-run |
+|---|---|---|
+| `systemctl status kea` shows a loaded unit | `install-systemd.sh` | `sudo ./scripts/install-systemd.sh` |
+| `systemctl --user status kea` shows a loaded unit | `install-systemd-user.sh` | `./scripts/install-systemd-user.sh` |
+| `launchctl print gui/$(id -u)/com.kea.serve` succeeds | `install-launchd.sh` | `./scripts/install-launchd.sh` |
+
+The two systemd scripts print a warning when the other kind of unit is also installed. If the served version does not change after a redeploy, check which binary the listening process runs: `sudo ss -ltnp | grep kea`, then `ps -o cmd= -p <pid>`.
+
 ### `scripts/install-launchd.sh` (macOS)
 
 Run as your normal user, not root: `./scripts/install-launchd.sh`. It installs the binary to `/usr/local/bin/kea` with `sudo`, renders `scripts/kea.plist.template` into `~/Library/LaunchAgents/com.kea.serve.plist` and loads it, so the server starts at login and restarts on crash. Logs go to `~/Library/Logs/kea/kea.log`. Stop with `launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.kea.serve.plist`; start again with `launchctl bootstrap` and the same arguments. The script has no uninstall mode; after stopping, delete the plist and the binary by hand.
 
 ### `scripts/install-systemd.sh` (Linux, system service)
 
-Run with root: `sudo ./scripts/install-systemd.sh`. It builds as the invoking user, installs `/usr/local/bin/kea`, creates a `kea` system user with home `/var/lib/kea`, installs `scripts/kea.service` to `/etc/systemd/system/kea.service` (hardened with `ProtectSystem=strict`) and runs `systemctl enable --now kea`. Data lives in `/var/lib/kea/.config/kea`. Logs: `journalctl -u kea -f`. No uninstall mode; use `systemctl disable --now kea` and remove the unit file.
+Run with root: `sudo ./scripts/install-systemd.sh`. It builds as the invoking user, installs `/usr/local/bin/kea`, creates a `kea` system user with home `/var/lib/kea`, installs `scripts/kea.service` to `/etc/systemd/system/kea.service` (hardened with `ProtectSystem=strict`), then runs `systemctl enable kea` and `systemctl restart kea`. Data lives in `/var/lib/kea/.config/kea`. Logs: `journalctl -u kea -f`. No uninstall mode; use `systemctl disable --now kea` and remove the unit file.
 
 ### `scripts/install-systemd-user.sh` (Linux, user service)
 
-Run as your normal user: `./scripts/install-systemd-user.sh`. It installs the binary to `~/.local/bin/kea` and `scripts/kea-user.service` to `~/.config/systemd/user/kea.service`, then enables it with `systemctl --user`. Data lives in `~/.config/kea`. Logs: `journalctl --user -u kea -f`. The service starts at login by default; run `sudo loginctl enable-linger $USER` to start at boot and survive logout. No uninstall mode; use `systemctl --user disable --now kea` and remove the unit file.
+Run as your normal user: `./scripts/install-systemd-user.sh`. It installs the binary to `~/.local/bin/kea` and `scripts/kea-user.service` to `~/.config/systemd/user/kea.service`, then enables and restarts it with `systemctl --user`. Data lives in `~/.config/kea`. Logs: `journalctl --user -u kea -f`. The service starts at login by default; run `sudo loginctl enable-linger $USER` to start at boot and survive logout. No uninstall mode; use `systemctl --user disable --now kea` and remove the unit file.
 
 ## Docs maintenance
 

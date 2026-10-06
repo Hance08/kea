@@ -7,7 +7,8 @@ export type WidgetId =
   | 'recent-transactions'
   | 'biggest-expenses'
   | 'accounts-moved'
-  | 'budget-progress';
+  | 'budget-progress'
+  | 'savings-progress';
 
 export interface GridItem {
   i: WidgetId;

@@ -8,7 +8,8 @@ export type PageId =
   | 'reports/income-statement'
   | 'reports/expense-breakdown'
   | 'reports/income-breakdown'
-  | 'reports/budget';
+  | 'reports/budget'
+  | 'reports/savings';
 
 const ACTIVE_LEDGER_KEY = 'kea.activeLedger';
 

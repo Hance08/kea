@@ -117,10 +117,24 @@ type BudgetRepository interface {
 	DeleteBudget(ctx context.Context, id int64) error
 }
 
+// SavingsTargetRepository stores savings target versions. Selecting the
+// version that applies to a month is a service concern.
+type SavingsTargetRepository interface {
+	// UpsertSavingsTarget inserts the (accountID, month) version or replaces
+	// its amount and stopped flag, returning the row ID.
+	UpsertSavingsTarget(ctx context.Context, accountID int64, month string, amount int64, stopped bool) (int64, error)
+	// ListSavingsTargets returns every version joined with its account name,
+	// ordered by account name, then effective month.
+	ListSavingsTargets(ctx context.Context) ([]model.SavingsTarget, error)
+	// DeleteSavingsTarget removes one version. A missing id wraps ErrNotFound.
+	DeleteSavingsTarget(ctx context.Context, id int64) error
+}
+
 type Repository interface {
 	AccountRepository
 	TransactionRepository
 	BudgetRepository
+	SavingsTargetRepository
 }
 
 type TransactionManager interface {

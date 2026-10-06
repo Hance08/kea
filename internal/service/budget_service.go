@@ -152,35 +152,13 @@ func budgetAccount(ctx context.Context, repo repository.AccountRepository, name 
 	return acc, nil
 }
 
-// latestVersions returns, per account, the version with the greatest
-// EffectiveMonth <= month (including stopped versions).
-func latestVersions(budgets []model.Budget, month string) map[int64]model.Budget {
-	latest := map[int64]model.Budget{}
-	for _, b := range budgets {
-		if b.EffectiveMonth > month {
-			continue
-		}
-		if cur, ok := latest[b.AccountID]; !ok || b.EffectiveMonth > cur.EffectiveMonth {
-			latest[b.AccountID] = b
-		}
-	}
-	return latest
-}
-
 // activeBudgets returns the non-stopped version that applies to month for
 // each account, in the input order.
 func activeBudgets(budgets []model.Budget, month string) []model.Budget {
-	latest := latestVersions(budgets, month)
-	out := []model.Budget{}
-	for _, b := range budgets {
-		if v, ok := latest[b.AccountID]; ok && v.ID == b.ID && !b.Stopped {
-			out = append(out, b)
-		}
-	}
-	return out
+	return activeVersions(budgets, month, budgetVersionKey)
 }
 
 func hasActiveBudget(budgets []model.Budget, accountID int64, month string) bool {
-	v, ok := latestVersions(budgets, month)[accountID]
-	return ok && !v.Stopped
+	_, ok := activeVersionFor(budgets, accountID, month, budgetVersionKey)
+	return ok
 }

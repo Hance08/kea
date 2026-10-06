@@ -120,6 +120,17 @@ Example create request (expense of 5.00):
 
 Errors: 400 `validation_failed` with `field` one of `account_name`, `effective_month`, `amount`, `body` (unknown JSON field or bad JSON); 404 `not_found` for an unknown account or budget id.
 
+### Savings targets
+
+| Method | Path | Handler | Service call | Notes |
+|---|---|---|---|---|
+| GET | `/api/savings-targets` | `savings.go` `handleListSavingsTargets` | `ListSavingsTargets` | `{"items":[SavingsTarget]}`; items never null |
+| PUT | `/api/savings-targets` | `savings.go` `handleSetSavingsTarget` | `SetSavingsTarget` | Body `{account_name, effective_month, amount}` (`YYYY-MM`, cents); Asset accounts only; idempotent upsert; returns `SavingsTarget` |
+| POST | `/api/savings-targets/stop` | `savings.go` `handleStopSavingsTarget` | `StopSavingsTarget` | Body `{account_name, effective_month}`; returns the stop `SavingsTarget` |
+| DELETE | `/api/savings-targets/{id}` | `savings.go` `handleDeleteSavingsTarget` | `DeleteSavingsTarget` | Returns `{"deleted":true,"id":n}` |
+
+Errors: 400 `validation_failed` with `field` one of `account_name`, `effective_month`, `amount`, `body` (unknown JSON field or bad JSON); 404 `not_found` for an unknown account or target id.
+
 ### Reports
 
 | Method | Path | Handler | Service call | Notes |
@@ -131,6 +142,7 @@ Errors: 400 `validation_failed` with `field` one of `account_name`, `effective_m
 | GET | `/api/reports/net-worth` | `reports.go` `handleNetWorth` | `GetNetWorthAt` | `at` Unix seconds, default now; `{"at":n,"net_worth":{"<CCY>":cents}}` |
 | GET | `/api/reports/net-worth-series` | `reports.go` `handleNetWorthSeries` | `GetDailyNetWorthSeries` | `{"items":[...]}` daily series per currency; no params |
 | GET | `/api/reports/budget` | `budgets.go` `handleBudgetReport` | `GenerateBudgetReport` | `month` `YYYY-MM`, default current local month; returns `BudgetReport` (fields in `internal/model/budget.go`); totals per currency over budgeted rows with no budgeted ancestor in the same currency; bad month is 400 with `field` `month` |
+| GET | `/api/reports/savings` | `savings.go` `handleSavingsReport` | `GenerateSavingsReport` | `month` `YYYY-MM`, default current local month; returns `SavingsReport` (fields in `internal/model/savings.go`): per target saved (signed balance change of the account and its descendants, `Opening` transactions excluded), remaining, and year-to-date over active months; totals per currency over rows with no targeted ancestor in the same currency; bad month is 400 with `field` `month` |
 
 ## Query parameters
 

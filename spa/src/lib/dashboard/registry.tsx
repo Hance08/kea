@@ -27,6 +27,7 @@ import {
   RecentTransactions,
   RecentTxnConfigForm,
 } from '../../components/dashboard/widgets/RecentTransactions';
+import { SavingsProgress } from '../../components/dashboard/widgets/SavingsProgress';
 import {
   TOP_EXPENSE_DEFAULT,
   TopExpenseCategories,
@@ -78,6 +79,12 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
     component: BudgetProgress,
     ConfigForm: BudgetProgressConfigForm,
   } as WidgetMeta,
+  'savings-progress': {
+    id: 'savings-progress',
+    title: 'Savings This Month',
+    defaultConfig: {},
+    component: SavingsProgress,
+  },
   'top-expense-categories': {
     id: 'top-expense-categories',
     title: 'Top Expense Categories',

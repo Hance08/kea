@@ -73,7 +73,7 @@ func NewApp(cfg *config.Config, registry *ledger.Registry, migrationFS fs.FS) (*
 		return nil, nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	svc := service.NewService(dbStore, dbStore, dbStore, dbStore, cfg)
+	svc := service.NewService(dbStore, dbStore, dbStore, dbStore, dbStore, cfg)
 
 	app := &App{
 		Service:    svc,

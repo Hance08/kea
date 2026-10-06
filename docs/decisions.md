@@ -110,6 +110,24 @@ Entries are grouped by area. Each one holds in the current code; superseded choi
 - **Where:** `internal/service/budget_report.go` (`GenerateBudgetReport`)
 - **Source:** [2026-10-05-monthly-budget-design.md](history/superpowers/specs/2026-10-05-monthly-budget-design.md)
 
+### Savings are measured as the target account's balance change
+- **Decision:** A savings target's "saved" is the signed sum of the splits on the target Asset account and its descendants in the month, regardless of transaction type, instead of income minus expense or net-worth change.
+- **Why:** The user keeps a dedicated savings account; what matters is whether money actually arrived there. Income minus expense counts money that may stay in a spending account, and net-worth change is noisy with equity transactions.
+- **Where:** `internal/service/savings_report.go` (`GenerateSavingsReport`)
+- **Source:** [2026-10-06-savings-target-design.md](history/superpowers/specs/2026-10-06-savings-target-design.md)
+
+### Opening transactions do not count as saving
+- **Decision:** `Opening`-typed transactions are excluded from saved amounts; every other type counts.
+- **Why:** Recording an existing balance is not saving; without the exclusion the month a savings account is set up would show its whole balance as saved.
+- **Where:** `internal/service/savings_report.go`
+- **Source:** [2026-10-06-savings-target-design.md](history/superpowers/specs/2026-10-06-savings-target-design.md)
+
+### Savings targets have their own table and service
+- **Decision:** Savings targets use a separate `savings_targets` table and `SavingsService`; only the version-selection logic is shared with budgets, through generic helpers.
+- **Why:** Budgets cap Expense spending and targets set a floor on Asset growth; a shared table would need a kind column, a SQLite table rebuild and kind checks in every budget query.
+- **Where:** `migrations/0013_create_savings_targets.up.sql`, `internal/service/savings_service.go`, `internal/service/versions.go`
+- **Source:** [2026-10-06-savings-target-design.md](history/superpowers/specs/2026-10-06-savings-target-design.md)
+
 ## Service layer
 
 ### The repository is the source of truth for account types

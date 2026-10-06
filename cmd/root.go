@@ -18,6 +18,7 @@ import (
 	"github.com/hance08/kea/cmd/account"
 	budgetcmd "github.com/hance08/kea/cmd/budget"
 	ledgercmd "github.com/hance08/kea/cmd/ledger"
+	savingscmd "github.com/hance08/kea/cmd/savings"
 	"github.com/hance08/kea/cmd/transaction"
 	"github.com/hance08/kea/internal/app"
 	"github.com/hance08/kea/internal/config"
@@ -144,6 +145,7 @@ func Execute(migrations fs.FS) {
 		rootCmd.AddCommand(NewInfoCmd(application))
 		rootCmd.AddCommand(NewReportCmd(application.Service))
 		rootCmd.AddCommand(budgetcmd.NewBudgetCmd(application.Service))
+		rootCmd.AddCommand(savingscmd.NewSavingsCmd(application.Service))
 		rootCmd.AddCommand(NewReconcileCmd(application.Service))
 		rootCmd.AddCommand(NewServeCmd(application, migrations, appDir))
 

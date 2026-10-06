@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SavingsRouteImport } from './routes/savings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ReconcileRouteImport } from './routes/reconcile'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -24,6 +25,7 @@ import { Route as ReconcileIndexRouteImport } from './routes/reconcile.index'
 import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as TransactionsNewRouteImport } from './routes/transactions.new'
 import { Route as TransactionsIdRouteImport } from './routes/transactions.$id'
+import { Route as ReportsSavingsRouteImport } from './routes/reports.savings'
 import { Route as ReportsNetWorthRouteImport } from './routes/reports.net-worth'
 import { Route as ReportsIncomeStatementRouteImport } from './routes/reports.income-statement'
 import { Route as ReportsIncomeBreakdownRouteImport } from './routes/reports.income-breakdown'
@@ -46,6 +48,11 @@ const TransactionsRoute = TransactionsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SavingsRoute = SavingsRouteImport.update({
+  id: '/savings',
+  path: '/savings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -112,6 +119,11 @@ const TransactionsIdRoute = TransactionsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => TransactionsRoute,
+} as any)
+const ReportsSavingsRoute = ReportsSavingsRouteImport.update({
+  id: '/savings',
+  path: '/savings',
+  getParentRoute: () => ReportsRoute,
 } as any)
 const ReportsNetWorthRoute = ReportsNetWorthRouteImport.update({
   id: '/net-worth',
@@ -187,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/reconcile': typeof ReconcileRouteWithChildren
   '/reports': typeof ReportsRouteWithChildren
+  '/savings': typeof SavingsRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
@@ -198,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/reports/net-worth': typeof ReportsNetWorthRoute
+  '/reports/savings': typeof ReportsSavingsRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
@@ -214,6 +228,7 @@ export interface FileRoutesByTo {
   '/balances': typeof BalancesRoute
   '/budgets': typeof BudgetsRoute
   '/dashboard': typeof DashboardRoute
+  '/savings': typeof SavingsRoute
   '/settings': typeof SettingsRoute
   '/accounts/new': typeof AccountsNewRoute
   '/reconcile/$id': typeof ReconcileIdRoute
@@ -223,6 +238,7 @@ export interface FileRoutesByTo {
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/reports/net-worth': typeof ReportsNetWorthRoute
+  '/reports/savings': typeof ReportsSavingsRoute
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts': typeof AccountsIndexRoute
   '/reconcile': typeof ReconcileIndexRoute
@@ -242,6 +258,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/reconcile': typeof ReconcileRouteWithChildren
   '/reports': typeof ReportsRouteWithChildren
+  '/savings': typeof SavingsRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRouteWithChildren
   '/accounts/$id': typeof AccountsIdRouteWithChildren
@@ -253,6 +270,7 @@ export interface FileRoutesById {
   '/reports/income-breakdown': typeof ReportsIncomeBreakdownRoute
   '/reports/income-statement': typeof ReportsIncomeStatementRoute
   '/reports/net-worth': typeof ReportsNetWorthRoute
+  '/reports/savings': typeof ReportsSavingsRoute
   '/transactions/$id': typeof TransactionsIdRouteWithChildren
   '/transactions/new': typeof TransactionsNewRoute
   '/accounts/': typeof AccountsIndexRoute
@@ -274,6 +292,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/reconcile'
     | '/reports'
+    | '/savings'
     | '/settings'
     | '/transactions'
     | '/accounts/$id'
@@ -285,6 +304,7 @@ export interface FileRouteTypes {
     | '/reports/income-breakdown'
     | '/reports/income-statement'
     | '/reports/net-worth'
+    | '/reports/savings'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
@@ -301,6 +321,7 @@ export interface FileRouteTypes {
     | '/balances'
     | '/budgets'
     | '/dashboard'
+    | '/savings'
     | '/settings'
     | '/accounts/new'
     | '/reconcile/$id'
@@ -310,6 +331,7 @@ export interface FileRouteTypes {
     | '/reports/income-breakdown'
     | '/reports/income-statement'
     | '/reports/net-worth'
+    | '/reports/savings'
     | '/transactions/new'
     | '/accounts'
     | '/reconcile'
@@ -328,6 +350,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/reconcile'
     | '/reports'
+    | '/savings'
     | '/settings'
     | '/transactions'
     | '/accounts/$id'
@@ -339,6 +362,7 @@ export interface FileRouteTypes {
     | '/reports/income-breakdown'
     | '/reports/income-statement'
     | '/reports/net-worth'
+    | '/reports/savings'
     | '/transactions/$id'
     | '/transactions/new'
     | '/accounts/'
@@ -359,6 +383,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ReconcileRoute: typeof ReconcileRouteWithChildren
   ReportsRoute: typeof ReportsRouteWithChildren
+  SavingsRoute: typeof SavingsRoute
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRouteWithChildren
 }
@@ -377,6 +402,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/savings': {
+      id: '/savings'
+      path: '/savings'
+      fullPath: '/savings'
+      preLoaderRoute: typeof SavingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -469,6 +501,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/transactions/$id'
       preLoaderRoute: typeof TransactionsIdRouteImport
       parentRoute: typeof TransactionsRoute
+    }
+    '/reports/savings': {
+      id: '/reports/savings'
+      path: '/savings'
+      fullPath: '/reports/savings'
+      preLoaderRoute: typeof ReportsSavingsRouteImport
+      parentRoute: typeof ReportsRoute
     }
     '/reports/net-worth': {
       id: '/reports/net-worth'
@@ -615,6 +654,7 @@ interface ReportsRouteChildren {
   ReportsIncomeBreakdownRoute: typeof ReportsIncomeBreakdownRoute
   ReportsIncomeStatementRoute: typeof ReportsIncomeStatementRoute
   ReportsNetWorthRoute: typeof ReportsNetWorthRoute
+  ReportsSavingsRoute: typeof ReportsSavingsRoute
   ReportsIndexRoute: typeof ReportsIndexRoute
 }
 
@@ -625,6 +665,7 @@ const ReportsRouteChildren: ReportsRouteChildren = {
   ReportsIncomeBreakdownRoute: ReportsIncomeBreakdownRoute,
   ReportsIncomeStatementRoute: ReportsIncomeStatementRoute,
   ReportsNetWorthRoute: ReportsNetWorthRoute,
+  ReportsSavingsRoute: ReportsSavingsRoute,
   ReportsIndexRoute: ReportsIndexRoute,
 }
 
@@ -669,6 +710,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ReconcileRoute: ReconcileRouteWithChildren,
   ReportsRoute: ReportsRouteWithChildren,
+  SavingsRoute: SavingsRoute,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRouteWithChildren,
 }

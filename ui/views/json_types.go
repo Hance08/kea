@@ -214,3 +214,103 @@ func ToJSONBudgetReport(r *model.BudgetReport) JSONBudgetReport {
 	}
 	return JSONBudgetReport{Month: r.Month, Rows: rows, TotalBudget: totalBudget, TotalActual: totalActual}
 }
+
+// JSONSavingsTarget is the CLI JSON shape of a savings target version (amount in currency units).
+type JSONSavingsTarget struct {
+	ID             int64   `json:"id"`
+	AccountName    string  `json:"account_name"`
+	EffectiveMonth string  `json:"effective_month"`
+	Amount         float64 `json:"amount"`
+	Stopped        bool    `json:"stopped"`
+}
+
+func ToJSONSavingsTarget(s model.SavingsTarget) JSONSavingsTarget {
+	return JSONSavingsTarget{
+		ID:             s.ID,
+		AccountName:    s.AccountName,
+		EffectiveMonth: s.EffectiveMonth,
+		Amount:         CentsToUnit(s.Amount),
+		Stopped:        s.Stopped,
+	}
+}
+
+func ToJSONSavingsTargets(ss []model.SavingsTarget) []JSONSavingsTarget {
+	out := make([]JSONSavingsTarget, len(ss))
+	for i, s := range ss {
+		out[i] = ToJSONSavingsTarget(s)
+	}
+	return out
+}
+
+// JSONSavingsMonth mirrors model.SavingsMonth in currency units.
+type JSONSavingsMonth struct {
+	Month  string  `json:"month"`
+	Target float64 `json:"target"`
+	Saved  float64 `json:"saved"`
+}
+
+// JSONSavingsReportRow mirrors model.SavingsReportRow in currency units.
+type JSONSavingsReportRow struct {
+	AccountName      string             `json:"account_name"`
+	Currency         string             `json:"currency"`
+	EffectiveMonth   string             `json:"effective_month"`
+	Target           float64            `json:"target"`
+	Saved            float64            `json:"saved"`
+	Remaining        float64            `json:"remaining"`
+	YTDTarget        float64            `json:"ytd_target"`
+	YTDSaved         float64            `json:"ytd_saved"`
+	YTDRemaining     float64            `json:"ytd_remaining"`
+	Months           []JSONSavingsMonth `json:"months"`
+	ExcludedAccounts []string           `json:"excluded_accounts"`
+}
+
+// JSONSavingsReport mirrors model.SavingsReport in currency units.
+type JSONSavingsReport struct {
+	Month          string                 `json:"month"`
+	Rows           []JSONSavingsReportRow `json:"rows"`
+	TotalTarget    map[string]float64     `json:"total_target"`
+	TotalSaved     map[string]float64     `json:"total_saved"`
+	TotalYTDTarget map[string]float64     `json:"total_ytd_target"`
+	TotalYTDSaved  map[string]float64     `json:"total_ytd_saved"`
+}
+
+func ToJSONSavingsReport(r *model.SavingsReport) JSONSavingsReport {
+	rows := make([]JSONSavingsReportRow, len(r.Rows))
+	for i, row := range r.Rows {
+		months := make([]JSONSavingsMonth, len(row.Months))
+		for j, m := range row.Months {
+			months[j] = JSONSavingsMonth{Month: m.Month, Target: CentsToUnit(m.Target), Saved: CentsToUnit(m.Saved)}
+		}
+		excluded := row.ExcludedAccounts
+		if excluded == nil {
+			excluded = []string{}
+		}
+		rows[i] = JSONSavingsReportRow{
+			AccountName:      row.AccountName,
+			Currency:         row.Currency,
+			EffectiveMonth:   row.EffectiveMonth,
+			Target:           CentsToUnit(row.Target),
+			Saved:            CentsToUnit(row.Saved),
+			Remaining:        CentsToUnit(row.Remaining),
+			YTDTarget:        CentsToUnit(row.YTDTarget),
+			YTDSaved:         CentsToUnit(row.YTDSaved),
+			YTDRemaining:     CentsToUnit(row.YTDRemaining),
+			Months:           months,
+			ExcludedAccounts: excluded,
+		}
+	}
+	unitMap := func(m map[string]int64) map[string]float64 {
+		if out := centsMapToUnitMap(m); out != nil {
+			return out
+		}
+		return map[string]float64{}
+	}
+	return JSONSavingsReport{
+		Month:          r.Month,
+		Rows:           rows,
+		TotalTarget:    unitMap(r.TotalTarget),
+		TotalSaved:     unitMap(r.TotalSaved),
+		TotalYTDTarget: unitMap(r.TotalYTDTarget),
+		TotalYTDSaved:  unitMap(r.TotalYTDSaved),
+	}
+}

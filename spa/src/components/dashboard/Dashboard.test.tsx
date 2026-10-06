@@ -38,10 +38,10 @@ beforeEach(() => {
 });
 
 describe('Dashboard', () => {
-  it('renders 9 grid items by default (one per registered widget)', () => {
+  it('renders 10 grid items by default (one per registered widget)', () => {
     const { container } = renderDashboard();
     // react-grid-layout assigns `react-grid-item` class to each item.
-    expect(container.querySelectorAll('.react-grid-item').length).toBe(9);
+    expect(container.querySelectorAll('.react-grid-item').length).toBe(10);
   });
 });
 
@@ -57,11 +57,11 @@ describe('Dashboard edit mode', () => {
   it('hides a widget when clicking its hide button', async () => {
     const user = userEvent.setup();
     const { container } = renderDashboard();
-    expect(container.querySelectorAll('.react-grid-item').length).toBe(9);
+    expect(container.querySelectorAll('.react-grid-item').length).toBe(10);
     await user.click(screen.getByRole('button', { name: /^edit$/i }));
     await user.click(screen.getByLabelText(/hide net-worth-kpi/i));
     await user.click(screen.getByRole('button', { name: /^done$/i }));
-    expect(container.querySelectorAll('.react-grid-item').length).toBe(8);
+    expect(container.querySelectorAll('.react-grid-item').length).toBe(9);
   });
 });
 
@@ -71,10 +71,10 @@ describe('Dashboard add widget', () => {
     const { container } = renderDashboard();
     await user.click(screen.getByRole('button', { name: /^edit$/i }));
     await user.click(screen.getByLabelText(/hide net-worth-kpi/i));
-    expect(container.querySelectorAll('.react-grid-item').length).toBe(8);
+    expect(container.querySelectorAll('.react-grid-item').length).toBe(9);
     await user.click(screen.getByRole('button', { name: /^add widget$/i }));
     await user.click(screen.getByRole('menuitem', { name: /^net worth$/i }));
-    expect(container.querySelectorAll('.react-grid-item').length).toBe(9);
+    expect(container.querySelectorAll('.react-grid-item').length).toBe(10);
   });
 });
 

@@ -21,6 +21,14 @@ BIN_PATH="/usr/local/bin/kea"
 UNIT_PATH="/etc/systemd/system/kea.service"
 BUILD_USER="${SUDO_USER:-}"
 
+if [[ -n "$BUILD_USER" ]]; then
+	USER_UNIT="$(getent passwd "$BUILD_USER" | cut -d: -f6)/.config/systemd/user/kea.service"
+	if [[ -f "$USER_UNIT" ]]; then
+		echo "Warning: ${BUILD_USER} also has a user service at ${USER_UNIT}." >&2
+		echo "         This script updates the system service only; to update that one, run ./scripts/install-systemd-user.sh without sudo." >&2
+	fi
+fi
+
 echo "==> Building kea (spa + binary)"
 if [[ -n "$BUILD_USER" ]]; then
 	# Repair ownership of any build artifacts left root-owned by a prior
@@ -65,9 +73,11 @@ chown -R "$SERVICE_USER":"$(id -gn "$SERVICE_USER")" "${SERVICE_HOME}/.config"
 echo "==> Installing systemd unit to ${UNIT_PATH}"
 install -m 0644 "$REPO_DIR/scripts/kea.service" "$UNIT_PATH"
 
-echo "==> Reloading systemd and enabling kea.service"
+echo "==> Reloading systemd, enabling and restarting kea.service"
 systemctl daemon-reload
-systemctl enable --now kea
+systemctl enable kea
+# restart (not enable --now) so a re-run replaces an already running process.
+systemctl restart kea
 
 echo "==> Done. Status:"
 systemctl --no-pager status kea || true

@@ -203,7 +203,21 @@ A budget is a monthly spending limit on an `Expense` (`E`) account, leaf or pare
 - **Totals** are per currency and only count budgeted rows with no budgeted ancestor in the same currency (`hasBudgetedAncestorInCurrency`), so a parent and its same-currency budgeted child are not double counted, while a child in another currency still counts in its own currency.
 - **No rollover.** Each month is compared on its own; unspent budget does not carry over.
 
-Code lives in: `internal/service/budget_service.go` (`SetBudget`, `StopBudget`, `activeBudgets`), `internal/service/budget_report.go` (`GenerateBudgetReport`), `internal/model/budget.go`, `internal/store/sqlite_budget.go`. Endpoints are in [http-api.md](http-api.md); the CLI is `kea budget` (`cmd/budget/`, `ui/views/budget.go`).
+Code lives in: `internal/service/budget_service.go` (`SetBudget`, `StopBudget`, `activeBudgets`, which wraps `activeVersions` in `internal/service/versions.go`), `internal/service/budget_report.go` (`GenerateBudgetReport`), `internal/model/budget.go`, `internal/store/sqlite_budget.go`. Endpoints are in [http-api.md](http-api.md); the CLI is `kea budget` (`cmd/budget/`, `ui/views/budget.go`).
+
+## Savings targets
+
+A savings target is a monthly amount to put into an `Asset` (`A`) account, leaf or parent. Targets live in the `savings_targets` table (`migrations/0013_create_savings_targets.up.sql`) and are versioned exactly like budgets: a row applies from its `effective_month` until a later row for the same account; set upserts per (account, month); stop writes `stopped=1, amount=0`; `amount=0` is a real target ("do not draw the account down").
+
+- **Saved** is the signed sum of every split on the account and its descendants (`isSelfOrDescendant`) in the month, whatever the transaction type: transfers in add, transfers out subtract, interest adds. Transfers between the account and its own descendants net to zero. It may be negative.
+- **Opening transactions never count.** An opening balance is existing money, not money saved; in a month with an `Opening` transaction, Saved differs from the balance change by that amount.
+- **Currency** is the account's currency (empty means `config.Defaults.Currency`). Descendant splits in another currency are excluded; those seen in the report month are listed in `ExcludedAccounts`.
+- **Remaining** is `Target - Saved`, signed: positive is still missing, negative means the target was exceeded.
+- **Year to date** covers January of the report month's year through the report month, counting only months in which the target was active; each such month is listed in `Months`. There is no rollover: a shortfall shows up in the YTD figures, not in next month's target.
+- **Totals** are per currency and skip rows with a targeted ancestor in the same currency (`hasAncestorInCurrency`).
+- Months are local time; the report loads splits once from January 1 to the end of the report month.
+
+Code lives in: `internal/service/savings_service.go`, `internal/service/savings_report.go` (`GenerateSavingsReport`), `internal/service/versions.go` (version selection shared with budgets), `internal/model/savings.go`, `internal/store/sqlite_savings_target.go`. Endpoints are in [http-api.md](http-api.md); the CLI is `kea savings` (`cmd/savings/`, `ui/views/savings.go`).
 
 ## Errors you will meet
 
